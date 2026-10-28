@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 import { useAgentTranslation, type AgentTranslate } from "./locale.js";
@@ -170,11 +170,13 @@ export function ContextTrigger({
   const usage = formatContextUsage(useContextValue(), t);
 
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   return (
     <HoverCard open={open} onOpenChange={setOpen} openDelay={200} closeDelay={150}>
       <HoverCardTrigger asChild>
         <Button
           {...props}
+          ref={triggerRef}
           onClick={(event) => {
             onClick?.(event);
             if (!event.defaultPrevented) setOpen((current) => !current);
@@ -195,7 +197,18 @@ export function ContextTrigger({
         </Button>
       </HoverCardTrigger>
       {/* 桌面支持悬停预览，触屏仍可点击切换；不抢占输入框焦点。 */}
-      <HoverCardContent align="end" aria-label={usage.accessibleLabel} className="p-2" side="top">
+      <HoverCardContent
+        align="end"
+        aria-label={usage.accessibleLabel}
+        className="p-2"
+        side="top"
+        onPointerDownOutside={(event) => {
+          // 点击触发按钮由 onClick 统一切换，避免先外部关闭再切换导致浮层重新打开。
+          const target = event.detail.originalEvent.target;
+          if (target instanceof Node && triggerRef.current?.contains(target))
+            event.preventDefault();
+        }}
+      >
         <ContextContent>
           <ContextContentHeader />
         </ContextContent>

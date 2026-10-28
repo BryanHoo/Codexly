@@ -18,25 +18,33 @@ it("使用状态图标并保留可访问状态，标题不重复显示完成前�
 
 it("收起详情保留退出过渡，结束后卸载输出", async () => {
   const screen = await render(
-    <Tool defaultOpen>
-      <ToolHeader state="output-available" title="命令输出" />
-      <ToolBody>
-        <div data-heavy-output="" style={{ height: 120 }}>
-          详细输出
-        </div>
-      </ToolBody>
-    </Tool>,
+    <>
+      {/* 延长测试内的退出动画并手动结束，避免繁忙 WebKit 错过短暂过渡窗口。 */}
+      <style>{'.agent-trace-content[data-state="closed"] { animation-duration: 60s !important; }'}</style>
+      <Tool defaultOpen>
+        <ToolHeader state="output-available" title="命令输出" />
+        <ToolBody>
+          <div data-heavy-output="" style={{ height: 120 }}>
+            详细输出
+          </div>
+        </ToolBody>
+      </Tool>
+    </>
   );
+  const initialContent = screen.container.querySelector<HTMLElement>(
+    '[data-slot="trace-collapsible-content"]',
+  )!;
+  // Radix 首次挂载会临时禁用动画，等待其恢复后才测试关闭过渡。
+  await expect.poll(() => getComputedStyle(initialContent).animationDuration).not.toBe("0s");
   await screen.getByRole("button").click();
   const content = screen.container.querySelector<HTMLElement>(
     '[data-slot="trace-collapsible-content"]',
   );
   expect(content).not.toBeNull();
-  expect(
-    content
-      ?.getAnimations()
-      .some((animation) => (animation as CSSAnimation).animationName === "agent-trace-collapse"),
-  ).toBe(true);
+  expect(getComputedStyle(content!).animationName).toBe("agent-trace-collapse");
+  const animations = content!.getAnimations();
+  expect(animations.length).toBeGreaterThan(0);
+  for (const animation of animations) animation.finish();
   await expect.poll(() => screen.container.querySelector("[data-heavy-output]")).toBeNull();
 });
 

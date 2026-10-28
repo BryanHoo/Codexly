@@ -447,7 +447,10 @@ test("summarizes terminal operations after assistant text resumes", async ({ pag
   });
   await page.goto("/p/codexly/t/task-1");
 
-  const operationSummary = page.locator("[data-operation-group] > summary");
+  // 共享 Trace 使用可访问按钮承接折叠状态，详情通过独立 Dialog 展示。
+  const operationSummary = page.getByRole("button", {
+    name: /^(展开|收起)执行详情：操作完成：调用 1 个工具，执行 1 条命令$/u,
+  });
   await expect(operationSummary).toContainText("操作完成：调用 1 个工具，执行 1 条命令");
   await expect(operationSummary).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByText("read_file · package.json", { exact: true })).toHaveCount(0);
@@ -460,7 +463,10 @@ test("summarizes terminal operations after assistant text resumes", async ({ pag
   await expect(page.getByText(/TOOL_OUTPUT_VISIBLE/u)).toHaveCount(0);
 
   await page.getByText("read_file · package.json", { exact: true }).click();
-  await expect(page.getByText(/TOOL_OUTPUT_VISIBLE/u)).toBeVisible();
+  const details = page.getByRole("dialog");
+  await expect(details.getByText(/TOOL_OUTPUT_VISIBLE/u)).toBeVisible();
+  await details.getByRole("button", { exact: true, name: "关闭" }).click();
+  await expect(details).toHaveCount(0);
   await operationSummary.click();
   await expect(page.getByText("read_file · package.json", { exact: true })).toHaveCount(0);
 });

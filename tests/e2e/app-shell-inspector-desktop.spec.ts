@@ -102,7 +102,7 @@ test("preserves provisional IME text across composer rerenders @cross-browser", 
 
 test("uses material hierarchy instead of strong workbench borders", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
-  await expect(page.locator('[role="log"] > div')).toBeVisible();
+  await expect(page.locator('[data-conversation-row="turn"]')).toBeVisible();
 
   const presentation = await page.evaluate(() => {
     const sidebar = document.querySelector<HTMLElement>('[aria-label="项目侧栏"]');
@@ -111,7 +111,7 @@ test("uses material hierarchy instead of strong workbench borders", async ({ pag
     const sidebarToolbar = sidebar?.querySelector<HTMLElement>(":scope > div") ?? null;
     const inspectorToolbar = inspector?.querySelector<HTMLElement>(":scope > div") ?? null;
     const toolbar = timeline?.querySelector<HTMLElement>("header") ?? null;
-    const timelineContent = document.querySelector<HTMLElement>('[role="log"] > div');
+    const timelineContent = document.querySelector<HTMLElement>("[data-conversation-content]");
     const composerRegion = document.querySelector<HTMLElement>('[aria-label="消息编辑器"]');
     const composer = document.querySelector<HTMLElement>('[aria-label="消息编辑器"] form');
 

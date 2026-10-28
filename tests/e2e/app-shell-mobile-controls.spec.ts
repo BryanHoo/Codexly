@@ -93,8 +93,13 @@ test("exposes touch actions and keeps narrow composer controls on one row @cross
   }
   await mode.tap();
   await expect(mode).not.toBeVisible();
-  await page.getByRole("button", { name: /^上下文(?:已使用|用量)/u }).tap();
-  await expect(page.getByRole("dialog", { name: /^上下文(?:已使用|用量)/u })).toBeVisible();
+  const contextTrigger = page.getByRole("button", { name: /^上下文(?:已使用|用量)/u });
+  await contextTrigger.tap();
+  await expect(contextTrigger).toHaveAttribute("aria-expanded", "true");
+  // 上下文详情为不抢占焦点的 HoverCard，触屏点击仍需展示完整用量。
+  await expect(page.locator('[data-slot="hover-card-content"]')).toBeVisible();
+  await contextTrigger.tap();
+  await expect(contextTrigger).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("button", { name: "展开项目侧栏" }).tap();
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   await expect(sidebar.getByRole("button", { name: "新建任务", exact: true })).toHaveCSS(

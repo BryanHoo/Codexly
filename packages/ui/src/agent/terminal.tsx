@@ -231,7 +231,7 @@ export type TerminalContentProps = HTMLAttributes<HTMLDivElement>;
 
 const terminalBottomThreshold = 8;
 
-function isTerminalAtBottom(element: HTMLDivElement): boolean {
+function isTerminalAtBottom(element: HTMLElement): boolean {
   return element.scrollHeight - element.clientHeight - element.scrollTop <= terminalBottomThreshold;
 }
 
@@ -248,13 +248,29 @@ export function TerminalContent({
   const outputRevision = typeof output === "string" ? output : output.version;
 
   useEffect(() => {
+    if (!autoScroll) return;
+    // 独立详情解除内部日志高度限制，滚动状态必须监听承载整段详情的正文容器。
+    // 只注册原生被动监听，不逐帧触发 React 更新；卸载详情时同步释放。
+    const detailBody = contentRef.current?.closest<HTMLElement>("[data-operation-detail-body]");
+    if (!detailBody) return;
+    const onDetailScroll = () => {
+      followsOutputRef.current = isTerminalAtBottom(detailBody);
+    };
+    detailBody.addEventListener("scroll", onDetailScroll, { passive: true });
+    return () => {
+      detailBody.removeEventListener("scroll", onDetailScroll);
+    };
+  }, [autoScroll]);
+
+  useEffect(() => {
     if (!autoScroll || !followsOutputRef.current) {
       return;
     }
     const content = contentRef.current;
     if (content !== null) {
       // 仅在用户仍位于底部时跟随增量，避免打断历史输出阅读。
-      content.scrollTop = content.scrollHeight;
+      const scrollHost = content.closest<HTMLElement>("[data-operation-detail-body]") ?? content;
+      scrollHost.scrollTop = scrollHost.scrollHeight;
     }
   }, [autoScroll, outputRevision]);
 

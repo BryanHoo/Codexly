@@ -1,6 +1,25 @@
 use super::runtime_manager::{inspect_codex_runtime, install_codex_runtime};
 use crate::domain::runtime::CodexRuntimeAvailabilityStatus as Status;
 
+#[cfg(unix)]
+#[tokio::test]
+async fn bundled_runtime_should_allow_slow_first_launch() {
+    use super::runtime_manager::bundled_codex_binary_path;
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let binary = bundled_codex_binary_path(directory.path());
+    std::fs::create_dir_all(binary.parent().unwrap()).unwrap();
+    // 模拟首次系统校验导致的启动等待，避免把可用的内置程序误报为损坏。
+    std::fs::write(&binary, "#!/bin/sh\nsleep 4\necho 'codex-cli 0.164.0'\n").unwrap();
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    assert_eq!(
+        inspect_codex_runtime(directory.path()).await.status,
+        Status::Compatible
+    );
+}
+
 #[tokio::test]
 async fn missing_bundle_returns_immediately_without_network_or_installation() {
     let directory = tempfile::tempdir().unwrap();

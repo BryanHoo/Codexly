@@ -57,7 +57,7 @@ describe("task timeline basics", () => {
     expect(markup).toContain('<option value="codexly">Codexly</option>');
   });
 
-  it("renders a file change without a native path tooltip", () => {
+  it("renders a file change with its full path tooltip", () => {
     const markup = renderToStaticMarkup(
       <FileChangeButton
         change={{ diff: "@@ -1 +1 @@\n-old\n+new", kind: "update", path: "src/example.ts" }}
@@ -65,7 +65,8 @@ describe("task timeline basics", () => {
       />,
     );
 
-    expect(markup).not.toContain('title="src/example.ts"');
+    // 两端共享文件轨迹只显示文件名，通过完整路径提示区分不同目录下的同名文件。
+    expect(markup).toContain('title="src/example.ts"');
     expect(markup).toContain("example.ts");
   });
 

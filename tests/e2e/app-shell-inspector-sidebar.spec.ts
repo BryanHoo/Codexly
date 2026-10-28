@@ -64,9 +64,18 @@ test("defaults historical tasks to project and keeps user-controlled tab selecti
   await expect(plan.getByText("定义计划协议")).toBeVisible();
   await expect(plan.getByText("接入上下文 Queue")).toBeVisible();
   await expect(plan.getByText("执行回归验证")).toBeVisible();
-  await expect(plan.locator('[data-status="completed"]')).toHaveCount(1);
-  await expect(plan.locator('[data-status="in_progress"]')).toHaveCount(1);
-  await expect(plan.locator('[data-status="pending"]')).toHaveCount(1);
+  await expect(plan.getByRole("listitem").filter({ hasText: "定义计划协议" })).toHaveAttribute(
+    "data-status",
+    "completed",
+  );
+  await expect(plan.getByRole("listitem").filter({ hasText: "接入上下文 Queue" })).toHaveAttribute(
+    "data-status",
+    "in_progress",
+  );
+  await expect(plan.getByRole("listitem").filter({ hasText: "执行回归验证" })).toHaveAttribute(
+    "data-status",
+    "pending",
+  );
 });
 
 test("shows context only after a task has been created", async ({ page }) => {

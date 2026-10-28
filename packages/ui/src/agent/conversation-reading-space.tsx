@@ -53,6 +53,13 @@ export function ConversationReadingSpace({
     };
     const schedule = () => {
       cancelAnimationFrame(frame);
+      const latest = registry.getNodes().at(-1);
+      // 临时气泡由正式消息接管时，必须在同一布局阶段恢复留白，不能等下一帧再移动输入。
+      // 注销旧节点时可能短暂只剩上一轮输入，等待真实替代节点，避免把历史问题误当接管对象。
+      if (focusedUser && !focusedUser.isConnected && latest && latest !== previousTurnUser) {
+        sync();
+        return;
+      }
       frame = requestAnimationFrame(sync);
     };
     submitAction.current = () => {

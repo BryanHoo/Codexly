@@ -100,6 +100,8 @@ test("pauses terminal auto-scroll while the user reads earlier output", async ({
 
   const terminal = page.locator('[data-slot="terminal"]');
   const terminalContent = terminal.locator('[data-slot="terminal-content"]');
+  // 日志详情只有正文容器滚动，跟随与阅读暂停必须作用于真实滚动节点。
+  const terminalScroll = page.getByRole("dialog").locator("[data-operation-detail-body]");
   await expect(terminalContent).toBeVisible();
   await expect
     .poll(() => terminal.evaluate((element) => getComputedStyle(element).backgroundColor))
@@ -113,7 +115,7 @@ test("pauses terminal auto-scroll while the user reads earlier output", async ({
     )
     .toEqual({ height: "16px", width: "16px" });
   await expect
-    .poll(() => terminalContent.evaluate((element) => element.scrollTop))
+    .poll(() => terminalScroll.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
 
   const emitEvent = async (event: Record<string, unknown>) => {
@@ -138,16 +140,16 @@ test("pauses terminal auto-scroll while the user reads earlier output", async ({
   });
 
   // 用户离开底部后，新输出不得打断当前阅读位置。
-  await terminalContent.evaluate((element) => {
+  await terminalScroll.evaluate((element) => {
     element.scrollTop = 0;
     element.dispatchEvent(new Event("scroll"));
   });
   await emitEvent(createDelta("\noutput while reading history", 1));
   await expect(terminalContent).toContainText("output while reading history");
-  await expect.poll(() => terminalContent.evaluate((element) => element.scrollTop)).toBeLessThan(2);
+  await expect.poll(() => terminalScroll.evaluate((element) => element.scrollTop)).toBeLessThan(2);
 
   // 用户主动回到底部后，后续输出恢复自动跟随。
-  await terminalContent.evaluate((element) => {
+  await terminalScroll.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
     element.dispatchEvent(new Event("scroll"));
   });
@@ -155,14 +157,14 @@ test("pauses terminal auto-scroll while the user reads earlier output", async ({
   await expect(terminalContent).toContainText("output after returning to bottom");
   await expect
     .poll(() =>
-      terminalContent.evaluate(
+      terminalScroll.evaluate(
         (element) => element.scrollHeight - element.clientHeight - element.scrollTop,
       ),
     )
     .toBeLessThan(2);
 
   // 命令完成时仍尊重用户已经暂停的阅读位置。
-  await terminalContent.evaluate((element) => {
+  await terminalScroll.evaluate((element) => {
     element.scrollTop = 0;
     element.dispatchEvent(new Event("scroll"));
   });
@@ -190,7 +192,7 @@ test("pauses terminal auto-scroll while the user reads earlier output", async ({
     type: "item.completed",
     version: 2,
   });
-  await expect.poll(() => terminalContent.evaluate((element) => element.scrollTop)).toBeLessThan(2);
+  await expect.poll(() => terminalScroll.evaluate((element) => element.scrollTop)).toBeLessThan(2);
 
   await page.setViewportSize({ height: 640, width: 320 });
   await expect

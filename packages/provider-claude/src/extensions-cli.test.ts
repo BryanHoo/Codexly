@@ -58,7 +58,9 @@ it("matches native MCP configuration locations and plugin JSON in an isolated co
       paths,
     ).toEqual(["test-local"]);
     expect((await service.list("mcp")).data.map((item) => item.name)).toEqual(["test-global"]);
-    expect(await service.list("plugins", project)).toEqual({ data: [] });
+    // 原生已安装列表只读取本地配置；--available 会访问远程内置目录，不能作为离线集成测试的前置条件。
+    // 远程目录的 installed/available 合并契约由 extensions.test.ts 的固定响应覆盖。
+    expect(JSON.parse(await run(["plugin", "list", "--json"], project))).toEqual([]);
   } finally {
     vi.unstubAllEnvs();
     await rm(root, { recursive: true, force: true });

@@ -14,7 +14,8 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   );
 
   const composer = page.getByRole("region", { name: "消息编辑器" });
-  const composerFooter = composer.locator("form > div:last-child");
+  // InputGroup 同时承载正文和工具栏；只测量需要保持单行的操作工具栏。
+  const composerFooter = composer.locator(".composer-toolbar");
   const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
   const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const composerControls = [

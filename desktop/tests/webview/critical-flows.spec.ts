@@ -102,36 +102,36 @@ describe("桌面原生 WebView 关键流程", () => {
     expect(await commandCallCount("add_queued_submission")).toBeGreaterThan(0);
   });
 
-  it("切换到巨型任务后仅挂载末尾虚拟窗口并保持置底", async () => {
+  it("切换到巨型任务后保留已加载回合并保持置底", async () => {
     await openTask(
       "推送GitHub打包，发布 GitHub Draft Release，本机gh可用",
       longScrollTaskResponse,
     );
-    // 巨型任务切换后先让原生 WebKit 完成首轮虚拟窗口测量，避免同步文本读取阻塞布局。
-    await browser.pause(1_000);
     await waitForText("最新回复标记");
     await browser.waitUntil(
       async () =>
         browser.execute(
-          () => {
-            const turns = document.querySelectorAll('[data-virtual-row="turn"]');
-            return turns.length > 0 && turns.length < 9;
+          (expectedTurns) => {
+            // 共享 Message Scroller 保留已加载回合，历史规模由分页控制。
+            const turns = document.querySelectorAll('[data-conversation-row="turn"]');
+            return turns.length === expectedTurns;
           },
+          longScrollTaskResponse.snapshot.turns.length,
         ),
-      { timeoutMsg: "巨型任务未按预期限制虚拟 Turn 挂载量" },
+      { timeoutMsg: "巨型任务未保留完整的已加载回合" },
     );
 
     await browser.waitUntil(
       async () =>
         browser.execute(() => {
-          const container = document.querySelector<HTMLElement>('[role="log"]');
+          const container = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]');
           if (container === null) return false;
           return container.scrollHeight - container.scrollTop - container.clientHeight < 24;
         }),
-      { timeoutMsg: "虚拟 Turn 完成动态测量后未保持最新信息置底" },
+      { timeoutMsg: "共享会话滚动器未保持最新信息置底" },
     );
     const distanceFromBottom = await browser.execute(() => {
-      const container = document.querySelector<HTMLElement>('[role="log"]');
+      const container = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]');
       if (container === null) return Number.POSITIVE_INFINITY;
       return container.scrollHeight - container.scrollTop - container.clientHeight;
     });

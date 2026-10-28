@@ -21,6 +21,39 @@ type TimelineOperation = Extract<
 >;
 
 describe("TimelineOperationGroupDisclosure", () => {
+  it.each([false, true])("终端跟随真实滚动容器并尊重阅读暂停（独立详情：%s）", async (inDialog) => {
+    const initial = Array.from({ length: 120 }, (_, index) => `输出 ${index}`).join("\n");
+    const view = (output: string) => {
+      const terminal = <Terminal output={output} isStreaming><TerminalContent /></Terminal>;
+      return inDialog ? (
+        <OperationGroup active autoOpen collapseLabel="收起" expandLabel="展开"
+          runningLabel="运行中" closeLabel="关闭" summary="执行命令" count={1}>
+          <Tool><ToolHeader title="滚动测试" state="input-available" /><ToolBody>{terminal}</ToolBody></Tool>
+        </OperationGroup>
+      ) : terminal;
+    };
+    const screen = await render(view(initial));
+    if (inDialog) await screen.getByRole("button", { name: /滚动测试/ }).click();
+    const host = document.querySelector<HTMLElement>(inDialog
+      ? "[data-operation-detail-body]" : '[data-slot="terminal-content"]')!;
+    await expect.poll(() => host.scrollTop).toBeGreaterThan(0);
+    const atBottom = () => host.scrollHeight - host.clientHeight - host.scrollTop;
+    await expect.poll(atBottom).toBeLessThanOrEqual(1);
+
+    // 模拟读者上滚，再追加输出；此时必须保留阅读位置。
+    host.scrollTop = 0;
+    host.dispatchEvent(new Event("scroll"));
+    await screen.rerender(view(`${initial}\n阅读期间追加`));
+    await expect.element(screen.getByText(/阅读期间追加/)).toBeVisible();
+    expect(host.scrollTop).toBeLessThan(2);
+
+    host.scrollTop = host.scrollHeight;
+    host.dispatchEvent(new Event("scroll"));
+    await screen.rerender(view(`${initial}\n阅读期间追加\n回到底部后追加`));
+    await expect.element(screen.getByText(/回到底部后追加/)).toBeVisible();
+    await expect.poll(atBottom).toBeLessThanOrEqual(1);
+  });
+
   it.each([320, 960])("%spx 列表的详情独立于五行窗口，长输出只出现一个纵向滚动区", async (width) => {
     const output = Array.from({ length: 100 }, (_, index) => `运行日志 ${index}`).join("\n");
     const view = (autoOpen: boolean) => (

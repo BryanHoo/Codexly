@@ -52,7 +52,9 @@ describe("empty reasoning summaries", () => {
     const groups = () => groupConsecutiveTimelineOperations(
       filterRenderableTimelineItemKeys(keys, stores), (key) => stores.get(key)?.peek(),
     );
-    expect(groups()).toEqual([{ itemKey: "tool", type: "item" }]);
+    // 空思考摘要被过滤后，剩余单条工具仍须遵循统一的操作分组契约。
+    const toolGroup = [{ itemKeys: ["tool"], key: "tool", type: "operation_group" }];
+    expect(groups()).toEqual(toolGroup);
     reasoning.appendDelta({
       version: 2, provider: "codex", taskId: "task", turnId: "turn", itemId: "reasoning",
       sequence: 1, sessionId: "session", timestamp: "2026-10-20T00:00:00Z",
@@ -64,6 +66,6 @@ describe("empty reasoning summaries", () => {
     }]);
     reasoning.replace({ id: "reasoning", text: "", type: "reasoning" });
     reasoning.publish();
-    expect(groups()).toEqual([{ itemKey: "tool", type: "item" }]);
+    expect(groups()).toEqual(toolGroup);
   });
 });

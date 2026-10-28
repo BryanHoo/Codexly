@@ -316,9 +316,9 @@ test("shows a newly submitted task from the launch checkpoint without reading it
 
   await expect(page).toHaveURL(new RegExp(`/p/codexly/t/${createdTask.id}$`, "u"));
   await expect(main.getByRole("heading", { name: "新聊天" })).toBeVisible();
-  const timelineMessages = main.locator('[role="log"] article');
+  const timelineMessages = main.getByRole("log").locator('[data-role="user"]');
   await expect(timelineMessages.nth(0)).toContainText("你好");
-  await expect(timelineMessages.nth(1)).toContainText("正在运行");
+  await expect(main.getByRole("log").getByRole("status")).toContainText("正在运行");
   await expect(main.locator("[data-turn-processing-time]").last()).toBeVisible();
   await expect(main.getByText("无法加载任务历史", { exact: true })).toHaveCount(0);
   expect(snapshotRequestCount).toBe(0);
@@ -328,7 +328,7 @@ test("shows a newly submitted task from the launch checkpoint without reading it
 
   // 运行中 Snapshot 尚未落入用户 Item 时，已提交消息也不能从 Timeline 消失。
   await expect(timelineMessages.nth(0)).toContainText("你好");
-  await expect(timelineMessages.nth(1)).toContainText("正在运行");
+  await expect(main.getByRole("log").getByRole("status")).toContainText("正在运行");
   await expect(main.locator("[data-turn-processing-time]").last()).toBeVisible();
 });
 

@@ -134,7 +134,7 @@ describe("task timeline plans and activity", () => {
     expect(markup).toContain('data-status="pending"');
   });
 
-  it("renders structured subagent calls as collapsible tools", () => {
+  it("renders structured subagent calls with on-demand tool dialogs", () => {
     const subagentSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: [
@@ -170,13 +170,14 @@ describe("task timeline plans and activity", () => {
 
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={subagentSnapshot} />);
 
-    expect(markup).toContain("trace-collapsible");
+    // 执行窗口中的子代理复用独立详情入口，初始渲染仍不挂载重型输出。
+    expect(markup).toContain('data-slot="dialog-trigger"');
     expect(markup).toContain("启动子代理");
     expect(markup).toContain("1 个子代理已完成");
     expect(markup).not.toContain("子代理 child-frontend");
     expect(markup).not.toContain("理解前端项目");
     expect(markup).not.toContain("GPT-5.6-Sol");
-    expect(markup).not.toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('aria-haspopup="dialog"');
     expect(markup).not.toContain('aria-label="打开子代理 child-frontend 的实时输出"');
     expect(markup).not.toContain("前端由 React 工作台与类型安全 Client 组成。");
     expect(markup).not.toContain("agent/spawn");

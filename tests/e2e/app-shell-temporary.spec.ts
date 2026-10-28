@@ -86,7 +86,7 @@ test("creates and restores a temporary task without exposing its internal projec
   await page.getByRole("button", { exact: true, name: "提交" }).click();
 
   await expect(page).toHaveURL(/\/temporary\/t\/temporary-task-1$/u);
-  await expect(page.getByText("解释这段临时需求", { exact: true })).toBeVisible();
+  await expect(page.getByRole("log").getByText("解释这段临时需求", { exact: true })).toBeVisible();
   await expect(page.getByText("临时回复：解释这段临时需求", { exact: true })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "运行环境" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "展开上下文面板" })).toBeVisible();

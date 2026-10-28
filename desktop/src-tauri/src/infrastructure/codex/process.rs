@@ -20,7 +20,8 @@ use super::stderr::spawn_codex_stderr_tasks;
 
 pub const SUPPORTED_CODEX_VERSION: &str = "0.164.0";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
-const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(3);
+// 首次启动内置二进制可能等待系统校验；预留冷启动预算，超时仍终止并回收子进程。
+const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(15);
 const VERSION_OUTPUT_LIMIT: usize = 4 * 1024;
 #[cfg(any(windows, test))]
 const WINDOWS_CREATE_NO_WINDOW: u32 = 0x0800_0000;

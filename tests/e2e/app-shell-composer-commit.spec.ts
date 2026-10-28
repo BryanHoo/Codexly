@@ -76,7 +76,7 @@ test("opens project review while showing Git stats in the Inspector project tree
 
   await expect(page.getByRole("region", { name: "本次修改了 2 个文件" })).toHaveCSS(
     "margin-top",
-    "16px",
+    "12px",
   );
   await page.getByRole("button", { name: /已编辑 package\.json.*打开 Diff/ }).click();
   const timelineDiffPanel = page

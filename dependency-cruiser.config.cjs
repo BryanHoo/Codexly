@@ -12,7 +12,8 @@ module.exports = {
       severity: "warn",
       from: {
         orphan: true,
-        pathNot: ["(^|/)(index|main|cli|.*\\.config)\\.[cm]?[jt]sx?$"],
+        // 声明文件可由同名 JS 模块隐式加载类型，不要求出现独立的运行时导入边。
+        pathNot: ["(^|/)(index|main|cli|.*\\.config)\\.[cm]?[jt]sx?$", "\\.d\\.[cm]?ts$"],
       },
       to: {},
     },
