@@ -5,15 +5,47 @@ import type { LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { ClaudeConfiguration } from "./config.js";
 import { hasWork, type ClaudeSdk, type Running } from "./session.js";
 
+interface ClaudeTaskRemovalProvider {
+  config: ClaudeConfiguration;
+  sdk: ClaudeSdk;
+  store: LocalCatalogStore;
+  stopSession(id: string): Promise<void>;
+}
+
+/** 两端共用归档边界：只校正没有真实工作的旧 active 标记，并保留完整历史。 */
+export async function archiveClaudeTask(
+  task: LocalTask,
+  provider: ClaudeTaskRemovalProvider,
+  starting: Set<string>,
+  sessions: ReadonlyMap<string, Running>,
+): Promise<void> {
+  const id = task.id;
+  const running = sessions.get(id);
+  if (starting.has(id) || (running && (running.settling || hasWork(running))))
+    throw new Error("Stop the running task before archiving");
+  // 与启动、删除共用占用标记；校正旧状态和归档之间不能插入新回合。
+  starting.add(id);
+  try {
+    if (running) await provider.stopSession(id);
+    // active 也可能表示终态尚未落盘，归档前先重试，失败时保留恢复入口。
+    const recovery = await provider.config.persistence.retry(id);
+    if (recovery?.pending)
+      throw new Error("Claude task persistence must complete before archiving");
+    const latest = await provider.store.catalog("task.read", { id });
+    // 宿主退出或目录终态写入失败会遗留 active；确认会话空闲后按元数据校正，
+    // 无需加载聊天正文，也不要求用户先打开历史才能通过两端目录的运行保护。
+    if (latest?.status === "active")
+      await provider.store.catalog("task.patch", { id, status: "idle" });
+    await provider.store.catalog("task.patch", { id, archived: true });
+  } finally {
+    starting.delete(id);
+  }
+}
+
 /** 两端共用永久删除事务：先释放会话及私有数据，最后移除可重试的目录记录。 */
 export async function deleteClaudeTask(
   task: LocalTask,
-  provider: {
-    config: ClaudeConfiguration;
-    sdk: ClaudeSdk;
-    store: LocalCatalogStore;
-    stopSession(id: string): Promise<void>;
-  },
+  provider: ClaudeTaskRemovalProvider,
   starting: Set<string>,
   sessions: ReadonlyMap<string, Running>,
 ): Promise<void> {
@@ -46,6 +78,10 @@ export async function deleteClaudeTask(
     );
     await provider.config.persistence.deleteTask(task.id);
     await provider.config.attachments.deleteTask(task.id);
+    // 已确认没有真实工作且持有启动占用；私有数据清理后解除遗留 active 标记，
+    // 防止 Web/桌面目录在最后一步拒绝删除，留下历史已清理却无法移除的空任务。
+    if (task.status === "active")
+      await provider.store.catalog("task.patch", { id: task.id, status: "idle" });
     await provider.store.catalog("task.remove", { id: task.id });
   } finally {
     starting.delete(task.id);

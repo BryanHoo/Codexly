@@ -209,11 +209,17 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
         return Promise.resolve(input);
       }
       if (operation === "task.patch") {
+        // 对齐桌面目录的保护：旧 active 标记必须先校正，不能直接归档。
+        if (tasks.get(input.id)?.status === "active" && input.archived)
+          return Promise.reject(new Error("stop the running task before removing it"));
         const task = { ...tasks.get(input.id), ...input };
         tasks.set(input.id, task);
         return Promise.resolve(task);
       }
       if (operation === "task.remove") {
+        // Web SQLite 与桌面目录均拒绝移除 active 记录，内存替身也必须保留此边界。
+        if (tasks.get(input.id)?.status === "active")
+          return Promise.reject(new Error("stop the running task before removing it"));
         tasks.delete(input.id);
         return Promise.resolve();
       }
@@ -2843,6 +2849,95 @@ it("loads every record of a long Claude turn through bounded history pages after
   expect(new Set(ids).size).toBe(ids.length);
 });
 
+describe.each(["archiveTask", "deleteTask"] as const)("Claude inactive task %s", (method) => {
+  it.each(["completed", "stopped", "idle-query"] as const)(
+    "removes a %s task with a stale active catalog status without opening its history",
+    async (state) => {
+      const h = await harness(undefined, 60_000);
+      const task = await h.provider.startTask();
+      await h.provider.startTurn(task.id, prompt, options);
+      if (state !== "stopped") {
+        h.send({ type: "result", subtype: "success" });
+        await vi.waitFor(() => {
+          expect(h.provider.isBusy).toBe(false);
+        });
+      }
+      if (state !== "idle-query") await h.provider.stopSession(task.id);
+      const record = h.tasks.get(task.id);
+      assert.ok(record);
+      // 模拟终态目录写入失败或重启后的遗留标记；不能先 readTask，否则会掩盖缺陷。
+      record.status = "active";
+      const provider = state === "idle-query" ? h.provider : h.restart();
+      const readHistory = vi.spyOn(h.config.history, "read");
+      await provider[method](task.id);
+      expect(readHistory).not.toHaveBeenCalled();
+      if (method === "archiveTask") {
+        expect(h.tasks.get(task.id)).toMatchObject({ archived: true, status: "idle" });
+        expect((await h.config.history.read(task.id)).turns.at(-1)?.status).toBe(
+          state === "stopped" ? "interrupted" : "completed",
+        );
+        expect(h.deleteSession).not.toHaveBeenCalled();
+      } else {
+        expect(h.tasks.has(task.id)).toBe(false);
+        expect((await h.config.history.read(task.id)).turns).toEqual([]);
+        expect(h.deleteSession).toHaveBeenCalledOnce();
+      }
+    },
+  );
+});
+
+it("blocks new turns and competing removals while archiving an inactive task", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const gate = Promise.withResolvers<undefined>();
+  const retry = vi.spyOn(h.config.persistence, "retry").mockReturnValueOnce(gate.promise);
+  const archiving = h.provider.archiveTask(task.id);
+  try {
+    await vi.waitFor(() => {
+      expect(retry).toHaveBeenCalledWith(task.id);
+    });
+    await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow("already running");
+    await expect(h.provider.archiveTask(task.id)).rejects.toThrow("Stop the running task");
+    await expect(h.provider.deleteTask(task.id)).rejects.toThrow("Stop the running task");
+    expect(h.query).not.toHaveBeenCalled();
+  } finally {
+    gate.resolve(undefined);
+    await archiving;
+  }
+  expect(h.tasks.get(task.id)?.archived).toBe(true);
+});
+
+it("preserves pending terminal persistence before archiving and releases the reservation for retry", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const record = h.tasks.get(task.id);
+  assert.ok(record);
+  record.status = "active";
+  const turn: AgentTurn = {
+    id: "pending-archive",
+    status: "completed",
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    items: [],
+  };
+  const complete = vi.spyOn(h.config.history, "complete").mockRejectedValue(new Error("disk full"));
+  await h.config.persistence.settleAll(task.id, [{ turn, mode: "complete" }], {
+    contextUsage: null,
+    plan: null,
+    model: null,
+    mcpServers: [],
+  });
+  await expect(h.provider.archiveTask(task.id)).rejects.toThrow("persistence must complete");
+  expect(h.tasks.get(task.id)).toMatchObject({ status: "active", archived: false });
+  expect(h.config.persistence.hasPending(task.id)).toBe(true);
+  complete.mockRestore();
+  await h.provider.archiveTask(task.id);
+  expect(h.tasks.get(task.id)).toMatchObject({ status: "idle", archived: true });
+  expect(h.config.persistence.hasPending(task.id)).toBe(false);
+  expect((await h.config.history.read(task.id)).turns).toEqual([turn]);
+});
+
 it("permanently deletes all task history and the bound native session without touching another task", async () => {
   const h = await harness(undefined, 60_000);
   const task = await h.provider.startTask();
@@ -2912,6 +3007,9 @@ it("deletes a never-started task without requesting native session deletion", as
 it("discards pending persistence so a later retry cannot resurrect deleted history", async () => {
   const h = await harness();
   const task = await h.provider.startTask();
+  const record = h.tasks.get(task.id);
+  assert.ok(record);
+  record.status = "active";
   const turn: AgentTurn = {
     id: "unpersisted",
     status: "completed",

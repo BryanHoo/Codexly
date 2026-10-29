@@ -15,7 +15,7 @@ export { localTaskMetadata as claudeTask } from "@codexly/core";
 import type { ClaudeMcpAction } from "./mcp.js";
 import { ClaudeMcpManagement } from "./mcp-management.js";
 import { isManagedClaudeCommand } from "./commands.js";
-import { deleteClaudeTask } from "./task-deletion.js";
+import { archiveClaudeTask, deleteClaudeTask } from "./task-deletion.js";
 import { forkClaudeTask } from "./task-fork.js";
 import { ClaudeTaskTitles } from "./task-titles.js";
 import { CLAUDE_CAPABILITIES } from "./capabilities.js";
@@ -120,13 +120,8 @@ export class ClaudeAgentProvider {
     await this.#titles.rename(id, title);
   }
   async archiveTask(id: string) {
-    await this.#task(id);
-    const running = this.#running.get(id);
-    if (running && (running.settling || session.hasWork(running)))
-      throw new Error("Stop the running task before archiving");
-    if (running) await this.stopSession(id);
+    await archiveClaudeTask(await this.#task(id), this, this.#starting, this.#running);
     this.#titles.forget(id);
-    await this.store.catalog("task.patch", { id, archived: true });
     this.#sessionGrants.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "archived" } });
   }
