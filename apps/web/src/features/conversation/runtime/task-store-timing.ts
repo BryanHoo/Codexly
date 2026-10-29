@@ -1,34 +1,12 @@
 import type { AgentEvent } from "@codexly/protocol";
-
+import { recordToolItemTiming as recordTiming } from "@codexly/frontend-core/task-event-timing";
 import type { NormalizedAgentTurn } from "./task-store-core.js";
 
-import { mergeTurnItemTimings } from "@codexly/frontend-core";
-export { mergeTurnItemTimings };
+export { mergeTurnItemTimings } from "@codexly/frontend-core/task-snapshot";
+export { retainTurnItemTimings } from "@codexly/frontend-core/task-event-timing";
 
-export function retainTurnItemTimings(
-  current: NormalizedAgentTurn | undefined,
-  incoming: NormalizedAgentTurn,
-): NormalizedAgentTurn {
-  const itemTimings = mergeTurnItemTimings(current?.itemTimings, incoming.itemTimings);
-  return itemTimings === undefined ? incoming : { ...incoming, itemTimings };
-}
-
-export function recordToolItemTiming(
+// 在兼容入口绑定平台事件类型；具体计时规则由共享模块维护。
+export const recordToolItemTiming: (
   turn: NormalizedAgentTurn,
   event: Extract<AgentEvent, { type: "item.started" | "item.completed" }>,
-): NormalizedAgentTurn {
-  if (
-    event.payload.item.type !== "command" &&
-    event.payload.item.type !== "tool" &&
-    event.payload.item.type !== "file_change"
-  )
-    return turn;
-  const timestampMs = Date.parse(event.timestamp);
-  if (!Number.isFinite(timestampMs)) return turn;
-  const previous = turn.itemTimings?.[event.itemId];
-  const timing =
-    event.type === "item.started"
-      ? { ...previous, startedAtMs: previous?.startedAtMs ?? timestampMs }
-      : { ...previous, completedAtMs: timestampMs };
-  return { ...turn, itemTimings: { ...turn.itemTimings, [event.itemId]: timing } };
-}
+) => NormalizedAgentTurn = recordTiming;

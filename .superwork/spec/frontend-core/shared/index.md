@@ -63,3 +63,11 @@
 - Web 回答或关闭成功后，先取消在途问题查询，再写入最新集合，避免较晚返回的旧查询复活问题。持久回答补回历史时，只在对应问题与下一次同文提问之间识别原生回执，不复用后一次回答。
 - 回归入口：共享 `prompt-delivery.test.ts`、两端 `composer-queue-state.test.ts`、Web `use-async-questions.test.tsx`、Core `async-question.test.ts` 及桌面 `async-question-projection.test.ts`、`async-question-dock.browser.test.tsx`。聊天流式连续性继续由 Web `app-shell-async-questions.spec.ts` / `app-shell-runtime-queue.spec.ts` 与桌面 `task-timeline-running.browser.test.tsx` 验证。
 - 官方语义依据：[Codex App Server](https://learn.chatgpt.com/docs/app-server) 的 `turn/steer` 与消息生命周期，以及 [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) 的查询取消与缓存写入约定。异步问题属于消息，不转换为阻塞式 `requestUserInput` 审批请求。
+
+## 任务事件消费与双端回放
+
+- Web 与桌面复用 [事件 reducer](../../../../packages/frontend-core/src/task-event-reducer.ts) 和 [计时规则](../../../../packages/frontend-core/src/task-event-timing.ts)。[TaskEventModel](../../../../packages/protocol/src/task-event-model.ts) 从公开 AgentEvent 派生判别联合，按平台绑定条目、回合、审批和推理载荷；默认模型与公开协议双向兼容，审批 created/resolved/expired 保持各自状态判别。
+- 此模型是消费契约，不新增线缆协议或逐事件转换。原有 HTTP/WebSocket、Tauri、checkpoint 校验、按目标条目的增量缓冲和字节预算继续由平台层负责。桌面公开摘要、文件修改 stats、终端审批及附件扩展不得因共享化丢失；message.skills_updated 仍由原生适配层原位应用。
+- 平台仅注入实体工厂、通知保留规则与终态错误权威策略。桌面以 Rust 归并的终态为准，null 错误也具有权威性；Web 保留原有不可重试错误回退。不能在共享逻辑中硬编码平台或 Provider 分支。
+- 提交响应先于空 turn.started 到达时，保留已显示条目及 Store 身份；权威用户消息必须原位接管提交占位，不能移动到已到达的助手回复之后。
+- 两端调用 [同一回放契约](../../../../packages/frontend-core/src/testing/task-event-replay.ts)，直接驱动真实 Store，覆盖 Codex/Claude、单条/批量、重复及身份过滤、审批终态、推理、命令输出、错误恢复和终态摘要接管。增量批次只发布目标条目一次，不读取无关历史全文。入口为各端 runtime/task-store-event-replay.test.ts；共享改动同时执行两端 runtime 测试、类型检查与根性能套件。

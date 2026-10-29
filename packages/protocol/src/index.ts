@@ -1,9 +1,9 @@
+export type { TaskEventModel } from "./task-event-model.js";
 export * from "./diagnostics.js";
 export * from "./project-directory-create.js";
 export * from "./workbench-pets.js";
 export { CODEXLY_USER_AGENT } from "./user-agent.js";
 export * from "./project-git.js";
-export type { CreateTaskWorktreeResponse } from "./project-git.js";
 export * from "./global-search.js";
 export * from "./archived-task-deletion.js";
 export * from "./app-update.js";
