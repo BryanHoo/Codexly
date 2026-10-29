@@ -217,7 +217,8 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   });
   await page.goto("/p/codexly/t/task-1");
 
-  const externalLink = page.getByRole("link", { name: "OpenAI" });
+  await page.getByRole("button", { name: "openai.com OpenAI" }).click();
+  const externalLink = page.locator('[data-slot="hover-card-content"]').getByRole("link");
   await expect(externalLink).toHaveAttribute("target", "_blank");
   await expect(externalLink).toHaveAttribute("rel", "noopener noreferrer");
 

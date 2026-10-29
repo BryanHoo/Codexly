@@ -3,6 +3,7 @@ import { assistantDirectiveRemarkPlugin } from "@codexly/frontend-core/assistant
 import { renderAssistantDirectiveLink } from "@codexly/ui/core/message-assistant-directive";
 import { getFileCitationPath } from "@codexly/frontend-core/codex-file-citation";
 import { MessageFileCitation } from "@codexly/ui/core/message-file-citation";
+import { InlineCitation } from "@codexly/ui/agent/inline-citation";
 import {
   MessageImageProvider,
   type ResolveMessageImage,
@@ -376,15 +377,14 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
   }
 
   return (
-    <a
+    <InlineCitation
+      newTabLabel={t("openMenu.openInNewWindow")}
       className={`font-medium text-brand underline decoration-current/35 underline-offset-2 transition-colors hover:text-brand-strong ${className}`}
       href={href}
-      rel="noopener noreferrer"
-      target="_blank"
       {...props}
     >
       {children}
-    </a>
+    </InlineCitation>
   );
 }
 

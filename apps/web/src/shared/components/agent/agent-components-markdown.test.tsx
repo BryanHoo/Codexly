@@ -188,7 +188,7 @@ info`,
     expect(markup).not.toContain("<style");
   });
 
-  it("opens safe external links in a new tab and rejects dangerous protocols", () => {
+  it("renders safe external citations and rejects dangerous protocols", () => {
     const markup = renderToStaticMarkup(
       <Message from="assistant">
         <MessageContent>
@@ -199,10 +199,11 @@ info`,
       </Message>,
     );
 
-    expect(markup).toContain('href="https://openai.com/"');
-    expect(markup).toContain('target="_blank"');
-    expect(markup).toContain('rel="noopener noreferrer"');
+    expect(markup).toContain('data-inline-citation="true"');
+    expect(markup).toContain("openai.com");
+    expect(markup).toContain("OpenAI");
     expect(markup).not.toContain('href="javascript:');
+    expect(markup).toContain("unsafe [blocked]");
   });
 
   it("renders Markdown file references with the project brand treatment", () => {

@@ -21,6 +21,11 @@
 
 开发入口见 [桌面开发](../../../../desktop/docs/development.md)。
 
+## 正文来源引用
+
+- 复用 `@codexly/ui/agent/inline-citation`，来源卡片中的 HTTP(S) 链接继续经 `openMarkdownLink` 打开系统浏览器，不能让 WebView 导航离开应用。保留文件定位、图片与指令入口，不增加来源抓取请求。
+- Radix HoverCard 默认将卡片链接移出 Tab 顺序，共享组件必须衔接触发按钮与来源链接的键盘焦点；Escape 关闭并返回触发按钮，延迟打开不能令浮层重新出现。`inline-citation.browser.test.tsx` 覆盖 Chromium / WebKit、窄屏与流式追加后的节点、焦点及浮层状态。
+
 ## 子代理详情
 
 - 与 Web 共用 Subagent 展示和 Tool 详情滚动容器。顶部任务与嵌套回合初始用户消息相同时仅展示一次；有省略标记也需去重，后续追问和附件保留。桌面思考条目只使用公开 `summary`，不展示原始推理 `content`。

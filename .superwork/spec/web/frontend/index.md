@@ -16,6 +16,11 @@
 
 Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要生成 `pnpm --filter @codexly/web test`。
 
+## 正文来源引用
+
+- HTTP(S) Markdown 来源链接复用 `@codexly/ui/agent/inline-citation` 的 HoverCard 与 Button 组合；保留原标签作为来源标题，缺失时回退域名。图片链接、本地文件、指令与非 HTTP(S) 地址继续使用原有语义。不为展示预览抓取网页，也不逐 Token 扫描全文；沿用共享增量分块树。
+- 来源支持悬停、触屏点击及键盘操作，打开动作保留真实链接的 `noopener noreferrer` 与新窗口提示；卡片关闭不抢走输入框焦点。回归入口为 `message-response-inline-citations.test.tsx` 与 `app-shell-inline-citation.spec.ts`，覆盖 Chromium / Firefox / WebKit、真实触屏、长 URL 和流式节点身份。
+
 ## 子代理详情
 
 - 共用 `packages/ui/src/agent/subagent.tsx`。任务提示词只展示一次，嵌套回合中的相同初始用户消息不重复渲染；省略历史标记不影响识别，后续追问、不同正文及附件保留。

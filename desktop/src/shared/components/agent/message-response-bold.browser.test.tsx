@@ -14,7 +14,8 @@ describe("MessageResponse bold boundaries", () => {
     expect(screen.container.textContent).toContain("精确恢复：记录原生");
     expect(screen.container.textContent).not.toContain("**");
     expect(screen.container.querySelector("code")?.textContent).toBe("query()");
-    expect(screen.container.querySelector("a")?.getAttribute("href")).toBe("https://example.com/");
+    await screen.getByRole("button", { name: "example.com Streaming Input" }).click();
+    await expect.element(screen.getByRole("link")).toHaveAttribute("href", "https://example.com/");
   });
 
   it("repairs labels arriving across streaming snapshots", async () => {
