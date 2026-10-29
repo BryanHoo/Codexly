@@ -12,6 +12,7 @@
 - [ ] 共用状态推导与组件优先使用 Frontend Core / UI；平台回调与翻译由本端传入。参考 [复用边界](../../guides/code-reuse-thinking-guide.md)。
 - [ ] 移动浏览器保留窄屏导航、触控和中栏文档工作区；核对 [文档工作区](../../../../docs/document-workspace.md) 与 [会话性能](../../../../docs/conversation-performance.md)。
 - [ ] 历史和重型组件按需加载，流式消息使用共享增量渲染，避免逐 token 的全局状态重建。
+- [ ] 打开全局设置时，与桌面统一使用 React `Activity` 隐藏整个工作台（含分屏），暂停界面订阅、快捷键等副作用，保留组件状态、DOM 和滚动位置；运行时事件接收及设置页留在边界外，禁止只用 `hidden` / `inert` 隐藏。返回时恢复订阅并读取最新输出。浏览器回归复用桌面套件的 `web-workbench-settings-activity.browser.test.tsx`，覆盖 Chromium / WebKit、宽窄屏、连续切换与后台增量输出；桌面原有入口为 `workbench-settings-navigation.browser.test.tsx`。
 - [ ] 执行根 `pnpm typecheck`、`pnpm test`、`pnpm lint:architecture`；工作流变化运行 `pnpm test:e2e`。构建后运行 `pnpm bundle:check`，性能变化补充 `pnpm test:performance` 或浏览器性能套件。
 
 Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要生成 `pnpm --filter @codexly/web test`。

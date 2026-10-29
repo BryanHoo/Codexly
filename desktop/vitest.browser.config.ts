@@ -45,6 +45,7 @@ export default defineConfig({
       provider: playwright(),
       viewport: { height: 900, width: 1_440 },
     },
-    include: ["src/**/*.browser.test.tsx"],
+    // 跨端壳层回归放在测试目录，避免两端 Router 注册类型进入同一个应用类型检查。
+    include: ["src/**/*.browser.test.tsx", "tests/browser/**/*.browser.test.tsx"],
   },
 });

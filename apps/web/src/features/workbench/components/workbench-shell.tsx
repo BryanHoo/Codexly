@@ -10,9 +10,10 @@ import {
   SplitPaneContext,
 } from "@codexly/ui/core/split-workspace";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
-import { useCallback, useContext, memo } from "react";
+import { Activity, useCallback, useContext, memo } from "react";
 import { useWorkbenchShellController } from "./workbench-shell-controller.js";
 import { WorkbenchShellLayout } from "./workbench-shell-layout.js";
+import { WorkbenchSettingsPage } from "./workbench-settings-page.js";
 import { useWorkbenchShellRuntime, type WorkbenchShellProps } from "./workbench-shell-runtime.js";
 
 function WorkbenchShellContent({
@@ -36,44 +37,48 @@ function WorkbenchShellContent({
   }, [setSidebarOpen]);
   return (
     <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
-      <WorkbenchShellLayout
-        board={board}
-        context={context}
-        {...(workspaceOnly
-          ? {
-              workspaceContent: (
-                <SplitWorkspaceGrid
-                  sidebarOpen={context.sidebarOpen}
-                  label={context.t("split.label")}
-                  splitLabels={{
-                    up: context.t("split.up"),
-                    down: context.t("split.down"),
-                    left: context.t("split.left"),
-                    right: context.t("split.right"),
-                    limit: context.t("split.limit"),
-                    resizeWidth: context.t("split.resizeWidth"),
-                    resizeHeight: context.t("split.resizeHeight"),
-                  }}
-                  toggleSidebar={toggleSidebar}
-                >
-                  {(pane) => (
-                    <WorkbenchTaskPane
-                      {...pane}
-                      {...(todoId === undefined || pane.draftId !== ROUTE_SPLIT_DRAFT_ID
-                        ? {}
-                        : { todoId })}
-                    />
-                  )}
-                </SplitWorkspaceGrid>
-              ),
-            }
-          : {})}
-        {...(extensionSection === undefined ? {} : { extensionSection })}
-        scheduled={scheduled}
-        {...taskScope}
-        temporary={temporary}
-        {...(todoId === undefined ? {} : { todoId })}
-      />
+      {/* 与桌面一致：隐藏时清理界面订阅和快捷键，保留草稿、滚动位置及边界外的运行时连接。 */}
+      <Activity mode={context.globalSettingsSection === null ? "visible" : "hidden"}>
+        <WorkbenchShellLayout
+          board={board}
+          context={context}
+          {...(workspaceOnly
+            ? {
+                workspaceContent: (
+                  <SplitWorkspaceGrid
+                    sidebarOpen={context.sidebarOpen}
+                    label={context.t("split.label")}
+                    splitLabels={{
+                      up: context.t("split.up"),
+                      down: context.t("split.down"),
+                      left: context.t("split.left"),
+                      right: context.t("split.right"),
+                      limit: context.t("split.limit"),
+                      resizeWidth: context.t("split.resizeWidth"),
+                      resizeHeight: context.t("split.resizeHeight"),
+                    }}
+                    toggleSidebar={toggleSidebar}
+                  >
+                    {(pane) => (
+                      <WorkbenchTaskPane
+                        {...pane}
+                        {...(todoId === undefined || pane.draftId !== ROUTE_SPLIT_DRAFT_ID
+                          ? {}
+                          : { todoId })}
+                      />
+                    )}
+                  </SplitWorkspaceGrid>
+                ),
+              }
+            : {})}
+          {...(extensionSection === undefined ? {} : { extensionSection })}
+          scheduled={scheduled}
+          {...taskScope}
+          temporary={temporary}
+          {...(todoId === undefined ? {} : { todoId })}
+        />
+      </Activity>
+      <WorkbenchSettingsPage context={context} projectToolsEnabled={!temporary} />
     </SplitInspectorProvider>
   );
 }
