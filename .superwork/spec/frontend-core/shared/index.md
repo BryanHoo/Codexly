@@ -33,6 +33,12 @@
 
 - 完成的文件修改在回复末尾统一汇总；两端在操作分组和入场容器创建前使用 `turn-process.ts` 的可见性规则过滤行内条目，避免空容器的间距随修改次数累积。保留运行中修改行和最终汇总卡片；回归入口为两端 `task-timeline-completed-spacing` 测试，桌面以真实 CSS 覆盖历史加载、运行转完成和过程折叠后的间距。
 
+## 上下文压缩的完成态折叠
+
+- 上下文压缩等带 `transient` 标记的活动在完成回合中统一收入“已处理”执行过程，默认折叠；缺失最终答复阶段、活动完成事件或活动晚于答复到达时也不得留在结果区。
+- 两端复用 `turn-process.ts` 的 `resolveTimelineActivityStatus`：运行中已结束的瞬时活动隐藏，结束回合展开过程时恢复条目，保留明确失败状态并消除残留运行图标，不修改原始记录。中断和失败回合继续遵循下一次提交后折叠的既有规则。
+- 回归入口为 Web 的 `task-timeline-context-compaction.test.tsx` 和桌面的 `task-timeline-context-compaction.browser.test.tsx`；桌面覆盖 Chromium / WebKit 的折叠、展开与再次收起。
+
 ## 对话 JSON 导出
 
 - 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。

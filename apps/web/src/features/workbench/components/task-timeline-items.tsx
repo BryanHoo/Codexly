@@ -1,5 +1,6 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
+import { resolveTimelineActivityStatus } from "@codexly/frontend-core/turn-process";
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import {
@@ -397,15 +398,10 @@ export function TimelineItemContent({
     case "activity": {
       // Codex 的 imageView 在两端均映射为固定标签，detail 保留原始图片路径。
       const imagePath = item.label === "查看图片" ? item.detail : undefined;
-      // 瞬时活动仅承载运行状态，完成事件到达后立即退出时间线。
-      if (item.transient === true && item.status !== "pending" && item.status !== "running") {
-        return null;
-      }
+      const status = resolveTimelineActivityStatus(item, turnStatus);
+      if (status === undefined) return null;
       return (
-        <Task
-          collapsible={item.detail !== undefined}
-          status={toTaskStatus(item.status ?? "completed")}
-        >
+        <Task collapsible={item.detail !== undefined} status={toTaskStatus(status)}>
           <TaskTrigger title={item.label} />
           {item.detail === undefined ? null : (
             <TaskContent>

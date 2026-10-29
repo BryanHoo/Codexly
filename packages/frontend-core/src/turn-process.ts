@@ -1,9 +1,27 @@
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
+
 type ProcessMessage = Readonly<{
   type: string;
   role?: string;
   phase?: string;
   questions?: readonly unknown[];
 }>;
+
+type TimelineActivity = Extract<AgentItem, { type: "activity" }>;
+
+/** 瞬时活动运行期间只显示当前阶段；回合结束后在折叠过程中恢复，并以回合终态消除残留转圈。 */
+export function resolveTimelineActivityStatus(
+  item: Pick<TimelineActivity, "status" | "transient">,
+  turnStatus: AgentTurn["status"],
+): TimelineActivity["status"] {
+  const status = item.status ?? "completed";
+  if (item.transient !== true) return status;
+  if (turnStatus === "running") {
+    return status === "pending" || status === "running" ? status : undefined;
+  }
+  // 原生历史可能没有活动完成事件；消除残留运行态，保留明确的失败或中断，不修改原始数据。
+  return status === "pending" || status === "running" ? "completed" : status;
+}
 
 /** 完成的修改由回复末尾统一汇总；在分组前移除不可见行，避免空动画容器累积间距。 */
 export function isInlineFileChangeVisible(status: string, turnStatus: string): boolean {
