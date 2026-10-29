@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { GitCommitSummary } from "@codexly/ui/core/git-history-commit-summary";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { ProjectGitCommit, ProjectGitHistoryPage } from "@/protocol/index.js";
@@ -154,9 +155,7 @@ export function GitHistoryContent({
       role="tabpanel"
     >
       {query.isPending ? (
-        <p className="px-5 py-12 text-center text-body-small text-muted-foreground">
-          {i18n.t("gitHistory.loading", { ns: "conversation" })}
-        </p>
+        <LoadingSkeleton className="px-5 py-3" label={i18n.t("gitHistory.loading", { ns: "conversation" })} />
       ) : query.error !== null ? (
         <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-5 text-center">
           <p className="text-body-small text-danger">

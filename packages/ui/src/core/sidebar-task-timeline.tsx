@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "./loading-skeleton.js";
 import type { AgentTask } from "@codexly/protocol";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
@@ -211,10 +212,9 @@ export function SidebarTaskTimeline({
         });
       }}
     >
-      {catalog.isPending ? (
-        <p className="px-2 py-1.5 text-meta text-subtle-foreground" role="status">
-          {labels.loading}
-        </p>
+      {/* 已有部分项目结果时保留列表，只在整个时间线尚无内容时显示骨架。 */}
+      {catalog.isPending && rows.length === 0 ? (
+        <LoadingSkeleton className="px-2 py-1.5" label={labels.loading} />
       ) : null}
       {catalog.failures.length > 0 ? (
         <div className="px-2 py-1.5 text-meta text-danger" role="alert">

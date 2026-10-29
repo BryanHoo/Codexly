@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "./loading-skeleton.js";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useDeferredValue, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
@@ -181,9 +182,7 @@ function CodexResourcePane<Source extends { enabled: boolean }>({
         </div>
       ) : null}
       {result.isPending ? (
-        <div className="skills-market-state" role="status">
-          {t("skillsMarket.loadingExtension")}
-        </div>
+        <LoadingSkeleton label={t("skillsMarket.loadingExtension")} />
       ) : rows.length ? (
         <ExtensionList
           items={rows}

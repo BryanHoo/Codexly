@@ -1,6 +1,6 @@
+import { LoadingSkeleton } from "./loading-skeleton.js";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   ArrowDownLeft,
   ArrowUpRight,
   CalendarDays,
@@ -188,11 +188,7 @@ export function UsageStatistics({
         </div>
       </div>
       {usage.isPending ? (
-        <div className="usage-loading" role="status">
-          <Activity />
-          {copy.loading}
-          <div className="usage-loading-lines" />
-        </div>
+        <LoadingSkeleton variant="statistics" className="px-0 py-6" label={copy.loading} />
       ) : usage.isError ? (
         <div className="usage-empty" role="alert">
           <Info />

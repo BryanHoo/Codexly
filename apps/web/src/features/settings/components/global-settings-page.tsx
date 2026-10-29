@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { exportDiagnostics } from "../../../diagnostics.js";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
@@ -144,11 +145,7 @@ export function GlobalSettingsPage({
     if (debounce) queue.schedule(next, SETTINGS_INPUT_DEBOUNCE_MS);
     else queue.save(next);
   };
-  const status = (
-    <p role="status" className="text-body-small text-muted-foreground">
-      {t("loading")}
-    </p>
-  );
+  const status = <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />;
   const close = () => {
     if (closing.current) return;
     closing.current = true;

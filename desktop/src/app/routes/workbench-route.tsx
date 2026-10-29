@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { TEMPORARY_TASK_SCOPE_ID } from "@/protocol/index.js";
 import { createRoute, useRouterState } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
@@ -62,12 +63,7 @@ export function WorkbenchRoute(props: WorkbenchShellProps) {
   return (
     <Suspense
       fallback={
-        <main
-          className="grid h-full place-items-center text-sm text-muted-foreground"
-          role="status"
-        >
-          {t("app.loadingProjects")}
-        </main>
+        <LoadingSkeleton variant="workspace" label={t("app.loadingProjects")} />
       }
     >
       <DeferredWorkbenchShell {...props} />

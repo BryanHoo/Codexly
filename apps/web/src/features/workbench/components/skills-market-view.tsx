@@ -1,4 +1,6 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { lazy, Suspense } from "react";
+import { useTranslation } from "../../../i18n/i18n.js";
 
 const LazySkillsMarketContainer = lazy(() =>
   import("../../skills-market/skills-market-container.js").then((module) => ({
@@ -12,8 +14,17 @@ export function SkillsMarketView(
     section?: string;
   }>,
 ) {
+  const { t } = useTranslation("workbench");
   return (
-    <Suspense fallback={<div aria-busy="true" className="flex-1" />}>
+    <Suspense
+      fallback={
+        <LoadingSkeleton
+          variant="list"
+          className="flex-1 p-6"
+          label={t("skillsMarket.loadingExtension")}
+        />
+      }
+    >
       <LazySkillsMarketContainer {...props} />
     </Suspense>
   );

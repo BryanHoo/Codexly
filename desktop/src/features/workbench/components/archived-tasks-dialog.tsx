@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import type { DeleteArchivedTasksRequest } from "@codexly/protocol";
 import { ArchivedTaskDeleteControl } from "@codexly/ui/core/archived-task-delete-control";
 import type { AgentTask, AgentTaskPage, Project } from "@/protocol/index.js";
@@ -6,7 +7,6 @@ import {
   ArchiveRestore,
   ChevronLeft,
   ChevronRight,
-  LoaderCircle,
   Search,
   Trash2,
 } from "lucide-react";
@@ -72,10 +72,7 @@ export function ArchivedTaskListView({
 
   // 搜索和翻页加载只替换列表内容，保持范围选择器挂载，避免清理范围被重置为“全部”。
   const content = isPending ? (
-    <div className="flex min-h-48 items-center justify-center" role="status">
-      <LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
-      <span className="sr-only">{t("archivedTasks.loading")}</span>
-    </div>
+    <LoadingSkeleton className="min-h-48 px-4 py-2" label={t("archivedTasks.loading")} />
   ) : error !== null ? (
     <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-4 text-center">
       <p className="text-body-small text-danger" role="alert">

@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import type { ScheduledTask } from "@codexly/protocol";
 import { CalendarClock, CircleAlert, Clock3, Plus, Search } from "lucide-react";
 import { ScheduledTaskMenu } from "./scheduled-task-menu.js";
@@ -87,10 +88,8 @@ export function ScheduledTaskList({
         />
       </div>
       <div className="scheduled-task-list__items">
-        {loading ? (
-          <div className="scheduled-task-list__empty" role="status">
-            <Clock3 aria-hidden="true" />
-          </div>
+        {loading && tasks.length === 0 ? (
+          <LoadingSkeleton label={t("scheduledTasks.loading")} />
         ) : filteredTasks.length === 0 ? (
           <div className="scheduled-task-list__empty">
             <CalendarClock aria-hidden="true" />

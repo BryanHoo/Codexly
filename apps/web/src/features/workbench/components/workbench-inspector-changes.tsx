@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import type { ProjectGitStatus } from "@codexly/protocol";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -50,8 +51,9 @@ export function WorkbenchInspectorChanges({
     );
   }
   return (
-    <p className="p-3 text-caption text-muted-foreground" role="status">
-      {i18n.t("inspector.gitLoading", { ns: "conversation" })}
-    </p>
+    <LoadingSkeleton
+      className="p-3"
+      label={i18n.t("inspector.gitLoading", { ns: "conversation" })}
+    />
   );
 }

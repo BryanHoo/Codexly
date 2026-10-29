@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { useDocumentSaveGuard } from "@codexly/ui/core/document-navigation";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { SourceHeader, getFileName, type SourceHeaderProps } from "./project-source-header.js";
@@ -316,12 +317,11 @@ export function ProjectSourcePanel({
           (!editor.ready && sourceData === undefined && sourceQuery.isPending) ? (
           <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
             <SourceHeader {...headerProps} />
-            <div
-              className="grid min-h-48 place-items-center text-body-small text-muted-foreground"
-              role="status"
-            >
-              {t("projectDialog.loadingSource")}
-            </div>
+            <LoadingSkeleton
+              variant="code"
+              className="min-h-48 overflow-hidden px-5 py-4"
+              label={t("projectDialog.loadingSource")}
+            />
           </div>
         ) : !editor.ready && sourceData === undefined && sourceQuery.error !== null ? (
           <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">

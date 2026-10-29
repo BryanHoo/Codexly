@@ -20,6 +20,13 @@
 - [ ] 共享包不得反向导入 `apps/web`、`desktop`、根 CLI 或具体交付实现。
 - [ ] 运行根 `pnpm lint:architecture`、`pnpm typecheck` 和相关测试；共享 UI 同时核对 Web 与桌面浏览器用例。
 
+## 共享加载占位
+
+- 内容首载复用 `@codexly/ui/core/skeleton` 原语和 `core/loading-skeleton` 的列表、会话、设置、卡片、统计、工作台及代码轮廓；两端注入现有翻译，不新增加载请求或计时器。骨架颜色映射现有 `control-hover` 主题，不能直接使用项目未定义的上游 `accent` 令牌。
+- 只在内容尚不可用时显示骨架；后台刷新、部分项目结果和已有会话快照保留内容，错误继续显示错误与重试，真实生成、下载和保存进度沿用原有反馈。
+- 整个占位只提供一个本地化 `status` 和 `aria-busy`，装饰图形隐藏，不生成可聚焦控件；动画仅在 `motion-safe` 下执行。固定骨架数量，避免订阅查询或创建逐帧 React 状态。
+- 回归入口：Web `app-shell-skeleton.spec.ts` 验证请求未完成与完成切换、窄屏和减少动态效果；桌面 `loading-skeleton.browser.test.tsx` 以真实样式验证 Chromium / WebKit、320px、明暗主题、可见颜色及焦点，不能把移动端已隐藏的桌面侧栏作为可见性测量对象。
+
 ## 共享 Tooltip
 
 - 两端 Tooltip 统一复用 `packages/ui/src/core/tooltip.tsx`，底层使用 shadcn/ui Base UI 的 Provider、Trigger、Portal、Positioner、Popup 与 Arrow；根应用保留统一 Provider。现有 `asChild` 映射到 Base UI `render`，不得新增外层按钮或丢失事件、ref 和可访问名称。

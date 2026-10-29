@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "./loading-skeleton.js";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useState, useDeferredValue, useRef } from "react";
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -170,9 +171,7 @@ export function ClaudeExtensionsPane({
         </div>
       ) : null}
       {loading && !page ? (
-        <div className="skills-market-state" role="status">
-          {t("skillsMarket.loadingExtension")}
-        </div>
+        <LoadingSkeleton label={t("skillsMarket.loadingExtension")} />
       ) : rows.length ? (
         <ExtensionList
           items={rows}

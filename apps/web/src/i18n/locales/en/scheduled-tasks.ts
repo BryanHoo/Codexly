@@ -1,4 +1,5 @@
 export const scheduledTasks = {
+  loading: "Loading scheduled tasks",
   all: "All",
   runUnavailable: "Task deleted, archived, or unavailable.",
   taskActions: "Actions for {{name}}",

@@ -93,7 +93,8 @@ describe("GlobalSettingsAbout", () => {
       appInfo.repositoryUrl,
     );
     await screen.getByRole("button", { name: "更新日志" }).click();
-    expect(screen.getByRole("dialog")).toHaveTextContent("0.1.0 更新日志");
+    // 弹窗表面按需加载，等待真实内容出现后再检查，避免冷加载时提前断言。
+    await expect.element(screen.getByRole("dialog")).toHaveTextContent("0.1.0 更新日志");
     expect(screen.getByRole("link", { name: "更多" })).toHaveAttribute(
       "href",
       appInfo.changelogUrl,

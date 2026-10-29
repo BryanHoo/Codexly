@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { ReconnectingNotice } from "@codexly/ui/core/reconnecting-notice";
 import type { PendingRequest, Project } from "@codexly/protocol";
 import { lazy, Suspense, useMemo } from "react";
@@ -91,9 +92,10 @@ export function TaskTimeline(props: TaskTimelineProps) {
     return (
       <Suspense
         fallback={
-          <TimelineState
-            message={i18n.t("timeline.loading", { ns: "conversation" })}
-            role="status"
+          <LoadingSkeleton
+            variant="conversation"
+            className="min-h-0 flex-1 overflow-hidden px-6 py-5"
+            label={i18n.t("timeline.loading", { ns: "conversation" })}
           />
         }
       >
@@ -164,7 +166,11 @@ export function TaskTimeline(props: TaskTimelineProps) {
   } = props;
   if (runtime === undefined) {
     return (
-      <TimelineState message={i18n.t("timeline.loading", { ns: "conversation" })} role="status" />
+      <LoadingSkeleton
+        variant="conversation"
+        className="min-h-0 flex-1 overflow-hidden px-6 py-5"
+        label={i18n.t("timeline.loading", { ns: "conversation" })}
+      />
     );
   }
   return (
@@ -234,12 +240,20 @@ function ActiveTaskTimeline({
       return <TaskSnapshotTimeline connected={false} snapshot={startingSnapshot} />;
     }
     return (
-      <TimelineState message={i18n.t("timeline.loading", { ns: "conversation" })} role="status" />
+      <LoadingSkeleton
+        variant="conversation"
+        className="min-h-0 flex-1 overflow-hidden px-6 py-5"
+        label={i18n.t("timeline.loading", { ns: "conversation" })}
+      />
     );
   }
   if (runtime.store === undefined) {
     return (
-      <TimelineState message={i18n.t("timeline.loading", { ns: "conversation" })} role="status" />
+      <LoadingSkeleton
+        variant="conversation"
+        className="min-h-0 flex-1 overflow-hidden px-6 py-5"
+        label={i18n.t("timeline.loading", { ns: "conversation" })}
+      />
     );
   }
   return (

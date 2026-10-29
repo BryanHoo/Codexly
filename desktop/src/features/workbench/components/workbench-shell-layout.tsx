@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
 import type { ReactNode } from "react";
@@ -208,7 +209,7 @@ export function WorkbenchShellLayout({
           />
           <WorkbenchDocumentWorkspace context={context} projectId={projectId} enabled={!utilityView} {...(taskId === undefined ? {} : { taskId })}>
           {scheduledTasks ? (
-            <Suspense fallback={<div aria-busy="true" style={{ flex: 1 }} />}>
+            <Suspense fallback={<LoadingSkeleton variant="cards" className="flex-1 p-6" label={t("scheduledTasks.loading")} />}>
               <LazyScheduledTasksContainer
                 context={context}
                 projectId={projectId}
@@ -216,7 +217,7 @@ export function WorkbenchShellLayout({
               />
             </Suspense>
           ) : extensions ? (
-            <Suspense fallback={<div aria-busy="true" style={{ flex: 1 }} />}>
+            <Suspense fallback={<LoadingSkeleton className="flex-1 p-6" label={t("skillsMarket.loadingExtension")} />}>
               <LazySkillsMarketContainer
                 section={extensionSection}
                 onSectionChange={(nextSection) => {

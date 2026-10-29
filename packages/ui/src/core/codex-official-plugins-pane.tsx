@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "./loading-skeleton.js";
 import { useDeferredValue, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Download, Info, LoaderCircle, Trash2 } from "lucide-react";
@@ -194,9 +195,7 @@ export function CodexOfficialPluginsPane({
         </div>
       ) : null}
       {plugins.isPending ? (
-        <div className="skills-market-state" role="status">
-          {t("skillsMarket.loadingExtension")}
-        </div>
+        <LoadingSkeleton label={t("skillsMarket.loadingExtension")} />
       ) : rows.length ? (
         <ExtensionList
           items={rows}

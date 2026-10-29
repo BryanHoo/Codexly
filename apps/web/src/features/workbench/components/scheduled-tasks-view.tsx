@@ -1,4 +1,6 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { lazy, Suspense } from "react";
+import { useTranslation } from "../../../i18n/i18n.js";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
 
 const LazyScheduledTasksContainer = lazy(() =>
@@ -14,8 +16,17 @@ export function ScheduledTasksView(
     temporary: boolean;
   }>,
 ) {
+  const { t } = useTranslation("workbench");
   return (
-    <Suspense fallback={<div aria-busy="true" className="flex-1" />}>
+    <Suspense
+      fallback={
+        <LoadingSkeleton
+          variant="cards"
+          className="flex-1 p-6"
+          label={t("scheduledTasks.loading")}
+        />
+      }
+    >
       <LazyScheduledTasksContainer {...props} />
     </Suspense>
   );

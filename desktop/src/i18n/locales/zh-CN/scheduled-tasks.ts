@@ -1,4 +1,5 @@
 export const scheduledTasks = {
+  loading: "正在加载定时任务",
   all: "全部",
   runUnavailable: "任务已删除、归档或不可用。",
   taskActions: "{{name}}操作",

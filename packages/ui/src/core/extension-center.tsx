@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "./loading-skeleton.js";
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { ArrowUpRight, BadgeCheck, Blocks, Server } from "lucide-react";
 import type { ClaudeExtensionClient, ClaudeExtensionKind } from "@codexly/protocol";
@@ -152,13 +153,7 @@ export function ExtensionCenter({
         aria-labelledby={`extension-tab-${section}`}
         tabIndex={0}
       >
-        <Suspense
-          fallback={
-            <div className="skills-market-state" role="status">
-              {t("skillsMarket.loadingExtension")}
-            </div>
-          }
-        >
+        <Suspense fallback={<LoadingSkeleton label={t("skillsMarket.loadingExtension")} />}>
           {engine === "codex" ? (
             <ExtensionProjectScope.Provider
               key={`${section}:${activeProject}`}

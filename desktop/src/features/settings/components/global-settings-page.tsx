@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { nativeClient } from "../../projects/project-queries.js";
@@ -162,7 +163,7 @@ export function GlobalSettingsPage({
     >
       {activeSection === "appearance" || activeSection === "pets" || activeSection === "agent" || activeSection === "git" ? <SettingsSaveStatus status={saveStatus} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => saveQueue.save(draftRef.current)} /> : null}
       {activeSection === "appearance" ? <SettingsSaveStatus status={browserSave.status} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { void browserSave.queue.retry(); }} /> : null}
-      <Suspense fallback={<div className="grid min-h-40 place-items-center text-body-small text-muted-foreground" role="status">{t("loading")}</div>}>
+      <Suspense fallback={<LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />}>
       {activeSection === "about" ? <GlobalSettingsAbout
         activeSection={activeSection}
         {...(appInfo === undefined ? {} : { appInfo })}
@@ -187,7 +188,7 @@ export function GlobalSettingsPage({
           error !== null ? <div role="alert" className="text-body-small text-danger">
             <p>{t("errors.load")}</p>
             <Button variant="ghost" onClick={() => void onRetry()}>{t("common:actions.retry")}</Button>
-          </div> : isPending || settings === undefined ? <p role="status" className="text-body-small text-muted-foreground">{t("loading")}</p> : (
+          </div> : isPending || settings === undefined ? <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} /> : (
             <>
 <DefaultGenerationSettings settings={draft} language={language} getModels={getGenerationModels} onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))} />
 <CommitSettingsPanel settings={draft} onChange={updateDraft} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
@@ -210,12 +211,7 @@ export function GlobalSettingsPage({
           </Button>
         </div>
       ) : isPending || settings === undefined ? (
-        <div
-          className="grid min-h-40 place-items-center text-body-small text-muted-foreground"
-          role="status"
-        >
-          {t("loading")}
-        </div>
+        <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />
       ) : (
         <>
           {activeSection === "appearance" ? <GeneralSettingsPanel

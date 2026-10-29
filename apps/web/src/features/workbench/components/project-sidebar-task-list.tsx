@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import {
   SidebarTaskViewHeader,
   useSidebarTaskView,
@@ -214,10 +215,8 @@ export function ProjectSidebarTaskList({
             <ProjectPickerButton disabled={isProjectAddPending} onOpen={onOpenProjectPicker} />
           </SidebarTaskViewHeader>
 
-          {isPending ? (
-            <p className="px-2 py-1.5 text-meta text-subtle-foreground">
-              {t("sidebar.taskLoading")}
-            </p>
+          {isPending && orderedProjects.length === 0 ? (
+            <LoadingSkeleton className="px-2 py-1.5" label={t("sidebar.taskLoading")} />
           ) : null}
           {taskSearch.isPending ? (
             <p className="px-2 py-1.5 text-meta text-subtle-foreground">{t("sidebar.searchAll")}</p>
