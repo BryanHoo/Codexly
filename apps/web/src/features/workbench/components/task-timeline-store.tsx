@@ -4,11 +4,11 @@ import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
 import { TimelineImageProvider } from "./timeline-image-provider.js";
 import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import type { PendingRequest } from "@codexly/protocol";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
-  groupTimelineTurns,
+  createTimelineTurnGrouper,
   mergeTimelineTurns,
 } from "@codexly/frontend-core/timeline-turn-groups";
 import { StoredAssistantGroup } from "./task-timeline-store-assistant.js";
@@ -34,7 +34,8 @@ import { StoredUserMessage, groupStoredTurnTimelineItems } from "./task-timeline
 import { TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 
 const getTurnIdKey = (turnId: string) => turnId;
-export function StoreTurnTimelineSection({
+// 分组成员引用稳定后，父时间线的结构更新不会再触发未变化历史的正文与文件变更聚合。
+export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   onBuildPlan,
   onForkTask,
   onOpenFileDiff,
@@ -212,7 +213,7 @@ export function StoreTurnTimelineSection({
       )}
     </section>
   );
-}
+});
 
 export function TaskStoreTimeline({
   connected,
@@ -263,11 +264,12 @@ export function TaskStoreTimeline({
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
   const engine = useStore(store, (state) => state.snapshotMetadata?.engine);
+  const groupTurns = useMemo(() => createTimelineTurnGrouper(), []);
   const turnGroups = useMemo(() => {
     void itemStructureRevision;
     void turnIds;
-    return groupTimelineTurns(store.getState(), engine);
-  }, [engine, itemStructureRevision, store, turnIds]);
+    return groupTurns(store.getState(), engine);
+  }, [engine, groupTurns, itemStructureRevision, store, turnIds]);
   const displayTurnIds = useMemo(() => turnGroups.map((group) => group.id), [turnGroups]);
   const groupById = useMemo(
     () => new Map(turnGroups.map((group) => [group.id, group])),

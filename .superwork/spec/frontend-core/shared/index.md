@@ -19,6 +19,12 @@
 
 相关契约：[文档工作区](../../../../docs/document-workspace.md)、[会话加载与性能](../../../../docs/conversation-performance.md)、[复用边界](../../guides/code-reuse-thinking-guide.md)。
 
+## 历史回合渲染隔离
+
+- 两端回合分组在成员和顺序未变化时必须复用分组对象及 `turnIds` 引用，分组完全不变时同时复用外层数组；回合组件使用 `memo`，避免新增回合、条目或 Claude 续跑重新聚合无关历史正文与文件变更。缓存仅保留上一版 ID 分组，不积累任务或正文。
+- 相同条目键的权威替换可能改变角色、阶段和过程分类，事件 reducer 必须更新所属回合的键数组引用，以唤醒该回合订阅；文本 Delta 保持键数组引用不变。不能通过忽略本回合变化换取历史渲染隔离。
+- 回归入口：共享 `timeline-turn-groups.test.ts` 覆盖引用复用、续跑、补页、删除与重分组；桌面 `task-timeline-structure.browser.test.tsx` 同时驱动 Web 和桌面真实 Store，在 Chromium / WebKit、Codex / Claude 下断言无关历史正文零重复读取，以及同键权威阶段更新仍正确折叠。
+
 ## 查看图片的操作归组
 
 - 两端复用 `timeline-operation.ts` 分类连续操作；标签为“查看图片”的 `activity` 与命令、工具归入同组，按一次工具调用汇总数量与运行、失败状态，普通活动继续保留分隔语义。后续助手正文到达且组内操作结束后一起收起，重新展开仍可通过图片路径打开预览。

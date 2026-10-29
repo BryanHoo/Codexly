@@ -50,6 +50,64 @@ describe("timeline reply grouping", () => {
     expect(groupTimelineTurns(state(["user", "assistant"]), engine)).toHaveLength(2);
   });
 
+  it.each(["codex", "claude"])("reuses unchanged groups when %s adds items or turns", (engine) => {
+    const previous = groupTimelineTurns(state(["user", "user"]), engine);
+    const same = groupTimelineTurns(state(["user", "user"]), engine, previous);
+    expect(same).toBe(previous);
+
+    const next = groupTimelineTurns(state(["user", "user", "user"]), engine, previous);
+    expect(next).toHaveLength(3);
+    expect(next[0]).toBe(previous[0]);
+    expect(next[1]).toBe(previous[1]);
+    expect(next[0]?.turnIds).toBe(previous[0]?.turnIds);
+  });
+
+  it("replaces only the extended Claude group and never mutates previous results", () => {
+    const previous = groupTimelineTurns(state(["user", "assistant", "user"]), "claude");
+    const next = groupTimelineTurns(
+      state(["user", "assistant", "user", undefined]),
+      "claude",
+      previous,
+    );
+    expect(next[0]).toBe(previous[0]);
+    expect(next[1]).not.toBe(previous[1]);
+    expect(next[1]?.turnIds).toEqual(["turn-2", "turn-3"]);
+    expect(previous[1]?.turnIds).toEqual(["turn-2"]);
+  });
+
+  it("keeps unaffected identities after prepending history, removal and regrouping", () => {
+    const full = state(["user", "assistant", "user", "assistant", "user"]);
+    const previous = groupTimelineTurns({ ...full, turnIds: full.turnIds.slice(2) }, "claude");
+    const prepended = groupTimelineTurns(full, "claude", previous);
+    expect(prepended[1]).toBe(previous[0]);
+    expect(prepended[2]).toBe(previous[1]);
+
+    const split = state(["user", "user", "user", "assistant", "user"]);
+    const regrouped = groupTimelineTurns(split, "claude", prepended);
+    expect(regrouped[0]?.turnIds).toEqual(["turn-0"]);
+    expect(regrouped[2]).toBe(previous[0]);
+    expect(regrouped[3]).toBe(previous[1]);
+    const removed = groupTimelineTurns(
+      { ...split, turnIds: split.turnIds.slice(2) },
+      "claude",
+      regrouped,
+    );
+    expect(removed).toEqual(previous);
+    expect(removed[0]).toBe(previous[0]);
+  });
+
+  it("recomputes boundaries when an existing item changes role without changing keys", () => {
+    const input = state(["user", "assistant", "user"]);
+    const previous = groupTimelineTurns(input, "claude");
+    input.itemStoresByKey.set("turn-1", {
+      peek: () => ({ id: "turn-1", type: "message", role: "user", text: "" }),
+    });
+    const next = groupTimelineTurns(input, "claude", previous);
+    expect(next.map((group) => group.turnIds)).toEqual([["turn-0"], ["turn-1"], ["turn-2"]]);
+    expect(next[2]).toBe(previous[1]);
+    expect(groupTimelineTurns(input, "codex", next)).toBe(next);
+  });
+
   it("keeps the final native fork identity, full interval, errors and stage tool timings", () => {
     const first: Omit<AgentTurn, "items"> = {
       id: "first",

@@ -25,6 +25,10 @@ export default defineConfig({
       "marked",
       "remend",
       "@codexly/ui > react-zoom-pan-pinch",
+      // 双端时间线共用此浏览器套件；从 Web 包定位其私有依赖，避免中途预打包重载 React。
+      "../../apps/web > mdast-util-from-markdown",
+      "../../apps/web > mdast-util-to-string",
+      "../../apps/web > @streamdown/mermaid",
     ],
   },
   resolve: {

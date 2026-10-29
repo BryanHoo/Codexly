@@ -6,7 +6,7 @@ import type { PendingRequest } from "@/protocol/index.js";
 import { memo, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import { groupTimelineTurns, mergeTimelineTurns } from "@codexly/frontend-core/timeline-turn-groups";
+import { createTimelineTurnGrouper, mergeTimelineTurns } from "@codexly/frontend-core/timeline-turn-groups";
 import { StoredAssistantGroup } from "./task-timeline-store-assistant.js";
 import { i18n } from "../../../i18n/i18n.js";
 import { ConversationList } from "../../../shared/components/agent/conversation.js";
@@ -271,11 +271,12 @@ export function TaskStoreTimeline({
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
   const engine = useStore(store, (state) => state.snapshotMetadata?.engine);
+  const groupTurns = useMemo(() => createTimelineTurnGrouper(), []);
   const turnGroups = useMemo(() => {
     void itemStructureRevision;
     void turnIds;
-    return groupTimelineTurns(store.getState(), engine);
-  }, [engine, itemStructureRevision, store, turnIds]);
+    return groupTurns(store.getState(), engine);
+  }, [engine, groupTurns, itemStructureRevision, store, turnIds]);
   const displayTurnIds = useMemo(() => turnGroups.map((group) => group.id), [turnGroups]);
   const groupById = useMemo(() => new Map(turnGroups.map((group) => [group.id, group])), [turnGroups]);
   const displayIndexByTurnId = useMemo(() => new Map(turnGroups.flatMap((group, index) =>

@@ -319,6 +319,8 @@ export function createTaskEventReducer<
           event.payload.item.type === "message" &&
           event.payload.item.role === "user" &&
           currentItemIds.includes(submittedUserItemKey);
+        // 相同键的权威替换也可能改变角色、阶段与完成态聚合；只使所属回合失效。
+        // 文本 Delta 仍走独立分支，不复制键数组或唤醒历史回合。
         const nextItemIds = replacesSubmittedUserItem
           ? currentItemIds.flatMap((candidateKey) =>
               candidateKey === itemKey
@@ -328,7 +330,7 @@ export function createTaskEventReducer<
                   : candidateKey,
             )
           : itemAlreadyExists
-            ? currentItemIds
+            ? [...currentItemIds]
             : [...currentItemIds, itemKey];
         // 权威用户项原位接管提交占位，不能移动到已经到达的助手回复之后。
         if (replacesSubmittedUserItem) {
@@ -343,10 +345,7 @@ export function createTaskEventReducer<
         const timedTurn = recordToolItemTiming(currentTurn, event);
         return {
           checkpoint,
-          itemKeysByTurnId:
-            nextItemIds === state.itemKeysByTurnId[event.turnId]
-              ? state.itemKeysByTurnId
-              : { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
+          itemKeysByTurnId: { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
           itemStructureRevision: state.itemStructureRevision + 1,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
           ...(timedTurn === currentTurn
