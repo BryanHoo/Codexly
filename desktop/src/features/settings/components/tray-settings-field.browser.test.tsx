@@ -56,7 +56,7 @@ describe("TraySettingsField", () => {
     const toggle = screen.getByRole("switch", { name: "显示状态栏图标" });
     await expect.element(toggle).toBeEnabled();
     await toggle.click();
-    await expect.element(screen.getByRole("alert")).toBeVisible();
+    await expect.element(screen.getByText("保存失败，请重试", { exact: true })).toBeVisible();
     await expect.element(toggle).toHaveAttribute("aria-checked", "true");
     await screen.getByRole("button", { name: "重试" }).click();
     await expect.element(toggle).toHaveAttribute("aria-checked", "false");

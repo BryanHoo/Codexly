@@ -490,6 +490,6 @@ describe("ScheduledTaskList", () => {
     await screen.getByRole("button", { name: "填写测试提示词" }).click();
     await screen.getByRole("button", { name: "保存任务" }).click();
     await expect.element(screen.getByText(nativeMessage)).toBeVisible();
-    expect(screen.container.querySelectorAll("[data-toast]")).toHaveLength(1);
+    expect(document.querySelectorAll('[data-slot="toast"]')).toHaveLength(1);
   });
 });

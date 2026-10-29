@@ -1,3 +1,4 @@
+import "../../../shared/styles/globals.css";
 import { Toaster } from "@codexly/ui/core/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -35,7 +36,7 @@ describe("personalization", () => {
     expect(client.saveGlobalInstructions).not.toHaveBeenCalled();
     editor.element().blur();
     await vi.waitFor(() => expect(client.saveGlobalInstructions).toHaveBeenCalledWith("  新说明\n", "# 原有说明\n"));
-    await expect.element(screen.getByRole("status")).toHaveTextContent("已保存");
+    await expect.element(screen.getByText("已保存", { exact: true })).toHaveTextContent("已保存");
     success.mockRestore();
   });
 
@@ -62,7 +63,7 @@ describe("personalization", () => {
     await expect.element(editor).toHaveValue("# 原有说明\n");
     await editor.fill("保留草稿");
     editor.element().blur();
-    await expect.element(screen.getByRole("alert")).toBeVisible();
+    await expect.element(screen.getByText("保存失败，请重试", { exact: true })).toBeVisible();
     await expect.element(editor).toHaveValue("保留草稿");
   });
 });

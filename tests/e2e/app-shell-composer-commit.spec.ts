@@ -349,20 +349,19 @@ for (const scenario of [
     });
     expect(pushRequests).toEqual([]);
     await expect(page.locator('[data-slot="sheet-content"]')).toHaveCount(0);
-    const toaster = page.locator(".app-toaster");
+    const toaster = page.locator('[data-slot="toast-viewport"]');
+    await expect(toaster).toBeAttached();
     const toastBounds = await toaster.boundingBox();
-    expect(toastBounds?.y).toBeLessThanOrEqual(32);
-    expect(
-      Math.abs(
-        (toastBounds?.x ?? 0) +
-          (toastBounds?.width ?? 0) / 2 -
-          (page.viewportSize()?.width ?? 0) / 2,
-      ),
-    ).toBeLessThan(1);
+    const viewport = page.viewportSize();
+    if (!toastBounds || !viewport) throw new Error("Toast 缺少布局边界");
+    expect(Math.abs(toastBounds.y + toastBounds.height - (viewport.height - 16))).toBeLessThan(1);
+    expect(Math.abs(toastBounds.x + toastBounds.width - (viewport.width - 16))).toBeLessThan(1);
     const successToast = page.locator('[data-toast][data-type="success"]');
     await expect(successToast).toBeVisible();
     await expect(successToast).toHaveText(scenario.toastMessage);
+    await successToast.hover();
     await expect(successToast.getByRole("button", { name: "关闭通知" })).toHaveCount(1);
+    await page.mouse.move(0, 0);
     await expect(successToast).not.toBeAttached({ timeout: 7_000 });
 
     if (scenario.actionName === "提交") {

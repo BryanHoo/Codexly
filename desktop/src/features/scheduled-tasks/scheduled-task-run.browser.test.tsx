@@ -37,10 +37,10 @@ it.each(["deleted", "archived", "available"])("checks a %s run before navigating
   await expect.poll(() => client.listScheduledTasks.mock.calls.length).toBe(1);
   await screen.getByRole("button", { name: "选择任务" }).click();
   await screen.getByRole("button", { name: "查看执行" }).click();
-  await expect.poll(() => navigate.mock.calls.length + screen.container.querySelectorAll("[data-toast]").length).toBe(1);
+  await expect.poll(() => navigate.mock.calls.length + document.querySelectorAll('[data-slot="toast"]').length).toBe(1);
   expect(navigate.mock.calls.length).toBe(state === "available" ? 1 : 0);
   expect(queryClient.getQueryData(["projects", "project-a", "tasks", "run-a"])).toEqual(state === "available" ? response : undefined);
-  expect(screen.container.textContent?.includes("任务已删除、归档或不可用。")).toBe(state !== "available");
+  expect(document.body.textContent?.includes("任务已删除、归档或不可用。")).toBe(state !== "available");
   await expect.element(screen.getByRole("button", { name: "查看执行" })).toBeEnabled();
   await screen.unmount();
   queryClient.clear();

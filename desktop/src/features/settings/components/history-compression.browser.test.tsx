@@ -14,7 +14,7 @@ it("only submits on demand, prevents double submission and reports scheduling", 
   await page.getByRole("button", { name: labels.action }).click();
   await expect.element(page.getByRole("button", { name: labels.pending })).toBeDisabled();
   pending.resolve({ status: "scheduled" });
-  await expect.element(page.getByRole("status")).toHaveTextContent(labels.scheduled);
+  await expect.element(page.getByText(labels.scheduled, { exact: true })).toHaveTextContent(labels.scheduled);
   await expect.element(page.getByRole("button", { name: labels.action })).toBeEnabled();
   expect(compressHistory).toHaveBeenCalledTimes(1);
 });
@@ -22,7 +22,7 @@ it("shows failure and permits retry", async () => {
   const compressHistory = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ status: "scheduled" });
   await render(<><Toaster /><HistoryCompression client={{ compressHistory }} labels={labels} /></>);
   await page.getByRole("button", { name: labels.action }).click();
-  await expect.element(page.getByRole("alert")).toHaveTextContent(labels.failed);
+  await expect.element(page.getByText(labels.failed, { exact: true })).toHaveTextContent(labels.failed);
   await page.getByRole("button", { name: labels.action }).click();
-  await expect.element(page.getByRole("status")).toHaveTextContent(labels.scheduled);
+  await expect.element(page.getByText(labels.scheduled, { exact: true })).toHaveTextContent(labels.scheduled);
 });

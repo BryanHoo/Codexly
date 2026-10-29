@@ -47,3 +47,11 @@
 - 两端入口统一导出共享组件，并同步背景图片的浮层材质选择器 `drawer-popup`。浏览器测试预打包 `@base-ui/react/dialog` 与 `@base-ui/react/drawer`，防止测试中途重新打包造成重复 React。
 - 回归入口为 `dialog-close.browser.test.tsx`、`drawer.browser.test.tsx`、桌面全局搜索/新建项目/已归档任务/子代理输出/常用提示词，以及 Web `app-shell-new-project.spec.ts`、`app-shell-saved-prompts.spec.ts`。包体预算按本次用户指令调整，仍执行交互与性能检查。
 - `tests/e2e/app-shell-modal-lazy.spec.ts` 用真实生产请求验证未打开不加载、首次打开加载及重开复用缓存；生产 manifest 验证两个 surface 不进入首屏或工作台静态闭包。
+
+## 共享 Toast
+
+- Web、移动浏览器和桌面应用通知统一使用 `packages/ui/src/core/toaster.tsx` 的 shadcn Base UI Toast；`notifications.tsx` 只持有单个官方 manager 并提供业务语义快捷方法，也直接暴露 `add`、`update`、`close`、`promise`。禁止恢复自制通知 store、计时器或顶部 message 卡片样式。
+- 应用根挂载一个 Toaster，文案由宿主注入；Provider、Portal、Viewport、Root、Content、Title、Description、Action 和 Close 共同管理堆叠、滑动、暂停计时和焦点恢复。使用官方右下角堆叠与悬停展开，窄屏左右各保留至少 16px 并适配安全区域，支持减少动态效果。
+- 设置保存仍使用稳定 `settings-save` ID 原位更新；重试关闭旧通知后交还原业务动作，失败离页保护仍能重新展示。正文保持自然高度，不让 Content 的百分比高度与卡片高度动画形成 ResizeObserver 反馈；长正文独立滚动且保留操作入口。
+- 关闭按钮由 Base UI 在通知展开或键盘聚焦时暴露给辅助技术；测试先悬停或用 F6 定位通知区域，再操作按钮。Toast 原语使用 dialog 语义，通知测试定位 `data-slot="toast"` 或标题文字，不能继续依赖旧 status/alert 容器或渲染容器内查询，因为 Portal 挂载到 body。
+- 回归入口为桌面 `toaster.browser.test.tsx`（Chromium / WebKit、堆叠、宽窄屏、长文、同 ID 更新、重试及设置保存）与 Web `app-shell-toast.spec.ts`（三浏览器、明暗主题、减少动态效果、键盘关闭及焦点恢复）；测试依赖预打包包含 `@base-ui/react/toast`。

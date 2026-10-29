@@ -1,7 +1,9 @@
 import { expect, taskSnapshotRoute, test } from "./fixtures/app-shell.js";
 
 for (const width of [390, 1440]) {
-  test(`${width}px: 会话首载显示骨架并在内容到达后切换 @cross-browser`, async ({ page }) => {
+  test(`${String(width)}px: 会话首载显示骨架并在内容到达后切换 @cross-browser`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({
       colorScheme: width === 390 ? "dark" : "light",

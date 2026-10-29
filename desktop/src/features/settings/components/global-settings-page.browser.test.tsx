@@ -208,10 +208,10 @@ describe("GlobalSettingsPage", () => {
     const editor = screen.getByRole("textbox", { name: "Git message 提示词" });
     await editor.fill("保留规则草稿");
     editor.element().blur();
-    await expect.element(screen.getByRole("alert")).toHaveTextContent("保存失败，请重试");
+    await expect.element(screen.getByText("保存失败，请重试", { exact: true })).toHaveTextContent("保存失败，请重试");
     await expect.element(editor).toHaveValue("保留规则草稿");
     await screen.getByRole("button", { name: "重试", exact: true }).click();
-    await expect.element(screen.getByRole("status")).toHaveTextContent("已保存");
+    await expect.element(screen.getByText("已保存", { exact: true })).toHaveTextContent("已保存");
     expect(onSave).toHaveBeenCalledTimes(2);
   });
 

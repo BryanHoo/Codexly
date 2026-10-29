@@ -50,7 +50,7 @@ it("个性化独立读取，不探测模型；返回不提交未修改的设置"
   );
   await expect.element(screen.getByRole("textbox", { name: "全局指令" })).toBeEnabled();
   expect(client.getEngineProfile).not.toHaveBeenCalled();
-  await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("保存失败，请重试", { exact: true })).not.toBeInTheDocument();
   await screen.getByRole("button", { name: "返回", exact: true }).click();
   await vi.waitFor(() => expect(onBack).toHaveBeenCalledOnce());
   expect(client.updateClaudeSettings).not.toHaveBeenCalled();

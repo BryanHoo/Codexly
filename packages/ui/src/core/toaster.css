@@ -1,137 +1,169 @@
-/* 通知沿正常布局完整展开；短消息按内容收窄，长消息与移动屏幕共享同一宽度上限。 */
-.app-toaster {
+/* 采用 shadcn Base UI Toast 的底部堆叠公式；仅映射项目主题和移动安全区域。 */
+[data-slot="toast-viewport"] {
   position: fixed;
   z-index: 1000;
-  top: max(16px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: max(16px, env(safe-area-inset-left));
+  width: auto;
+  max-width: 384px;
+  margin-inline: auto;
+  outline: none;
   pointer-events: none;
 }
 
-.app-toast {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: fit-content;
-  max-width: 100%;
-  min-height: 52px;
-  padding: 10px 12px 10px 16px;
-  border: 1px solid var(--ui-color-separator);
-  border-radius: 18px;
-  background: var(--ui-color-floating-surface, var(--ui-color-panel));
+[data-slot="toast"] {
+  --gap: 12px;
+  --height: var(--toast-frontmost-height, var(--toast-height));
+  --offset-y: calc(
+    var(--toast-offset-y) * -1 + var(--toast-index) * var(--gap) * -1 +
+      var(--toast-swipe-movement-y)
+  );
+  --peek: 12px;
+  --scale: max(0, 1 - var(--toast-index) * 0.1);
+  --shrink: calc(1 - var(--scale));
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: calc(1000 - var(--toast-index));
+  width: 100%;
+  height: var(--height);
+  /* 保留官方双层阴影形状，增强纯色工作台上的边界与投影，明暗主题均需可辨。 */
+  border: 1px solid light-dark(#dedede, rgb(255 255 255 / 14%));
+  border-radius: 16px;
+  background: var(--ui-color-floating-surface, light-dark(#ffffff, #262626));
   color: var(--ui-color-text);
   box-shadow:
-    0 4px 12px rgb(0 0 0 / 4%),
-    0 16px 40px rgb(0 0 0 / 12%);
+    0 10px 15px -3px light-dark(rgb(0 0 0 / 18%), rgb(0 0 0 / 48%)),
+    0 4px 6px -4px light-dark(rgb(0 0 0 / 16%), rgb(0 0 0 / 32%));
+  outline: none;
+  transform-origin: bottom;
+  transform: translateX(var(--toast-swipe-movement-x))
+    translateY(
+      calc(
+        var(--toast-swipe-movement-y) - var(--toast-index) * var(--peek) - var(--shrink) *
+          var(--height)
+      )
+    )
+    scale(var(--scale));
+  transition:
+    transform 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 500ms,
+    height 150ms;
+  will-change: transform;
   pointer-events: auto;
-  animation: app-toast-enter 160ms ease-out;
+  user-select: none;
 }
 
-.app-toast__icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
+/* 扩展命中区域连接卡片间隙，悬停展开后移动指针不会反复折叠。 */
+[data-slot="toast"]::after {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: calc(var(--gap) + 1px);
+  content: "";
 }
-.app-toast[data-type="success"] .app-toast__icon {
-  color: var(--ui-color-success, #479a57);
+
+[data-slot="toast"][data-expanded] {
+  height: var(--toast-height);
+  transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
 }
-.app-toast[data-type="error"] .app-toast__icon {
-  color: var(--ui-color-danger, #d95555);
+[data-slot="toast"][data-limited] {
+  opacity: 0;
 }
-.app-toast[data-type="warning"] .app-toast__icon {
-  color: var(--ui-color-warning, #c68135);
+[data-slot="toast"][data-starting-style],
+[data-slot="toast"][data-ending-style]:not([data-limited]):not([data-swipe-direction]) {
+  transform: translateY(150%);
 }
-.app-toast[data-type="info"] .app-toast__icon {
-  color: var(--ui-color-text-muted);
+[data-slot="toast"][data-ending-style][data-swipe-direction="down"] {
+  transform: translateY(calc(var(--toast-swipe-movement-y) + 150%));
 }
-.app-toast__content {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-  max-height: min(160px, 24dvh);
-  overflow: auto;
-  overflow-wrap: anywhere;
+[data-slot="toast"][data-ending-style][data-swipe-direction="up"] {
+  transform: translateY(calc(var(--toast-swipe-movement-y) - 150%));
 }
-.app-toast__message {
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 500;
+[data-slot="toast"][data-ending-style][data-swipe-direction="left"] {
+  transform: translateX(calc(var(--toast-swipe-movement-x) - 150%)) translateY(var(--offset-y));
 }
-.app-toast__description {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ui-color-text-muted);
+[data-slot="toast"][data-ending-style][data-swipe-direction="right"] {
+  transform: translateX(calc(var(--toast-swipe-movement-x) + 150%)) translateY(var(--offset-y));
 }
-.app-toast__close,
-.app-toast__action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-}
-.app-toast__close {
-  width: 28px;
-  height: 28px;
-  color: var(--ui-color-text-muted);
-}
-.app-toast__close svg {
-  width: 16px;
-  height: 16px;
-}
-.app-toast__action {
-  min-height: 28px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ui-color-text);
-}
-.app-toast__close:hover,
-.app-toast__action:hover {
-  background: var(--ui-color-control);
-}
-.app-toast__close:focus-visible,
-.app-toast__action:focus-visible {
+[data-slot="toast"]:focus-visible {
   outline: 2px solid var(--ui-color-text-muted);
   outline-offset: 2px;
 }
-@keyframes app-toast-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
+[data-slot="toast-content"] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  padding: 16px;
+  transition: opacity 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-slot="toast-content"][data-behind] {
+  opacity: 0;
+}
+[data-slot="toast-content"][data-expanded] {
+  opacity: 1;
+}
+[data-slot="toast-icon"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+[data-slot="toast"][data-type="error"] [data-slot="toast-icon"] {
+  color: var(--ui-color-danger);
+}
+[data-slot="toast"][data-type="loading"] [data-slot="toast-icon"] {
+  animation: toast-spin 1s linear infinite;
+}
+/* 正文维持自然高度，避免高度过渡反复触发 Base UI 的 ResizeObserver 测量。 */
+[data-slot="toast-text"] {
+  display: flex;
+  min-width: 0;
+  max-height: min(50dvh, 360px);
+  overflow: auto;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+[data-slot="toast-title"] {
+  font-size: 14px;
+  font-weight: 500;
+}
+[data-slot="toast-description"] {
+  font-size: 14px;
+  color: var(--ui-color-text-muted);
+}
+[data-slot="toast-close"] {
+  position: relative;
+  color: var(--ui-color-text-muted);
+}
+[data-slot="toast-close"]::after {
+  position: absolute;
+  inset: -8px;
+  content: "";
+}
+@keyframes toast-spin {
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: rotate(360deg);
   }
 }
-@media (max-width: 600px) {
-  .app-toaster {
-    gap: 8px;
-    top: max(12px, env(safe-area-inset-top));
-  }
-  .app-toast {
-    gap: 8px;
-    padding: 8px 8px 8px 12px;
-    border-radius: 16px;
-  }
-  .app-toast__close {
-    width: 36px;
-    height: 36px;
+@media (min-width: 640px) {
+  [data-slot="toast-viewport"] {
+    left: auto;
+    width: 100%;
+    margin-inline: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-toast {
-    animation: none;
+  [data-slot="toast"],
+  [data-slot="toast-content"] {
+    transition: none;
+  }
+  [data-slot="toast-icon"] {
+    animation: none !important;
   }
 }
