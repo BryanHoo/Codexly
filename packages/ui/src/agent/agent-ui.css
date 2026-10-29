@@ -322,6 +322,11 @@ button.agent-process-header:hover {
 }
 
 [data-prompt-input] {
+  /* 两端共用零偏移双层阴影：外层均匀扩散、内层勾勒轮廓，并在底部 12px 留白内淡出。
+     仅覆盖输入框自身的浮层阴影，聚焦时仍由 shadow-focus 提供清晰的状态反馈。 */
+  --ui-shadow-floating:
+    0 0 8px light-dark(rgb(23 23 23 / 0.12), rgb(0 0 0 / 0.44)),
+    0 0 3px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.28));
   border-radius: calc(var(--ui-radius-surface) + 4px);
 }
 [data-slot="attachment"] {
