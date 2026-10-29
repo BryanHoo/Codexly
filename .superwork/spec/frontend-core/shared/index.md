@@ -71,3 +71,10 @@
 - 平台仅注入实体工厂、通知保留规则与终态错误权威策略。桌面以 Rust 归并的终态为准，null 错误也具有权威性；Web 保留原有不可重试错误回退。不能在共享逻辑中硬编码平台或 Provider 分支。
 - 提交响应先于空 turn.started 到达时，保留已显示条目及 Store 身份；权威用户消息必须原位接管提交占位，不能移动到已到达的助手回复之后。
 - 两端调用 [同一回放契约](../../../../packages/frontend-core/src/testing/task-event-replay.ts)，直接驱动真实 Store，覆盖 Codex/Claude、单条/批量、重复及身份过滤、审批终态、推理、命令输出、错误恢复和终态摘要接管。增量批次只发布目标条目一次，不读取无关历史全文。入口为各端 runtime/task-store-event-replay.test.ts；共享改动同时执行两端 runtime 测试、类型检查与根性能套件。
+
+## 可见任务与通知已读
+
+- 两端复用 `task-view-state.ts` 和 UI 的 `use-task-visibility.tsx`，按任务窗口渲染生命周期登记；前台分屏的所有可见任务均同步消费侧栏提醒和消息中心未读，不依赖活动输入窗口、点击或滚动。
+- 页面隐藏时保留新通知未读；恢复可见或窗口重新获得焦点时自动确认所有仍显示的任务。React Activity 隐藏、任务卸载及删除必须注销身份，避免旧焦点持续吞掉后台通知。
+- 使用已有活动订阅与页面生命周期事件，不增加轮询、逐 Token 扫描或滚动状态；已读不解除审批和待回答事实。桌面可见任务的新终态同时确认原生活动。
+- 验证入口：共享 `task-view-state.test.ts`、两端 `project-runtime-notifications.test.ts` 与桌面 `task-visibility.browser.test.tsx`（Chromium / WebKit，覆盖无点击分屏、滚动、隐藏和恢复）。

@@ -1,3 +1,4 @@
+import { useTaskVisibility } from "@codexly/ui/core/use-task-visibility";
 import { documentResourceId } from "@codexly/frontend-core/document-presentation";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
 import { useComposerWorkspaceSelection } from "@codexly/ui/core/composer-workspace";
@@ -362,6 +363,7 @@ export function useWorkbenchShellRuntime({
   );
   const removeInspectorDocument = documentWorkspace.close;
 
+  useTaskVisibility(projectRuntime, projectId, taskId, !workspaceOnly);
   useLayoutEffect(() => {
     // 路由提交后、页面绘制前消费提醒，避免实时终态与被动 Effect 形成竞态。
     if (!workspaceOnly && paneActive) viewTask(projectId, taskId);

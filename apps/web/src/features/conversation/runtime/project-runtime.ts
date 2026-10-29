@@ -1,3 +1,4 @@
+import { createTaskViewState } from "@codexly/frontend-core/task-view-state";
 import {
   getTaskNotificationStore,
   isTaskNotificationEvent,
@@ -68,7 +69,9 @@ export class ProjectRuntimeManager {
   readonly #taskActivityCheckpoints = new Map<string, EventCheckpoint>();
   readonly #taskTitles = new Map<string, string>();
   readonly #titleRefreshedRunningTurns = new Set<string>();
-  #viewedTask: Readonly<{ projectId: string; taskId: string }> | undefined;
+  readonly #taskViews = createTaskViewState((projectId, taskId) => {
+    this.#markTaskRead(projectId, taskId);
+  });
 
   public readonly client: CodexlyRuntimeClient;
 
@@ -121,6 +124,7 @@ export class ProjectRuntimeManager {
   }
 
   public dispose(): void {
+    this.#taskViews.dispose();
     if (this.#ownsTaskNotifier) this.#taskNotifier.dispose?.();
     for (const project of this.#projects.values()) {
       project.dispose();
@@ -134,6 +138,7 @@ export class ProjectRuntimeManager {
   }
 
   public forgetTask(projectId: string, taskId: string): void {
+    this.#taskViews.forget(projectId, taskId);
     this.#synchronizedActivityKeys.delete(createProjectTaskKey(projectId, taskId));
     this.#updateTaskActivity(removeTaskActivity(this.#taskActivity, projectId, taskId));
     this.#taskActivityCheckpoints.delete(createProjectTaskKey(projectId, taskId));
@@ -170,9 +175,7 @@ export class ProjectRuntimeManager {
         this.#titleRefreshedRunningTurns.delete(key);
       }
     }
-    if (this.#viewedTask?.projectId === projectId) {
-      this.#viewedTask = undefined;
-    }
+    this.#taskViews.forget(projectId);
   }
 
   public reconcileTaskActivities(
@@ -218,11 +221,9 @@ export class ProjectRuntimeManager {
         return record;
       },
     );
-    // 聚焦可能发生在活动读取期间；即使旧快照被跳过，也要确认已收集的当前任务通知。
-    if (this.#viewedTask) {
-      getTaskNotificationStore().markTaskRead(this.#viewedTask.projectId, this.#viewedTask.taskId);
-    }
+    // 可见窗口可能在活动读取期间改变；合并后统一确认全部可见任务，覆盖迟到快照。
     this.#updateTaskActivity(next);
+    this.#taskViews.readVisible();
   }
 
   public getTaskActivity(): TaskActivityMap {
@@ -269,15 +270,22 @@ export class ProjectRuntimeManager {
   }
 
   public viewTask(projectId: string, taskId?: string): void {
-    this.#viewedTask = taskId === undefined ? undefined : { projectId, taskId };
-    if (taskId !== undefined) {
-      // 所有导航和分屏聚焦共用此入口，同步消除通知中心的未读状态。
-      getTaskNotificationStore().markTaskRead(projectId, taskId);
-      const version = this.#activityVersions.get(createProjectTaskKey(projectId, taskId));
-      if (version !== undefined) this.onTaskActivityViewed?.(projectId, taskId, version);
-      this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
-    }
+    this.#taskViews.view(projectId, taskId);
     this.#projects.get(projectId)?.markAccess();
+  }
+
+  public observeVisibleTask(projectId: string, taskId: string): () => void {
+    return this.#taskViews.observe(projectId, taskId);
+  }
+
+  #markTaskRead(projectId: string, taskId: string): void {
+    // 侧栏与消息中心共用确认入口；重复可见且没有新活动时保持无更新。
+    getTaskNotificationStore().markTaskRead(projectId, taskId);
+    const version = this.#activityVersions.get(createProjectTaskKey(projectId, taskId));
+    const attention = getTaskActivity(this.#taskActivity, projectId, taskId).attention;
+    if (version !== undefined && (attention === "completed" || attention === "failed"))
+      this.onTaskActivityViewed?.(projectId, taskId, version);
+    this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
   }
 
   public subscribeTaskActivity(listener: ActivityListener): () => void {
@@ -424,7 +432,7 @@ export class ProjectRuntimeManager {
   }
 
   #isTaskViewed(projectId: string, taskId: string): boolean {
-    return this.#viewedTask?.projectId === projectId && this.#viewedTask.taskId === taskId;
+    return this.#taskViews.isViewed(projectId, taskId);
   }
 
   #recordSnapshotActivity(response: AgentTaskSnapshotResponse): void {

@@ -3,7 +3,7 @@ import { installTaskActivitySync } from "@codexly/frontend-core/task-activity-sy
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { getTaskActivities, listenTaskActivityChanged } from "../../../platform/tauri/task-activity-client.js";
+import { acknowledgeTaskActivity, getTaskActivities, listenTaskActivityChanged } from "../../../platform/tauri/task-activity-client.js";
 import { listenScheduledTaskStarted } from "../../../platform/tauri/scheduled-task-events.js";
 import { cacheCreatedProjectTask } from "../../projects/project-query-cache.js";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -38,18 +38,29 @@ export function TaskActivityRestore() {
     };
   }, [projectRuntime, queryClient]);
 
-  useEffect(() => installTaskActivitySync({
-    read: getTaskActivities,
-    capture: () => projectRuntime.getTaskActivity(),
-    apply: (tasks, baseline) => {
-      // 复用全局活动结果批量收集通知，避免增加原生 IPC 或逐任务订阅。
-      getTaskNotificationStore().recordActivities(tasks);
-      projectRuntime.reconcileTaskActivities(tasks, baseline);
-    },
-    subscribe: listenTaskActivityChanged,
-    onError: (error) => recordInternalWarning("task_activity_restore_failed", error),
-    target: document, window,
-  }), [projectRuntime]);
+  useEffect(() => {
+    // 可见窗口在终态到达时也要确认原生活动，不能只在用户点击导航时确认。
+    projectRuntime.onTaskActivityViewed = (projectId, taskId) => {
+      void acknowledgeTaskActivity(projectId, taskId).catch((error: unknown) =>
+        recordInternalWarning("task_activity_acknowledge_failed", error, { projectId, taskId }));
+    };
+    const stop = installTaskActivitySync({
+      read: getTaskActivities,
+      capture: () => projectRuntime.getTaskActivity(),
+      apply: (tasks, baseline) => {
+        // 复用全局活动结果批量收集通知，避免增加原生 IPC 或逐任务订阅。
+        getTaskNotificationStore().recordActivities(tasks);
+        projectRuntime.reconcileTaskActivities(tasks, baseline);
+      },
+      subscribe: listenTaskActivityChanged,
+      onError: (error) => recordInternalWarning("task_activity_restore_failed", error),
+      target: document, window,
+    });
+    return () => {
+      projectRuntime.onTaskActivityViewed = undefined;
+      stop();
+    };
+  }, [projectRuntime]);
 
   return null;
 }

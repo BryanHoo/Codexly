@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { i18n } from "../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../shared/utils/async-action-lock.js";
-import { acknowledgeTaskActivity } from "../../platform/tauri/task-activity-client.js";
 import { createProjectRuntimeManager } from "../conversation/runtime/project-runtime.js";
 import { notifyActionError, notifyActionSuccess } from "../notifications/action-notifications.js";
 import { recordInternalWarning } from "../notifications/internal-diagnostics.js";
@@ -261,11 +260,6 @@ export function ProjectProvider({
         currentProjectId === projectId ? currentProjectId : projectId,
       );
       projectRuntime.viewTask(projectId, taskId);
-      if (taskId !== undefined) {
-        void acknowledgeTaskActivity(projectId, taskId).catch((error: unknown) => {
-          recordInternalWarning("task_activity_acknowledge_failed", error, { projectId, taskId });
-        });
-      }
     },
     [projectRuntime],
   );

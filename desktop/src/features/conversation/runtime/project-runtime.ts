@@ -1,3 +1,4 @@
+import { createTaskViewState } from "@codexly/frontend-core/task-view-state";
 import { getTaskNotificationStore, isTaskNotificationEvent } from "@codexly/frontend-core/task-notification-store";
 import type {
   AgentTask,
@@ -38,6 +39,7 @@ import { reconcileActivitySnapshots } from "@codexly/frontend-core/task-activity
 import type { TaskActivitySnapshot as ActivitySnapshot } from "@codexly/protocol";
 
 export class ProjectRuntimeManager {
+  public onTaskActivityViewed: ((projectId: string, taskId: string) => void) | undefined;
   readonly #synchronizedActivityKeys = new Set<string>();
   readonly #activityListeners = new Set<ActivityListener>();
   readonly #idleTimeoutMs: number;
@@ -62,7 +64,9 @@ export class ProjectRuntimeManager {
   readonly #taskActivityCheckpoints = new Map<string, EventCheckpoint>();
   readonly #taskTitles = new Map<string, string>();
   readonly #titleRefreshedRunningTurns = new Set<string>();
-  #viewedTask: Readonly<{ projectId: string; taskId: string }> | undefined;
+  readonly #taskViews = createTaskViewState((projectId, taskId) => {
+    this.#markTaskRead(projectId, taskId);
+  });
 
   public readonly client: NativeRuntimeClient;
 
@@ -113,6 +117,7 @@ export class ProjectRuntimeManager {
   }
 
   public dispose(): void {
+    this.#taskViews.dispose();
     for (const project of this.#projects.values()) {
       project.dispose();
     }
@@ -125,6 +130,7 @@ export class ProjectRuntimeManager {
   }
 
   public forgetTask(projectId: string, taskId: string): void {
+    this.#taskViews.forget(projectId, taskId);
     this.#synchronizedActivityKeys.delete(createProjectTaskKey(projectId, taskId));
     this.#updateTaskActivity(removeTaskActivity(this.#taskActivity, projectId, taskId));
     this.#taskActivityCheckpoints.delete(createProjectTaskKey(projectId, taskId));
@@ -161,9 +167,7 @@ export class ProjectRuntimeManager {
         this.#titleRefreshedRunningTurns.delete(key);
       }
     }
-    if (this.#viewedTask?.projectId === projectId) {
-      this.#viewedTask = undefined;
-    }
+    this.#taskViews.forget(projectId);
   }
 
   public reconcileTaskActivities(tasks: readonly ActivitySnapshot[], baseline: TaskActivityMap): void {
@@ -177,16 +181,15 @@ export class ProjectRuntimeManager {
       const singleton: TaskActivityMap = previous === undefined ? new Map() : new Map([[key, previous]]);
       const updated = recordNativeTaskActivity(singleton, task);
       const viewed = this.#isTaskViewed(task.projectId, task.taskId);
+      if (viewed && (task.status === "completed" || task.status === "failed")) this.onTaskActivityViewed?.(task.projectId, task.taskId);
       const result = viewed ? clearTaskAttention(updated, task.projectId, task.taskId) : updated;
       const record = result.get(key);
       if (record === undefined) throw new Error("Activity snapshot identity is missing");
       return record;
     });
-    // 聚焦可能发生在活动读取期间；即使旧快照被跳过，也要确认已收集的当前任务通知。
-    if (this.#viewedTask) {
-      getTaskNotificationStore().markTaskRead(this.#viewedTask.projectId, this.#viewedTask.taskId);
-    }
+    // 可见窗口可能在活动读取期间改变；合并后统一确认全部可见任务，覆盖迟到快照。
     this.#updateTaskActivity(next);
+    this.#taskViews.readVisible();
   }
 
   public getTaskActivity(): TaskActivityMap {
@@ -253,13 +256,20 @@ export class ProjectRuntimeManager {
   }
 
   public viewTask(projectId: string, taskId?: string): void {
-    this.#viewedTask = taskId === undefined ? undefined : { projectId, taskId };
-    if (taskId !== undefined) {
-      // 所有导航和分屏聚焦共用此入口，同步消除通知中心的未读状态。
-      getTaskNotificationStore().markTaskRead(projectId, taskId);
-      this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
-    }
+    this.#taskViews.view(projectId, taskId);
     this.#projects.get(projectId)?.markAccess();
+  }
+
+  public observeVisibleTask(projectId: string, taskId: string): () => void {
+    return this.#taskViews.observe(projectId, taskId);
+  }
+
+  #markTaskRead(projectId: string, taskId: string): void {
+    // 侧栏与消息中心共用确认入口；重复可见且没有新活动时保持无更新。
+    getTaskNotificationStore().markTaskRead(projectId, taskId);
+    const attention = getTaskActivity(this.#taskActivity, projectId, taskId).attention;
+    if (attention === "completed" || attention === "failed") this.onTaskActivityViewed?.(projectId, taskId);
+    this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
   }
 
   public subscribeTaskActivity(listener: ActivityListener): () => void {
@@ -387,7 +397,7 @@ export class ProjectRuntimeManager {
   }
 
   #isTaskViewed(projectId: string, taskId: string): boolean {
-    return this.#viewedTask?.projectId === projectId && this.#viewedTask.taskId === taskId;
+    return this.#taskViews.isViewed(projectId, taskId);
   }
 
   #recordSnapshotActivity(response: AgentTaskSnapshotResponse): void {
