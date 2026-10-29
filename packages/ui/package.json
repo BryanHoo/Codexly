@@ -80,6 +80,7 @@
     "./agent/agent-ui.css": "./src/agent/agent-ui.css"
   },
   "dependencies": {
+    "@base-ui/react": "catalog:",
     "@codemirror/commands": "catalog:",
     "@codemirror/lang-css": "catalog:",
     "@codemirror/lang-html": "catalog:",

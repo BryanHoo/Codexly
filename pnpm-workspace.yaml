@@ -95,6 +95,7 @@ catalog:
   ignore: 7.0.6
   yazl: 3.3.1
   "@types/yazl": 3.3.1
+  "@base-ui/react": 1.9.0
 
 catalogMode: strict
 cleanupUnusedCatalogs: true

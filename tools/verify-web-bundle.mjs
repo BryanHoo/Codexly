@@ -2,7 +2,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 
-const initialGzipBudgetBytes = 320 * 1024;
+// 共享 Tooltip 迁移到 Base UI 后，首屏 gzip 预算按已确认的依赖增量调整。
+const initialGzipBudgetBytes = 360 * 1024;
 // Vite 8.2 将 Mermaid 图表依赖合并到同一异步组，按实际静态闭包限制传输量。
 const maxAsyncGzipBudgetBytes = 640 * 1024;
 const workbenchReadyGzipBudgetBytes = 500 * 1024;

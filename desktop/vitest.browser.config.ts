@@ -8,8 +8,21 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
-    // 提前打包懒加载面板的 Tabs，避免测试中途重新优化依赖、重载页面并重复加载 React。
-    include: ["@tauri-apps/api/mocks", "@tanstack/react-virtual", "radix-ui/popover", "radix-ui/tabs", "zustand/react/shallow", "@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-webgl", "marked", "remend", "@codexly/ui > react-zoom-pan-pinch"],
+    // 提前打包共享 Tooltip 和懒加载面板，避免中途重新优化依赖、重载页面并重复加载 React。
+    include: [
+      "@tauri-apps/api/mocks",
+      "@tanstack/react-virtual",
+      "@codexly/ui > @base-ui/react/tooltip",
+      "radix-ui/popover",
+      "radix-ui/tabs",
+      "zustand/react/shallow",
+      "@xterm/xterm",
+      "@xterm/addon-fit",
+      "@xterm/addon-webgl",
+      "marked",
+      "remend",
+      "@codexly/ui > react-zoom-pan-pinch",
+    ],
   },
   resolve: {
     alias: [{ find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) }],
@@ -21,10 +34,7 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      instances: [
-        { browser: "chromium" },
-        { browser: "webkit" },
-      ],
+      instances: [{ browser: "chromium" }, { browser: "webkit" }],
       provider: playwright(),
       viewport: { height: 900, width: 1_440 },
     },

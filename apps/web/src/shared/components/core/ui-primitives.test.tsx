@@ -157,6 +157,24 @@ describe("项目核心组件", () => {
     expect(dialogMarkup).toContain('data-slot="dialog-trigger"');
   });
 
+  it("supports Base UI render composition while preserving accessible labels", () => {
+    const markup = renderToStaticMarkup(
+      <TooltipProvider delay={350}>
+        <Tooltip>
+          <TooltipTrigger aria-label="保存文件" render={<Button type="button" />}>
+            保存
+          </TooltipTrigger>
+        </Tooltip>
+      </TooltipProvider>,
+    );
+
+    expect(markup.match(/<button/gu)).toHaveLength(1);
+    expect(markup).toContain('data-slot="tooltip-trigger"');
+    expect(markup).toContain('aria-label="保存文件"');
+    expect(markup).toContain('type="button"');
+    expect(markup).not.toContain('role="tooltip"');
+  });
+
   it("keeps dialog content inside the dynamic viewport", () => {
     const markup = renderToStaticMarkup(
       <Dialog open>
