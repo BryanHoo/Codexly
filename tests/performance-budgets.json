@@ -1,4 +1,15 @@
 {
+  "activeConversation": {
+    "singlePaneTurns": 1000,
+    "splitPanes": 4,
+    "turnsPerSplitPane": 250,
+    "mobileTurns": 250,
+    "textCharactersPerMessage": 256,
+    "streamBatches": 120,
+    "reopenCycles": 3,
+    "maxUnrelatedHistoryReads": 0,
+    "maxUiSubscriptionsAfterClose": 0
+  },
   "attachment": {
     "bytes": 52428800,
     "maxDurationMs": 8000,

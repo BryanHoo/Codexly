@@ -1,8 +1,8 @@
 # 会话加载与性能 / Conversation Loading and Performance
 
-本文说明当前 Codexly 的会话加载与资源管理行为，适用于 Codex / Claude 任务，以及 Web（含移动端）和 Windows、Ubuntu、macOS 桌面应用。引擎历史读取细节可不同，界面共用按需加载和有界渲染策略。
+本文说明当前 Codexly 的会话加载与资源管理行为，适用于 Codex / Claude 任务，以及 Web（含移动端）和 Windows、Ubuntu、macOS 桌面应用。引擎历史读取细节可不同，界面共用按需加载与增量渲染；活跃会话的正文驻留量随已加载历史增长。
 
-This document describes current conversation loading and resource management for Codex and Claude tasks across Web (including mobile) and Windows, Ubuntu, and macOS desktop apps. Engine history adapters differ, while the interface shares on-demand loading and bounded rendering.
+This document describes current conversation loading and resource management for Codex and Claude tasks across Web (including mobile) and Windows, Ubuntu, and macOS desktop apps. Both interfaces share on-demand loading and incremental rendering; active transcript residency grows with loaded history.
 
 ## 会话历史 / Conversation History
 
@@ -16,9 +16,36 @@ Web、移动浏览器与桌面共用新版 [shadcn/ui AI Elements](https://ui.sh
 
 Both editions compose messages, traces, code, input, attachments and approvals from the current shadcn/ui primitives, sharing one implementation while retaining the project's theme and platform adapters.
 
-会话使用官方 `@shadcn/react` Message Scroller，不再采用回合虚拟列表。已经加载的回合全部保留在 DOM 中，支持原生查找与选择；`content-visibility` 跳过屏外绘制。最后两个回合始终采用实际布局，避免新消息从估算高度切换时回弹。滚动跟随、边缘状态与导航由官方 primitive 管理；共享阅读锚点补偿 WebKit 等浏览器在 prepend 或上方内容尺寸变化时的位移，滚动处理不更新 React 状态。只有主动发送才恢复跟随，阅读历史时增量输出不抢走位置。
+会话使用官方 `@shadcn/react` Message Scroller，不再采用回合虚拟列表。已经加载的回合全部保留在 DOM 中，支持原生查找与选择；`content-visibility` 可以跳过屏外布局和绘制，但保留 React 组件、DOM、正文与订阅，不是回收机制。最后两个回合始终采用实际布局，避免新消息从估算高度切换时回弹。滚动跟随、边缘状态与导航由官方 primitive 管理；共享阅读锚点补偿 WebKit 等浏览器在 prepend 或上方内容尺寸变化时的位移，滚动处理不更新 React 状态。只有主动发送才恢复跟随，阅读历史时增量输出不抢走位置。
 
-Conversation rows stay in the DOM and use browser content visibility instead of turn virtualization. The two latest turns retain real layout to avoid estimate corrections. The official Message Scroller owns following and navigation; a shared reading anchor compensates layout shifts across browsers. Scrolling does not update transcript React state. Sending resumes following, while background output preserves the reader's position.
+Conversation rows stay in the DOM and use browser content visibility instead of turn virtualization. Skipping offscreen layout and paint retains components, DOM, text and subscriptions. The two latest turns retain real layout to avoid estimate corrections. The official Message Scroller owns following and navigation; a shared reading anchor compensates layout shifts across browsers. Scrolling does not update transcript React state. Sending resumes following, while background output preserves the reader's position.
+
+### 活跃长会话的容量与回收验收
+
+分页最多 10 回合仅限制单次读取，不限制累计加载或持续运行的回合数。保留原生查找、选择的代价是正文 DOM、组件和订阅随已加载内容增长；四个不同任务的分屏分别承担这份成本。当前没有活跃会话的总堆内存硬上限，不会自动删除、折叠或卸载较早的问题与答复，也不以虚拟滚动优化会话。
+
+先减少重复工作：两端稳定回合渲染工厂，共享列表仅在条目顺序、键工厂或回合渲染输入改变时重建行元素。分页状态、页脚通知、发送信号与导航宽度更新复用已有行；结构变化仍更新对应回合，正文增量仍由目标 Item Store 发布。只保存当前列表的一版元素，不维护跨任务行缓存。回合级 `memo` 和稳定分组继续隔离无关历史正文；这减少更新工作，不减少驻留规模或消除所有 Store 选择器调用。
+
+容量目标由根 `tests/performance-budgets.json` 的 `activeConversation` 统一描述，作为验收输入规模，**不是产品硬限制，也不是已证明的设备内存容量**：
+
+| 场景       | 目标规模                                 | 验证范围                                                                                                              |
+| ---------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 单窗长会话 | 1,000 个已加载回合                       | 共享列表真实 DOM、页脚/发送信号更新的回合工厂零重复调用、屏外文本 Range 选择；完整富文本与附件压力需另测              |
+| 多分屏     | 4 个任务，每屏 250 回合，总计 1,000 回合 | Web 与桌面真实时间线及 Store；Codex / Claude；每回合一问一答，每条正文至少 256 字；120 批目标消息增量；关闭/重开 3 轮 |
+| 移动 Web   | 单任务 250 回合                          | 容量目标；真实触屏设备的内存、查找和选择尚需专项验收，不能由桌面浏览器测试替代                                        |
+
+自动回归入口为桌面浏览器套件中的 `conversation-capacity.browser.test.tsx` 和 `task-timeline-capacity.browser.test.tsx`，覆盖 Chromium / WebKit；后者同时调用 Web 与桌面组件。普通首屏 10 回合性能测试继续保留，但不能用它证明完整长会话的驻留成本。数量计数属于自动门槛；耗时、堆内存和进程内存必须注明环境、正文/附件规模及是否执行 GC，尚不据此宣称通过千回合设备容量认证。
+
+回收按资源所有者验收：
+
+- **仍打开的分屏**：正文和订阅允许随已加载内容增长；120 批增量不得重读无关历史正文，其他分屏的订阅数不得增长。新增、补页或权威条目替换仍应正确显示，不能靠冻结历史换取低计数。
+- **关闭分屏或离开任务**：该时间线的根 Store、Item Store 界面订阅归零，回合 DOM 从文档移除；其他分屏订阅数保持不变。反复开关 3 轮后，每次挂载的订阅数应与首轮一致。该测试保留 Store 以持续计数，不能把它当作堆释放证明。
+- **隐藏工作台**：React Activity 暂停界面副作用但保留 DOM 和组件状态；退出设置后恢复，不能将隐藏称为释放正文。后台运行事件接收与界面生命周期分开。
+- **关闭详情**：卸载大型工具、执行过程和子代理详情；其观察器、监听、动画及待执行帧应随边界清理。会话滚动容器的观察器与监听随时间线卸载清理，不为每个历史回合增加轮询。
+- **运行时与快照**：界面退订不等于停止任务。运行回合、在途提交、队列和后台终端仍按既有规则保留运行时；空闲、无消费者后才释放传输资源。非活跃快照按下文的 12 份 / 48 MiB 预算回收，重新打开可读取磁盘历史。
+- **内存专项验收**：生产构建先预热，固定同一批任务与正文，记录基线；重复打开、输出、关闭，等待详情退出与任务退订，执行 GC 后比较堆快照。分别记录活跃正文、允许保留的非活跃缓存、脱离文档 DOM 的引用链、监听/观察器和进程内存；超过缓存预算的任务须被淘汰，已淘汰任务不得仍被 UI、观察器或帧回调引用。固定数据重复开关不得按轮次持续累积可达对象。此项需要真实浏览器/WebView 与目标系统测量，订阅归零和 DOM 移除只能证明各自的边界。
+
+Active transcripts have no hard heap limit. Pagination bounds reads, while loaded DOM and subscriptions grow with history. Capacity targets cover 1,000 shared rows and four real timelines of 250 turns each; mobile capacity and post-GC heap reclamation require separate device measurements. Closing a timeline must remove its DOM and all UI store subscriptions without affecting other panes or stopping background task execution.
 
 工具和任务的折叠详情只在展开时挂载，关闭后不解析大型输出。历史仍按页读取，移除会话虚拟化不代表自动读取完整历史；文件树及超长代码的专用虚拟化保持独立。
 

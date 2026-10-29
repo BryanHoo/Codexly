@@ -26,6 +26,8 @@
 - 两端回合分组在成员和顺序未变化时必须复用分组对象及 `turnIds` 引用，分组完全不变时同时复用外层数组；回合组件使用 `memo`，避免新增回合、条目或 Claude 续跑重新聚合无关历史正文与文件变更。缓存仅保留上一版 ID 分组，不积累任务或正文。
 - 相同条目键的权威替换可能改变角色、阶段和过程分类，事件 reducer 必须更新所属回合的键数组引用，以唤醒该回合订阅；文本 Delta 保持键数组引用不变。不能通过忽略本回合变化换取历史渲染隔离。
 - 回归入口：共享 `timeline-turn-groups.test.ts` 覆盖引用复用、续跑、补页、删除与重分组；桌面 `task-timeline-structure.browser.test.tsx` 同时驱动 Web 和桌面真实 Store，在 Chromium / WebKit、Codex / Claude 下断言无关历史正文零重复读取，以及同键权威阶段更新仍正确折叠。
+- 共享会话列表保留全部已加载正文，不使用回合虚拟滚动。`content-visibility` 只跳过屏外渲染，不释放 DOM、组件或订阅；分页也不限制累计驻留。两端稳定回合渲染工厂，共享列表只保留当前一版行元素，分页状态、页脚和导航变化不得重复构造历史；导航尺寸观察器按入口有无订阅，不跟随回调身份反复重建。
+- 容量输入与回收条件见 [会话性能](../../../../docs/conversation-performance.md) 及 `tests/performance-budgets.json` 的 `activeConversation`。`conversation-capacity.browser.test.tsx` 覆盖千回合工厂计数与真实选择；`task-timeline-capacity.browser.test.tsx` 同时驱动两端四分屏，关闭后根/Item Store 的 UI 订阅归零，反复开关不累积，其他分屏和后台执行保持独立。DOM 移除与退订不能替代 GC 后堆快照验收。
 
 ## 查看图片的操作归组
 

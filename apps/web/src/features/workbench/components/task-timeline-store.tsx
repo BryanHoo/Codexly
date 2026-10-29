@@ -326,6 +326,57 @@ export function TaskStoreTimeline({
     submissionStartedAt !== undefined &&
     (submissionHandoffState === "awaiting-turn" || submissionHandoffState === "awaiting-assistant");
   const hasNotices = notices.some((notice) => notice.payload.code !== "runtime_warning");
+  // 回合渲染工厂只依赖正文输入；页脚通知、分页状态更新不能使共享列表重新遍历历史。
+  const renderTurn = useCallback(
+    (turnId: string, turnIndex: number) => (
+      <StoreTurnTimelineSection
+        {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
+          ? { onBuildPlan }
+          : {})}
+        {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
+        onOpenFileDiff={onOpenFileDiff}
+        onOpenSourceFile={onOpenSourceFile}
+        onReviewFileChanges={onReviewFileChanges}
+        projectId={projectId}
+        store={store}
+        taskId={taskId}
+        turnId={turnId}
+        turnIndex={turnIndex}
+        groupedTurnIds={groupById.get(turnId)?.turnIds}
+        hasNextSubmission={
+          turnIndex < displayTurnIds.length - 1 ||
+          (showPendingSubmission &&
+            !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))
+        }
+        suppressEmptyRunningStatus={
+          showPendingSubmission &&
+          (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
+        }
+        {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") &&
+        submissionHandoffState === "assistant-started" &&
+        pendingPrompt !== undefined
+          ? { pendingPrompt }
+          : {})}
+      />
+    ),
+    [
+      connected,
+      displayTurnIds,
+      groupById,
+      onBuildPlan,
+      onForkTask,
+      onOpenFileDiff,
+      onOpenSourceFile,
+      onReviewFileChanges,
+      pendingPrompt,
+      projectId,
+      showPendingSubmission,
+      store,
+      submissionTurnId,
+      taskId,
+      submissionHandoffState,
+    ],
+  );
   if (
     turnIds.length === 0 &&
     !hasVisiblePendingRequest &&
@@ -401,37 +452,7 @@ export function TaskStoreTimeline({
             turnIds={turnIds}
           />
         )}
-        renderItem={(turnId, turnIndex) => (
-          <StoreTurnTimelineSection
-            {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
-              ? { onBuildPlan }
-              : {})}
-            {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
-            onOpenFileDiff={onOpenFileDiff}
-            onOpenSourceFile={onOpenSourceFile}
-            onReviewFileChanges={onReviewFileChanges}
-            projectId={projectId}
-            store={store}
-            taskId={taskId}
-            turnId={turnId}
-            turnIndex={turnIndex}
-            groupedTurnIds={groupById.get(turnId)?.turnIds}
-            hasNextSubmission={
-              turnIndex < displayTurnIds.length - 1 ||
-              (showPendingSubmission &&
-                !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))
-            }
-            suppressEmptyRunningStatus={
-              showPendingSubmission &&
-              (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
-            }
-            {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") &&
-            submissionHandoffState === "assistant-started" &&
-            pendingPrompt !== undefined
-              ? { pendingPrompt }
-              : {})}
-          />
-        )}
+        renderItem={renderTurn}
       />
     </TimelineImageProvider>
   );

@@ -318,6 +318,47 @@ export function TaskStoreTimeline({
   const showPendingFooter = showPendingSubmission && submissionHandoffState === "footer";
   const timelineNotices = getTimelineNotices(notices);
   const hasNotices = timelineNotices.length > 0;
+  // 回合渲染工厂只依赖正文输入；页脚通知、分页状态更新不能使共享列表重新遍历历史。
+  const renderTurn = useCallback((turnId: string, turnIndex: number) => (
+    <StoreTurnTimelineSection
+      {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
+        ? { onBuildPlan }
+        : {})}
+      {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
+      onOpenFileDiff={onOpenFileDiff}
+      onOpenSourceFile={onOpenSourceFile}
+      onReviewFileChanges={onReviewFileChanges}
+      projectId={projectId}
+      store={store}
+      taskId={taskId}
+      turnId={turnId}
+      turnIndex={turnIndex}
+      groupedTurnIds={groupById.get(turnId)?.turnIds}
+      hasNextSubmission={turnIndex < displayTurnIds.length - 1 || (showPendingSubmission && !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))}
+      pendingSubmission={
+        !showPendingFooter && showPendingSubmission && (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
+      }
+      {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") && showPendingSubmission && pendingPrompt !== undefined
+        ? { pendingPrompt }
+        : {})}
+    />
+  ), [
+    connected,
+    displayTurnIds,
+    groupById,
+    onBuildPlan,
+    onForkTask,
+    onOpenFileDiff,
+    onOpenSourceFile,
+    onReviewFileChanges,
+    pendingPrompt,
+    projectId,
+    showPendingSubmission,
+    store,
+    submissionTurnId,
+    taskId,
+    showPendingFooter,
+  ]);
   if (
     turnIds.length === 0 &&
     !hasVisiblePendingRequest &&
@@ -389,30 +430,7 @@ export function TaskStoreTimeline({
           />
         </>
       )}
-      renderItem={(turnId, turnIndex) => (
-        <StoreTurnTimelineSection
-          {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
-            ? { onBuildPlan }
-            : {})}
-          {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
-          onOpenFileDiff={onOpenFileDiff}
-          onOpenSourceFile={onOpenSourceFile}
-          onReviewFileChanges={onReviewFileChanges}
-          projectId={projectId}
-          store={store}
-          taskId={taskId}
-          turnId={turnId}
-          turnIndex={turnIndex}
-          groupedTurnIds={groupById.get(turnId)?.turnIds}
-          hasNextSubmission={turnIndex < displayTurnIds.length - 1 || (showPendingSubmission && !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))}
-          pendingSubmission={
-            !showPendingFooter && showPendingSubmission && (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
-          }
-          {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") && showPendingSubmission && pendingPrompt !== undefined
-            ? { pendingPrompt }
-            : {})}
-        />
-      )}
+      renderItem={renderTurn}
       {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
     />
     </TimelineImageProvider>

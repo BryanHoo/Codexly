@@ -11,6 +11,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ComponentProps,
@@ -154,6 +155,7 @@ export function ConversationItems<T>({
     layoutActions.current.follow();
   }, [submissionSignal, layoutActions]);
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
+  const hasNavigation = renderNavigation !== undefined;
   const { scrollToMessage } = useMessageScroller();
   useLayoutEffect(() => {
     containerRef.current =
@@ -162,7 +164,7 @@ export function ConversationItems<T>({
   }, []);
   useEffect(() => {
     const viewport = containerRef.current;
-    if (!viewport || !renderNavigation) return;
+    if (!viewport || !hasNavigation) return;
     const sync = () => {
       setScrollbarWidth(Math.max(0, viewport.offsetWidth - viewport.clientWidth));
     };
@@ -172,7 +174,8 @@ export function ConversationItems<T>({
     return () => {
       observer.disconnect();
     };
-  }, [renderNavigation]);
+    // 导航工厂可以随父级更新；观察器只跟随入口的有无，避免每次更新反复退订与订阅。
+  }, [hasNavigation]);
   const navigate = useCallback(
     (index: number, anchorId: string) => {
       const item = items[index];
@@ -187,21 +190,28 @@ export function ConversationItems<T>({
     },
     [items, getItemKey, scrollToMessage, layoutActions],
   );
+  // 页脚、发送信号和导航宽度变化只更新外围；复用上一版行元素，避免遍历全部已加载回合。
+  // 这里只缓存当前列表的 React 元素，不卸载屏外正文，也不创建跨会话的行缓存。
+  const rows = useMemo(
+    () =>
+      items.map((item, index) => (
+        <MessageScrollerItem
+          key={getItemKey(item, index)}
+          messageId={String(getItemKey(item, index))}
+          style={index >= items.length - 2 ? { contentVisibility: "visible" } : undefined}
+          data-conversation-row="turn"
+        >
+          {renderItem(item, index)}
+        </MessageScrollerItem>
+      )),
+    [items, getItemKey, renderItem],
+  );
   return (
     <>
       {renderNavigation?.(navigate, scrollbarWidth, containerRef)}
       <ConversationContent ref={contentRef} {...props}>
         {header}
-        {items.map((item, index) => (
-          <MessageScrollerItem
-            key={getItemKey(item, index)}
-            messageId={String(getItemKey(item, index))}
-            style={index >= items.length - 2 ? { contentVisibility: "visible" } : undefined}
-            data-conversation-row="turn"
-          >
-            {renderItem(item, index)}
-          </MessageScrollerItem>
-        ))}
+        {rows}
         {footer === undefined ? null : (
           <div className="space-y-6" data-conversation-row="footer">
             {footer}
