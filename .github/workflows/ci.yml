@@ -16,7 +16,8 @@ jobs:
   quality:
     name: Quality (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # Linux 在完整门禁后还会生成覆盖率，为冷安装和两轮测试保留完整预算。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
