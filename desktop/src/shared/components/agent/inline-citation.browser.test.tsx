@@ -31,11 +31,20 @@ describe("来源引用交互", () => {
     await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
     (trigger.element() as HTMLElement).focus();
     await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
+    // 展开状态先于 Portal 完成挂载；真实来源链接可见后再验证 Tab 的焦点衔接。
+    await expect.element(screen.getByRole("link")).toBeVisible();
     await userEvent.tab();
+    await expect.element(screen.getByRole("link")).toHaveFocus();
+    // 跨过悬停关闭延迟，键盘已进入来源后不能被之前的关闭定时器移除。
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
     await expect.element(screen.getByRole("link")).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
     await expect.element(trigger).toHaveFocus();
+    // 回焦也不能产生新的延迟打开，关闭状态须跨过同一计时边界保持稳定。
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("窄屏点击展开长来源，链接走桌面系统浏览器", async () => {

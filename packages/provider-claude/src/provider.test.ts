@@ -545,16 +545,23 @@ describe("dynamic session settings in shared turns", () => {
     const { engineOptions: _explicit, ...inherited } = options;
     await h.provider.startTurn(task.id, prompt, inherited);
     h.send({ type: "result", subtype: "success" });
-    await vi.waitFor(() => {
-      expect(h.provider.isBusy).toBe(false);
-    });
+    // Windows 异步落盘不以默认 1 秒判定失败；测试仍要求真实结束后再切换权限。
+    await vi.waitFor(
+      () => {
+        expect(h.provider.isBusy).toBe(false);
+      },
+      { timeout: 10_000 },
+    );
     await h.provider.startTurn(task.id, prompt, options);
     expect(h.query).toHaveBeenCalledOnce();
     expect(h.setPermissionMode).not.toHaveBeenCalled();
     h.send({ type: "result", subtype: "success" });
-    await vi.waitFor(() => {
-      expect(h.provider.isBusy).toBe(false);
-    });
+    await vi.waitFor(
+      () => {
+        expect(h.provider.isBusy).toBe(false);
+      },
+      { timeout: 10_000 },
+    );
     await h.config.writeSettings({ ...(await h.config.readSettings()), permissionMode: "plan" });
     await h.provider.startTurn(task.id, prompt, inherited);
     expect(h.setPermissionMode).toHaveBeenCalledExactlyOnceWith("plan");
@@ -1914,9 +1921,13 @@ it.each([false, true])(
       },
     });
     h.send({ type: "result", subtype: "success" });
-    await vi.waitFor(async () => {
-      expect((await h.provider.readTask(task.id))?.status).toBe("idle");
-    });
+    // 大计划的持久化在慢磁盘/并行 CI 中可能超过 1 秒，按异步 I/O 完成条件等待。
+    await vi.waitFor(
+      async () => {
+        expect((await h.provider.readTask(task.id))?.status).toBe("idle");
+      },
+      { timeout: 10_000 },
+    );
     // 使用新的历史读取器重建 Provider，确保预算内的计划和任务索引确实成功落盘。
     const restored = h.restart(
       new ClaudeConfiguration(h.provider.scope.rootPath, h.config.userDirectory),

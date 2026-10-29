@@ -185,6 +185,8 @@ for (const platform of [
         await expect
           .poll(() => screen.container.querySelectorAll('[data-conversation-row="turn"]').length)
           .toBe(capacity.splitPanes * capacity.turnsPerSplitPane);
+        // 正文 DOM 已存在时，Suspense/StrictMode 仍可能在恢复订阅；先等待四个真实 Store 均完成挂载。
+        await expect.poll(() => panes.every((pane) => pane.active() > 0)).toBe(true);
         const counts = panes.map((pane) => pane.active());
         expect(counts.every((count) => count > 0)).toBe(true);
         mountedSubscriptions ??= counts;

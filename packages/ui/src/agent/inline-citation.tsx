@@ -43,6 +43,7 @@ export function InlineCitation({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
+  const restoringFocusRef = useRef(false);
   const hostname = sourceHostname(href);
   if (hostname === null || containsImage(children)) {
     return (
@@ -65,9 +66,8 @@ export function InlineCitation({
           type="button"
           variant="secondary"
           onFocus={(event) => {
-            // 键盘立即打开，并取消 Radix 的延迟打开，避免 Escape 关闭后被旧定时器重新展开。
-            event.preventDefault();
-            setOpen(true);
+            // 正常聚焦交给 Radix 清除旧的悬停关闭计时器；Escape 回焦时才阻止再次打开。
+            if (restoringFocusRef.current) event.preventDefault();
           }}
           onBlur={(event) => {
             if (event.relatedTarget === linkRef.current) event.preventDefault();
@@ -100,7 +100,9 @@ export function InlineCitation({
         align="start"
         className="flex max-w-[calc(100vw-2rem)] flex-col gap-1 break-words"
         onEscapeKeyDown={() => {
+          restoringFocusRef.current = true;
           triggerRef.current?.focus();
+          restoringFocusRef.current = false;
           setOpen(false);
         }}
         onPointerLeave={(event) => {

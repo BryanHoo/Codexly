@@ -63,10 +63,13 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
     .poll(() => petRequests.some((request) => request.startsWith("GET /v1/pets/assets/")))
     .toBe(true);
 
+  // 保存成功通知可能暂时覆盖右下角宠物；原始鼠标事件前先等待真实命中目标可交互。
+  await pet.click({ trial: true });
   const before = await pet.boundingBox();
   if (before === null) throw new Error("宠物缺少拖动边界");
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
   await page.mouse.down();
+  await expect(pet).toHaveAttribute("data-dragging", "");
   await page.mouse.move(before.x - 120, before.y - 90, { steps: 8 });
   await page.mouse.up();
   const moved = await pet.boundingBox();

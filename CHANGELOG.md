@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [0.46.0] - 2026-10-30
+## [0.46.1] - 2026-10-30
 
 ### 新增
 
@@ -19,7 +19,13 @@
 ### 修复
 
 - 修复文本粘贴改变文件换行格式及保存失败后无法确认放弃草稿的问题。
-- 修复 Claude 遗留活动状态阻止归档与删除、上下文压缩完成后未折叠，以及弹窗遮罩和消息复制交互异常。
+- 修复来源引用焦点丢失、Claude 任务无法归档或删除、上下文压缩未折叠，以及弹窗遮罩和消息复制异常。
+
+## [0.46.0] - 2026-10-30
+
+### 发布说明
+
+- 此版本未公开发布，相关更新已合并至 `0.46.1`。
 
 ## [0.45.1] - 2026-10-28
 
@@ -942,7 +948,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...HEAD
+[0.46.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.1
 [0.46.0]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/BryanHoo/Codexly/compare/v0.44.1...v0.45.0

@@ -25,6 +25,7 @@
 
 - 复用 `@codexly/ui/agent/inline-citation`，来源卡片中的 HTTP(S) 链接继续经 `openMarkdownLink` 打开系统浏览器，不能让 WebView 导航离开应用。保留文件定位、图片与指令入口，不增加来源抓取请求。
 - Radix HoverCard 默认将卡片链接移出 Tab 顺序，共享组件必须衔接触发按钮与来源链接的键盘焦点；Escape 关闭并返回触发按钮，延迟打开不能令浮层重新出现。`inline-citation.browser.test.tsx` 覆盖 Chromium / WebKit、窄屏与流式追加后的节点、焦点及浮层状态。
+- 正常键盘聚焦须保留 Radix 的打开处理，以取消旧悬停关闭计时器；仅 Escape 恢复焦点时阻止重新打开。测试须等来源链接挂载后切换焦点，并跨过关闭延迟验证卡片仍可阅读及 Escape 后保持关闭；不能只检查瞬时展开属性。
 
 ## 子代理详情
 
