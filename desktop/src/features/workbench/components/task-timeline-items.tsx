@@ -314,7 +314,13 @@ export function TimelineItemContent({
       const subagentOperation = parseSubagentOperation(item);
       if (subagentOperation !== null) {
         return (
-          <SubagentToolItem item={item} itemTiming={itemTiming} operation={subagentOperation} />
+          <SubagentToolItem
+            item={item}
+            itemTiming={itemTiming}
+            operation={subagentOperation}
+            renderItem={TimelineItemContent}
+            context={{ onOpenFileDiff, onOpenSourceFile, projectId, taskId }}
+          />
         );
       }
       const hasErrorOutput =

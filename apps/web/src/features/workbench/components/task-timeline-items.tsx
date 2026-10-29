@@ -9,13 +9,11 @@ import {
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { FileText } from "lucide-react";
 import { getReasoningTitle } from "./reasoning-markdown-title.js";
-
 import { i18n } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
 import { AsyncQuestionHistory } from "./async-question-history.js";
 import { Attachments } from "../../../shared/components/agent/attachments.js";
 import { cn } from "../../../shared/lib/utils.js";
-
 import { LazyMessageResponse } from "../../../shared/components/agent/lazy-message-response.js";
 import {
   MessageContent,
@@ -55,7 +53,6 @@ import { MessageFileAttachment } from "./message-file-attachment.js";
 import { MessageImageAttachment } from "./message-image-attachment.js";
 import { SkillToken } from "./skill-token.js";
 import { parseSubagentOperation } from "./subagent.js";
-
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
 import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
 import { FileChangeButton } from "./task-timeline-file-changes.js";
@@ -75,7 +72,6 @@ import {
 
 // 覆盖 Streamdown 的 whitespace-normal，保留用户原文中的单换行和缩进。
 const preservedUserMessageClassName = "whitespace-pre-wrap!";
-
 export function TimelineItemContent({
   anchorId,
   commandOutput,
@@ -322,7 +318,13 @@ export function TimelineItemContent({
       const subagentOperation = parseSubagentOperation(item);
       if (subagentOperation !== null) {
         return (
-          <SubagentToolItem item={item} itemTiming={itemTiming} operation={subagentOperation} />
+          <SubagentToolItem
+            item={item}
+            itemTiming={itemTiming}
+            operation={subagentOperation}
+            renderItem={TimelineItemContent}
+            context={{ onOpenFileDiff, onOpenSourceFile, projectId, taskId }}
+          />
         );
       }
       const hasErrorOutput =

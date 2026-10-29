@@ -131,7 +131,9 @@ export function SubagentSection({
                 })}
                 className="w-full rounded-control px-2 text-left transition-colors hover:bg-control-hover focus-visible:shadow-focus focus-visible:outline-none"
                 key={subagent.taskId}
-                onClick={() => {
+                onClick={(event) => {
+                  // Safari 点击按钮不会自动聚焦；打开前明确记录入口，关闭弹窗后可恢复焦点。
+                  event.currentTarget.focus({ preventScroll: true });
                   onOpenSubagent({
                     status: subagent.status,
                     taskId: subagent.taskId,

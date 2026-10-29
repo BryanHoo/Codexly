@@ -20,3 +20,11 @@
 - [ ] `pnpm --dir desktop check:web` 覆盖静态检查、类型、测试、Tauri 约束、现代 / Legacy 构建和包体预算；完整桌面门槛是 `pnpm --dir desktop check`。
 
 开发入口见 [桌面开发](../../../../desktop/docs/development.md)。
+
+## 子代理详情
+
+- 与 Web 共用 Subagent 展示和 Tool 详情滚动容器。顶部任务与嵌套回合初始用户消息相同时仅展示一次；有省略标记也需去重，后续追问和附件保留。桌面思考条目只使用公开 `summary`，不展示原始推理 `content`。
+- 弹窗最大高度 `min(80dvh, 48rem)`，标题固定、正文独立滚动。子代理详情默认跟随输出到底部；上滚、触控或选择记录时暂停，手动回到底部后恢复。不能通过滚动祖先实现跟随，也不把滚动位置写入 React 状态。
+- `src/shared/components/agent/subagent.browser.test.tsx` 覆盖 Chromium / WebKit、宽窄屏、高度、输出增长、上滚暂停/恢复、卸载及焦点；同时运行 `task-timeline-operation-groups.browser.test.tsx` 检查普通工具/终端详情兼容性。
+- 右栏内嵌/独立子代理均复用同一弹窗和结构化执行窗口；独立子线程通过原生运行时和单条 Item Store 更新，保留历史入口，不使用另一套完整聊天时间线。初始任务只显示一次，只有用户任务的摘要仍可加载更早过程。
+- `src/features/workbench/components/subagent-output-dialog.browser.test.tsx` 以真实桌面 Store 验证两种来源增量输出、跟随/暂停/恢复及关闭焦点；右栏打开按钮先显式聚焦，保证 WebKit 关闭后返回正确入口。

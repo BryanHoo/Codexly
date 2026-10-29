@@ -1,3 +1,8 @@
+import type { ComponentType } from "react";
+import type { AgentFileChange } from "../../diff/file-change.js";
+import type { MessageFileReference } from "../../../shared/components/agent/message.js";
+import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
+import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
 import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
 import { resolveTurnProcessingTime, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
@@ -26,7 +31,7 @@ import {
 
 import { MessageAction, MessageActions } from "../../../shared/components/agent/message.js";
 import type { TaskStatus } from "../../../shared/components/agent/task.js";
-import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, type ToolState } from "../../../shared/components/agent/tool.js";
+import type { ToolState } from "../../../shared/components/agent/tool.js";
 import type { ForkTaskAction } from "./task-timeline-contracts.js";
 import {
   formatSubagentOperationSummary,
@@ -154,35 +159,79 @@ export function formatStructuredValue(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+type SubagentTimelineContext = Readonly<{
+  onOpenFileDiff: (change: AgentFileChange) => void;
+  onOpenSourceFile: (reference: MessageFileReference) => void;
+  projectId: string;
+  taskId: string;
+}>;
+const Subagent = /* @__PURE__ */ withAgentLocale(SharedSubagent);
+
 export function SubagentToolItem({
   item,
   itemTiming,
   operation,
+  renderItem: ItemContent,
+  context,
 }: Readonly<{
   item: Extract<AgentItem, { type: "tool" }>;
   itemTiming?: NonNullable<AgentTurn["itemTimings"]>[string] | undefined;
   operation: SubagentOperation;
+  renderItem: ComponentType<
+    SubagentTimelineContext & {
+      item: AgentItem;
+      itemTiming?: NonNullable<AgentTurn["itemTimings"]>[string] | undefined;
+      isLastTurnItem: boolean;
+      turnStatus: AgentTurn["status"];
+    }
+  >;
+  context: SubagentTimelineContext;
 }>) {
   const operationStatus = resolveSubagentOperationStatus(item.status, operation.agents);
   const summary = formatSubagentOperationSummary(item.status, operation.agents);
 
   return (
-    <Tool>
-      <ToolHeader
-        state={operationStatus === "in_progress" ? "input-available" : operationStatus === "error" ? "output-error" : toToolState(item.status)}
-        duration={
-          itemTiming === undefined ? undefined : (
-            <ToolDuration status={item.status} timing={itemTiming} />
-          )
-        }
-        title={`${getSubagentOperationTitle(operation.name)} · ${summary}`}
-      />
-      {/* 默认折叠，展开后才挂载输入与结果，避免子代理流式快照增加渲染负担。 */}
-      <ToolContent>
-        {item.input === undefined ? null : <ToolInput input={item.input} />}
-        <ToolOutput errorText={undefined} output={item.output} />
-      </ToolContent>
-    </Tool>
+    <Subagent
+      item={item}
+      agents={operation.agents}
+      prompt={operation.prompt}
+      model={operation.model}
+      reasoningEffort={operation.reasoningEffort}
+      state={
+        operationStatus === "in_progress"
+          ? "input-available"
+          : operationStatus === "error"
+            ? "output-error"
+            : toToolState(item.status)
+      }
+      duration={
+        itemTiming === undefined ? undefined : (
+          <ToolDuration status={item.status} timing={itemTiming} />
+        )
+      }
+      title={`${getSubagentOperationTitle(operation.name)} · ${summary}`}
+      loadOlderLabel={i18n.t("timeline.loadOlder", { ns: "conversation" })}
+      // 桌面思考条目使用 text；仅投影公开 summary，不能显示原始推理 content。
+      renderItem={(nested, turn, index) =>
+        nested.type !== "message" &&
+        nested.type !== "reasoning" &&
+        nested.type !== "tool" &&
+        nested.type !== "activity" &&
+        nested.type !== "command" ? null : (
+          <ItemContent
+            {...context}
+            item={
+              nested.type === "reasoning"
+                ? { id: nested.id, type: "reasoning", text: nested.summary }
+                : nested
+            }
+            itemTiming={turn.itemTimings?.[nested.id]}
+            isLastTurnItem={index === turn.items.length - 1}
+            turnStatus={turn.status}
+          />
+        )
+      }
+    />
   );
 }
 

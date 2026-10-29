@@ -159,18 +159,20 @@
   flex-direction: column;
   width: calc(100% - 2rem);
   max-width: 64rem;
-  max-height: calc(100dvh - 2rem);
+  max-height: min(80dvh, 48rem);
   overflow: hidden;
 }
 .agent-operation-detail-dialog > [data-slot="dialog-title-row"] {
   flex: 0 0 auto;
 }
 .agent-operation-detail-body {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   overflow-wrap: anywhere;
+  overflow-anchor: none;
   font-size: var(--text-body-small);
 }
 /* 输入、结果和终端解除自身高度上限，避免详情正文再嵌套一层日志滚动。 */

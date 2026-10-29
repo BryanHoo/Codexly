@@ -1,19 +1,29 @@
-import { EmbeddedSubagentOutput } from "@codexly/ui/core/embedded-subagent-output";
+import { useRef } from "react";
+import {
+  SubagentContent as SharedSubagentContent,
+  SubagentThreadContent as SharedSubagentThreadContent,
+} from "@codexly/ui/agent/subagent";
+import { OperationDetailsDialogContent } from "@codexly/ui/agent/tool-details";
 import { useStore } from "zustand";
 import { TimelineItemContent } from "./task-timeline-items.js";
-import type { TaskStore } from "../../conversation/runtime/task-store.js";
-import { X } from "lucide-react";
-
+import { StoredTimelineItemContent } from "./task-timeline-store-items.js";
+import type { TaskStore, TaskItemStore } from "../../conversation/runtime/task-store.js";
 import type { ProjectRuntimeManager } from "../../conversation/runtime/project-runtime.js";
-import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
-import { Task, TaskTrigger } from "../../../shared/components/agent/task.js";
-import type { SubagentSelection } from "./subagent.js";
-import { toSubagentTaskStatus } from "./subagent.js";
-import { TaskTimeline } from "./task-timeline.js";
+import {
+  useTaskRuntime,
+  type TaskRuntimeView,
+} from "../../conversation/runtime/use-task-runtime.js";
+import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
+import { Dialog } from "../../../shared/components/core/dialog.js";
+import { parseSubagentOperation, type SubagentSelection } from "./subagent.js";
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
-import { Button } from "../../../shared/components/core/button.js";
-import { Dialog, DialogContent, DialogTitle } from "../../../shared/components/core/dialog.js";
+import { TaskTimelinePagination } from "./task-timeline-pagination.js";
+import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
+import { TimelineImageProvider } from "./timeline-image-provider.js";
 
+const SubagentContent = /* @__PURE__ */ withAgentLocale(SharedSubagentContent);
+const SubagentThreadContent = /* @__PURE__ */ withAgentLocale(SharedSubagentThreadContent);
+const ignoreFile = () => undefined;
 type SubagentOutputDialogProps = Readonly<{
   onClose: () => void;
   projectId: string;
@@ -21,13 +31,10 @@ type SubagentOutputDialogProps = Readonly<{
   selection: SubagentSelection | null;
 }>;
 
-function SubagentOutputState({
-  message,
-  role,
-}: Readonly<{ message: string; role?: "alert" | "status" }>) {
+function SubagentOutputState({ message, role }: { message: string; role?: "alert" | "status" }) {
   return (
     <div
-      className="grid min-h-0 flex-1 place-items-center px-6 text-sm text-muted-foreground"
+      className="grid min-h-24 place-items-center text-body-small text-muted-foreground"
       role={role}
     >
       {message}
@@ -35,21 +42,14 @@ function SubagentOutputState({
   );
 }
 
-export function SubagentOutputDialog({
-  onClose,
-  projectId,
-  projectRuntime,
-  selection,
-}: SubagentOutputDialogProps) {
-  if (selection === null) {
-    return null;
-  }
+export function SubagentOutputDialog(props: SubagentOutputDialogProps) {
+  if (props.selection === null) return null;
+  // 切换入口目标时重置分页和跟随身份，旧订阅随弹窗卸载，不沿用另一任务的阅读位置。
   return (
     <OpenSubagentOutputDialog
-      onClose={onClose}
-      projectId={projectId}
-      projectRuntime={projectRuntime}
-      selection={selection}
+      {...props}
+      selection={props.selection}
+      key={`${props.projectId}:${props.selection.taskId}:${props.selection.embedded?.itemId ?? ""}`}
     />
   );
 }
@@ -59,68 +59,198 @@ function OpenSubagentOutputDialog({
   projectId,
   projectRuntime,
   selection,
-}: Readonly<Omit<SubagentOutputDialogProps, "selection"> & { selection: SubagentSelection }>) {
+}: Omit<SubagentOutputDialogProps, "selection"> & { selection: SubagentSelection }) {
   const { t } = useTranslation("workbench");
-  const runtime = useTaskRuntime(projectId, selection.embedded?.parentTaskId ?? selection.taskId, projectRuntime);
-
-  const titleId = "subagent-output-dialog-title";
+  // 右栏入口位于 Dialog 外，显式保存打开按钮；关闭后恢复键盘阅读位置。
+  const returnFocus = useRef(
+    typeof document !== "undefined" && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
+  const runtime = useTaskRuntime(
+    projectId,
+    selection.embedded?.parentTaskId ?? selection.taskId,
+    projectRuntime,
+  );
   let content;
-  if (runtime.error !== null) {
+  if (runtime.error !== null)
     content = <SubagentOutputState message={t("subagentOutput.error")} role="alert" />;
-  } else if (runtime.isPending || runtime.metadata === undefined) {
+  else if (runtime.isPending || !runtime.metadata || !runtime.store)
     content = <SubagentOutputState message={t("subagentOutput.loading")} role="status" />;
-  } else if (selection.embedded && runtime.store) {
-    content = <EmbeddedTimeline store={runtime.store} itemId={selection.embedded.itemId} projectId={projectId} taskId={selection.embedded.parentTaskId} />;
-  } else {
-    content = <TaskTimeline projectId={projectId} runtime={runtime} taskId={selection.taskId} />;
-  }
-
+  else
+    content = selection.embedded ? (
+      <EmbeddedTimeline
+        store={runtime.store}
+        itemId={selection.embedded.itemId}
+        projectId={projectId}
+        taskId={selection.embedded.parentTaskId}
+      />
+    ) : (
+      <IndependentTimeline store={runtime.store} runtime={runtime} selection={selection} />
+    );
   return (
     <Dialog
+      open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      open
     >
-      <DialogContent
-        aria-labelledby={titleId}
-        className="h-[min(86dvh,58rem)] max-w-[76rem] overflow-hidden p-0"
+      <OperationDetailsDialogContent
+        title={t("subagentOutput.title")}
+        closeLabel={t("subagentOutput.close")}
+        followOutput
         data-subagent-output-dialog=""
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (returnFocus.current?.isConnected) returnFocus.current.focus({ preventScroll: true });
+        }}
       >
-        <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-raised">
-          <header className="flex min-h-toolbar items-center gap-3 px-3 shadow-toolbar sm:px-4">
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate text-body-small" id={titleId}>
-                {t("subagentOutput.title")}
-              </DialogTitle>
-              <p className="truncate text-caption text-muted-foreground" title={selection.taskId}>
-                {selection.taskId}
-              </p>
-            </div>
-            <Task collapsible={false} status={toSubagentTaskStatus(selection.status)}>
-              <TaskTrigger title={t("subagentOutput.task", { taskId: selection.taskId })} />
-            </Task>
-            <Button
-              aria-label={t("subagentOutput.close")}
-              onClick={onClose}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            >
-              <X className="size-3.5" aria-hidden="true" />
-            </Button>
-          </header>
-          <div className="flex min-h-0 flex-col overflow-hidden bg-content">{content}</div>
-        </section>
-      </DialogContent>
+        <TimelineImageProvider
+          taskId={selection.embedded?.parentTaskId ?? selection.taskId}
+          projectId={projectId}
+          rootPath={runtime.metadata?.workspacePath}
+        >
+          {content}
+        </TimelineImageProvider>
+      </OperationDetailsDialogContent>
     </Dialog>
   );
 }
 
-function EmbeddedTimeline({ store, itemId, projectId, taskId }: Readonly<{ store: TaskStore; itemId: string; projectId: string; taskId: string }>) {
-  const itemStore = useStore(store, (state) => [...state.itemStoresByKey.values()].find((candidate) => candidate.peek().id === itemId));
-  if (!itemStore) return null;
-  return <EmbeddedSubagentOutput key={itemId} loadOlderLabel={i18n.t("timeline.loadOlder", { ns: "conversation" })} store={itemStore} renderItem={(item, turn, index) => item.type !== "message" && item.type !== "reasoning" && item.type !== "tool" && item.type !== "activity" ? null : (
-    <TimelineItemContent item={(item.type === "reasoning" ? { id: item.id, type: "reasoning", text: item.content } : item)} isLastTurnItem={index === turn.items.length - 1} turnStatus={turn.status} projectId={projectId} taskId={taskId} onOpenFileDiff={() => undefined} onOpenSourceFile={() => undefined} />
-  )} />;
+function EmbeddedTimeline({
+  store,
+  itemId,
+  projectId,
+  taskId,
+}: {
+  store: TaskStore;
+  itemId: string;
+  projectId: string;
+  taskId: string;
+}) {
+  const itemStore = useStore(store, (state) =>
+    [...state.itemStoresByKey.values()].find((candidate) => candidate.peek().id === itemId),
+  );
+  return itemStore ? (
+    <EmbeddedContent itemStore={itemStore} projectId={projectId} taskId={taskId} />
+  ) : null;
+}
+
+function EmbeddedContent({
+  itemStore,
+  projectId,
+  taskId,
+}: {
+  itemStore: TaskItemStore;
+  projectId: string;
+  taskId: string;
+}) {
+  // 只订阅当前父条目，Claude 内嵌输出继续使用现有事件链路，不创建子任务请求。
+  useStore(itemStore, (state) => state.revision);
+  const item = itemStore.read();
+  if (item.type !== "tool") return null;
+  const operation = parseSubagentOperation(item);
+  if (!operation) return null;
+  return (
+    <SubagentContent
+      item={item}
+      agents={operation.agents}
+      prompt={operation.prompt}
+      model={operation.model}
+      reasoningEffort={operation.reasoningEffort}
+      loadOlderLabel={i18n.t("timeline.loadOlder", { ns: "conversation" })}
+      // 共享协议到桌面协议只映射可展示的条目；思考严格使用公开摘要。
+      renderItem={(nested, turn, index) =>
+        nested.type !== "message" &&
+        nested.type !== "reasoning" &&
+        nested.type !== "tool" &&
+        nested.type !== "activity" &&
+        nested.type !== "command" ? null : (
+          <TimelineItemContent
+            item={
+              nested.type === "reasoning"
+                ? { id: nested.id, type: "reasoning", text: nested.summary }
+                : nested
+            }
+            itemTiming={turn.itemTimings?.[nested.id]}
+            isLastTurnItem={index === turn.items.length - 1}
+            turnStatus={turn.status}
+            projectId={projectId}
+            taskId={taskId}
+            onOpenFileDiff={ignoreFile}
+            onOpenSourceFile={ignoreFile}
+          />
+        )
+      }
+    />
+  );
+}
+
+function IndependentTimeline({
+  store,
+  runtime,
+  selection,
+}: {
+  store: TaskStore;
+  runtime: TaskRuntimeView;
+  selection: SubagentSelection;
+}) {
+  const { projectId, taskId } = store.getState();
+  const firstKey = useStore(store, (state) => state.itemKeysByTurnId[state.turnIds[0] ?? ""]?.[0]);
+  const firstItem = firstKey ? store.getState().itemStoresByKey.get(firstKey)?.peek() : undefined;
+  const initialPrompt =
+    firstKey &&
+    firstItem?.type === "message" &&
+    firstItem.role === "user" &&
+    (firstItem.attachments?.length ?? 0) === 0 &&
+    (firstItem.skills?.length ?? 0) === 0
+      ? { entryId: firstKey, text: firstItem.text }
+      : undefined;
+  return (
+    <SubagentThreadContent
+      store={store}
+      initialPrompt={initialPrompt}
+      taskId={selection.taskId}
+      status={selection.status}
+      olderHistory={
+        runtime.hasOlderHistory ? (
+          <TaskTimelinePagination
+            error={runtime.olderHistoryError}
+            isLoading={runtime.isLoadingOlderHistory}
+            onLoad={runtime.loadOlderHistory}
+          />
+        ) : null
+      }
+      renderProcess={(turn) =>
+        turn.processCursor ? (
+          <TurnProcessHistory
+            expanded
+            initialCursor={turn.processCursor}
+            projectId={projectId}
+            taskId={taskId}
+            turnId={turn.id}
+            onOpenFileDiff={ignoreFile}
+            onOpenSourceFile={ignoreFile}
+          />
+        ) : null
+      }
+      renderItem={(entry, turn) => {
+        const itemId = store.getState().itemStoresByKey.get(entry.id)?.peek().id;
+        const itemTiming = itemId ? turn.itemTimings?.[itemId] : undefined;
+        return (
+          <StoredTimelineItemContent
+            store={store}
+            itemKey={entry.id}
+            isLastTurnItem={entry.last}
+            turnStatus={turn.status}
+            {...(itemTiming ? { itemTiming } : {})}
+            projectId={projectId}
+            taskId={taskId}
+            onOpenFileDiff={ignoreFile}
+            onOpenSourceFile={ignoreFile}
+          />
+        );
+      }}
+    />
+  );
 }

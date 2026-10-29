@@ -130,15 +130,26 @@ export function ToolHeader({
     </Trigger>
   );
 }
-export function ToolBody({ children }: { children: ReactNode }) {
+export function ToolBody({
+  children,
+  followOutput = false,
+}: {
+  children: ReactNode;
+  followOutput?: boolean;
+}) {
   const details = useToolDetails();
-  if (details) return <ToolDetailsContent>{children}</ToolDetailsContent>;
+  if (details)
+    return <ToolDetailsContent followOutput={followOutput}>{children}</ToolDetailsContent>;
   // Radix Presence 在退出动画结束后卸载详情，关闭期间仍保留可完成的过渡。
   return <TraceCollapsibleContent>{children}</TraceCollapsibleContent>;
 }
-export function ToolContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function ToolContent({
+  className,
+  followOutput,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { followOutput?: boolean }) {
   return (
-    <ToolBody>
+    <ToolBody followOutput={followOutput ?? false}>
       <div className={cn("space-y-3", className)} {...props} />
     </ToolBody>
   );
