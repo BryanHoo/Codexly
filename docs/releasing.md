@@ -56,6 +56,7 @@ Web E2E 与普通 CI 的 E2E、质量任务均使用 30 分钟任务上限：E2E
 
 - 已推送标签因临时网络或外部服务故障失败：重跑失败 Job，或手动运行 `Release` workflow，并将 `tag` 设置为原标签。
 - npm 已发布但 GitHub Release 失败：重跑失败 Job；工作流会跳过已存在的 npm 版本。
+- npm 命令成功但提示包仍在处理中：这表示平台已接收，版本尚不一定可安装；等待官方 Registry 出现目标版本且 `latest` 指向本次发布，再核验公开 tarball。处理期间不重复发布同一版本，不重建或移动标签；扫描可能带来可用性延迟，见 [npm 官方说明](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/)。
 - 代码、测试或工作流需要修改：保留原标签的不可变提交，修复后同步递增两端版本、更新日志与安装说明，提交并创建新标签。即使原版本尚未公开，也不要移动已推送标签；新版本的日志应包含上次正式发布以来的全部变化。
 - 桌面构建失败：联合 Release 保持草稿；临时环境故障可重跑，需要修改仓库文件则按上一条发布新版本。已经发布的 npm 版本会跳过。
 - 桌面浏览器组件测试失败：检查 `Desktop Quality → Web → Check browser components` 的具体用例与错误，下载该次运行的 `desktop-browser-failure-<run_id>` 产物，核对 JSON 测试报告和截图；本地使用 `pnpm --dir desktop test:browser` 复现，覆盖 Chromium 与 WebKit。WebKit 操作返回后，先等待页面目标状态，再断言异步调用次数。
