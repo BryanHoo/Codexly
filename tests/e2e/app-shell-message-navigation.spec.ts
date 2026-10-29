@@ -1,6 +1,6 @@
 import { taskSnapshotRoute, expect, taskSnapshot, test } from "./fixtures/app-shell.js";
 
-test("用户消息快捷导航保持显示并跳转到对应消息", async ({ page }) => {
+test("用户消息快捷导航保持显示并跳转到对应消息 @cross-browser", async ({ page }) => {
   let turns = Array.from({ length: 12 }, (_, index) => ({
     completedAt: `2026-08-24T08:${String(index).padStart(2, "0")}:30.000Z`,
     error: null,
@@ -125,6 +125,17 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
     }),
   ).toBe(true);
 
+  // 刻度左侧 24px 是消息复制按钮所在的区域，透明导航热区不能提前截获指针。
+  expect(
+    await navigationItems.first().evaluate((button) => {
+      const marker = button.querySelector<HTMLElement>(".task-timeline-navigation-marker");
+      if (marker === null) return false;
+      const box = marker.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.right - box.width / 2 - 24, box.y + box.height / 2);
+      return hit?.closest("[data-timeline-navigation]") === null;
+    }),
+  ).toBe(true);
+
   await navigationItems.first().hover();
   await expect
     .poll(async () => {
@@ -151,6 +162,7 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
     hasText: "第 1 条用户导航消息",
   });
   await expect(firstMessage).toBeInViewport();
+  await firstMessage.getByRole("button", { name: "复制消息", exact: true }).click();
   await expect(navigationItems.first()).toHaveAttribute("aria-current", "location");
   const currentMarkerStyle = await readMarkerStyle();
   expect(currentMarkerStyle.effectiveAlpha).toBeGreaterThan(markerStyle.effectiveAlpha);

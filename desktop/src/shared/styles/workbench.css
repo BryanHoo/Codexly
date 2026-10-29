@@ -165,7 +165,8 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
   right: calc(
     var(--inspector-width) + var(--conversation-scrollbar-width, 0px) + var(--ui-space-unit) * 2.5
   );
-  width: calc(var(--ui-space-unit) * 11);
+  /* 命中宽度与悬停后的刻度一致，避免透明热区向左遮挡消息复制按钮。 */
+  width: calc(var(--ui-space-unit) * 3.5);
   max-height: 50dvh;
   overflow-y: auto;
   transform: translateY(-50%);
