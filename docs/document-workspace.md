@@ -39,7 +39,8 @@
 - 文件树、搜索与消息的路径按项目和根目录统一身份，重复打开复用标签；不同工作树相同相对路径隔离。
 - 标签拖动期间只更新 DOM 插入线和必要的边缘滚动，放下时才提交顺序；不逐帧刷新 React，不增加拖动依赖。拖出、取消或卸载时释放帧任务。
 - 批量关闭使用单次保存保护，失败时整批保留；后续导航、切根或卸载会使旧保存请求失效。排序和固定不触发保存，也不重新挂载当前文档。
-- 对照分割线拖动只写布局 CSS 变量，释放指针后才更新语义状态，不逐帧刷新聊天和编辑器。
+- 对照分割线拖动只更新布局 CSS 变量与 ARIA，释放指针后才提交 React 比例状态，不逐帧刷新聊天和编辑器。
+- 侧栏和文档对照共用 UI 包的 `ResizableHandle`：按帧更新 CSS 与 ARIA 数值，松手采样最终位置后提交；Escape、指针取消、捕获丢失、窗口失焦或尺寸改变时恢复拖动前的大小。方向键微调，Home / End 调整至允许的最小 / 最大值，文档对照双击恢复等分。组合快捷键继续交给宿主，不在分隔条内拦截。
 - 当前标签与布局只在本窗口生命周期内保留；不将文件内容复制到布局状态或持久存储。
 
 ## 官方参考
@@ -47,11 +48,14 @@
 - [VS Code：用户界面、标签与编辑器组](https://code.visualstudio.com/docs/getstarted/userinterface)：导航与主要内容分区，活动编辑器接收新文件，支持并排阅读。
 - [JetBrains：Editor basics](https://www.jetbrains.com/help/idea/using-code-editor.html)：文档标签、预览标签、拆分和键盘切换。本实现使用显式文档标签，避免连续浏览时替换用户正在编辑的内容。
 - [React：Activity](https://react.dev/reference/react/Activity)：保留隐藏界面状态并清理其副作用。
+- [shadcn/ui：Resizable](https://ui.shadcn.com/docs/components/base/resizable)、[react-resizable-panels](https://github.com/bvaughn/react-resizable-panels)：借鉴可聚焦分隔条、横纵调整、尺寸边界和结束后保存布局的交互设计；现有任务平铺与文档 CSS 布局继续复用，避免因嵌套面板改变聊天挂载位置。
 
 ## 验证入口
 
 共享状态与资源身份见 `packages/frontend-core/src/document-*.test.ts`。真实 Chromium / WebKit 的草稿、保存保护和挂载数量验证见 `desktop/src/shared/components/core/document-workspace.browser.test.tsx`。完整 Web、移动与多任务分屏流程见 `tests/e2e/app-shell-document-workspace.spec.ts`。
 
 这些验证检查资源生命周期、布局与行为，不代表真实大型项目、所有操作系统上的帧率或内存峰值基准。
+
+`desktop/src/shared/components/core/resizable-handle.browser.test.tsx` 覆盖 Chromium / WebKit 的按帧预览、取消恢复、多指针隔离、末次坐标、键盘边界和草稿节点身份。Web 的文档工作区 E2E 使用真实鼠标捕获验证拖动、Escape 与等分复位。
 
 分屏快捷键在 Web 和桌面端统一为 `Alt + Shift + 方向键`（macOS 的 Alt 为 Option），方向键决定新窗格的位置。旧的 `Cmd/Ctrl + Alt + 方向键` 保留给浏览器；可在左下角“帮助 → 键盘快捷键”查看当前平台支持的操作。

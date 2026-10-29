@@ -164,6 +164,51 @@ test("移动端打开文件收起覆盖层，切回聊天保留草稿 @cross-bro
   await expect(prompt).toHaveValue("移动端草稿");
 });
 
+test("对照分隔条支持真实指针拖动、取消与复位 @cross-browser", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/p/codexly/t/task-1");
+  const prompt = page.getByRole("textbox", { name: "任务输入" });
+  await prompt.fill("拖动对照时保留草稿");
+  await page.getByRole("treeitem", { name: "package.json", exact: true }).click();
+  const workspace = page.locator("[data-document-workspace]");
+  await workspace.getByRole("button", { name: "与聊天左右对照", exact: true }).click();
+  const divider = workspace.getByRole("separator", { name: "调整聊天与文件大小" });
+  const body = workspace.locator(".document-workspace-body");
+
+  for (const direction of ["right", "down"] as const) {
+    if (direction === "down") {
+      await workspace.getByRole("button", { name: "与聊天上下对照", exact: true }).click();
+    }
+    const handleBounds = await divider.boundingBox();
+    const bounds = await body.boundingBox();
+    if (handleBounds === null || bounds === null) throw new Error("文档对照布局不可见");
+    const x = handleBounds.x + handleBounds.width / 2;
+    const y = handleBounds.y + handleBounds.height / 2;
+    const deltaX = direction === "right" ? bounds.width * 0.1 : 0;
+    const deltaY = direction === "down" ? bounds.height * 0.1 : 0;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + deltaX, y + deltaY, { steps: 4 });
+    await expect(divider).toHaveAttribute("aria-valuenow", "60");
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await expect(divider).toHaveAttribute("aria-valuenow", "50");
+
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + deltaX, y + deltaY, { steps: 4 });
+    await page.mouse.up();
+    await expect(divider).toHaveAttribute("aria-valuenow", "60");
+    await divider.press("Home");
+    await expect(divider).toHaveAttribute("aria-valuenow", "25");
+    await divider.press("End");
+    await expect(divider).toHaveAttribute("aria-valuenow", "75");
+    await divider.dblclick();
+    await expect(divider).toHaveAttribute("aria-valuenow", "50");
+    await expect(prompt).toHaveValue("拖动对照时保留草稿");
+  }
+});
+
 test("文件标签拖动排序、固定和关闭菜单保护聊天 @cross-browser", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.route("**/v1/projects/codexly/files/tree*", async (route) => {

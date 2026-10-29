@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
   reconcileTaskActivities: vi.fn(),
 }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: mocks.listen }));
-vi.mock("../../../platform/tauri/task-activity-client.js", () => ({ getTaskActivities: async () => [], listenTaskActivityChanged: async () => () => {} }));
+// 活动恢复同时导入已读确认入口；mock 必须保持客户端导出完整，浏览器才可加载测试模块。
+vi.mock("../../../platform/tauri/task-activity-client.js", () => ({ acknowledgeTaskActivity: async () => undefined, getTaskActivities: async () => [], listenTaskActivityChanged: async () => () => {} }));
 vi.mock("../../projects/project-context.js", () => ({ useProjectActions: () => ({ projectRuntime: mocks }) }));
 
 import { TaskActivityRestore } from "./task-activity-restore.js";

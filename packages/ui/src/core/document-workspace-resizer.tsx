@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useState, type RefObject } from "react";
+import { ResizableHandle } from "./resizable-handle.js";
 
 export function DocumentWorkspaceResizer({
   direction,
@@ -15,87 +16,26 @@ export function DocumentWorkspaceResizer({
         "50",
     ),
   );
-  const drag = useRef<{ start: number; size: number; ratio: number } | null>(null);
-  const value = useRef(ratio);
-  const horizontal = direction === "right";
-  useEffect(() => {
-    const container = containerRef.current;
-    const cancel = () => {
-      if (drag.current === null) return;
-      value.current = drag.current.ratio;
-      container?.style.setProperty("--document-split-ratio", `${String(value.current)}%`);
-      drag.current = null;
-      setRatio(value.current);
-    };
-    window.addEventListener("blur", cancel);
-    return () => {
-      window.removeEventListener("blur", cancel);
-      cancel();
-    };
-  }, [containerRef, direction]);
-  const update = (next: number) => {
-    value.current = Math.min(75, Math.max(25, next));
-    // 拖动时直接写布局变量，不逐帧唤醒聊天、编辑器或整个工作台。
-    containerRef.current?.style.setProperty("--document-split-ratio", `${String(value.current)}%`);
-  };
   return (
-    <div
+    <ResizableHandle
       className="document-workspace-resizer"
-      role="separator"
-      aria-label={label}
-      aria-orientation={horizontal ? "vertical" : "horizontal"}
-      aria-valuemin={25}
-      aria-valuemax={75}
-      aria-valuenow={Math.round(ratio)}
-      tabIndex={0}
-      onDoubleClick={() => {
-        update(50);
-        setRatio(50);
-      }}
-      onKeyDown={(event) => {
-        const change = (horizontal ? event.key === "ArrowRight" : event.key === "ArrowDown")
-          ? 5
-          : (horizontal ? event.key === "ArrowLeft" : event.key === "ArrowUp")
-            ? -5
-            : 0;
-        if (change === 0 && event.key !== "Home" && event.key !== "End") return;
-        event.preventDefault();
-        event.stopPropagation();
-        update(event.key === "Home" ? 25 : event.key === "End" ? 75 : value.current + change);
-        setRatio(value.current);
-      }}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
+      label={label}
+      orientation={direction === "right" ? "horizontal" : "vertical"}
+      value={ratio}
+      minimum={25}
+      maximum={75}
+      step={5}
+      resetValue={50}
+      getUnitsPerPixel={() => {
+        // 仅在开始拖动时测量一次；按起始比例与位移换算，避免点击命中区边缘时布局跳动。
         const rect = containerRef.current?.getBoundingClientRect();
-        if (rect === undefined) return;
-        event.preventDefault();
-        event.stopPropagation();
-        drag.current = {
-          start: horizontal ? rect.left : rect.top,
-          size: horizontal ? rect.width : rect.height,
-          ratio: value.current,
-        };
-        event.currentTarget.setPointerCapture(event.pointerId);
+        const extent = direction === "right" ? rect?.width : rect?.height;
+        return extent === undefined || extent <= 0 ? 0 : 100 / extent;
       }}
-      onPointerMove={(event) => {
-        if (drag.current === null || drag.current.size === 0) return;
-        update(
-          (((horizontal ? event.clientX : event.clientY) - drag.current.start) /
-            drag.current.size) *
-            100,
-        );
+      onResize={(next) => {
+        containerRef.current?.style.setProperty("--document-split-ratio", `${String(next)}%`);
       }}
-      onPointerUp={(event) => {
-        if (drag.current === null) return;
-        drag.current = null;
-        setRatio(value.current);
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }}
-      onLostPointerCapture={() => {
-        if (drag.current !== null) update(drag.current.ratio);
-        drag.current = null;
-        setRatio(value.current);
-      }}
+      onResizeEnd={setRatio}
     />
   );
 }
