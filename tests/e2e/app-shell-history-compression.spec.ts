@@ -28,7 +28,7 @@ for (const mobile of [false, true]) {
     await action.click();
     const notification = page
       .getByRole("region", { name: "通知", exact: true })
-      .getByRole("status");
+      .locator('[data-slot="toast"]');
     await expect(notification).toContainText("已提交后台压缩请求");
     expect(calls).toBe(1);
     await expect(notification).toContainText("不表示压缩已完成");

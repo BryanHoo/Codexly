@@ -95,7 +95,8 @@ public static class TerminalNative {
 }
 '@
 $resolvedExecutable = [IO.Path]::GetFullPath($Executable)
-$targets = @(Get-Process codexly -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $resolvedExecutable })
+$processName = [IO.Path]::GetFileNameWithoutExtension($resolvedExecutable)
+$targets = @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $resolvedExecutable })
 if ($targets.Count -ne 1) { throw 'Expected exactly one application matching the test executable' }
 $targetProcess = $targets[0]
 $text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($TextBase64))

@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { I18nextProvider, i18n } from "../../../i18n/i18n.js";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { SidebarSettingsButton } from "./project-sidebar-actions.js";
+import "../../../shared/styles/globals.css";
 
 const appInfo = {
   appVersion: "0.1.0",

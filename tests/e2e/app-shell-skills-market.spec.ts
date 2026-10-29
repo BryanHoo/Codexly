@@ -164,7 +164,7 @@ test("manages installed Skills, official plugins, and MCP servers", async ({ pag
   await page.getByRole("button", { name: "同步官方目录" }).click();
   await expect(page.getByRole("alert")).toContainText("部分插件同步失败，请重试");
   await page.getByRole("button", { name: /GitHub/u }).click();
-  const pluginSheet = page.getByRole("dialog");
+  const pluginSheet = page.getByRole("dialog", { name: "GitHub", exact: true });
   await expect(pluginSheet).toContainText("github-search");
   await pluginSheet.getByRole("button", { name: "安装插件" }).click();
   await expect(pluginSheet).toContainText("请新建会话以加载插件能力");

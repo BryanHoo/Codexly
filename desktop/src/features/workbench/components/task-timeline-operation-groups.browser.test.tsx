@@ -34,8 +34,9 @@ describe("TimelineOperationGroupDisclosure", () => {
     };
     const screen = await render(view(initial));
     if (inDialog) await screen.getByRole("button", { name: /滚动测试/ }).click();
-    const host = document.querySelector<HTMLElement>(inDialog
-      ? "[data-operation-detail-body]" : '[data-slot="terminal-content"]')!;
+    const hostSelector = inDialog ? "[data-operation-detail-body]" : '[data-slot="terminal-content"]';
+    await expect.poll(() => document.querySelector(hostSelector)).not.toBeNull();
+    const host = document.querySelector<HTMLElement>(hostSelector)!;
     await expect.poll(() => host.scrollTop).toBeGreaterThan(0);
     const atBottom = () => host.scrollHeight - host.clientHeight - host.scrollTop;
     await expect.poll(atBottom).toBeLessThanOrEqual(1);

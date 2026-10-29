@@ -28,6 +28,7 @@ const LazyDialogOverlay = lazy(() =>
 );
 
 const DialogCloseContext = createContext(false);
+const DialogModalContext = createContext(true);
 
 interface DismissHandlers {
   closeDisabled?: boolean;
@@ -43,39 +44,41 @@ function Dialog({ onOpenChange, children, ...props }: DialogPrimitive.Root.Props
   const handlers = useRef<DismissHandlers | null>(null);
   const [shouldLoad, setLoaded] = useModalLazyLoad(props.open, props.defaultOpen);
   return (
-    <DialogLoadContext value={shouldLoad}>
-      <DialogOpenContext value={props.open ?? props.defaultOpen ?? false}>
-        <DialogDismissContext value={handlers}>
-          <DialogPrimitive.Root
-            {...props}
-            onOpenChange={(open, details) => {
-              if (!open) {
-                const current = handlers.current;
-                // 所有关闭原因统一经过提交保护；嵌套弹窗各自登记，不会拦截或关闭父层。
-                if (current?.closeDisabled) {
-                  details.cancel();
-                  return;
+    <DialogModalContext value={props.modal !== false}>
+      <DialogLoadContext value={shouldLoad}>
+        <DialogOpenContext value={props.open ?? props.defaultOpen ?? false}>
+          <DialogDismissContext value={handlers}>
+            <DialogPrimitive.Root
+              {...props}
+              onOpenChange={(open, details) => {
+                if (!open) {
+                  const current = handlers.current;
+                  // 所有关闭原因统一经过提交保护；嵌套弹窗各自登记，不会拦截或关闭父层。
+                  if (current?.closeDisabled) {
+                    details.cancel();
+                    return;
+                  }
+                  const event = new Event(details.reason, { cancelable: true });
+                  if (details.reason === "escape-key") current?.onEscapeKeyDown?.(event);
+                  if (details.reason === "outside-press") {
+                    current?.onPointerDownOutside?.(event);
+                    current?.onInteractOutside?.(event);
+                  }
+                  if (event.defaultPrevented) {
+                    details.cancel();
+                    return;
+                  }
                 }
-                const event = new Event(details.reason, { cancelable: true });
-                if (details.reason === "escape-key") current?.onEscapeKeyDown?.(event);
-                if (details.reason === "outside-press") {
-                  current?.onPointerDownOutside?.(event);
-                  current?.onInteractOutside?.(event);
-                }
-                if (event.defaultPrevented) {
-                  details.cancel();
-                  return;
-                }
-              }
-              onOpenChange?.(open, details);
-              if (open && !details.isCanceled) setLoaded(true);
-            }}
-          >
-            {children}
-          </DialogPrimitive.Root>
-        </DialogDismissContext>
-      </DialogOpenContext>
-    </DialogLoadContext>
+                onOpenChange?.(open, details);
+                if (open && !details.isCanceled) setLoaded(true);
+              }}
+            >
+              {children}
+            </DialogPrimitive.Root>
+          </DialogDismissContext>
+        </DialogOpenContext>
+      </DialogLoadContext>
+    </DialogModalContext>
   );
 }
 
@@ -127,7 +130,8 @@ function DialogClose({
 
 function DialogOverlay(props: ComponentProps<typeof DialogPrimitive.Backdrop>) {
   const shouldLoad = useContext(DialogLoadContext);
-  return shouldLoad ? (
+  const modal = useContext(DialogModalContext);
+  return shouldLoad && modal ? (
     <Suspense fallback={null}>
       <LazyDialogOverlay {...props} />
     </Suspense>
@@ -161,6 +165,7 @@ function DialogContent({
   const dismiss = useContext(DialogDismissContext);
   const shouldLoad = useContext(DialogLoadContext);
   const open = useContext(DialogOpenContext);
+  const modal = useContext(DialogModalContext);
   useLayoutEffect(() => {
     if (!dismiss) return;
     const handlers = { closeDisabled, onEscapeKeyDown, onPointerDownOutside, onInteractOutside };
@@ -215,6 +220,7 @@ function DialogContent({
     <Suspense fallback={null}>
       <LazyDialogSurface
         {...props}
+        showOverlay={modal}
         className={surfaceClass}
         style={style}
         render={render}

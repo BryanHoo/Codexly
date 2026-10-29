@@ -8,6 +8,7 @@ import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import type { NativeSourceFileClient } from "../../projects/project-query-contracts.js";
 import { MessageFileAttachment } from "./message-file-attachment.js";
 import { ProjectSourcePanel } from "./project-source-panel.js";
+import "../../../shared/styles/globals.css";
 
 const labels = { open: "打开 PDF", unavailable: "当前环境不支持内嵌 PDF" };
 const src = "data:application/pdf;base64,JVBERi0xLjcKJSVFT0Y=";

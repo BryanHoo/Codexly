@@ -48,6 +48,7 @@ for (const width of [390, 1280]) {
     }
     const screen = await render(<Harness />);
     await screen.getByRole("button", { name: /跟随输出/ }).click();
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
     const dialog = screen.getByRole("dialog").element();
     const viewport = dialog.querySelector<HTMLElement>("[data-operation-detail-body]")!;
     const gap = () => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop;

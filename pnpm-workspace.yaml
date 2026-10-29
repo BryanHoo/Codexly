@@ -147,7 +147,7 @@ overrides:
   "@simple-git/argv-parser@<2.0.1": 2.0.1
   # Web 与桌面端共用修复版本，阻止公式渲染的原型污染及路由反序列化漏洞。
   "katex@>=0.11.0 <0.18.2": 0.18.2
-  "seroval@<1.6.3": 1.6.3
+  "seroval@<1.6.12": 1.6.12
 preferWorkspacePackages: true
 saveExact: true
 sharedWorkspaceLockfile: true

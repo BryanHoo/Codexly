@@ -24,7 +24,7 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
   const scrollBefore = await region.getByRole("main").evaluate((element) => element.scrollTop);
   try {
     await control.selectOption("never");
-    await expect(page.getByRole("status").filter({ hasText: "保存中…" })).toBeVisible();
+    await expect(page.locator('[data-slot="toast"]').filter({ hasText: "保存中…" })).toBeVisible();
     expect(await node.evaluate((element) => element.isConnected)).toBe(true);
     expect((await panel.boundingBox())?.y).toBe(before?.y);
     expect(await region.getByRole("main").evaluate((element) => element.scrollTop)).toBe(
@@ -33,7 +33,7 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
   } finally {
     releaseSave();
   }
-  await expect(page.getByRole("status").filter({ hasText: "保存中…" })).toHaveCount(0);
+  await expect(page.locator('[data-slot="toast"]').filter({ hasText: "保存中…" })).toHaveCount(0);
   expect(await node.evaluate((element) => element.isConnected)).toBe(true);
   expect((await panel.boundingBox())?.y).toBe(before?.y);
   await expect(control).toHaveValue("never");

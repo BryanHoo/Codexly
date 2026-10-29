@@ -24,10 +24,13 @@ export function DialogOverlay({
 }
 
 /** 首次打开时才下载焦点圈定和 Portal 渲染层；关闭卸载及嵌套生命周期仍由 Base UI 管理。 */
-export default function DialogSurface(props: ComponentProps<typeof DialogPrimitive.Popup>) {
+export default function DialogSurface({
+  showOverlay,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Popup> & { showOverlay: boolean }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      {showOverlay ? <DialogOverlay /> : null}
       <DialogPrimitive.Popup data-slot="dialog-content" {...props} />
     </DialogPortal>
   );

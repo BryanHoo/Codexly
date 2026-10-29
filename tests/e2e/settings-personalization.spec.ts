@@ -124,7 +124,7 @@ test("全局设置保存失败时保留草稿，重试后再返回", async ({ pa
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const settings = page.getByRole("region", { name: "全局设置" });
   await settings.getByRole("button", { name: "引导", exact: true }).click();
-  const saveError = page.getByRole("alert").filter({ hasText: "保存失败，请重试" });
+  const saveError = page.locator('[data-slot="toast"]').filter({ hasText: "保存失败，请重试" });
   await expect(saveError).toBeVisible();
   await settings.getByRole("button", { name: "返回应用" }).click();
   await expect(settings).toBeVisible();

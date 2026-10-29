@@ -227,8 +227,9 @@ test("creates, toggles and runs a scheduled task", async ({ page }) => {
   await page.screenshot({ path: "test-results/scheduled-tasks-desktop.png", fullPage: true });
   await page.getByRole("button", { name: "每日巡检操作", exact: true }).click();
   await page.getByRole("menuitem", { name: "删除", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  const deleteDialog = page.getByRole("dialog", { name: "永久删除任务", exact: true });
+  await expect(deleteDialog).toBeVisible();
   await page.getByRole("button", { name: "确认删除", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(deleteDialog).toHaveCount(0);
   await expect(page.getByRole("button", { name: "每日巡检", exact: true })).toHaveCount(0);
 });
