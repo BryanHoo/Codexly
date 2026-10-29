@@ -13,13 +13,13 @@ import {
 import { useTranslation } from "../../i18n/i18n.js";
 import { Button } from "../../shared/components/core/button.js";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "../../shared/components/core/sheet.js";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "../../shared/components/core/drawer.js";
 import type { CodexlySkillMarketClient } from "../projects/project-query-contracts.js";
 
 function openExternalUrl(url: string): void {
@@ -67,19 +67,19 @@ export function OfficialPluginSheet({
   const data = detail.data;
   const apps = installResult?.appsNeedingAuth ?? data?.apps ?? [];
   return (
-    <Sheet onOpenChange={onOpenChange} open>
-      <SheetContent className="official-plugin-sheet" closeLabel={t("skillsMarket.closeDetails")}>
-        <SheetHeader className="official-plugin-sheet__header">
+    <Drawer onOpenChange={onOpenChange} open>
+      <DrawerContent className="official-plugin-sheet" closeLabel={t("skillsMarket.closeDetails")}>
+        <DrawerHeader className="official-plugin-sheet__header">
           <div className="skills-market-glyph" data-tone="plugins" aria-hidden="true">
             <PackageCheck />
           </div>
           <div className="min-w-0">
-            <SheetTitle>{plugin.displayName}</SheetTitle>
-            <SheetDescription>
+            <DrawerTitle>{plugin.displayName}</DrawerTitle>
+            <DrawerDescription>
               {plugin.developerName ?? t("skillsMarket.officialPublisher")}
-            </SheetDescription>
+            </DrawerDescription>
           </div>
-        </SheetHeader>
+        </DrawerHeader>
         <div className="official-plugin-sheet__body">
           {detail.isPending ? (
             <div className="skills-market-state" role="status">
@@ -166,7 +166,7 @@ export function OfficialPluginSheet({
             </>
           )}
         </div>
-        <SheetFooter className="official-plugin-sheet__footer">
+        <DrawerFooter className="official-plugin-sheet__footer">
           {plugin.installed ? (
             <Button
               disabled={uninstalling}
@@ -193,8 +193,8 @@ export function OfficialPluginSheet({
               {t("skillsMarket.installPlugin")}
             </Button>
           )}
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

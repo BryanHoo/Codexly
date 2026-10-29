@@ -13,6 +13,8 @@ export default defineConfig({
       "@tauri-apps/api/mocks",
       "@tanstack/react-virtual",
       "@codexly/ui > @base-ui/react/tooltip",
+      "@codexly/ui > @base-ui/react/dialog",
+      "@codexly/ui > @base-ui/react/drawer",
       "radix-ui/popover",
       "radix-ui/tabs",
       "zustand/react/shallow",

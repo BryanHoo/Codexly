@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "./button.js";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./sheet.js";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "./drawer.js";
 
 type GroupProps<T> = Readonly<{
   name: "pinned" | "active";
@@ -218,22 +218,21 @@ export function SidebarShortcutGroup<T>({
         </Popover.Portal>
       ) : null}
       {mobile ? (
-        <Sheet open={open} onOpenChange={changeOpen}>
-          <SheetContent
-            side="left"
+        <Drawer swipeDirection="left" showSwipeHandle open={open} onOpenChange={changeOpen}>
+          <DrawerContent
             closeLabel={closeLabel}
             aria-describedby={undefined}
             onCloseAutoFocus={restoreFocus}
           >
-            <SheetHeader>
-              <SheetTitle>
+            <DrawerHeader>
+              <DrawerTitle>
                 {title}{" "}
                 <span className="text-caption font-normal text-subtle-foreground">{summary}</span>
-              </SheetTitle>
-            </SheetHeader>
+              </DrawerTitle>
+            </DrawerHeader>
             {open ? <div className="min-h-0 px-2">{list()}</div> : null}
-          </SheetContent>
-        </Sheet>
+          </DrawerContent>
+        </Drawer>
       ) : null}
     </Popover.Root>
   );

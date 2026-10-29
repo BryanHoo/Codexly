@@ -175,6 +175,17 @@ describe("项目核心组件", () => {
     expect(markup).not.toContain('role="tooltip"');
   });
 
+  it("uses Base UI render composition for dialog triggers", () => {
+    const markup = renderToStaticMarkup(
+      <Dialog>
+        <DialogTrigger render={<Button aria-label="打开弹窗" />}>打开</DialogTrigger>
+      </Dialog>,
+    );
+    expect(markup.match(/<button/gu)).toHaveLength(1);
+    expect(markup).toContain('aria-label="打开弹窗"');
+    expect(markup).toContain('data-slot="dialog-trigger"');
+  });
+
   it("keeps dialog content inside the dynamic viewport", () => {
     const markup = renderToStaticMarkup(
       <Dialog open>
@@ -194,7 +205,7 @@ describe("项目核心组件", () => {
   it("renders the project sheet and controlled checkbox primitives", () => {
     const markup = renderToStaticMarkup(
       <Sheet open>
-        <SheetContent aria-labelledby="sheet-title" side="right">
+        <SheetContent aria-labelledby="sheet-title">
           <SheetTitle id="sheet-title">提交变更</SheetTitle>
           <Checkbox aria-label="选择文件" checked />
           <Checkbox aria-label="部分选择" checked="indeterminate" />
@@ -202,7 +213,8 @@ describe("项目核心组件", () => {
       </Sheet>,
     );
 
-    expect(markup).toContain('data-slot="sheet-content"');
+    expect(markup).toContain('data-slot="drawer-content"');
+    expect(markup).toContain('data-slot="drawer-viewport"');
     expect(markup).toContain("inset-y-0 right-0");
     expect(markup).toContain('data-slot="checkbox"');
     expect(markup).toContain('aria-label="选择文件"');

@@ -59,14 +59,14 @@ body:has(.workbench-background[data-has-image="true"]) {
 
 /* 弹窗内的次级 raised 区域继承浮层材质，避免大块子区域重新降回 68%。 */
 body:has(.workbench-background[data-has-image="true"])
-  :is([data-slot="dialog-content"], [data-slot="sheet-content"]) {
+  :is([data-slot="dialog-content"], [data-slot="drawer-popup"]) {
   --ui-color-raised: var(--ui-color-floating-surface);
 }
 
 body:has(.workbench-background[data-has-image="true"])
   :is(
     [data-slot="dialog-content"],
-    [data-slot="sheet-content"],
+    [data-slot="drawer-popup"],
     [data-slot="tooltip-content"],
     [data-slot="dropdown-menu-content"],
     [data-slot="dropdown-menu-sub-content"],

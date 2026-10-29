@@ -28,7 +28,7 @@ describe("工作台背景浮层", () => {
     );
     expect(workbenchCss).toContain("--ui-color-dialog: var(--ui-color-floating-surface);");
     expect(workbenchCss).toContain('[data-slot="dialog-content"]');
-    expect(workbenchCss).toContain('[data-slot="sheet-content"]');
+    expect(workbenchCss).toContain('[data-slot="drawer-popup"]');
     expect(workbenchCss).toContain('[data-slot="tooltip-content"]');
     expect(workbenchCss).toContain('[data-slot="dropdown-menu-content"]');
     expect(workbenchCss).toContain('[data-slot="context-menu-content"]');

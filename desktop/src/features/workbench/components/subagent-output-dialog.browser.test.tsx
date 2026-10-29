@@ -117,6 +117,8 @@ test.each([false, true])(
     const screen = await render(<Harness />);
     const trigger = screen.getByRole("button", { name: "打开右栏子代理" });
     await trigger.click();
+    // 首次打开按需下载共享浮层，等待可见后再读取真实布局。
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
     const dialog = screen.getByRole("dialog").element();
     expect(dialog.classList.contains("agent-operation-detail-dialog")).toBe(true);
     await expect.element(screen.getByText("分析缓存", { exact: true })).toBeVisible();

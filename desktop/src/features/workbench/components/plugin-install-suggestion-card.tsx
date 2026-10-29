@@ -18,13 +18,13 @@ import {
   DropdownMenuTrigger,
 } from "../../../shared/components/core/dropdown-menu.js";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "../../../shared/components/core/sheet.js";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "../../../shared/components/core/drawer.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import "../../../shared/styles/official-plugins.css";
 import { openExternalUrl } from "../../../platform/tauri/external-url.js";
@@ -180,12 +180,12 @@ export function PluginInstallSuggestionCard({
         )}
       </Confirmation>
 
-      <Sheet onOpenChange={setDetailsOpen} open={detailsOpen}>
-        <SheetContent closeLabel={t("pending.pluginClose")}>
-          <SheetHeader className="border-b border-separator pr-12">
-            <SheetTitle>{request.pluginName}</SheetTitle>
-            <SheetDescription>{request.suggestReason}</SheetDescription>
-          </SheetHeader>
+      <Drawer onOpenChange={setDetailsOpen} open={detailsOpen}>
+        <DrawerContent closeLabel={t("pending.pluginClose")}>
+          <DrawerHeader className="border-b border-separator pr-12">
+            <DrawerTitle>{request.pluginName}</DrawerTitle>
+            <DrawerDescription>{request.suggestReason}</DrawerDescription>
+          </DrawerHeader>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
             <section>
               <h4 className="text-label font-semibold">{t("pending.pluginSource")}</h4>
@@ -203,7 +203,7 @@ export function PluginInstallSuggestionCard({
             </section>
           </div>
           {request.status === "pending" ? (
-            <SheetFooter className="official-plugin-sheet__footer plugin-install-suggestion__sheet-footer">
+            <DrawerFooter className="official-plugin-sheet__footer plugin-install-suggestion__sheet-footer">
               <Button
                 disabled={!canSubmit}
                 onClick={() => void resolve({ action: "decline" })}
@@ -220,10 +220,10 @@ export function PluginInstallSuggestionCard({
                 <PrimaryIcon aria-hidden="true" />
                 {primaryLabel}
               </Button>
-            </SheetFooter>
+            </DrawerFooter>
           ) : null}
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }

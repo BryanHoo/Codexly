@@ -1,49 +1,137 @@
-import * as DialogPrimitive from "radix-ui/dialog";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import { createContext, useContext, type ComponentProps } from "react";
+import {
+  Children,
+  createContext,
+  useContext,
+  useLayoutEffect,
+  lazy,
+  Suspense,
+  useRef,
+  type ComponentProps,
+  type ReactElement,
+} from "react";
 
 import { cn } from "../lib/utils.js";
 import { Button } from "./button.js";
+import { dialogFocus } from "./dialog-focus.js";
+import { dialogSurfaceClass, modalCloseClass } from "./modal-surface-styles.js";
+import { useModalLazyLoad } from "./use-modal-lazy-load.js";
 
-const DialogCloseContext = createContext<Readonly<{ label: string; disabled: boolean }> | null>(
-  null,
+const loadDialogSurface = () => import("./dialog-surface.js");
+const LazyDialogSurface = lazy(loadDialogSurface);
+const LazyDialogPortal = lazy(() =>
+  loadDialogSurface().then((module) => ({ default: module.DialogPortal })),
+);
+const LazyDialogOverlay = lazy(() =>
+  loadDialogSurface().then((module) => ({ default: module.DialogOverlay })),
 );
 
-function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+const DialogCloseContext = createContext(false);
+
+interface DismissHandlers {
+  closeDisabled?: boolean;
+  onEscapeKeyDown?: ((event: Event) => void) | undefined;
+  onPointerDownOutside?: ((event: Event) => void) | undefined;
+  onInteractOutside?: ((event: Event) => void) | undefined;
+}
+const DialogDismissContext = createContext<{ current: DismissHandlers | null } | null>(null);
+const DialogOpenContext = createContext(false);
+const DialogLoadContext = createContext(false);
+
+function Dialog({ onOpenChange, children, ...props }: DialogPrimitive.Root.Props) {
+  const handlers = useRef<DismissHandlers | null>(null);
+  const [shouldLoad, setLoaded] = useModalLazyLoad(props.open, props.defaultOpen);
+  return (
+    <DialogLoadContext value={shouldLoad}>
+      <DialogOpenContext value={props.open ?? props.defaultOpen ?? false}>
+        <DialogDismissContext value={handlers}>
+          <DialogPrimitive.Root
+            {...props}
+            onOpenChange={(open, details) => {
+              if (!open) {
+                const current = handlers.current;
+                // 所有关闭原因统一经过提交保护；嵌套弹窗各自登记，不会拦截或关闭父层。
+                if (current?.closeDisabled) {
+                  details.cancel();
+                  return;
+                }
+                const event = new Event(details.reason, { cancelable: true });
+                if (details.reason === "escape-key") current?.onEscapeKeyDown?.(event);
+                if (details.reason === "outside-press") {
+                  current?.onPointerDownOutside?.(event);
+                  current?.onInteractOutside?.(event);
+                }
+                if (event.defaultPrevented) {
+                  details.cancel();
+                  return;
+                }
+              }
+              onOpenChange?.(open, details);
+              if (open && !details.isCanceled) setLoaded(true);
+            }}
+          >
+            {children}
+          </DialogPrimitive.Root>
+        </DialogDismissContext>
+      </DialogOpenContext>
+    </DialogLoadContext>
+  );
 }
 
-function DialogTrigger(props: ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
+function DialogTrigger({
+  asChild = false,
+  children,
+  render,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Trigger> & { asChild?: boolean }) {
+  // 旧入口复用官方 render 合并事件与 ref，避免嵌套按钮；新增入口可直接使用 render。
+  return (
+    <DialogPrimitive.Trigger
+      data-slot="dialog-trigger"
+      render={asChild ? (Children.only(children) as ReactElement) : render}
+      {...props}
+    >
+      {asChild ? undefined : children}
+    </DialogPrimitive.Trigger>
+  );
 }
 
 function DialogPortal({ children, ...props }: ComponentProps<typeof DialogPrimitive.Portal>) {
-  if (typeof document === "undefined") {
-    // 当前组件测试使用 React SSR；浏览器运行时仍由 Radix Portal 承担焦点和层叠管理。
-    return <>{children}</>;
-  }
-  return (
-    <DialogPrimitive.Portal data-slot="dialog-portal" {...props}>
-      {children}
-    </DialogPrimitive.Portal>
-  );
+  const open = useContext(DialogOpenContext);
+  const shouldLoad = useContext(DialogLoadContext);
+  if (typeof document === "undefined") return open ? <>{children}</> : null;
+  return shouldLoad ? (
+    <Suspense fallback={null}>
+      <LazyDialogPortal {...props}>{children}</LazyDialogPortal>
+    </Suspense>
+  ) : null;
 }
 
-function DialogClose(props: ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
-}
-
-function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrimitive.Overlay>) {
+function DialogClose({
+  asChild = false,
+  children,
+  render,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Close> & { asChild?: boolean }) {
   return (
-    <DialogPrimitive.Overlay
-      className={cn(
-        "fixed inset-0 z-50 bg-scrim data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
-        className,
-      )}
-      data-slot="dialog-overlay"
+    <DialogPrimitive.Close
+      data-slot="dialog-close"
+      render={asChild ? (Children.only(children) as ReactElement) : render}
       {...props}
-    />
+    >
+      {asChild ? undefined : children}
+    </DialogPrimitive.Close>
   );
+}
+
+function DialogOverlay(props: ComponentProps<typeof DialogPrimitive.Backdrop>) {
+  const shouldLoad = useContext(DialogLoadContext);
+  return shouldLoad ? (
+    <Suspense fallback={null}>
+      <LazyDialogOverlay {...props} />
+    </Suspense>
+  ) : null;
 }
 
 function DialogContent({
@@ -51,34 +139,98 @@ function DialogContent({
   className,
   closeLabel,
   closeDisabled = false,
+  showCloseButton = closeLabel !== undefined,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
+  onEscapeKeyDown,
+  onPointerDownOutside,
+  onInteractOutside,
+  initialFocus,
+  finalFocus,
+  style,
+  render,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content> &
-  Readonly<{ closeLabel?: string; closeDisabled?: boolean }>) {
-  return (
-    <DialogPortal>
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid min-w-0 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-auto rounded-surface bg-dialog p-5 text-foreground shadow-panel outline-none duration-180 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-          className,
-        )}
+}: ComponentProps<typeof DialogPrimitive.Popup> &
+  DismissHandlers &
+  Readonly<{
+    closeLabel?: string;
+    showCloseButton?: boolean;
+    onOpenAutoFocus?: ((event: Event) => void) | undefined;
+    onCloseAutoFocus?: ((event: Event) => void) | undefined;
+  }>) {
+  const dismiss = useContext(DialogDismissContext);
+  const shouldLoad = useContext(DialogLoadContext);
+  const open = useContext(DialogOpenContext);
+  useLayoutEffect(() => {
+    if (!dismiss) return;
+    const handlers = { closeDisabled, onEscapeKeyDown, onPointerDownOutside, onInteractOutside };
+    dismiss.current = handlers;
+    return () => {
+      if (dismiss.current === handlers) dismiss.current = null;
+    };
+  }, [dismiss, closeDisabled, onEscapeKeyDown, onPointerDownOutside, onInteractOutside]);
+  if (!shouldLoad) return null;
+  // 关闭入口属于浮层，而非标题行；固定方形命中区域不会随长标题被压窄或拉高。
+  const content = (
+    <>
+      <DialogCloseContext value={showCloseButton}>{children}</DialogCloseContext>
+      {showCloseButton ? (
+        <DialogClose
+          disabled={closeDisabled}
+          aria-label={closeLabel ?? "Close"}
+          render={
+            <Button type="button" variant="ghost" size="icon-compact" className={modalCloseClass} />
+          }
+        >
+          <X aria-hidden="true" className="size-4" />
+        </DialogClose>
+      ) : null}
+    </>
+  );
+  const surfaceClass = (state: DialogPrimitive.Popup.State) =>
+    cn(dialogSurfaceClass, typeof className === "function" ? className(state) : className);
+  if (typeof document === "undefined") {
+    // 静态渲染不执行异步 Portal，仍保留现有语义正文测试；浏览器统一走原生浮层。
+    if (!open) return null;
+    const state: DialogPrimitive.Popup.State = {
+      open: true,
+      transitionStatus: "idle",
+      nested: false,
+      nestedDialogOpen: false,
+    };
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
         data-slot="dialog-content"
+        className={surfaceClass(state)}
+        style={typeof style === "function" ? style(state) : style}
         {...props}
       >
-        <DialogCloseContext.Provider
-          value={closeLabel === undefined ? null : { label: closeLabel, disabled: closeDisabled }}
-        >
-          {children}
-        </DialogCloseContext.Provider>
-      </DialogPrimitive.Content>
-    </DialogPortal>
+        {content}
+      </div>
+    );
+  }
+  return (
+    <Suspense fallback={null}>
+      <LazyDialogSurface
+        {...props}
+        className={surfaceClass}
+        style={style}
+        render={render}
+        initialFocus={initialFocus ?? dialogFocus(onOpenAutoFocus)}
+        finalFocus={finalFocus ?? dialogFocus(onCloseAutoFocus)}
+      >
+        {content}
+      </LazyDialogSurface>
+    </Suspense>
   );
 }
 
 function DialogHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-col gap-1 text-left", className)}
+      className={cn("flex min-w-0 flex-col gap-1.5 text-left", className)}
       data-slot="dialog-header"
       {...props}
     />
@@ -87,46 +239,37 @@ function DialogHeader({ className, ...props }: ComponentProps<"div">) {
 
 function DialogFooter({ className, ...props }: ComponentProps<"div">) {
   return (
-    <div className={cn("flex justify-end gap-2", className)} data-slot="dialog-footer" {...props} />
-  );
-}
-
-function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
-  const close = useContext(DialogCloseContext);
-  const title = (
-    <DialogPrimitive.Title
-      className={cn(
-        "min-w-0 text-heading font-semibold leading-tight",
-        close !== null && "flex-1 leading-none",
-        className,
-      )}
-      data-slot="dialog-title"
+    <div
+      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+      data-slot="dialog-footer"
       {...props}
     />
   );
-  if (close === null) return title;
+}
 
-  // 标题与悬停容器共用同一高度和上下边缘，X 保持原尺寸并在容器内部垂直居中。
+function DialogTitle({
+  className,
+  asChild = false,
+  children,
+  render,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Title> & { asChild?: boolean }) {
+  const hasCloseButton = useContext(DialogCloseContext);
   return (
-    <div
-      className="flex min-w-0 flex-1 items-stretch gap-3 text-heading leading-none"
-      data-slot="dialog-title-row"
+    <DialogPrimitive.Title
+      className={(state) =>
+        cn(
+          "min-w-0 shrink-0 text-heading font-semibold leading-tight",
+          hasCloseButton && "pe-10",
+          typeof className === "function" ? className(state) : className,
+        )
+      }
+      data-slot="dialog-title"
+      render={asChild ? (Children.only(children) as ReactElement) : render}
+      {...props}
     >
-      {title}
-      <DialogClose asChild>
-        <Button
-          aria-label={close.label}
-          className="w-[1em]"
-          disabled={close.disabled}
-          size="embedded"
-          style={{ font: "inherit" }}
-          type="button"
-          variant="ghost"
-        >
-          <X aria-hidden="true" className="size-3.5" />
-        </Button>
-      </DialogClose>
-    </div>
+      {asChild ? undefined : children}
+    </DialogPrimitive.Title>
   );
 }
 
@@ -136,7 +279,12 @@ function DialogDescription({
 }: ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("text-body-small text-muted-foreground", className)}
+      className={(state) =>
+        cn(
+          "text-body-small text-muted-foreground",
+          typeof className === "function" ? className(state) : className,
+        )
+      }
       data-slot="dialog-description"
       {...props}
     />

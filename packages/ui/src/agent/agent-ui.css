@@ -162,7 +162,7 @@
   max-height: min(80dvh, 48rem);
   overflow: hidden;
 }
-.agent-operation-detail-dialog > [data-slot="dialog-title-row"] {
+.agent-operation-detail-dialog > [data-slot="dialog-title"] {
   flex: 0 0 auto;
 }
 .agent-operation-detail-body {

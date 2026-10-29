@@ -27,5 +27,16 @@
 - 提示是辅助说明，图标按钮仍须独立提供可访问名称；重要说明与交互内容使用正文或 Popover。键盘可见焦点打开提示，Escape 关闭，鼠标关闭菜单后的焦点恢复与触屏点击不得留下提示。禁用按钮需要提示时，用 span 包裹按钮作为 Trigger。
 - Popup 可悬停，Portal 避免滚动容器裁剪，Positioner 保持 8px 视口留白并允许翻转；长路径可换行，箭头继承 Popup 背景，动效遵循减少动态效果设置。Base UI 新依赖须纳入桌面浏览器测试的预打包列表，避免测试中途重新优化、重载及重复加载 React。
 - 回归入口为 `desktop/src/shared/components/core/tooltip.browser.test.tsx`（两端入口、Chromium/WebKit、事件/ref、禁用按钮包装、菜单组合、延迟分组和宽窄屏）与 `tests/e2e/app-shell-tooltip.spec.ts`（三浏览器、明暗主题、键盘、减少动态效果及真实触屏）。
-- Base UI 迁移后的 Web 首屏 gzip 预算为 360 KiB，工作台就绪仍为 500 KiB，最大异步依赖组仍为 640 KiB；以 `tools/verify-web-bundle.mjs` 的实际静态依赖闭包测量，预算变更不替代交互和渲染性能验证。
-- 桌面以 `desktop/performance-budget.json` 校验未压缩的完整场景闭包：workspace 1,780,000、markdown 2,280,000、cppHighlight 2,850,000 字节；textEditor 2,050,000、taskWindow 550,000 字节。两端统计口径不同，不能直接比较 gzip 与原始字节预算。
+- Base UI 迁移后的 Web 首屏 gzip 预算为 360 KiB，工作台就绪为 520 KiB，最大异步依赖组仍为 640 KiB；以 `tools/verify-web-bundle.mjs` 的实际静态依赖闭包测量，预算变更不替代交互和渲染性能验证。
+- 桌面以 `desktop/performance-budget.json` 校验未压缩的完整场景闭包：workspace 1,820,000、markdown 2,320,000、cppHighlight 2,900,000 字节；textEditor 2,150,000、taskWindow 550,000 字节。两端统计口径不同，不能直接比较 gzip 与原始字节预算。
+
+## 共享 Dialog 与 Drawer
+
+- 2026-10-29 用户要求视觉一并采用官方组件设计：关闭控件独立定位于浮层右上角，固定 32×32px、图标 16px。此规则替代旧共享 UI 索引中“标题等高、14px 图标”的旧要求；禁止再用 `w-[1em]`、`size="embedded"` 或继承标题字号压缩关闭入口。长标题留出右侧空间，不能用标题高度决定按钮形状。
+- 普通模态窗口统一通过 `packages/ui/src/core/dialog.tsx` 使用 shadcn Base UI Dialog；侧边抽屉通过 `drawer.tsx` 使用 Base UI Drawer 的 Portal、Viewport、Popup、Content。`Sheet` 仅保留兼容导出，新增调用使用 Drawer，方向由 Root 的 `swipeDirection` 指定。
+- Root / Trigger 同步加载；Portal / Popup 与 Drawer 手势层分别由 `dialog-surface.tsx`、`drawer-surface.tsx` 在首次打开时动态加载，关闭状态不得请求这两个模块。首次加载后保留轻量边界，让 Base UI 完成退出动画并卸载 DOM，重开复用模块缓存。
+- 既有 `asChild` 映射官方 `render`，焦点回调映射 `initialFocus` / `finalFocus`，保留编辑器和分屏的手动恢复。关闭拦截统一在 Root 转为 `eventDetails.cancel()`，提交期间同时阻止 Escape、遮罩和关闭按钮；未保存草稿保留原有确认流程。
+- Drawer.Content 保护正文的鼠标选择，拖动手柄应位于 Content 外部；移动侧栏启用手柄，触控正文滚动与侧向滑动由 Base UI 仲裁。动效只使用合成属性并遵循减少动态效果设置，关闭后 Portal 卸载。
+- 两端入口统一导出共享组件，并同步背景图片的浮层材质选择器 `drawer-popup`。浏览器测试预打包 `@base-ui/react/dialog` 与 `@base-ui/react/drawer`，防止测试中途重新打包造成重复 React。
+- 回归入口为 `dialog-close.browser.test.tsx`、`drawer.browser.test.tsx`、桌面全局搜索/新建项目/已归档任务/子代理输出/常用提示词，以及 Web `app-shell-new-project.spec.ts`、`app-shell-saved-prompts.spec.ts`。包体预算按本次用户指令调整，仍执行交互与性能检查。
+- `tests/e2e/app-shell-modal-lazy.spec.ts` 用真实生产请求验证未打开不加载、首次打开加载及重开复用缓存；生产 manifest 验证两个 surface 不进入首屏或工作台静态闭包。

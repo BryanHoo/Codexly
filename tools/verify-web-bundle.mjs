@@ -6,7 +6,8 @@ import { gzipSync } from "node:zlib";
 const initialGzipBudgetBytes = 360 * 1024;
 // Vite 8.2 将 Mermaid 图表依赖合并到同一异步组，按实际静态闭包限制传输量。
 const maxAsyncGzipBudgetBytes = 640 * 1024;
-const workbenchReadyGzipBudgetBytes = 500 * 1024;
+// Dialog / Drawer 统一迁移 Base UI 后，经用户确认将工作台就绪预算调整为 520 KiB。
+const workbenchReadyGzipBudgetBytes = 520 * 1024;
 const workbenchEntryKey = "src/features/workbench/components/workbench-shell.tsx";
 const reportSchemaVersion = 3;
 const topContributorCount = 5;
