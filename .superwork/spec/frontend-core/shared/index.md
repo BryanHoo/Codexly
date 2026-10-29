@@ -8,6 +8,8 @@
 
 - Web 和桌面在“设置 → 常规 → 编辑器”提供“消息吸顶”和“消息目录锚点”，独立控制且默认关闭，切换即时生效并通过各端现有偏好存储保留；缺失、损坏或非布尔值均按关闭处理。状态与校验复用 `conversation-display-preferences.ts`，React 订阅与开关复用 UI，桌面持久化继续走原生存储。
 - 关闭时卸载对应摘要或目录及其监听；消息注册、发送后定位、阅读留白与搜索结果跳转保持独立，不能随开关关闭。回归入口为共享 `conversation-display-preferences.test.ts`、桌面 `conversation-display-preferences.browser.test.tsx` 和 Web `app-shell-message-navigation.spec.ts`；原有吸顶布局用例显式启用该功能。
+- 目录关闭时父时间线也不得生成完整索引：只传入按结构 revision 与回合顺序更新的稳定工厂，由启用后的共享目录调用。两端复用 `packages/ui/src/core/timeline-navigation.tsx`，长目录仅为可见刻度挂载按钮与 Tooltip，不按全部消息创建订阅。
+- 滚动定位复用锚点节点列表并二分读取实时位置；仅锚点增删或身份变化重建节点列表，正文增量不得重扫历史，未改变内容尺寸的更新不得触发目录布局读取。尺寸变化、过程折叠、图片加载与补页后仍须正确定位；关闭时释放滚动监听、观察器和待执行帧。回归入口为 `task-timeline-navigation.browser.test.tsx`，同时覆盖两端入口、Chromium/WebKit、4096 条目录、布局读取上界和动态布局。
 
 ## 契约与检查项
 

@@ -3,7 +3,7 @@ import { TimelineImageProvider } from "./timeline-image-provider.js";
 import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
 import type { PendingRequest } from "@/protocol/index.js";
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { createTimelineTurnGrouper, mergeTimelineTurns } from "@codexly/frontend-core/timeline-turn-groups";
@@ -287,11 +287,12 @@ export function TaskStoreTimeline({
   const hasVisiblePendingRequest = !pendingRequestsExternal && pendingRequestIds.some(
     (requestId) => pendingRequestsById[requestId]?.status !== "resolved",
   );
-  const navigationItems = useMemo(() => {
-    // Store 内部 Map 保持引用稳定，以 revision 作为 Item 结构变化的重算信号。
+  const navigationItems = useCallback(() => {
+    // 仅传入索引工厂，关闭目录时不遍历消息；结构或回合顺序变化后才重新生成。
     void itemStructureRevision;
+    void turnIds;
     return getTaskTimelineNavigationItems(store.getState());
-  }, [itemStructureRevision, store]);
+  }, [itemStructureRevision, store, turnIds]);
   const submissionHandoffState = useStore(store, (state) => {
     if (submissionTurnId === undefined) {
       return "footer";

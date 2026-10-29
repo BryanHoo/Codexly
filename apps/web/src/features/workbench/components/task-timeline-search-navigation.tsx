@@ -1,10 +1,8 @@
 import type { RefObject } from "react";
+import type { TimelineNavigationItems } from "@codexly/ui/core/timeline-navigation";
 
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
-import {
-  TaskTimelineNavigation,
-  type TaskTimelineNavigationItem,
-} from "./task-timeline-navigation.js";
+import { TaskTimelineNavigation } from "./task-timeline-navigation.js";
 
 export function TaskTimelineSearchNavigation({
   items,
@@ -14,7 +12,7 @@ export function TaskTimelineSearchNavigation({
   searchTarget,
   turnIds,
 }: Readonly<{
-  items: readonly TaskTimelineNavigationItem[];
+  items: TimelineNavigationItems;
   navigateToItem: (index: number, anchorId: string) => void;
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   scrollbarWidth: number;
