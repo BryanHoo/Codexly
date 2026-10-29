@@ -255,11 +255,13 @@ export function ProjectSourcePanel({
       ref={contentRef}
     >
       <TextEditorNotice
+        key={sourcePath}
         kind={editor.noticeKind}
         labels={t("textEditor", { returnObjects: true }) as TextFileEditorLabels}
         onRetryEdit={editor.retryEdit}
         onRetrySave={editor.retrySave}
         onDismiss={editor.dismissNotice}
+        onDiscard={editor.discardChanges}
         busy={editor.retrying || editor.saving}
       />
       <div className="min-h-0 flex-1">

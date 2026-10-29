@@ -90,11 +90,15 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
           languagePending = false;
         });
     };
-    const state = session.bindView([
+    const bindings = [
       lineNumbers(),
       drawSelection(),
       highlightActiveLine(),
       editorTheme,
+      // 剪贴板换行由来源平台决定；先匹配当前文件格式，避免粘贴后混入 CRLF/LF 而无法保存。
+      EditorView.clipboardInputFilter.of((text, current) =>
+        text.replace(/\r\n?|\n/g, current.lineBreak),
+      ),
       keymap.of([
         {
           key: "Mod-s",
@@ -140,13 +144,21 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
           });
         },
       }),
-    ]);
+    ];
+    const state = session.bindView(bindings);
     const view = new EditorView({
       parent: host.current,
       state,
       ...(session.scrollSnapshot ? { scrollTo: session.scrollSnapshot } : {}),
     });
     viewRef.current = view;
+    const unlisten = session.subscribe(() => {
+      // 普通输入已同步到视图；只有确认放弃等外部状态重建才重绑视图，避免逐键重渲染。
+      if (view.state !== session.state) {
+        view.setState(session.bindView(bindings));
+        ensureLanguage();
+      }
+    });
     // 预览加载不能抢走聊天输入框焦点；用户直接点击正文即可编辑。
     // 语言与解析状态属于会话，切屏不反复创建解析器和语法树。
     ensureLanguage();
@@ -160,6 +172,7 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       disposed = true;
+      unlisten();
       window.removeEventListener("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibility);
       // 布局清理发生在 DOM 移除之前；被动 effect 清理时滚动布局已经归零。

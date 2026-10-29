@@ -159,6 +159,9 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
     dismissNotice: () => {
       active.current?.dismissInputLimit();
     },
+    discardChanges: () => {
+      active.current?.discardChanges();
+    },
     path: current?.session.file.path,
     element:
       current && Editor ? (

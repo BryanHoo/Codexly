@@ -14,6 +14,40 @@ function setup(save = vi.fn(() => Promise.resolve({ version: "v2" }))) {
   return { session, save, notify, saved, edit };
 }
 
+it("discards a failed draft back to the last saved CRLF snapshot without writing or retaining undo", async () => {
+  const { session, edit, save } = setup(vi.fn().mockRejectedValue(new Error("offline")));
+  edit("保留到确认放弃\r\n");
+  await session.flush();
+  const listener = vi.fn();
+  session.subscribe(listener);
+  expect(session.discardChanges()).toBe(true);
+  expect(session.state.sliceDoc()).toBe(file.content);
+  expect(session.dirty).toBe(false);
+  expect(session.feedback).toBeNull();
+  expect(session.revision).toBeUndefined();
+  expect(listener).toHaveBeenCalled();
+  expect(await session.flush()).toBe(true);
+  expect(save).toHaveBeenCalledTimes(1);
+});
+
+it("does not discard while a save is in flight", async () => {
+  let finish!: (result: { version: string }) => void;
+  const { session, edit } = setup(
+    vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  );
+  edit("正在保存");
+  const saving = session.flush();
+  expect(session.discardChanges()).toBe(false);
+  expect(session.state.sliceDoc()).toBe("正在保存");
+  finish({ version: "v2" });
+  await saving;
+});
+
 it("does not write on input or unchanged blur; flush saves the latest CRLF text once", async () => {
   const { session, save, notify, edit } = setup();
   expect(await session.flush()).toBe(true);

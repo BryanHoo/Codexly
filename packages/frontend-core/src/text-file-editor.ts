@@ -17,6 +17,10 @@ export type TextFileEditorLabels = Readonly<{
   retrySave: string;
   retrying: string;
   dismiss: string;
+  discard: string;
+  discardConfirm: string;
+  confirmDiscard: string;
+  keepEditing: string;
 }>;
 export const textFileEditorChinese: TextFileEditorLabels = {
   saved: "文件已保存",
@@ -36,6 +40,10 @@ export const textFileEditorChinese: TextFileEditorLabels = {
   retrySave: "重试保存",
   retrying: "正在重试…",
   dismiss: "知道了",
+  discard: "放弃修改",
+  discardConfirm: "确定放弃此文件未保存的修改？此操作无法撤销。放弃后可关闭文件。",
+  confirmDiscard: "确认放弃",
+  keepEditing: "继续编辑",
 };
 export const textFileEditorEnglish: TextFileEditorLabels = {
   saved: "saved",
@@ -57,4 +65,9 @@ export const textFileEditorEnglish: TextFileEditorLabels = {
   retrySave: "Retry saving",
   retrying: "Retrying…",
   dismiss: "Got it",
+  discard: "Discard changes",
+  discardConfirm:
+    "Discard unsaved changes to this file? This cannot be undone. You can close the file afterwards.",
+  confirmDiscard: "Confirm discard",
+  keepEditing: "Keep editing",
 };

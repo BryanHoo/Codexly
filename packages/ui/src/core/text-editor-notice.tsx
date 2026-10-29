@@ -1,4 +1,5 @@
 import type { TextFileEditorLabels } from "@codexly/frontend-core/text-file-editor";
+import { useEffect, useState } from "react";
 import { Button } from "./button.js";
 
 export type TextEditorNoticeKind =
@@ -9,6 +10,7 @@ export type TextEditorNoticeProps = Readonly<{
   onRetryEdit: () => void;
   onRetrySave: () => void;
   onDismiss: () => void;
+  onDiscard?: () => void;
   busy?: boolean;
 }>;
 export function TextEditorNotice({
@@ -17,8 +19,13 @@ export function TextEditorNotice({
   onRetryEdit,
   onRetrySave,
   onDismiss,
+  onDiscard,
   busy = false,
 }: TextEditorNoticeProps) {
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  useEffect(() => {
+    setConfirmDiscard(false);
+  }, [kind]);
   if (kind === null) return null;
   const messages = {
     capacity: labels.capacity,
@@ -39,9 +46,50 @@ export function TextEditorNotice({
       data-text-editor-notice={kind}
     >
       <p className="min-w-0 flex-1 basis-48 whitespace-normal [overflow-wrap:anywhere]">
-        {messages[kind]}
+        {confirmDiscard && saveFailed ? labels.discardConfirm : messages[kind]}
       </p>
-      {canRetryEdit || saveFailed ? (
+      {saveFailed && onDiscard ? (
+        confirmDiscard ? (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                // 二次确认才丢弃当前文件草稿；保存中禁止执行，防止回执与放弃动作交叉。
+                onDiscard();
+                setConfirmDiscard(false);
+              }}
+            >
+              {labels.confirmDiscard}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setConfirmDiscard(false);
+              }}
+            >
+              {labels.keepEditing}
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setConfirmDiscard(true);
+            }}
+          >
+            {labels.discard}
+          </Button>
+        )
+      ) : null}
+      {canRetryEdit || (saveFailed && !confirmDiscard) ? (
         <Button
           type="button"
           size="sm"

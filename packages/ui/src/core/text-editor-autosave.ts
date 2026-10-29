@@ -114,6 +114,21 @@ export class TextEditorAutosave {
     this.inputRejected = false;
     this.emit();
   }
+  discardChanges(): boolean {
+    if (this.pending) return false;
+    // 仅由明确确认的放弃动作调用；恢复最后一次成功保存的文本，清空撤销以免草稿复活。
+    this.languageExtension = [];
+    this.languageLoaded = false;
+    this.historyBytes = 0;
+    this.state = this.createState(this.snapshot.savedDocument, this.state.lineBreak);
+    this.scrollSnapshot = undefined;
+    // 冲突时磁盘可能已更新，下次打开必须重新校验，不能把恢复快照当成最新磁盘内容。
+    this.revision = undefined;
+    this.inputRejected = false;
+    this.saveFailure = null;
+    this.emit();
+    return true;
+  }
   get version(): string {
     return this.snapshot.version;
   }

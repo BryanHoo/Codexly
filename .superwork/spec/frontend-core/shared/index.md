@@ -13,6 +13,7 @@
 
 - [ ] 不导入具体 Web / 桌面应用、Client、Core、Provider、Server 或根 CLI，传输与原生副作用由平台适配器承接。
 - [ ] 文档、分屏、草稿与任务选择保持两端一致；修改共享规则时检查全部消费者。
+- [ ] 文本编辑遵循 [文本编辑契约](../../../../docs/text-file-editing.md)：粘贴内容须在进入文本树前统一为文件的 LF / CRLF，不能仅依赖 `lineSeparator`；保存失败后保留草稿，明确二次确认放弃才解除该草稿的关闭保护。共享 `text-editor-recovery.browser.test.tsx` 覆盖两种换行方向与确认恢复。
 - [ ] 沿用增量文本、字节 LRU 与批量事件调度，避免逐 token 重扫历史或无界缓存。
 - [ ] 执行 `pnpm exec vitest run packages/frontend-core/src`、`pnpm typecheck`、`pnpm lint:architecture`；渲染状态变化补充两端交互验证与 `pnpm test:performance`。
 

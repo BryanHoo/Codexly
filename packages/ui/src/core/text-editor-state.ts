@@ -114,6 +114,9 @@ export class TextEditorSession {
     this.saved = saved;
     this.version = version;
   }
+  get savedDocument(): Text {
+    return this.saved;
+  }
   isDirty(current: Text): boolean {
     return !current.eq(this.saved);
   }
