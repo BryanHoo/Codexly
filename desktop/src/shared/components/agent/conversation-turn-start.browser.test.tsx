@@ -12,7 +12,7 @@ const frames = async () => {
 };
 
 it("用户消息顶部裁切 1px 即吸顶，不等待整条消息离屏", async () => {
-  const screen = await render(<ConversationList conversationId="partial-prompt" items={[1, 2]}
+  const screen = await render(<ConversationList stickyPromptEnabled conversationId="partial-prompt" items={[1, 2]}
     getItemKey={(id) => id} renderItem={(id) => <>
       <Message from="user" data-question={id}><MessageContent>{`问题 ${id}：${"很长的背景说明。".repeat(80)}`}</MessageContent></Message>
       <div style={{ height: 900 }}>回复</div>
@@ -48,7 +48,7 @@ it("发送后新问题靠顶，短回复向下展开，长回复保留四分之�
       grow = setReplyHeight;
       return () => { send = () => {}; grow = () => {}; };
     }, []);
-    return <ConversationList conversationId="new-turn-start" items={items} getItemKey={(id) => id}
+    return <ConversationList stickyPromptEnabled conversationId="new-turn-start" items={items} getItemKey={(id) => id}
       scrollToBottomSignal={signal} renderItem={(id) => <>
         <Message from="user" data-question={id}><MessageContent>问题 {id}</MessageContent></Message>
         <div data-answer={id} style={{ height: id === items.at(-1) && signal > 0 ? replyHeight : 900 }}>回复</div>
@@ -96,7 +96,7 @@ it("等待新用户节点及 pending 接管时不把历史问题当作新一轮"
       handoff = () => { setPending(false); setConfirmed(true); };
       return () => { begin = () => {}; showPending = () => {}; handoff = () => {}; };
     }, []);
-    return <ConversationList conversationId="pending-turn" items={confirmed ? [1, 2] : [1]} getItemKey={(id) => id}
+    return <ConversationList stickyPromptEnabled conversationId="pending-turn" items={confirmed ? [1, 2] : [1]} getItemKey={(id) => id}
       scrollToBottomSignal={signal}
       renderItem={(id) => <>
         <Message from="user" data-question={id}><MessageContent>{id === 1 ? "历史问题" : "新问题"}</MessageContent></Message>

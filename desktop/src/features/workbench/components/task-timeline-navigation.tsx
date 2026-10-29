@@ -1,3 +1,6 @@
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
+import type { ComponentProps } from "react";
 import { useCurrentNavigationAnchor } from "@codexly/ui/core/timeline-navigation-anchor";
 import {
   getTaskTimelineNavigationItems as getSharedNavigationItems,
@@ -41,7 +44,13 @@ export function getTaskTimelineNavigationItems(
   return getSharedNavigationItems(state, getNavigationPreview);
 }
 
-export function TaskTimelineNavigation({
+/** 禁用时不挂载目录、锚点观察器和导航浮层，搜索定位仍由外层独立执行。 */
+export function TaskTimelineNavigation(props: ComponentProps<typeof EnabledTaskTimelineNavigation>) {
+  const enabled = useConversationDisplayPreference(conversationDisplayPreferences, "navigation");
+  return enabled ? <EnabledTaskTimelineNavigation {...props} /> : null;
+}
+
+function EnabledTaskTimelineNavigation({
   items,
   onNavigate,
   scrollContainerRef,

@@ -9,7 +9,7 @@ export const settings = {
     "claude-personalization":
       "Claude CLAUDE.md Global instructions Load project settings Tool permission rules Automatically allow Disallow",
     appearance:
-      "Color mode language notifications editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
+      "Color mode language notifications sticky messages message navigation anchors editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
     personalization: "Codex instructions AGENTS.md global memory MCP web search",
     pets: "Enable pet selection",
     provider: "API key Base URL models official custom",

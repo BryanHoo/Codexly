@@ -9,6 +9,11 @@ import {
 } from "./task-timeline-navigation.js";
 import { completedTurn, renderToStaticMarkup, snapshot } from "./task-timeline.test-support.js";
 
+// 此处继续校验启用后的目录；默认关闭、设置切换和刷新恢复由端到端用例覆盖。
+vi.mock("@codexly/ui/core/conversation-display-preferences", () => ({
+  useConversationDisplayPreference: () => true,
+}));
+
 describe("task timeline navigation", () => {
   it("extracts every user-visible message in timeline order", () => {
     const navigationSnapshot: RuntimeTaskSnapshot = {

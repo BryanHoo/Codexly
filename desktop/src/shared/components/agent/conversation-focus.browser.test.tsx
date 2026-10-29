@@ -20,7 +20,7 @@ it("阅读留白随输入框显隐和流式增长保持可视区四分之一", a
       return () => { grow = () => {}; };
     }, []);
     return (
-      <ConversationList
+      <ConversationList stickyPromptEnabled
         conversationId="reading-space"
         items={["turn"]}
         getItemKey={(id) => id}
@@ -44,7 +44,7 @@ it("阅读留白随输入框显隐和流式增长保持可视区四分之一", a
 
 it("阅读留白不使短回复产生多余滚动", async () => {
   const screen = await render(
-    <ConversationList
+    <ConversationList stickyPromptEnabled
       conversationId="short-reading-space"
       items={["turn"]}
       getItemKey={(id) => id}
@@ -61,7 +61,7 @@ it("阅读留白不使短回复产生多余滚动", async () => {
 it("吸顶只展示滚动位置上方最近的问题并限制为两行，点击可回看原文", async () => {
   const items = ["第一条问题", "第二条问题：" + "很长的用户输入，".repeat(100), "第三条问题"];
   const screen = await render(
-    <ConversationList
+    <ConversationList stickyPromptEnabled
       conversationId="sticky-question"
       items={items}
       getItemKey={(item) => item}
@@ -116,7 +116,7 @@ it("吸顶在历史阅读中保持原问题，追加与 prepend 不抢走位置"
       prepend = () => setItems((current) => [0, ...current]);
       return () => { append = () => {}; prepend = () => {}; };
     }, []);
-    return <ConversationList conversationId="sticky-history" items={items}
+    return <ConversationList stickyPromptEnabled conversationId="sticky-history" items={items}
       getItemKey={(id) => id} renderItem={(id) => <>
         <Message from="user" data-question={id}><MessageContent>问题 {id}</MessageContent></Message>
         <div data-answer={id} style={{ height: 900 }}>回复 {id}</div>
@@ -150,7 +150,7 @@ it("切换会话后重新绑定阅读留白和吸顶，不保留旧问题", asyn
       switchTask = () => setTask("新会话");
       return () => { switchTask = () => {}; };
     }, []);
-    return <ConversationList conversationId={task} items={[task]} getItemKey={(id) => id}
+    return <ConversationList stickyPromptEnabled conversationId={task} items={[task]} getItemKey={(id) => id}
       renderItem={(id) => <>
         <Message from="user"><MessageContent>{id}</MessageContent></Message>
         <div data-answer="" style={{ height: 900 }}>回复</div>
@@ -174,7 +174,7 @@ it("吸顶支持仅附件的用户消息及原消息的后续正文更新", asyn
       update = () => setText("补充的用户问题");
       return () => { update = () => {}; };
     }, []);
-    return <ConversationList conversationId="attachment-prompt" items={[1]} getItemKey={(id) => id}
+    return <ConversationList stickyPromptEnabled conversationId="attachment-prompt" items={[1]} getItemKey={(id) => id}
       renderItem={() => <>
         <Message from="user">
           <span data-slot="attachment-title">项目说明.pdf</span>

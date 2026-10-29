@@ -6,6 +6,10 @@ for (const width of [1280, 390]) {
     await page.addInitScript(
       (theme) => {
         localStorage.setItem("codexly.theme-preference", JSON.stringify({ theme, version: 1 }));
+        localStorage.setItem(
+          "codexly:conversation-display:v1",
+          JSON.stringify({ stickyPrompt: true }),
+        );
       },
       width === 390 ? "dark" : "light",
     );

@@ -1,4 +1,8 @@
 export const generalSettings = {
+  stickyPrompt: "消息吸顶",
+  stickyPromptDescription: "滚动阅读时，在顶部显示当前用户消息的摘要，点击可回看原文。",
+  messageNavigation: "消息目录锚点",
+  messageNavigationDescription: "在消息右侧显示目录锚点，点击可快速跳转到对应消息。",
     trayIcon: "显示状态栏图标",
     trayIconDescription: "在系统状态栏或托盘中显示 Codexly 图标。",
     trayIconLoadError: "无法读取状态栏图标显示设置。",

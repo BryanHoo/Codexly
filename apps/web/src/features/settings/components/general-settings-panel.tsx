@@ -1,3 +1,5 @@
+import { ConversationDisplaySwitch } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../conversation-display-preferences.js";
 import type { AgentGlobalSettings, ProjectOpenApp } from "@codexly/protocol";
 import "../../../i18n/settings-general.js";
 import { MonitorCog, Moon, Sun } from "lucide-react";
@@ -131,6 +133,26 @@ export function GeneralSettingsPanel({
           <BackgroundSettingsField />
         </SettingsGroup>
         <SettingsGroup title={t("general.editor")}>
+          <SettingsField
+            label={t("general.stickyPrompt")}
+            description={t("general.stickyPromptDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="stickyPrompt"
+              label={t("general.stickyPrompt")}
+            />
+          </SettingsField>
+          <SettingsField
+            label={t("general.messageNavigation")}
+            description={t("general.messageNavigationDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="navigation"
+              label={t("general.messageNavigation")}
+            />
+          </SettingsField>
           <SettingsField
             label={t("fields.followUpMessages")}
             description={t("general.followUpDescription")}

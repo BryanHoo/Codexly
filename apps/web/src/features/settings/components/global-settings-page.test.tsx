@@ -193,6 +193,11 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("常规");
     expect(markup).toContain("个性化");
     expect(markup).toContain('aria-label="默认打开方式"');
+    for (const label of ["消息吸顶", "消息目录锚点"]) {
+      expect(markup).toMatch(
+        new RegExp(`role="switch"[^>]*aria-label="${label}"[^>]*aria-checked="false"`),
+      );
+    }
     expect(markup).not.toContain("__SYSTEM_DEFAULT__");
   });
 

@@ -6,7 +6,8 @@ export const settings = {
     "claude-provider": "Claude Anthropic API Key API 地址 连接 可用模型",
     "claude-agent": "Claude 默认模型 默认思考强度 工具权限 按需确认 允许编辑 计划模式 完全访问",
     "claude-personalization": "Claude CLAUDE.md 全局指令 项目配置 工具授权规则 自动允许 禁止使用",
-    appearance: "颜色模式 语言 通知 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩",
+    appearance:
+      "颜色模式 语言 通知 消息吸顶 消息目录锚点 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩",
     personalization: "Codex 说明 AGENTS.md 全局指令 记忆 MCP 网页搜索",
     pets: "启用 宠物 选择",
     provider: "API 密钥 Base URL 模型 官方 自定义",

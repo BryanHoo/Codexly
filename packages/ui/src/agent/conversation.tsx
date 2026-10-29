@@ -34,6 +34,7 @@ export type ConversationProps = HTMLAttributes<HTMLDivElement> & {
   conversationId: string;
   scrollToBottomSignal?: number;
   scrollLabel?: string;
+  stickyPromptEnabled?: boolean;
 };
 
 const FollowActionContext = createContext<RefObject<() => void> | null>(null);
@@ -45,6 +46,7 @@ export function Conversation({
   conversationId,
   scrollToBottomSignal,
   scrollLabel,
+  stickyPromptEnabled = false,
   children,
   className,
   style,
@@ -70,7 +72,13 @@ export function Conversation({
               >
                 <SubmissionSignalContext.Provider value={scrollToBottomSignal}>
                   <MessageScrollerViewport ref={viewportRef} {...props}>
-                    <ConversationStickyPrompt viewportRef={viewportRef} pauseAction={pauseAction} />
+                    {/* 关闭时卸载摘要及其监听；用户消息注册仍供发送定位与阅读留白复用。 */}
+                    {stickyPromptEnabled ? (
+                      <ConversationStickyPrompt
+                        viewportRef={viewportRef}
+                        pauseAction={pauseAction}
+                      />
+                    ) : null}
                     {children}
                   </MessageScrollerViewport>
                 </SubmissionSignalContext.Provider>
@@ -205,6 +213,7 @@ export function ConversationItems<T>({
 }
 
 export type ConversationListProps<T> = ConversationItemsProps<T> & {
+  stickyPromptEnabled?: boolean;
   conversationId: string;
   scrollToBottomSignal?: number;
   scrollLabel: string;
@@ -213,6 +222,7 @@ export function ConversationList<T>({
   conversationId,
   scrollToBottomSignal,
   scrollLabel,
+  stickyPromptEnabled = false,
   className,
   style,
   "aria-label": label,
@@ -221,6 +231,7 @@ export function ConversationList<T>({
   return (
     <Conversation
       scrollLabel={scrollLabel}
+      stickyPromptEnabled={stickyPromptEnabled}
       conversationId={conversationId}
       {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
       {...(label === undefined ? {} : { "aria-label": label })}

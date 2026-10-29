@@ -1,4 +1,10 @@
 export const generalSettings = {
+  stickyPrompt: "Sticky messages",
+  stickyPromptDescription:
+    "Show the current user message summary at the top while scrolling. Click to view the original message.",
+  messageNavigation: "Message navigation anchors",
+  messageNavigationDescription:
+    "Show navigation anchors to the right of messages for quick access to each message.",
   permissions: "Permissions",
   preferences: "Preferences",
   editor: "Editor",

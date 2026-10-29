@@ -5,6 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { TaskTimelineNavigation } from "./task-timeline-navigation.js";
 
+// 此用例校验启用后的目录布局，默认关闭与实时切换由浏览器集成测试覆盖。
+vi.mock("@codexly/ui/core/conversation-display-preferences", () => ({
+  useConversationDisplayPreference: () => true,
+}));
+
 describe("TaskTimelineNavigation", () => {
   it("renders every navigation marker in natural document order", () => {
     const items = Array.from({ length: 20 }, (_, index) => ({

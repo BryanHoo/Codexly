@@ -4,6 +4,11 @@
 
 `packages/frontend-core/src` 承载 Web / 桌面共用的视图模型、状态推导、增量 Markdown 和事件处理；`document-workspace.ts`、`split-workspace.ts`、`event-flush-scheduler.ts` 是现有复用入口。导出由本包 `package.json` 的根入口和子路径规则定义。
 
+## 消息显示偏好
+
+- Web 和桌面在“设置 → 常规 → 编辑器”提供“消息吸顶”和“消息目录锚点”，独立控制且默认关闭，切换即时生效并通过各端现有偏好存储保留；缺失、损坏或非布尔值均按关闭处理。状态与校验复用 `conversation-display-preferences.ts`，React 订阅与开关复用 UI，桌面持久化继续走原生存储。
+- 关闭时卸载对应摘要或目录及其监听；消息注册、发送后定位、阅读留白与搜索结果跳转保持独立，不能随开关关闭。回归入口为共享 `conversation-display-preferences.test.ts`、桌面 `conversation-display-preferences.browser.test.tsx` 和 Web `app-shell-message-navigation.spec.ts`；原有吸顶布局用例显式启用该功能。
+
 ## 契约与检查项
 
 - [ ] 不导入具体 Web / 桌面应用、Client、Core、Provider、Server 或根 CLI，传输与原生副作用由平台适配器承接。

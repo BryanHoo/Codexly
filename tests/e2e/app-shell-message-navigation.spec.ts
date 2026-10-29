@@ -35,6 +35,25 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
   await page.goto("/p/codexly/t/task-1");
   const navigation = page.getByRole("navigation", { name: "用户消息快捷导航" });
   const navigationItems = navigation.locator("[data-timeline-navigation-item]");
+  await expect(navigation).toHaveCount(0);
+  await expect(page.locator("[data-conversation-sticky-prompt]")).toHaveCount(0);
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  const settingsSearch = page.getByRole("searchbox", { name: "搜索设置" });
+  for (const keyword of ["消息吸顶", "消息目录锚点"]) {
+    await settingsSearch.fill(keyword);
+    await expect(page.getByRole("button", { name: "常规", exact: true })).toBeVisible();
+  }
+  await settingsSearch.fill("");
+  const navigationSwitch = page.getByRole("switch", { name: "消息目录锚点", exact: true });
+  const stickySwitch = page.getByRole("switch", { name: "消息吸顶", exact: true });
+  await expect(navigationSwitch).toHaveAttribute("aria-checked", "false");
+  await expect(stickySwitch).toHaveAttribute("aria-checked", "false");
+  await navigationSwitch.click();
+  await stickySwitch.click();
+  await page.getByRole("button", { name: "返回应用", exact: true }).click();
+  await expect(navigation).toBeVisible();
+  await expect(page.locator("[data-conversation-sticky-prompt]")).toHaveCount(1);
+  await page.reload();
   await expect(navigation).toBeVisible();
   await expect(navigation).toBeInViewport();
   await expect(navigationItems).toHaveCount(12);

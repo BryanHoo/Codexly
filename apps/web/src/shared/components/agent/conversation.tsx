@@ -1,3 +1,5 @@
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../../features/settings/conversation-display-preferences.js";
 import {
   Conversation as SharedConversation,
   ConversationList as SharedConversationList,
@@ -10,7 +12,17 @@ export { ConversationContent, ConversationItems } from "@codexly/ui/agent/conver
 export type ConversationListProps<T> = Omit<SharedListProps<T>, "scrollLabel">;
 export function ConversationList<T>(props: ConversationListProps<T>) {
   const { t } = useTranslation("conversation");
-  return <SharedConversationList {...props} scrollLabel={t("agentComponents.scrollToBottom")} />;
+  const stickyPromptEnabled = useConversationDisplayPreference(
+    conversationDisplayPreferences,
+    "stickyPrompt",
+  );
+  return (
+    <SharedConversationList
+      stickyPromptEnabled={stickyPromptEnabled}
+      {...props}
+      scrollLabel={t("agentComponents.scrollToBottom")}
+    />
+  );
 }
 export function ConversationScrollButton(
   props: Omit<ComponentProps<typeof SharedScrollButton>, "label">,
@@ -21,5 +33,15 @@ export function ConversationScrollButton(
 
 export function Conversation(props: ComponentProps<typeof SharedConversation>) {
   const { t } = useTranslation("conversation");
-  return <SharedConversation {...props} scrollLabel={t("agentComponents.scrollToBottom")} />;
+  const stickyPromptEnabled = useConversationDisplayPreference(
+    conversationDisplayPreferences,
+    "stickyPrompt",
+  );
+  return (
+    <SharedConversation
+      stickyPromptEnabled={stickyPromptEnabled}
+      {...props}
+      scrollLabel={t("agentComponents.scrollToBottom")}
+    />
+  );
 }
