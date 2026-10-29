@@ -17,30 +17,30 @@
 
 ## 验证
 
-| 范围 | 本轮结果 | 日志 |
-| --- | --- | --- |
-| 依赖安装 | 修复后 `pnpm install --frozen-lockfile` 通过 | `install-final.log` |
-| 根目录完整 `pnpm check` | 最终退出码 0；审计、协议、格式、lint、架构、3,818 项常规测试、发布及高亮脚本、17 项性能、类型、构建、体积和包内容检查通过 | `root-check-final.log` |
-| 覆盖率 | 664 文件、3,818 项通过，15 项默认跳过；语句 73.17%、分支 67.52%、函数 67.51%、行 74.71%，所有阈值通过 | `web-coverage.log` |
-| Web 真实 Codex | 隔离 home 的首次启动、相对路径、配置保留、历史存储、目标及提交信息链路，共 5 项通过 | `web-real-runtime.log` |
-| Claude 发布延迟 | 并发历史读取下的 SDK 消息发布性能用例通过 | `claude-publication-performance.log` |
-| Web 三浏览器 E2E | 待最终完整运行完成 | `web-e2e-verified.log` |
-| 桌面前端完整门禁 | 最终 `check:web` 通过：673 项单元、源码约束、lint、类型、Tauri 契约、Modern/Legacy 构建及体积预算 | `desktop-web-verified.log` |
-| 桌面浏览器组件 | Chromium/WebKit，252 文件、998 项通过 | `desktop-browser-final.log` |
-| 桌面产物额外检查 | Modern/Legacy 产物、生产任务窗口、缓存清理共 9 项通过，1 项 Windows 符号链接条件跳过 | `desktop-artifacts.log` |
-| Rust 完整门禁 | `check:rust` 通过：fmt、all-targets/all-features Clippy、776 项库测试、8 项集成测试及 5 项 Release 性能基线 | `desktop-check.log` |
-| Rust 补充检查 | 默认功能 Clippy、Bing 实际联网、定时任务 Release 性能通过；后者直接运行本轮已编译的性能测试程序 | `rust-extra.log`、`rust-scheduled-performance.log` |
-| 原生辅助库 | Windows 通知 XML、桌宠平台及 WSL 判断共 6 项通过 | `native-crates.log` |
-| Rust 供应链 | advisories、bans、licenses、sources 全通过 | `cargo-deny.log` |
-| Claude 宿主及运行时分发 | 独立宿主 12 项、完整桌面运行时布局 1 项通过 | `claude-host.log`、`desktop-runtime.log` |
-| 原生 Release 功能 | WebView2 关键流程 7 项、剪贴板 1 项、自启动 3 项、PTY 二进制 1 项、真实 Codex 1 项通过 | `native-functional.log`、`native-windows.log` |
-| 原生终端 UI | 8 项通过，包括可信系统按键、大量输出、Ctrl+C、退出码及关闭取消/确认 | `native-terminal-final.log` |
-| 原生渲染性能 | 门禁通过 | `native-render-performance.log` |
-| 原生多终端资源 | 待长测完成 | `native-terminal-resources.log` |
-| 浏览器性能 | 待专用测量完成 | `web-browser-performance.log`、`desktop-source-performance.log` |
-| 真实 npm 安装与 Web 服务 | 中文空格目录实际全局安装通过；Windows 计划任务启动、重启、端口冲突递增、LAN 拒绝/配对、会话失效、修复及禁用清理共 8 项通过 | `npm-install-offline.log`、`web-installed-service.log` |
-| 普通生产桌面程序 | 无测试功能的生产构建及 6 项实际检查通过，含版本、Claude sidecar、设置开关及 Windows 登记命令启动；原注册表值已恢复 | `desktop-production-build.log`、`production-desktop.log`、`production-desktop-results.json` |
-| Windows 安装包 | 待打包完成；不执行安装器 | `desktop-installers.log` |
+| 范围                     | 本轮结果                                                                                                                   | 日志                                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 依赖安装                 | 修复后 `pnpm install --frozen-lockfile` 通过                                                                               | `install-final.log`                                                                         |
+| 根目录完整 `pnpm check`  | 最终退出码 0；审计、协议、格式、lint、架构、3,818 项常规测试、发布及高亮脚本、17 项性能、类型、构建、体积和包内容检查通过  | `root-check-final.log`                                                                      |
+| 覆盖率                   | 664 文件、3,818 项通过，15 项默认跳过；语句 73.17%、分支 67.52%、函数 67.51%、行 74.71%，所有阈值通过                      | `web-coverage.log`                                                                          |
+| Web 真实 Codex           | 隔离 home 的首次启动、相对路径、配置保留、历史存储、目标及提交信息链路，共 5 项通过                                        | `web-real-runtime.log`                                                                      |
+| Claude 发布延迟          | 并发历史读取下的 SDK 消息发布性能用例通过                                                                                  | `claude-publication-performance.log`                                                        |
+| Web 三浏览器 E2E         | 待最终完整运行完成                                                                                                         | `web-e2e-verified.log`                                                                      |
+| 桌面前端完整门禁         | 最终 `check:web` 通过：673 项单元、源码约束、lint、类型、Tauri 契约、Modern/Legacy 构建及体积预算                          | `desktop-web-verified.log`                                                                  |
+| 桌面浏览器组件           | Chromium/WebKit，252 文件、998 项通过                                                                                      | `desktop-browser-final.log`                                                                 |
+| 桌面产物额外检查         | Modern/Legacy 产物、生产任务窗口、缓存清理共 9 项通过，1 项 Windows 符号链接条件跳过                                       | `desktop-artifacts.log`                                                                     |
+| Rust 完整门禁            | `check:rust` 通过：fmt、all-targets/all-features Clippy、776 项库测试、8 项集成测试及 5 项 Release 性能基线                | `desktop-check.log`                                                                         |
+| Rust 补充检查            | 默认功能 Clippy、Bing 实际联网、定时任务 Release 性能通过；后者直接运行本轮已编译的性能测试程序                            | `rust-extra.log`、`rust-scheduled-performance.log`                                          |
+| 原生辅助库               | Windows 通知 XML、桌宠平台及 WSL 判断共 6 项通过                                                                           | `native-crates.log`                                                                         |
+| Rust 供应链              | advisories、bans、licenses、sources 全通过                                                                                 | `cargo-deny.log`                                                                            |
+| Claude 宿主及运行时分发  | 独立宿主 12 项、完整桌面运行时布局 1 项通过                                                                                | `claude-host.log`、`desktop-runtime.log`                                                    |
+| 原生 Release 功能        | WebView2 关键流程 7 项、剪贴板 1 项、自启动 3 项、PTY 二进制 1 项、真实 Codex 1 项通过                                     | `native-functional.log`、`native-windows.log`                                               |
+| 原生终端 UI              | 8 项通过，包括可信系统按键、大量输出、Ctrl+C、退出码及关闭取消/确认                                                        | `native-terminal-final.log`                                                                 |
+| 原生渲染性能             | 门禁通过                                                                                                                   | `native-render-performance.log`                                                             |
+| 原生多终端资源           | 待长测完成                                                                                                                 | `native-terminal-resources.log`                                                             |
+| 浏览器性能               | 待专用测量完成                                                                                                             | `web-browser-performance.log`、`desktop-source-performance.log`                             |
+| 真实 npm 安装与 Web 服务 | 中文空格目录实际全局安装通过；Windows 计划任务启动、重启、端口冲突递增、LAN 拒绝/配对、会话失效、修复及禁用清理共 8 项通过 | `npm-install-offline.log`、`web-installed-service.log`                                      |
+| 普通生产桌面程序         | 无测试功能的生产构建及 6 项实际检查通过，含版本、Claude sidecar、设置开关及 Windows 登记命令启动；原注册表值已恢复         | `desktop-production-build.log`、`production-desktop.log`、`production-desktop-results.json` |
+| Windows 安装包           | 待打包完成；不执行安装器                                                                                                   | `desktop-installers.log`                                                                    |
 
 ## 性能与未达观察目标
 

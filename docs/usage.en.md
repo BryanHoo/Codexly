@@ -14,7 +14,7 @@ Pin, archive, restore, or permanently delete tasks. Sidebar shortcuts help you m
 
 In the archive list, choose all archived tasks, tasks last updated more than 1, 3, 6, or 12 months ago, or tasks updated before a custom date. The cutoff uses midnight in your device's local calendar and excludes the cutoff date itself; the confirmation shows the exact date. Cleanup covers all archived tasks regardless of the current search. Check the scope and export conversations as needed before permanent deletion.
 
-Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. Groups can be collapsed. The task board and extensions are in the sidebar header, with schedules in the icon area; settings, notifications, and help are at the bottom. The notification center separates unread and read alerts and supports marking all as read, or deleting all read notifications from the Read tab. Deleting notifications keeps the tasks. Opening a task marks its notifications as read. Asynchronous questions notify you and mark the task as awaiting an answer; answering or closing the question restores its status.
+Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. Groups can be collapsed. The task board and extensions are in the sidebar header, with schedules in the icon area; settings, notifications, and help are at the bottom. The notification center separates unread and read alerts and supports marking all as read, or deleting all read notifications from the Read tab. Deleting notifications keeps the tasks. All tasks visible in foreground panes automatically mark their notifications as read without clicking each pane. A hidden page keeps new alerts unread until it becomes visible again. Asynchronous questions notify you and mark the task as awaiting an answer; answering or closing the question restores its status.
 
 Read notifications and resolved requests remove their corresponding system alerts. Reading an alert does not approve an action or answer a question; other unread alerts for the same task remain. Notification history has automatic retention limits and prioritizes unread items, so use task history for the full record.
 
@@ -28,7 +28,11 @@ Follow streaming replies, commands, tools, plans, subagents, and file changes. R
 
 Approvals, questionnaires, and MCP forms appear above the composer. Switch between questions, select options or enter a custom answer, then submit the current form. Asynchronous questions may leave the task running; answering or closing one affects only that question. Questions from completed turns move into the expandable execution history. A running indicator continues to show progress after answers or follow-up instructions.
 
-Sending a new question positions its start near the top and leaves reading space below. Replies gradually use that space. Background output preserves your position while reading earlier content; a sticky summary lets you return to the most recent question you scrolled past.
+Sending a new question positions its start near the top and leaves reading space below. Replies gradually use that space. Background output preserves your position while reading earlier content. In **Settings → General → Editor**, enable **Sticky messages** and **Message navigation anchors** independently. Both default to off and remember the current client’s choice. Sticky summaries return to earlier questions; anchors on the right jump to messages. Turning either off keeps sending and search-result navigation available.
+
+Web citations in replies display their source domain. Hover, click, or focus to preview the title and target address, then use the card’s link to open the source. Tap on mobile; desktop opens links in the system browser. Cards use information already in the reply and do not fetch the source page.
+
+Open subagent details to inspect the initial task, replies, and execution history in an independently scrollable dialog. New output follows to the bottom by default. Scroll up or select text to pause, and return to the bottom to resume. Load earlier process records when needed.
 
 Consecutive commands, tools, and image-view operations share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. Completed turns summarize file changes after the reply.
 
@@ -56,7 +60,7 @@ On a phone or another LAN device, download files that cannot be previewed and op
 
 Edit text in source mode; switch Markdown to source first. UTF-8 files up to 2 MiB are editable, preserving line endings and BOM. Other files remain read-only. Edits save on blur, file navigation, or window switching; use `⌘/Ctrl+S` to save manually, with undo and redo available.
 
-Failed saves or external conflicts keep your draft in the current window and offer recovery actions. Drafts are held in memory and may not survive refreshes, forced exits, or crashes. Confirm save status before leaving.
+Failed saves or external conflicts keep your draft in the current window. Retry saving or choose to discard changes, which requires confirmation; cancelling keeps the draft editable. Pasting text preserves the file’s original LF or CRLF line endings. Drafts are held in memory and may not survive refreshes, forced exits, or crashes. Confirm save status before leaving.
 
 ## Git and worktrees
 

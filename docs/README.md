@@ -15,7 +15,7 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 
 ## 日常使用
 
-- [工作台使用](usage.md) · [Workspace guide](usage.en.md)：任务时间线、通知、常用提示词、队列、分屏、文件、扩展与定时任务。
+- [工作台使用](usage.md) · [Workspace guide](usage.en.md)：任务时间线、阅读导航、来源预览、子代理详情、通知、队列、分屏、文件与扩展。
 - [用量统计](usage-statistics.md)：双引擎 Token 用量、年度热力图、统计口径与验证。
 - [Git 操作](git-workflow.md)：差异审阅、提交、远端同步、分支与 worktree，含英文说明。
 - [聊天与文件工作区](document-workspace.md)：中栏标签、聊天对照、移动视图与设计依据。

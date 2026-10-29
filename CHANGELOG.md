@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-10-30
+
+### 新增
+
+- 正文网页引用支持来源预览，子代理详情统一展示任务与执行记录，并可跟随输出或暂停阅读。
+- 新增「消息吸顶」和「消息目录锚点」独立开关，默认关闭，可在设置中即时启用。
+
+### 优化
+
+- 优化长会话、消息目录与多分屏的增量渲染和滚动定位，减少历史内容重复处理及 Web 设置期间的界面开销。
+- 统一双端通知提示、首载占位、弹窗、抽屉、工具提示和分隔条交互；前台可见任务自动同步通知已读。
+
+### 修复
+
+- 修复文本粘贴改变文件换行格式及保存失败后无法确认放弃草稿的问题。
+- 修复 Claude 遗留活动状态阻止归档与删除、上下文压缩完成后未折叠，以及弹窗遮罩和消息复制交互异常。
+
 ## [0.45.1] - 2026-10-28
 
 ### 新增
@@ -925,7 +942,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/BryanHoo/Codexly/compare/v0.44.1...v0.45.0
 [0.44.1]: https://github.com/BryanHoo/Codexly/compare/v0.44.0...v0.44.1

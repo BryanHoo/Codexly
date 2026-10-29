@@ -56,7 +56,10 @@ void test("native test launchers should use the configured Tauri binary name", a
   const windowsNative = await readFile(
     new URL("../tests/webview/windows-terminal-native.ps1", import.meta.url), "utf8",
   );
-  assert.ok(windowsNative.includes(`Get-Process ${config.mainBinaryName} `));
+  // 原生终端测试按实际可执行文件派生进程名，兼容重命名产物；同时保留完整路径过滤，避免误选同名进程。
+  assert.ok(windowsNative.includes("$processName = [IO.Path]::GetFileNameWithoutExtension($resolvedExecutable)"));
+  assert.ok(windowsNative.includes("Get-Process -Name $processName "));
+  assert.ok(windowsNative.includes("$_.Path -eq $resolvedExecutable"));
   assert.ok(windowsNative.includes(`-eq '${config.productName}'`));
 });
 
