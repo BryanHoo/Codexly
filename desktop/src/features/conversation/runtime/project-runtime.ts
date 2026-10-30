@@ -173,10 +173,13 @@ export class ProjectRuntimeManager {
   public reconcileTaskActivities(tasks: readonly ActivitySnapshot[], baseline: TaskActivityMap): void {
     const next = reconcileActivitySnapshots(this.#taskActivity, baseline, tasks, this.#synchronizedActivityKeys, (task, previous) => {
       const key = createProjectTaskKey(task.projectId, task.taskId);
-      const currentCheckpoint = this.#taskActivityCheckpoints.get(key);
-      if (previous !== undefined && task.checkpoint !== undefined && currentCheckpoint?.sessionId === task.checkpoint.sessionId && currentCheckpoint.sequence > task.checkpoint.sequence) return previous;
-      // 活动快照也推进权威水位，较早开始的聊天详情请求不能反向覆盖侧栏。
-      if (task.checkpoint !== undefined) this.#taskActivityCheckpoints.set(key, task.checkpoint);
+      // 全局摘要是本次读取的权威状态，回答/关闭不一定产生新事件；不能用正文水位拒绝它。
+      // 在途响应的竞态由共享合并器的 baseline 保护，详情快照的水位则只进不退。
+      const checkpoint = task.checkpoint;
+      const current = this.#taskActivityCheckpoints.get(key);
+      if (checkpoint && (current?.sessionId !== checkpoint.sessionId || current.sequence < checkpoint.sequence)) {
+        this.#taskActivityCheckpoints.set(key, checkpoint);
+      }
       this.#rememberTaskTitle({ id: task.taskId, projectId: task.projectId, title: task.taskName });
       const singleton: TaskActivityMap = previous === undefined ? new Map() : new Map([[key, previous]]);
       const updated = recordNativeTaskActivity(singleton, task);
