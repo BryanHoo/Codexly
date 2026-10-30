@@ -43,13 +43,13 @@ const fileChange: AgentItem = {
 };
 
 describe("groupConsecutiveTimelineOperations", () => {
-  it("将查看图片与前后命令、工具归入同一组，普通活动仍分隔操作", () => {
-    const image: AgentItem = { id: "image", type: "activity", label: "查看图片", detail: "/tmp/image.png", status: "completed" };
+  it.each(["查看图片", "等待"])("将%s与前后命令、工具归入同一组，普通活动仍分隔操作", (label) => {
+    const image: AgentItem = { id: "image", type: "activity", label, detail: "/tmp/image.png", status: "completed" };
     expect(groupItems([command, image, mcpTool])).toEqual([
       { itemKeys: [command.id, image.id, mcpTool.id], key: command.id, type: "operation_group" },
     ]);
     expect(groupItems([image])).toEqual([{ itemKeys: [image.id], key: image.id, type: "operation_group" }]);
-    const activity: AgentItem = { ...image, id: "wait", label: "等待" };
+    const activity: AgentItem = { ...image, id: "connection", label: "连接状态" };
     expect(groupItems([command, activity, mcpTool])).toEqual([
       { itemKeys: [command.id], key: command.id, type: "operation_group" },
       { itemKey: activity.id, type: "item" },
@@ -57,11 +57,13 @@ describe("groupConsecutiveTimelineOperations", () => {
     ]);
   });
 
-  it.each(["pending", "running", "completed", "failed", "interrupted", undefined] as const)(
-    "将查看图片计为工具并正确汇总状态：%s", (status) => {
+  it.each(["查看图片", "等待"].flatMap((label) =>
+    (["pending", "running", "completed", "failed", "interrupted", undefined] as const).map((status) => ({ label, status })),
+  ))(
+    "将$label计为工具并正确汇总状态：$status", ({ label, status }) => {
       expect(summarizeTimelineOperations([
         command,
-        { id: "image", type: "activity", label: "查看图片", ...(status === undefined ? {} : { status }) },
+        { id: "image", type: "activity", label, ...(status === undefined ? {} : { status }) },
       ])).toMatchObject({
         commandCount: 1,
         toolCount: 1,

@@ -29,9 +29,10 @@
 - 共享会话列表保留全部已加载正文，不使用回合虚拟滚动。`content-visibility` 只跳过屏外渲染，不释放 DOM、组件或订阅；分页也不限制累计驻留。两端稳定回合渲染工厂，共享列表只保留当前一版行元素，分页状态、页脚和导航变化不得重复构造历史；导航尺寸观察器按入口有无订阅，不跟随回调身份反复重建。
 - 容量输入与回收条件见 [会话性能](../../../../docs/conversation-performance.md) 及 `tests/performance-budgets.json` 的 `activeConversation`。`conversation-capacity.browser.test.tsx` 覆盖千回合工厂计数与真实选择；`task-timeline-capacity.browser.test.tsx` 同时驱动两端四分屏，关闭后根/Item Store 的 UI 订阅归零，反复开关不累积，其他分屏和后台执行保持独立。DOM 移除与退订不能替代 GC 后堆快照验收。
 
-## 查看图片的操作归组
+## 查看图片与等待的操作归组
 
-- 两端复用 `timeline-operation.ts` 分类连续操作；标签为“查看图片”的 `activity` 与命令、工具归入同组，按一次工具调用汇总数量与运行、失败状态，普通活动继续保留分隔语义。后续助手正文到达且组内操作结束后一起收起，重新展开仍可通过图片路径打开预览。
+- 两端复用 `timeline-operation.ts` 分类连续操作；标签为“查看图片”或“等待”的 `activity` 与命令、工具归入同组，按一次工具调用汇总数量与运行、失败状态，普通活动继续保留分隔语义。后续助手正文到达且组内操作结束后一起收起，重新展开仍可通过图片路径打开预览。
+- “等待”在 `pending` / `running` 状态时保持整组展开，结束或历史记录缺失状态时随组收起；展开后保留等待时长详情。回归入口 `wait-activity-fold.browser.test.tsx` 使用两端真实 Item Store，覆盖 Chromium / WebKit、320px / 960px、正文先到达再结束等待和再次展开。
 - 活动状态图标与标题使用共享 `TraceIcon` 居中，不依赖行内基线。回归入口为两端 `task-timeline-operation-groups` 单元测试，以及桌面同名浏览器测试和 `image-view-activity.browser.test.tsx`，覆盖宽窄容器、Chromium / WebKit、图标中心线及预览回调。
 - 折叠操作摘要的图标与文字统一使用默认灰色，即使组内有失败条目也不切换危险色；保留摘要中的失败数量，展开后的失败条目继续表达错误状态。
 

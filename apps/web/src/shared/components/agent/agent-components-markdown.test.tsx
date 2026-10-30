@@ -200,7 +200,10 @@ info`,
     );
 
     expect(markup).toContain('data-inline-citation="true"');
-    expect(markup).toContain("openai.com");
+    expect(markup).toContain('type="button"');
+    expect(markup).toContain('aria-expanded="false"');
+    // 来源卡片按需挂载，初始 HTML 只展示原标签；真实网址与导航由浏览器交互用例验证。
+    expect(markup).not.toContain("openai.com");
     expect(markup).toContain("OpenAI");
     expect(markup).not.toContain('href="javascript:');
     expect(markup).toContain("unsafe [blocked]");

@@ -28,11 +28,11 @@ function tool(id: string, status: Extract<AgentItem, { type: "tool" }>["status"]
 }
 
 describe("task timeline operation groups", () => {
-  it("将查看图片与前后命令、工具归入同一组，普通活动仍分隔操作", () => {
+  it.each(["查看图片", "等待"])("将%s与前后命令、工具归入同一组，普通活动仍分隔操作", (label) => {
     const image: AgentItem = {
       id: "image",
       type: "activity",
-      label: "查看图片",
+      label,
       detail: "/tmp/image.png",
       status: "completed",
     };
@@ -46,7 +46,7 @@ describe("task timeline operation groups", () => {
     expect(group(["image"])).toEqual([
       { itemKeys: ["image"], key: "image", type: "operation_group" },
     ]);
-    byId.set("image", { ...image, label: "等待" });
+    byId.set("image", { ...image, label: "连接状态" });
     expect(group(items.map((item) => item.id))).toEqual([
       { itemKeys: ["command"], key: "command", type: "operation_group" },
       { itemKey: "image", type: "item" },
@@ -54,27 +54,30 @@ describe("task timeline operation groups", () => {
     ]);
   });
 
-  it.each(["pending", "running", "completed", "failed", "interrupted", undefined] as const)(
-    "将查看图片计为工具并正确汇总状态：%s",
-    (status) => {
-      expect(
-        summarizeTimelineOperations([
-          command("command", "completed"),
-          {
-            id: "image",
-            type: "activity",
-            label: "查看图片",
-            ...(status === undefined ? {} : { status }),
-          },
-        ]),
-      ).toMatchObject({
-        commandCount: 1,
-        toolCount: 1,
-        isActive: status === "pending" || status === "running",
-        failedCount: status === "failed" || status === "interrupted" ? 1 : 0,
-      });
-    },
-  );
+  it.each(
+    ["查看图片", "等待"].flatMap((label) =>
+      (["pending", "running", "completed", "failed", "interrupted", undefined] as const).map(
+        (status) => ({ label, status }),
+      ),
+    ),
+  )("将$label计为工具并正确汇总状态：$status", ({ label, status }) => {
+    expect(
+      summarizeTimelineOperations([
+        command("command", "completed"),
+        {
+          id: "image",
+          type: "activity",
+          label,
+          ...(status === undefined ? {} : { status }),
+        },
+      ]),
+    ).toMatchObject({
+      commandCount: 1,
+      toolCount: 1,
+      isActive: status === "pending" || status === "running",
+      failedCount: status === "failed" || status === "interrupted" ? 1 : 0,
+    });
+  });
 
   it("groups only consecutive tool and command items while preserving timeline order", () => {
     const items: AgentItem[] = [
