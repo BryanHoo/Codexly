@@ -114,7 +114,9 @@ export class TextEditorSessionCache {
         released = true;
         entry.users--;
         if (!entry.users && entry.session) {
-          if (entry.session.dirty) entry.session.compactDraft();
+          // 普通未保存文件切标签仍保留撤销；仅高占用草稿释放历史，正文和版本始终保留。
+          if (entry.session.dirty && entry.session.retainedBytes > 4 * 1024 * 1024)
+            entry.session.compactDraft();
           retainTextEditorDraft(this.scope, key, entry.session);
         }
         // 失焦不取消共享读取；原生读取无法撤回，短暂切走再回来仍等待同一结果。

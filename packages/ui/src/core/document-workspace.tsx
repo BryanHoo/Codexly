@@ -17,7 +17,7 @@ import { MessageSquare } from "lucide-react";
 import type { WorkspaceDocument } from "@codexly/frontend-core/document-workspace";
 import type { useDocumentWorkspace } from "./use-document-workspace.js";
 import { DocumentWorkspaceResizer } from "./document-workspace-resizer.js";
-import { DocumentNavigationContext } from "./document-navigation.js";
+import { DocumentNavigationContext, DocumentEditorContext } from "./document-navigation.js";
 import type {
   DocumentPresentation,
   DocumentWorkspaceTabs as DocumentWorkspaceTabsComponent,
@@ -31,6 +31,22 @@ const DocumentWorkspaceTabs = lazy(() =>
     default: module.DocumentWorkspaceTabs,
   })),
 ) as typeof DocumentWorkspaceTabsComponent;
+
+const DocumentCloseDialog = lazy(() =>
+  import("./document-close-dialog.js").then((module) => ({ default: module.DocumentCloseDialog })),
+);
+
+function ClosePrompt({
+  registry,
+  english,
+}: Readonly<{ registry: ReturnType<typeof useDocumentWorkspace>["editors"]; english: boolean }>) {
+  const pending = useSyncExternalStore(registry.subscribe, registry.getRequest, () => null);
+  return pending ? (
+    <Suspense fallback={null}>
+      <DocumentCloseDialog registry={registry} english={english} />
+    </Suspense>
+  ) : null;
+}
 
 const mobileQuery = "(max-width: 760px), (hover: none) and (pointer: coarse)";
 function subscribeMobile(listener: () => void) {
@@ -110,6 +126,7 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
   );
   return (
     <div className="document-workspace" data-document-workspace="">
+      <ClosePrompt registry={workspace.editors} english={locale.startsWith("en")} />
       {/* 只有聊天时不占用标签栏空间；存在文档时，聊天标签仍固定在首位。 */}
       {hasDocuments ? (
         <Suspense fallback={chatTab}>
@@ -148,7 +165,9 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
           >
             {/* 一次仅挂载当前文档；不为后台标签加载图片、PDF、diff 或额外编辑器。 */}
             <DocumentNavigationContext value={workspace.beforeLeaveRef}>
-              {renderDocument(selected)}
+              <DocumentEditorContext value={{ id: selected.id, registry: workspace.editors }}>
+                {renderDocument(selected)}
+              </DocumentEditorContext>
             </DocumentNavigationContext>
           </div>
         )}

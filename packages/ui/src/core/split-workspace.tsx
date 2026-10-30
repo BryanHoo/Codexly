@@ -1,3 +1,5 @@
+import { useGuardedTaskNavigation } from "./split-document-navigation.js";
+import { remapSplitPaneMounts } from "./split-workspace-mounts.js";
 import {
   dismissSplitTask,
   isSplitWorkspaceDetached,
@@ -115,7 +117,6 @@ export function SplitWorkspaceProvider({
     activeKey: current === undefined ? undefined : splitPaneKey(current),
     layout: undefined as SplitLayout | undefined,
   }));
-  // 任务入口即使遗漏导航桥，也只更新聚焦窗口；工具页面仍使用独立路由工作区。
   if (selection.routeKey !== routeKey) {
     setSelection(syncSplitTaskRoute(selection, current, routeKey, enabled));
   }
@@ -124,6 +125,7 @@ export function SplitWorkspaceProvider({
     // 操作读取已提交的最新窗口集合，避免闭包过期，也不因焦点或布局更新改变方法身份。
     selectionRef.current = selection;
   }, [selection]);
+  const navigatePane = useGuardedTaskNavigation(selectionRef);
   const add = useCallback(
     (pane: SplitPaneIdentity) => {
       if (!enabled) return;
@@ -198,52 +200,62 @@ export function SplitWorkspaceProvider({
       // 单窗口和移动端继续走普通路由；真正分屏时由工作区接管左栏任务切换。
       if (!alreadyOpen && (!enabled || panes.length < 2)) return false;
       // 显式任务导航回到聊天；普通鼠标聚焦仍保留文档，避免对照时误切换。
-      revealTaskChat(pane);
-      setSelection((previous) => {
-        const next = selectSplitTask(previous, pane);
-        return next.panes === previous.panes
-          ? next
-          : {
-              ...next,
-              layout: remapSplitLayout(previous.layout, (key) =>
-                key === previous.activeKey ? splitPaneKey(pane) : key,
-              ),
-            };
+      const previousPane = alreadyOpen
+        ? undefined
+        : panes.find((item) => splitPaneKey(item) === selectionRef.current.activeKey);
+      navigatePane(previousPane, pane, () => {
+        revealTaskChat(pane);
+        setSelection((previous) => {
+          const next = selectSplitTask(previous, pane);
+          return next.panes === previous.panes
+            ? next
+            : {
+                ...next,
+                layout: remapSplitLayout(previous.layout, (key) =>
+                  key === previous.activeKey ? splitPaneKey(pane) : key,
+                ),
+              };
+        });
       });
       return true;
     },
-    [enabled],
+    [enabled, navigatePane],
   );
   const selectExternalTask = useEffectEvent((pane: SplitPaneIdentity) => {
     // 通知按点击时的最新焦点选择任务；单窗口和移动端仍由平台路由处理。
     return enabled && selection.panes.length > 1 && select(pane);
   });
   useEffect(() => subscribeSplitTaskNavigation(selectExternalTask), []);
-  const replace = useCallback((previous: SplitPaneIdentity, next: SplitPaneIdentity) => {
-    setSelection((selection) => {
-      // 请求可能在关闭窗口后返回，不能让迟到结果把活动身份指向不存在的窗口。
-      if (!selection.panes.some((pane) => splitPaneKey(pane) === splitPaneKey(previous)))
-        return selection;
-      const panes = replaceSplitPane(selection.panes, previous, next);
-      const activeKey = splitPaneKey(next);
-      return panes === selection.panes && activeKey === selection.activeKey
-        ? selection
-        : {
-            ...selection,
-            panes,
-            activeKey,
-            layout:
-              panes === selection.panes
-                ? selection.layout
-                : remapSplitLayout(selection.layout, (key) => {
-                    if (key !== splitPaneKey(previous)) return key;
-                    return selection.panes.some((pane) => splitPaneKey(pane) === activeKey)
-                      ? undefined
-                      : activeKey;
-                  }),
-          };
-    });
-  }, []);
+  const replace = useCallback(
+    (previous: SplitPaneIdentity, next: SplitPaneIdentity) => {
+      navigatePane(previous, next, () => {
+        setSelection((selection) => {
+          // 请求可能在关闭窗口后返回，不能让迟到结果把活动身份指向不存在的窗口。
+          if (!selection.panes.some((pane) => splitPaneKey(pane) === splitPaneKey(previous)))
+            return selection;
+          const panes = replaceSplitPane(selection.panes, previous, next);
+          const activeKey = splitPaneKey(next);
+          return panes === selection.panes && activeKey === selection.activeKey
+            ? selection
+            : {
+                ...selection,
+                panes,
+                activeKey,
+                layout:
+                  panes === selection.panes
+                    ? selection.layout
+                    : remapSplitLayout(selection.layout, (key) => {
+                        if (key !== splitPaneKey(previous)) return key;
+                        return selection.panes.some((pane) => splitPaneKey(pane) === activeKey)
+                          ? undefined
+                          : activeKey;
+                      }),
+              };
+        });
+      });
+    },
+    [navigatePane],
+  );
   const split = useCallback(
     (pane: SplitPaneIdentity, direction: SplitDirection) => {
       if (!enabled) return;
@@ -358,20 +370,9 @@ export function SplitWorkspaceGrid({
     nextKey: workspace.panes.length,
   }));
   if (mounts.panes !== workspace.panes) {
-    let nextKey = mounts.nextKey;
-    // 普通路由切换复用唯一输入框；分屏增删按身份复用，并分配无冲突的挂载 key。
-    const keys = workspace.panes.map((pane) => {
-      const previousIndex = mounts.panes.findIndex(
-        (previous) => splitPaneKey(previous) === splitPaneKey(pane),
-      );
-      return (
-        (mounts.panes.length === 1 && workspace.panes.length === 1
-          ? mounts.keys[0]
-          : mounts.keys[previousIndex]) ?? nextKey++
-      );
-    });
-    setMounts({ panes: workspace.panes, keys, nextKey });
+    setMounts(remapSplitPaneMounts(mounts, workspace.panes));
   }
+
   const multiple = workspace.enabled && workspace.panes.length > 1;
   const layout = useMemo(
     () => workspace.layout ?? createSplitLayout(workspace.panes.map(splitPaneKey)),

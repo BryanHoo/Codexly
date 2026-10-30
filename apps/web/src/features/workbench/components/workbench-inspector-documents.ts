@@ -2,7 +2,7 @@ import type { AgentFileChange } from "../../diff/file-change.js";
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { ProjectGitCommit } from "@codexly/protocol";
 
-export type InspectorDocument =
+type InspectorDocumentContent =
   | Readonly<{
       id: string;
       kind: "source" | "image" | "pdf";
@@ -14,6 +14,9 @@ export type InspectorDocument =
   | Readonly<{ id: string; kind: "diff"; change: AgentFileChange }>
   | Readonly<{ id: string; kind: "review"; changes: readonly AgentFileChange[] }>
   | Readonly<{ id: string; kind: "commit"; commit: ProjectGitCommit; repository?: string }>;
+
+// 标签记住打开时的工作树，切换同项目任务后仍指向原始资源。
+export type InspectorDocument = InspectorDocumentContent & Readonly<{ rootPath?: string }>;
 
 export function fileDocumentId(kind: "source" | "image" | "pdf" | "diff", path: string): string {
   return `${kind}:${path.replaceAll("\\", "/")}`;

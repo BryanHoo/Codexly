@@ -46,7 +46,7 @@ export function WorkbenchInspectorDocument({
   onClose,
   onOpenDiff,
   projectId,
-  rootPath,
+  rootPath: selectedRootPath,
 }: Readonly<{
   client: CodexlyWorkbenchClient;
   document: InspectorDocument;
@@ -55,6 +55,7 @@ export function WorkbenchInspectorDocument({
   projectId: string;
   rootPath?: string;
 }>) {
+  const rootPath = document.rootPath ?? selectedRootPath;
   if (document.kind === "diff") return <FileDiffPanel change={document.change} />;
   if (document.kind === "review") return <ReviewDocument document={document} onClose={onClose} />;
   if (document.kind === "commit")

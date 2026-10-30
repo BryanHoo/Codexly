@@ -11,6 +11,9 @@ export default defineConfig({
     // 提前打包共享 Tooltip 和懒加载面板，避免中途重新优化依赖、重载页面并重复加载 React。
     include: [
       "@tauri-apps/api/mocks",
+      "@codexly/ui > @codemirror/search",
+      "@codexly/ui > @codemirror/merge",
+      "@codexly/ui > @codemirror/autocomplete",
       "@tanstack/react-virtual",
       "@codexly/ui > @base-ui/react/tooltip",
       "@codexly/ui > @base-ui/react/toast",

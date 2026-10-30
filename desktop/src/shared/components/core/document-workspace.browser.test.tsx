@@ -41,7 +41,7 @@ describe("双端共用中栏标签与聊天对照", () => {
       expect(states.get("first")!.documents).toHaveLength(1);
     } finally { flushSync(() => root.unmount()); host.remove(); }
   });
-  it("等待保存后切换，保存失败保留文件，旧范围的迟到保存不能重新打开标签", async () => {
+  it("切换不触发保存保护，关闭失败保留文件，旧范围迟到关闭不能影响新标签", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
@@ -57,18 +57,19 @@ describe("双端共用中栏标签与聊天对照", () => {
       let finish!: (saved: boolean) => void;
       state!.beforeLeaveRef.current = () => new Promise<boolean>((resolve) => { finish = resolve; });
       flushSync(() => { void state!.open({ id: "b" }); });
-      expect(state!.activeId).toBe("a");
+      expect(state!.activeId).toBe("b");
+      flushSync(() => { void state!.close("b"); });
       finish(false);
       await Promise.resolve();
-      expect(state!.activeId).toBe("a");
-      flushSync(() => { void state!.close("a"); });
+      expect(state!.activeId).toBe("b");
+      flushSync(() => { void state!.close("b"); });
       finish(true);
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      await expect.poll(() => state!.activeId).toBeNull();
+      await expect.poll(() => state!.activeId).toBe("a");
       state!.beforeLeaveRef.current = null;
       flushSync(() => { void state!.open({ id: "a" }); });
       state!.beforeLeaveRef.current = () => new Promise<boolean>((resolve) => { finish = resolve; });
-      flushSync(() => { void state!.open({ id: "b" }); });
+      flushSync(() => { void state!.close("a"); });
       flushSync(() => root.render(<View scope="two" />));
       finish(true);
       await new Promise<void>((resolve) => setTimeout(resolve, 0));

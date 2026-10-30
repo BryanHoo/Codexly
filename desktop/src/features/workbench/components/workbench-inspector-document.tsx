@@ -129,7 +129,7 @@ export function WorkbenchInspectorDocument({
   onClose,
   onOpenDiff,
   projectId,
-  rootPath,
+  rootPath: selectedRootPath,
   taskId,
 }: Readonly<{
   client: NativeWorkbenchClient;
@@ -141,6 +141,7 @@ export function WorkbenchInspectorDocument({
   rootPath?: string;
   taskId?: string;
 }>) {
+  const rootPath = document.rootPath ?? selectedRootPath;
   if (document.kind === "diff") return <FileDiffPanel change={document.change} />;
   if (document.kind === "review")
     return (

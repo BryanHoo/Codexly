@@ -6,6 +6,8 @@ import type {
 export type { ProjectTextFile, SaveProjectTextFileRequest, SaveProjectTextFileResponse };
 export type TextFileEditorLabels = Readonly<{
   saved: string;
+  language: "zh" | "en";
+  compare: string;
   loadError: string;
   saveError: string;
   conflict: string;
@@ -23,36 +25,35 @@ export type TextFileEditorLabels = Readonly<{
   keepEditing: string;
 }>;
 export const textFileEditorChinese: TextFileEditorLabels = {
+  language: "zh",
+  compare: "比较磁盘内容",
   saved: "文件已保存",
-  loadError: "暂时无法加载编辑器，当前以只读方式显示。你仍可查看和复制内容，请检查连接后重试编辑。",
-  saveError: "自动保存失败，修改已保留。再次离开编辑区域或按 ⌘/Ctrl+S 重试。",
-  conflict:
-    "文件已被其他程序修改，自动保存失败。当前草稿已保留，请复制当前修改，并与磁盘内容核对后处理冲突。",
-  inputLimit:
-    "本次输入会使文件超过 2 MiB，因此未应用。原有内容未变，你仍可继续编辑；请减少粘贴内容或先删除部分文字。",
+  loadError: "加载失败，当前只读，可查看和复制。请检查连接后重试编辑。",
+  saveError: "保存失败，修改已保留。请重试保存或按 ⌘/Ctrl+S。",
+  conflict: "磁盘已更新，草稿已保留。请比较内容后处理冲突。",
+  inputLimit: "输入会超过 2 MiB，未应用，原文未变。请减少粘贴量后继续编辑。",
   capacity:
-    "为保护已有未保存内容，暂时无法打开更多文件进行编辑。当前文件以只读方式显示，仍可查看和复制。请先保存或处理其他文件的草稿，或关闭已保存的编辑文件，再重试编辑。",
-  unsupported:
-    "当前仅支持不超过 2 MiB 的 UTF-8 文本。此文件暂时以只读方式显示，你仍可查看和复制内容。",
-  plainText:
-    "文件较大，为保持编辑流畅，已暂停语法高亮。你仍可正常编辑和保存；减少内容后会自动恢复高亮。",
+    "为保护未保存草稿，编辑容量已满。当前只读，仍可查看和复制；请保存草稿或关闭已保存文件后重试编辑。",
+  unsupported: "仅支持 2 MiB 内的 UTF-8 文本。当前只读，可查看和复制。",
+  plainText: "大文件已暂停语法高亮，编辑和保存正常；缩小后恢复高亮。",
   retryEdit: "重试编辑",
   retrySave: "重试保存",
   retrying: "正在重试…",
   dismiss: "知道了",
   discard: "放弃修改",
-  discardConfirm: "确定放弃此文件未保存的修改？此操作无法撤销。放弃后可关闭文件。",
+  discardConfirm: "放弃此文件未保存的修改？此操作无法撤销。",
   confirmDiscard: "确认放弃",
   keepEditing: "继续编辑",
 };
 export const textFileEditorEnglish: TextFileEditorLabels = {
+  language: "en",
+  compare: "Compare with disk",
   saved: "saved",
   loadError:
     "The editor could not load. This file is shown read-only, so you can still view and copy it. Check your connection and retry editing.",
-  saveError:
-    "Auto-save failed. Your edits are retained. Leave the editor again or press ⌘/Ctrl+S to retry.",
+  saveError: "Saving failed. Your edits are retained. Use Save or press ⌘/Ctrl+S to retry.",
   conflict:
-    "Another program changed this file. Auto-save failed and your draft is retained. Copy your edits and compare them with the file on disk to resolve the conflict.",
+    "Another program changed this file. Your draft is retained. Compare with disk to choose a version, or return to editing to merge your changes.",
   inputLimit:
     "This input would make the file exceed 2 MiB, so it was not applied. Your existing content is unchanged and you can keep editing. Paste less text or remove some content first.",
   capacity:

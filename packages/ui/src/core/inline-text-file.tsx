@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { DocumentEditorBinding } from "./document-editor-registry.js";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { TextEditorNoticeKind } from "./text-editor-notice.js";
 import type {
   ProjectTextFile,
+  TextFileEditorLabels,
   SaveProjectTextFileRequest,
   SaveProjectTextFileResponse,
 } from "@codexly/frontend-core/text-file-editor";
@@ -11,6 +21,7 @@ import type * as TextEditorModule from "./text-file-editor.js";
 type EditorModule = typeof TextEditorModule;
 export type InlineTextFileOptions = Readonly<{
   enabled: boolean;
+  labels?: TextFileEditorLabels;
   fileKey: string;
   scope: object;
   lineNumber?: number | null;
@@ -26,12 +37,14 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
   const { enabled, fileKey, scope, lineNumber, registerCloseGuard } = options;
   const callbacks = useRef(options);
   callbacks.current = options;
+  const closeRequestRef = useRef<() => boolean | Promise<boolean>>(() => true);
   const active = useRef<TextEditorAutosave | null>(null);
   const [failed, setFailed] = useState<{
     fileKey: string;
     scope: object;
     reason: TextEditorNoticeKind;
   } | null>(null);
+  const [comparing, setComparing] = useState<TextEditorAutosave | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [loaded, setLoaded] = useState<{
@@ -107,7 +120,7 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
     let disposed = false;
     let unlisten: (() => void) | undefined;
     void registerCloseGuard((close) => {
-      void (active.current?.flush() ?? Promise.resolve(true)).then((saved) => {
+      void Promise.resolve(closeRequestRef.current()).then((saved) => {
         if (saved) close();
       });
     })
@@ -124,6 +137,37 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
   const current = enabled && loaded?.fileKey === fileKey && loaded.scope === scope ? loaded : null;
   const fallback = enabled && failed?.fileKey === fileKey && failed.scope === scope;
   const session = current?.session;
+  const documentBinding = useMemo<DocumentEditorBinding | undefined>(
+    () =>
+      session
+        ? {
+            path: session.file.path,
+            isDirty: () => session.dirty,
+            isSaving: () => session.saving,
+            save: () => session.flush(),
+            discard: () => session.discardChanges(),
+            subscribe: (listener) => session.subscribe(listener),
+          }
+        : undefined,
+    [session],
+  );
+  const module = current?.module;
+  const closeRegistry = useMemo(
+    () => (module && session ? new module.DocumentEditorRegistry() : null),
+    [module, session],
+  );
+  useLayoutEffect(() => {
+    if (!closeRegistry || !documentBinding) return;
+    closeRegistry.register("file", documentBinding);
+    return () => {
+      closeRegistry.dispose();
+    };
+  }, [closeRegistry, documentBinding]);
+  const requestClose = useCallback(
+    () => closeRegistry?.requestClose(["file"]) ?? true,
+    [closeRegistry],
+  );
+  closeRequestRef.current = requestClose;
   const subscribe = useCallback(
     (listener: () => void) => session?.subscribe(listener) ?? (() => undefined),
     [session],
@@ -140,11 +184,42 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
     useCallback(() => session?.saving ?? false, [session]),
     () => false,
   );
+  const conflictSequence = useSyncExternalStore(
+    subscribe,
+    useCallback(() => session?.conflictSequence ?? 0, [session]),
+    () => 0,
+  );
+  useEffect(() => {
+    // 每次显式保存遇到新冲突都重新提示；关闭弹窗不会触发重试或清除草稿。
+    if (session && conflictSequence > 0) setComparing(session);
+  }, [session, conflictSequence]);
   // 预览仅在切入 Markdown 时按需序列化文本树，不把全文另存到 Query 缓存或输入状态。
   const getContent = useCallback(() => active.current?.state.sliceDoc() ?? "", []);
   const Editor = current?.module.TextFileEditor;
+  const Conflict = current?.module.TextEditorConflict;
+  const CloseDialog = current?.module.TextEditorCloseDialog;
   return {
     ready: current !== null,
+    documentBinding,
+    requestClose,
+    closeElement:
+      CloseDialog && closeRegistry ? (
+        <CloseDialog registry={closeRegistry} english={options.labels?.language === "en"} />
+      ) : null,
+    compareWithDisk: () => {
+      if (session) setComparing(session);
+    },
+    conflictElement:
+      session && comparing === session && Conflict ? (
+        <Conflict
+          session={session}
+          read={(signal) => callbacks.current.read(signal)}
+          {...(options.labels ? { labels: options.labels } : {})}
+          onClose={() => {
+            setComparing(null);
+          }}
+        />
+      ) : null,
     loading: enabled && current === null && !fallback,
     fallback,
     noticeKind: fallback ? failed.reason : feedback,
@@ -165,14 +240,18 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
     path: current?.session.file.path,
     element:
       current && Editor ? (
-        <Editor session={current.session} {...(lineNumber === undefined ? {} : { lineNumber })} />
+        <Editor
+          session={current.session}
+          {...(options.labels ? { labels: options.labels } : {})}
+          {...(lineNumber === undefined ? {} : { lineNumber })}
+        />
       ) : null,
     hasUnsavedChanges: () =>
       active.current !== null && (active.current.dirty || active.current.saving),
     flush: () => active.current?.flush() ?? Promise.resolve(true),
     getContent,
-    runAfterSave: (action: () => void) => {
-      void (active.current?.flush() ?? Promise.resolve(true)).then((saved) => {
+    runAfterConfirm: (action: () => void) => {
+      void Promise.resolve(closeRequestRef.current()).then((saved) => {
         if (saved) action();
       });
     },

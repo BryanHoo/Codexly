@@ -111,7 +111,10 @@
     "@codexly/protocol": "workspace:*",
     "@shadcn/react": "catalog:",
     "anser": "catalog:",
-    "uuid": "catalog:"
+    "uuid": "catalog:",
+    "@codemirror/search": "catalog:",
+    "@codemirror/merge": "catalog:",
+    "@codemirror/autocomplete": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

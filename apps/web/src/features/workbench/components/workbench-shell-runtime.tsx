@@ -130,8 +130,11 @@ export function useWorkbenchShellRuntime({
     scopeKey: string;
     tab: WorkbenchInspectorTab;
   }>({ scopeKey: inspectorScopeKey, tab: defaultInspectorTab });
-  const documentsScopeKey = `${projectId}:${selectedRootPath ?? ""}`;
-  const documentWorkspace = useDocumentWorkspace<InspectorDocument>(documentsScopeKey);
+  const documentsScopeKey = projectId;
+  const documentWorkspace = useDocumentWorkspace<InspectorDocument>(
+    documentsScopeKey,
+    inspectorScopeKey,
+  );
   const inspectorDocuments = documentWorkspace.documents;
   // 标签选择绑定当前路由身份；新打开的草稿与历史任务都从项目开始。
   const inspectorTab =
@@ -343,18 +346,25 @@ export function useWorkbenchShellRuntime({
   const openInspectorDocument = useCallback(
     (document: InspectorDocument) => {
       // 文件内容进入中栏，右栏保持文件树/变更列表；覆盖层关闭后让出移动端阅读空间。
+      const rootPath = document.rootPath ?? selectedRootPath;
+      const scopedDocument = rootPath === undefined ? document : { ...document, rootPath };
       void openDocument(
-        "reference" in document
+        "reference" in scopedDocument
           ? {
-              ...document,
+              ...scopedDocument,
               id: documentResourceId(
-                document.kind,
-                document.reference.path,
-                document.projectId ?? projectId,
-                document.rootPath ?? selectedRootPath,
+                scopedDocument.kind,
+                scopedDocument.reference.path,
+                scopedDocument.projectId ?? projectId,
+                rootPath,
               ),
             }
-          : document,
+          : scopedDocument.kind === "diff"
+            ? {
+                ...scopedDocument,
+                id: documentResourceId("diff", scopedDocument.change.path, projectId, rootPath),
+              }
+            : scopedDocument,
       );
       if (window.matchMedia("(max-width: 1100px)").matches) setInspectorOpen(false);
       if (window.matchMedia("(max-width: 760px)").matches) setSidebarOpen(false);

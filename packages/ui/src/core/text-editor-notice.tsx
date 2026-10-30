@@ -11,6 +11,7 @@ export type TextEditorNoticeProps = Readonly<{
   onRetrySave: () => void;
   onDismiss: () => void;
   onDiscard?: () => void;
+  onCompare?: () => void;
   busy?: boolean;
 }>;
 export function TextEditorNotice({
@@ -20,6 +21,7 @@ export function TextEditorNotice({
   onRetrySave,
   onDismiss,
   onDiscard,
+  onCompare,
   busy = false,
 }: TextEditorNoticeProps) {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -48,6 +50,11 @@ export function TextEditorNotice({
       <p className="min-w-0 flex-1 basis-48 whitespace-normal [overflow-wrap:anywhere]">
         {confirmDiscard && saveFailed ? labels.discardConfirm : messages[kind]}
       </p>
+      {kind === "conflict" && onCompare ? (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onCompare}>
+          {labels.compare}
+        </Button>
+      ) : null}
       {saveFailed && onDiscard ? (
         confirmDiscard ? (
           <>
@@ -89,7 +96,7 @@ export function TextEditorNotice({
           </Button>
         )
       ) : null}
-      {canRetryEdit || (saveFailed && !confirmDiscard) ? (
+      {canRetryEdit || (saveFailed && !confirmDiscard && !(kind === "conflict" && onCompare)) ? (
         <Button
           type="button"
           size="sm"

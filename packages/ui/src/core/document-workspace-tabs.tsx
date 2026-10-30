@@ -1,4 +1,5 @@
-import { useState, type ReactNode, type RefObject } from "react";
+import type { DocumentEditorRegistry } from "./document-editor-registry.js";
+import { useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import {
   Columns2,
   FileCode2,
@@ -35,6 +36,27 @@ export type DocumentPresentation = Readonly<{
   detail: string;
   kind: keyof typeof icons;
 }>;
+
+function DirtyIndicator({
+  registry,
+  id,
+  english,
+}: Readonly<{ registry: DocumentEditorRegistry; id: string; english: boolean }>) {
+  const dirty = useSyncExternalStore(
+    registry.subscribe,
+    () => registry.isDirty(id),
+    () => false,
+  );
+  return dirty ? (
+    <span
+      className="size-1.5 shrink-0 rounded-full bg-current"
+      data-document-dirty=""
+      role="img"
+      aria-label={english ? "Unsaved changes" : "未保存更改"}
+      title={english ? "Unsaved changes" : "未保存更改"}
+    />
+  ) : null;
+}
 
 function DocumentAction({
   label,
@@ -209,7 +231,7 @@ export function DocumentWorkspaceTabs<T extends WorkspaceDocument>({
               if (next !== null) {
                 event.preventDefault();
                 event.stopPropagation();
-                // 保存失败时保持原标签及焦点，不先把焦点移到尚未选中的目标。
+                // 标签切换不写盘；选择完成后再把键盘焦点交给目标标签。
                 void Promise.resolve(workspace.select(tabIds[next] ?? null)).then((selected) => {
                   if (selected) focusActive();
                 });
@@ -269,6 +291,9 @@ export function DocumentWorkspaceTabs<T extends WorkspaceDocument>({
                   >
                     <Icon aria-hidden="true" />
                     <span>{title}</span>
+                    {tabId === null ? null : (
+                      <DirtyIndicator registry={workspace.editors} id={tabId} english={english} />
+                    )}
                   </button>
                   {tabId === null ? null : (
                     <button

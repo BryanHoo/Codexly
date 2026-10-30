@@ -203,7 +203,8 @@ it("reserves draft capacity across clients, blocks new reads and recovers the fa
     const recovered = cache.acquire("draft", callbacks);
     expect(await recovered.ready).toBe(session);
     expect(session.state.sliceDoc()).toBe("不能丢原文\r\n");
-    expect(undo({ state: session.state, dispatch: () => undefined })).toBe(false);
+    expect(undo({ state: session.state, dispatch: () => undefined })).toBe(true);
+    expect(callbacks.save).not.toHaveBeenCalled();
     callbacks.save.mockResolvedValue({ version: "v2", revision: "r2" });
     await session.flush();
     // 草稿已保存但编辑器仍活动时继续预留，以免下一次输入重新变脏后失去名额。

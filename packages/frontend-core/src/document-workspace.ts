@@ -20,7 +20,7 @@ export function createDocumentWorkspace<T extends WorkspaceDocument>(
   return { documents, pinnedIds: [], activeId: null, direction: null };
 }
 
-// 只保存轻量文档描述；正文、编辑撤销栈和自动保存仍归现有文件缓存负责。
+// 只保存轻量文档描述；正文、编辑撤销栈和未保存草稿仍归有界编辑会话缓存负责。
 export function reduceDocumentWorkspace<T extends WorkspaceDocument>(
   state: DocumentWorkspace<T>,
   action: DocumentWorkspaceAction<T>,

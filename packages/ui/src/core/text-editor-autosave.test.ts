@@ -66,7 +66,7 @@ it("does not write on input or unchanged blur; flush saves the latest CRLF text 
   expect(save).toHaveBeenCalledTimes(1);
 });
 
-it("serializes overlapping blurs and drains edits made while a save is in flight", async () => {
+it("手动保存只提交当前快照，保存期间的新输入仍未保存", async () => {
   let resolve!: (value: { version: string }) => void;
   const save = vi.fn(
     () =>
@@ -78,20 +78,33 @@ it("serializes overlapping blurs and drains edits made while a save is in flight
   edit("第一次");
   const first = session.flush();
   edit("第二次");
-  const second = session.flush();
-  expect(save).toHaveBeenCalledTimes(1);
   resolve({ version: "v2" });
   await vi.waitFor(() => {
-    expect(save).toHaveBeenCalledTimes(2);
+    expect(session.version).toBe("v2");
   });
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(await first).toBe(false);
+  expect(session.dirty).toBe(true);
+  expect(notify).not.toHaveBeenCalledWith("saved");
+  const second = session.flush();
   expect(save.mock.calls[1]).toEqual([
     { path: "notes.md", content: "第二次", expectedVersion: "v2" },
   ]);
   resolve({ version: "v3" });
-  expect(await first).toBe(true);
   expect(await second).toBe(true);
-  expect(notify).toHaveBeenCalledTimes(1);
   expect(session.dirty).toBe(false);
+});
+
+it("保留后台草稿本身不会写盘，重复保留也不会自动保存", async () => {
+  const { session, edit, save } = setup();
+  edit("仅存内存");
+  const scope = {};
+  autosave.retainTextEditorDraft(scope, "manual", session);
+  autosave.retainTextEditorDraft(scope, "manual", session);
+  await Promise.resolve();
+  expect(save).not.toHaveBeenCalled();
+  expect(autosave.getTextEditorDraft(scope, "manual")).toBe(session);
+  session.discardChanges();
 });
 
 it("keeps a failed draft and version, reports failure and permits a later retry", async () => {
@@ -154,6 +167,7 @@ it("restores a failed draft after changing files and releases it after a success
   const { session, edit } = setup(save);
   const scope = {};
   edit("切换文件也不能丢");
+  expect(await session.flush()).toBe(false);
   autosave.retainTextEditorDraft(scope, "a", session);
   await vi.waitFor(() => {
     expect(session.saving).toBe(false);
@@ -223,4 +237,53 @@ it("compacts an in-flight draft without losing its text tree, CRLF policy, selec
   expect(session.dirty).toBe(false);
   session.update(session.state.update({ changes: { from: 2, insert: "\r\n新行" } }).state);
   expect(session.state.sliceDoc()).toBe("修改\r\n新行");
+});
+
+it("载入比较过的磁盘版本会更新保存基线；过期草稿不能被放弃", () => {
+  const { session, edit, save } = setup();
+  edit("草稿\r\n");
+  const compared = session.state.doc;
+  edit("更新的草稿\r\n");
+  const disk = { path: file.path, content: "磁盘\n", version: "disk-v2", revision: "r2" };
+  expect(session.useDiskVersion(disk, compared)).toBe(false);
+  expect(session.state.sliceDoc()).toBe("更新的草稿\r\n");
+  expect(session.useDiskVersion(disk, session.state.doc)).toBe(true);
+  expect(session.state.sliceDoc()).toBe("磁盘\n");
+  expect(session.state.lineBreak).toBe("\n");
+  expect(session.version).toBe("disk-v2");
+  expect(session.dirty).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("比较后保存使用磁盘版本作为条件，二次冲突保留草稿与原基线", async () => {
+  const save = vi.fn().mockRejectedValue({ code: "TEXT_FILE_CONFLICT" });
+  const { session, edit } = setup(save);
+  edit("草稿");
+  const disk = { path: file.path, content: "外部编辑", version: "disk-v2" };
+  expect(await session.saveComparedDraft(disk, session.state.doc)).toBe(false);
+  expect(save).toHaveBeenCalledWith({
+    path: file.path,
+    content: "草稿",
+    expectedVersion: "disk-v2",
+  });
+  expect(session.version).toBe("v1");
+  expect(session.state.sliceDoc()).toBe("草稿");
+  expect(session.feedback).toBe("conflict");
+  save.mockResolvedValue({ version: "v3" });
+  expect(await session.saveComparedDraft(disk, session.state.doc)).toBe(true);
+  expect(session.version).toBe("v3");
+  expect(session.dirty).toBe(false);
+});
+
+it("比较期间继续输入或保存进行中不能接受旧比较结果", async () => {
+  const { session, edit, save } = setup();
+  const compared = session.state.doc;
+  edit("新输入");
+  const disk = { ...file, version: "disk-v2" };
+  expect(await session.saveComparedDraft(disk, compared)).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+  const saving = session.flush();
+  expect(session.useDiskVersion(disk, session.state.doc)).toBe(false);
+  expect(await session.saveComparedDraft(disk, session.state.doc)).toBe(false);
+  await saving;
 });

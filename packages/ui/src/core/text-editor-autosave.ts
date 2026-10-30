@@ -23,6 +23,7 @@ export class TextEditorAutosave {
   private pending: Promise<boolean> | null = null;
   private listeners = new Set<() => void>();
   private inputRejected = false;
+  conflictSequence = 0;
   private saveFailure: "error" | "conflict" | null = null;
   readonly file: Pick<ProjectTextFile, "path">;
   revision: string | undefined;
@@ -129,6 +130,28 @@ export class TextEditorAutosave {
     this.emit();
     return true;
   }
+  useDiskVersion(file: ProjectTextFile, compared: Text): boolean {
+    if (this.pending || this.state.doc !== compared || file.path !== this.file.path) return false;
+    // 只接受用户确认且仍对应当前草稿的快照；重新建树清除撤销，不能撤销复活已放弃内容。
+    this.languageExtension = [];
+    this.languageLoaded = false;
+    this.historyBytes = 0;
+    this.state = this.createState(file.content);
+    this.snapshot = new TextEditorSession(this.state.doc, file.version);
+    this.revision = file.revision;
+    this.scrollSnapshot = undefined;
+    this.inputRejected = false;
+    this.saveFailure = null;
+    this.emit();
+    this.onSaved();
+    return true;
+  }
+  saveComparedDraft(file: ProjectTextFile, compared: Text): Promise<boolean> {
+    if (this.pending || this.state.doc !== compared || file.path !== this.file.path)
+      return Promise.resolve(false);
+    // 比较只授权替换该磁盘版本，绝不跳过服务端条件校验；失败不能提前推进保存基线。
+    return this.startSave(file.version);
+  }
   get version(): string {
     return this.snapshot.version;
   }
@@ -169,30 +192,31 @@ export class TextEditorAutosave {
   flush(): Promise<boolean> {
     if (this.pending) return this.pending;
     if (!this.dirty) return Promise.resolve(true);
-    // 同一文件只允许一个保存链；失焦、快捷键和离开动作共享该 Promise。
-    this.pending = this.drain().finally(() => {
+    return this.startSave(this.snapshot.version);
+  }
+  private startSave(expectedVersion: string): Promise<boolean> {
+    // 同一文件只允许一次在途显式保存；重复按钮/快捷键共享当前回执。
+    this.pending = this.drain(expectedVersion).finally(() => {
       this.pending = null;
       this.emit();
     });
     this.emit();
     return this.pending;
   }
-  private async drain(): Promise<boolean> {
+  private async drain(expectedVersion: string): Promise<boolean> {
     try {
-      do {
-        const submitted = this.state.doc;
-        const content = this.state.sliceDoc();
-        if (new TextEncoder().encode(content).byteLength > MAX_TEXT_EDITOR_BYTES)
-          throw new Error("File too large");
-        const result = await this.save({
-          path: this.file.path,
-          content,
-          expectedVersion: this.snapshot.version,
-        });
-        this.snapshot.markSaved(submitted, result.version);
-        this.revision = result.revision;
-        // 等待期间有新输入时使用新版本串行补存，不能把旧快照误报为全部保存。
-      } while (this.dirty);
+      const submitted = this.state.doc;
+      const content = this.state.sliceDoc();
+      if (new TextEncoder().encode(content).byteLength > MAX_TEXT_EDITOR_BYTES)
+        throw new Error("File too large");
+      const result = await this.save({
+        path: this.file.path,
+        content,
+        expectedVersion,
+      });
+      this.snapshot.markSaved(submitted, result.version);
+      this.revision = result.revision;
+      // 仅确认提交瞬间的快照；等待期间的新输入仍为草稿，必须由下一次显式保存提交。
     } catch (error) {
       const conflict =
         typeof error === "object" &&
@@ -200,13 +224,14 @@ export class TextEditorAutosave {
         "code" in error &&
         error.code === "TEXT_FILE_CONFLICT";
       this.saveFailure = conflict ? "conflict" : "error";
+      if (conflict) this.conflictSequence++;
       this.notify(this.saveFailure);
       return false;
     }
     this.onSaved();
     this.saveFailure = null;
-    this.notify("saved");
-    return true;
+    if (!this.dirty) this.notify("saved");
+    return !this.dirty;
   }
 }
 
@@ -245,10 +270,7 @@ export function retainTextEditorDraft(
   session: TextEditorAutosave,
 ): void {
   if (!session.dirty && !session.saving) return;
-  if (retainedDrafts.has(session)) {
-    void session.flush();
-    return;
-  }
+  if (retainedDrafts.has(session)) return;
   // 独立调用的保留路径也必须占用预算；缓存路径已在读取之前预留，不能重复计数。
   if (!capacityLeases.has(session))
     reserveTextEditorSession(session, textEditorCapacity.reserve(), () => false);
@@ -273,5 +295,4 @@ export function retainTextEditorDraft(
       window.removeEventListener("beforeunload", protectDrafts);
     unlisten();
   });
-  void session.flush();
 }

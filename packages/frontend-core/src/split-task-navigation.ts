@@ -4,6 +4,27 @@ const SPLIT_TASK_NAVIGATION_EVENT = "codexly:split-task-navigation";
 const TASK_CHAT_NAVIGATION_EVENT = "codexly:task-chat-navigation";
 type TaskPane = SplitPaneIdentity & { taskId: string };
 
+// 仅存活工作区登记轻量离开保护；不保存正文，卸载时按函数身份注销。
+const leaveGuards = new Map<string, () => boolean | Promise<boolean>>();
+export function registerTaskLeaveGuard(
+  pane: SplitPaneIdentity,
+  guard: () => boolean | Promise<boolean>,
+): () => void {
+  const key = splitPaneKey(pane);
+  leaveGuards.set(key, guard);
+  return () => {
+    if (leaveGuards.get(key) === guard) leaveGuards.delete(key);
+  };
+}
+export function confirmTaskProjectChange(
+  previous: SplitPaneIdentity,
+  next: SplitPaneIdentity,
+): boolean | Promise<boolean> {
+  return previous.projectId === next.projectId
+    ? true
+    : (leaveGuards.get(splitPaneKey(previous))?.() ?? true);
+}
+
 export function revealTaskChat(pane: SplitPaneIdentity): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(

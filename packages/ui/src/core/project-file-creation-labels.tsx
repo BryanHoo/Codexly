@@ -22,3 +22,19 @@ export function getProjectFileCreationMessages(language: string | undefined, pat
         failed: "创建失败，请检查目录权限后重试。",
       };
 }
+
+export function getProjectFileMutationMessages(language: string | undefined) {
+  return language?.startsWith("en")
+    ? {
+        invalidName:
+          "Enter a valid name without path separators, control characters, or reserved names.",
+        failed:
+          "The operation failed. Your input is retained. Check the connection and file permissions, then retry.",
+        conflict: "That name already exists. Choose another name and retry.",
+      }
+    : {
+        invalidName: "请输入有效名称，避免路径分隔符、控制字符和系统保留名称。",
+        failed: "操作失败，输入已保留。请检查连接和文件权限后重试。",
+        conflict: "同名文件或文件夹已存在，请修改名称后重试。",
+      };
+}

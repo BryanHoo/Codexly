@@ -70,7 +70,7 @@ it("保存失败后先确认放弃，再恢复编辑视图并解除双端共用�
     await userEvent.click(content);
     await userEvent.keyboard("{Home}草稿");
     await expect.poll(() => editor.getContent()).toBe("草稿原文\r\n");
-    expect(await guard.current!()).toBe(false);
+    expect(await editor.flush()).toBe(false);
     await expect.poll(() => button("放弃修改")).toBeDefined();
     await userEvent.click(button("放弃修改"));
     expect(editor.getContent()).toBe("草稿原文\r\n");

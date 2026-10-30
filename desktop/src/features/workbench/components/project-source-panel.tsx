@@ -99,9 +99,11 @@ export function ProjectSourcePanel({
   const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
     readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
   );
+  const editorLabels = useMemo(() => t("textEditor", { returnObjects: true }) as TextFileEditorLabels, [t]);
   const editorEnabled = previewKind === "source" && rootPath !== undefined;
   const editor = useInlineTextFile({
     enabled: editorEnabled,
+    labels: editorLabels,
     fileKey: JSON.stringify([projectId, rootPath, reference.path]),
     scope: client,
     lineNumber: reference.lineNumber,
@@ -142,7 +144,7 @@ export function ProjectSourcePanel({
     },
   });
   // 可编辑文件只使用共享会话的全文；确认不能编辑或读取失败后才启用分页预览。
-  useDocumentSaveGuard(editor);
+  const workspaceManaged = useDocumentSaveGuard(editor);
   const usePagedSource = previewKind === "source" && (!editorEnabled || editor.fallback);
   const sourceQuery = useInfiniteQuery({
     enabled: usePagedSource,
@@ -230,13 +232,13 @@ export function ProjectSourcePanel({
   const editorRef = useRef(editor);
   editorRef.current = editor;
   useEffect(() => {
-    if (router)
+    if (router && !workspaceManaged)
       return blockTextEditorNavigation(
         router.history,
         () => editorRef.current.hasUnsavedChanges(),
-        () => editorRef.current.flush(),
+        () => Promise.resolve(editorRef.current.requestClose()),
       );
-  }, [router]);
+  }, [router, workspaceManaged]);
   const sourceStatus: SourceHeaderProps["sourceStatus"] =
     firstSourcePage === undefined
       ? null
@@ -249,7 +251,7 @@ export function ProjectSourcePanel({
             : null;
   const headerProps = {
     lineNumber: reference.lineNumber,
-    ...(onClose === undefined ? {} : { onClose: () => editor.runAfterSave(onClose) }),
+    ...(onClose === undefined ? {} : { onClose: () => editor.runAfterConfirm(onClose) }),
     previewKind,
     sourcePath,
     sourceStatus,
@@ -272,10 +274,8 @@ export function ProjectSourcePanel({
     if (usePagedSource && hasNextSourcePage && !isFetchingNextSourcePage) void fetchNextSourcePage();
   }, [fetchNextSourcePage, hasNextSourcePage, isFetchingNextSourcePage, usePagedSource]);
   const updateMarkdownPreviewPreference = (preview: boolean) => {
-    editor.runAfterSave(() => {
-      setPreferMarkdownPreview(preview);
-      writeMarkdownPreviewPreference(preview, getMarkdownPreviewPreferenceStorage());
-    });
+    setPreferMarkdownPreview(preview);
+    writeMarkdownPreviewPreference(preview, getMarkdownPreviewPreferenceStorage());
   };
 
   return (
@@ -284,6 +284,8 @@ export function ProjectSourcePanel({
       className="flex h-full min-h-0 flex-col bg-raised"
       onScrollCapture={handleSourceScroll}
     >
+      {editor.closeElement}
+      {editor.conflictElement}
       <TextEditorNotice
         key={sourcePath}
         kind={editor.noticeKind}
@@ -292,6 +294,7 @@ export function ProjectSourcePanel({
         onRetrySave={editor.retrySave}
         onDismiss={editor.dismissNotice}
         onDiscard={editor.discardChanges}
+        onCompare={editor.compareWithDisk}
         busy={editor.retrying || editor.saving}
       />
       <div className="min-h-0 flex-1">

@@ -1,4 +1,6 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+export { DocumentEditorRegistry } from "./document-editor-registry.js";
+import { DocumentEditorRegistry } from "./document-editor-registry.js";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DocumentLeaveGuard } from "./document-navigation.js";
 import {
   createDocumentWorkspace,
@@ -7,8 +9,22 @@ import {
   type WorkspaceDocument,
 } from "@codexly/frontend-core/document-workspace";
 
-export function useDocumentWorkspace<T extends WorkspaceDocument>(scopeKey: string) {
-  const [stored, setStored] = useState(() => ({ scopeKey, value: createDocumentWorkspace<T>() }));
+export function useDocumentWorkspace<T extends WorkspaceDocument>(
+  scopeKey: string,
+  viewKey = scopeKey,
+) {
+  const [stored, setStored] = useState(() => ({
+    scopeKey,
+    viewKey,
+    value: createDocumentWorkspace<T>(),
+  }));
+  const editors = useMemo(() => new DocumentEditorRegistry(), [scopeKey]);
+  useLayoutEffect(
+    () => () => {
+      editors.dispose();
+    },
+    [editors],
+  );
   const beforeLeaveRef = useRef<DocumentLeaveGuard | null>(null);
   const committed = useRef(stored);
   const generation = useRef(0);
@@ -19,16 +35,30 @@ export function useDocumentWorkspace<T extends WorkspaceDocument>(scopeKey: stri
     () => () => {
       generation.current += 1;
     },
-    [scopeKey],
+    [scopeKey, viewKey],
   );
-  // 根目录变更在本次渲染内隔离；不能让旧路径在新工作树里触发一次错误读取。
-  if (stored.scopeKey !== scopeKey) setStored({ scopeKey, value: createDocumentWorkspace<T>() });
+  // 项目切换清空标签；同项目任务切换仅回到聊天，保留文件、固定状态和编辑句柄。
+  if (stored.scopeKey !== scopeKey)
+    setStored({ scopeKey, viewKey, value: createDocumentWorkspace<T>() });
+  else if (stored.viewKey !== viewKey)
+    setStored({
+      scopeKey,
+      viewKey,
+      value: reduceDocumentWorkspace(stored.value, { type: "select", id: null }),
+    });
+  useLayoutEffect(() => {
+    editors.cancelClose();
+  }, [editors, viewKey]);
   const state = stored.scopeKey === scopeKey ? stored.value : createDocumentWorkspace<T>();
+  useLayoutEffect(() => {
+    editors.retainOnly(state.documents.map((document) => document.id));
+  }, [editors, state.documents]);
   const dispatch = useCallback(
     (action: DocumentWorkspaceAction<T>) => {
       const apply = () => {
         setStored((previous) => ({
           scopeKey,
+          viewKey,
           value: reduceDocumentWorkspace(
             previous.scopeKey === scopeKey ? previous.value : createDocumentWorkspace<T>(),
             action,
@@ -37,33 +67,48 @@ export function useDocumentWorkspace<T extends WorkspaceDocument>(scopeKey: stri
         return true;
       };
       const activeId = committed.current.value.activeId;
-      const leavesDocument =
-        activeId !== null &&
-        ((action.type === "open" && action.document.id !== activeId) ||
-          (action.type === "select" && action.id !== activeId) ||
-          (action.type === "close" && action.id === activeId) ||
-          (action.type === "close-many" &&
-            action.ids.includes(activeId) &&
-            (action.includePinned === true ||
-              !committed.current.value.pinnedIds.includes(activeId))));
-      if (!leavesDocument) {
-        // 重选当前标签无需保存，但仍代表新的导航意图，必须取消此前等待保存的关闭/切换。
-        if (action.type === "select" || action.type === "open") generation.current += 1;
+      const ids =
+        action.type === "close"
+          ? [action.id]
+          : action.type === "close-many"
+            ? action.ids.filter(
+                (id) =>
+                  action.includePinned === true || !committed.current.value.pinnedIds.includes(id),
+              )
+            : [];
+      if (!ids.length) {
+        // 切换标签保留草稿，无写盘、无关闭确认；新导航使旧关闭意图失效。
+        if (action.type === "select" || action.type === "open") {
+          generation.current++;
+          editors.cancelClose();
+        }
         return apply();
       }
       const request = ++generation.current;
-      const allowed = beforeLeaveRef.current?.() ?? true;
+      const registered = editors.requestClose(ids);
+      const allowed =
+        registered === true && activeId !== null && ids.includes(activeId)
+          ? (beforeLeaveRef.current?.() ?? true)
+          : registered;
       if (typeof allowed === "boolean") return allowed ? apply() : false;
-      // 等待保存成功才离开；后续选择、切根和卸载都使旧请求失效，避免迟到回调恢复旧文件。
+      // 全部确认后才移除标签；保存失败定位到对应文件，后台冲突也能就地处理。
       return allowed
-        .then((saved) => {
-          if (saved && request === generation.current && committed.current.scopeKey === scopeKey)
-            return apply();
+        .then((confirmed) => {
+          if (request !== generation.current || committed.current.scopeKey !== scopeKey)
+            return false;
+          if (confirmed) return apply();
+          const failedId = editors.failedId;
+          if (failedId)
+            setStored((previous) => ({
+              scopeKey,
+              viewKey,
+              value: reduceDocumentWorkspace(previous.value, { type: "select", id: failedId }),
+            }));
           return false;
         })
         .catch(() => false);
     },
-    [scopeKey],
+    [scopeKey, viewKey, editors],
   );
   const open = useCallback((document: T) => dispatch({ type: "open", document }), [dispatch]);
   const close = useCallback((id: string) => dispatch({ type: "close", id }), [dispatch]);
@@ -87,5 +132,16 @@ export function useDocumentWorkspace<T extends WorkspaceDocument>(scopeKey: stri
     (direction: "right" | "down" | null) => dispatch({ type: "compare", direction }),
     [dispatch],
   );
-  return { ...state, open, close, closeMany, pin, reorder, select, compare, beforeLeaveRef };
+  return {
+    ...state,
+    open,
+    close,
+    closeMany,
+    pin,
+    reorder,
+    select,
+    compare,
+    beforeLeaveRef,
+    editors,
+  };
 }

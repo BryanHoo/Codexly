@@ -1,3 +1,5 @@
+import { useRouter } from "@tanstack/react-router";
+import { useDocumentWorkspaceNavigation } from "@codexly/ui/core/document-workspace-navigation";
 import { describeWorkbenchDocument } from "@codexly/frontend-core/document-presentation";
 import { DocumentWorkspace } from "@codexly/ui/core/document-workspace";
 import type { ReactNode } from "react";
@@ -13,6 +15,8 @@ export function WorkbenchDocumentWorkspace({ children, context, projectId, taskI
   enabled: boolean;
 }>) {
   const { t, i18n } = useTranslation("workbench");
+  const router = useRouter({ warn: false });
+  useDocumentWorkspaceNavigation(context.documentWorkspace, router.history, projectId);
   return <DocumentWorkspace workspace={context.documentWorkspace} locale={i18n.language} enabled={enabled}
     describe={(document) => describeWorkbenchDocument(document, t("diff.reviewTitle"))}
     renderDocument={(document) => <WorkbenchInspectorDocument
