@@ -1,3 +1,8 @@
+import { getProjectFileCreationMessages } from "@codexly/ui/core/project-file-creation-labels";
+import {
+  ProjectFileCreationMenuItems,
+  useProjectFileCreationMenuFocus,
+} from "@codexly/ui/core/project-file-creation-menu";
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
 import { AtSign, Copy, Download, Ellipsis, ExternalLink, FolderOpen } from "lucide-react";
 
@@ -31,6 +36,8 @@ type ProjectOpenDropdownMenuProps = Readonly<{
   download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
   onOpen: () => void;
+  onCreateFile?: () => void;
+  onCreateDirectory?: () => void;
   onDelete?: () => void;
   onOpenInNewWindow?: () => void;
   onReference: (reference: ProjectFileSearchEntry) => void;
@@ -44,6 +51,8 @@ export function ProjectOpenDropdownMenu({
   download,
   isPending,
   onOpen,
+  onCreateFile,
+  onCreateDirectory,
   onDelete,
   onOpenInNewWindow,
   onReference,
@@ -81,6 +90,9 @@ export function ProjectOpenDropdownMenu({
         apps={apps}
         {...(download === undefined ? {} : { download })}
         isPending={isPending}
+        {...(onCreateFile === undefined || onCreateDirectory === undefined
+          ? {}
+          : { onCreateFile, onCreateDirectory })}
         onReference={onReference}
         onSelect={onSelect}
         target={target}
@@ -97,6 +109,8 @@ export function ProjectOpenDropdownMenuItems({
   apps,
   download,
   isPending,
+  onCreateFile,
+  onCreateDirectory,
   onDelete,
   onOpenInNewWindow,
   onReference,
@@ -104,7 +118,8 @@ export function ProjectOpenDropdownMenuItems({
   onSelect,
   target,
 }: ProjectOpenDropdownMenuItemsProps) {
-  const { t } = useTranslation("workbench");
+  const creationFocus = useProjectFileCreationMenuFocus();
+  const { t, i18n } = useTranslation("workbench");
   // 行尾入口复用右键菜单的目标过滤，目录不会暴露仅文件可用的系统默认应用。
   const targetApps = getProjectOpenAppsForTarget(apps, target.type);
   const targetLabel = t("openMenu.targetLabel", { path: target.path });
@@ -112,7 +127,23 @@ export function ProjectOpenDropdownMenuItems({
   const reference = target.reference;
 
   return (
-    <DropdownMenuContent align="end" aria-label={targetLabel} className="w-52">
+    <DropdownMenuContent
+      align="end"
+      aria-label={targetLabel}
+      onCloseAutoFocus={creationFocus.onCloseAutoFocus}
+      className="w-52"
+    >
+      {target.type === "directory" &&
+      onCreateFile !== undefined &&
+      onCreateDirectory !== undefined ? (
+        <ProjectFileCreationMenuItems
+          variant="dropdown"
+          disabled={isPending}
+          labels={getProjectFileCreationMessages(i18n.resolvedLanguage, "")}
+          onCreateFile={creationFocus.prepareCreation(onCreateFile)}
+          onCreateDirectory={creationFocus.prepareCreation(onCreateDirectory)}
+        />
+      ) : null}
       <DropdownMenuItem
         onSelect={() => {
           copyProjectTargetText(targetName);

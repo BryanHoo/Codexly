@@ -148,6 +148,7 @@ fn main() {
         "list_project_files",
         "search_project_files",
         "stop_project_file_search",
+        "create_project_file",
         "rename_project_file",
         "delete_project_file",
         "open_project_file_window",

@@ -16,7 +16,7 @@ export type ProjectFileTreeRowProps = Readonly<{
   item: ItemInstance<ProjectFileTreeItem>;
   onOpenProjectPath: (appId: ProjectOpenAppId, path?: string) => void;
   onReferenceProjectPath: (entry: ProjectFileSearchEntry) => void;
-  onRefreshDirectory: (path: string | null, serverTree?: ProjectFileTree) => void;
+  onRefreshDirectory: (path: string | null, serverTree?: ProjectFileTree) => void | Promise<void>;
   onRefreshProject: () => unknown;
   onSelect: (id: string) => void;
   projectOpenApps: readonly ProjectOpenApp[];

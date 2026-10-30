@@ -1,6 +1,5 @@
-import { formatDisplayPath } from "@codexly/frontend-core/display-path";
-import type { ProjectFileTree, ProjectOpenAppId } from "@codexly/protocol";
-import { buildProjectFileDownloadUrl } from "@codexly/client";
+import { ProjectFileTreeRow } from "./project-file-tree-row.js";
+import type { ProjectFileTree } from "@codexly/protocol";
 import {
   asyncDataLoaderFeature,
   buildProxiedInstance,
@@ -12,9 +11,8 @@ import {
 import { useTree } from "@headless-tree/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronRight, File, Folder, FolderOpen, LoaderCircle, RefreshCw } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import {
-  memo,
   useCallback,
   useMemo,
   useRef,
@@ -24,14 +22,6 @@ import {
 } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
-import { useIsLanAccess } from "../../access/access-context.js";
-import { FileTreeActions } from "../../../shared/components/agent/file-tree.js";
-import { Button } from "../../../shared/components/core/button.js";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../../../shared/components/core/tooltip.js";
 import {
   createProjectFileTreeDataLoader,
   getProjectFileTreeItemName,
@@ -42,257 +32,14 @@ import {
 } from "./project-file-tree-model.js";
 import {
   collectVisibleProjectFileTreeChangeStats,
-  ProjectFileTreeChangeIndicator,
   pruneCollapsedProjectFileTreePaths,
 } from "./project-file-tree-changes.js";
-import { ProjectFileTreeRootActions } from "./workbench-inspector-file-tree.js";
-import { ProjectOpenContextMenu, ProjectOpenDropdownMenu } from "./project-open-menu.js";
-import { createProjectFileTreeOpenTarget } from "./project-file-tree-open-target.js";
-import { openProjectFileInNewWindow } from "../project-file-popup.js";
-import { useProjectFileMutations } from "./use-project-file-mutations.js";
 import type { WorkbenchProjectFileTreeProps } from "./workbench-project-file-tree-contracts.js";
-import type { ProjectFileTreeRowProps } from "./workbench-project-file-tree-row-contracts.js";
 
 export const PROJECT_FILE_TREE_ROW_HEIGHT_PX = 28;
 const PROJECT_FILE_TREE_INDENT_PX = 16;
 const PROJECT_FILE_TREE_OVERSCAN = 8;
 const PROJECT_FILE_TREE_INITIAL_RECT = { height: 600, width: 320 };
-type TreeItemProps = HTMLAttributes<HTMLDivElement> & Readonly<{ ref?: RefCallback<HTMLElement> }>;
-const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
-  changeStatsByPath,
-  client,
-  item,
-  onOpenProjectPath,
-  onReferenceProjectPath,
-  onRefreshDirectory,
-  onRefreshProject,
-  onSelect,
-  projectOpenApps,
-  projectOpenPending,
-  projectId,
-  projectPath,
-  projectRootId,
-  projectRefreshing,
-}: ProjectFileTreeRowProps) {
-  const isLanAccess = useIsLanAccess();
-  const data = item.getItemData();
-  const name = getProjectFileTreeItemName(data);
-  const target = createProjectFileTreeOpenTarget(data, { id: projectRootId, path: projectPath });
-  const openInNewWindow =
-    target?.type === "file"
-      ? () => {
-          openProjectFileInNewWindow({
-            onOpenSystemDefault: (path) => {
-              onOpenProjectPath("system-default", path);
-            },
-            projectId,
-            reference: { lineNumber: null, path: target.path },
-            rootPath: projectPath,
-          });
-        }
-      : undefined;
-  const openRoot = (appId: ProjectOpenAppId) => {
-    onOpenProjectPath(appId);
-  };
-  const download =
-    isLanAccess && target?.type === "file"
-      ? {
-          name,
-          url: buildProjectFileDownloadUrl("", projectId, target.relativePath, projectPath),
-        }
-      : undefined;
-  const openTarget = data.kind === "root" ? openRoot : onOpenProjectPath;
-  const { ref: itemRef, ...itemProps } = item.getProps() as TreeItemProps;
-  const level = item.getItemMeta().level;
-  const isFolder = item.isFolder();
-  const isExpanded = item.isExpanded();
-  const isLoading = item.isLoading();
-  const refreshName = data.kind === "status" ? data.name : name;
-  const changeStats = data.kind === "entry" ? changeStatsByPath.get(data.path) : undefined;
-  const fileMutations = useProjectFileMutations({
-    client,
-    name,
-    onRefreshDirectory,
-    path: data.kind === "entry" ? data.path : null,
-    projectId,
-    projectPath,
-    targetType: data.type === "status" ? "file" : data.type,
-  });
-
-  if (data.kind === "status") {
-    return (
-      <div
-        {...itemProps}
-        className={`flex h-7 items-center gap-2 pr-1.5 text-caption ${data.status === "error" ? "text-diff-removed" : "text-muted-foreground"}`}
-        ref={itemRef}
-        style={{ paddingLeft: level * PROJECT_FILE_TREE_INDENT_PX + 6 }}
-      >
-        <span className="min-w-0 flex-1 truncate">{name}</span>
-        {data.status === "error" ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label={i18n.t("inspector.refreshFolder", {
-                  name: refreshName,
-                  ns: "conversation",
-                })}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onRefreshDirectory(data.directoryPath);
-                }}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <RefreshCw aria-hidden="true" className="size-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {i18n.t("inspector.refreshFolder", {
-                name: refreshName,
-                ns: "conversation",
-              })}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
-      </div>
-    );
-  }
-
-  const row = (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Headless Tree 通过 itemProps 注入完整 treeitem 键盘与 ARIA 属性。
-    <div
-      {...itemProps}
-      className={`group/file-tree-node flex h-7 w-full items-center gap-1 rounded-control pr-1.5 text-left transition-colors hover:bg-control-hover focus-visible:shadow-focus focus-visible:outline-none ${item.isSelected() ? "bg-control" : ""}`}
-      onContextMenu={(event) => {
-        itemProps.onContextMenu?.(event);
-        onSelect(item.getId());
-      }}
-      onKeyDown={(event) => {
-        itemProps.onKeyDown?.(event);
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          item.primaryAction();
-          if (isFolder) {
-            if (isExpanded) item.collapse();
-            else item.expand();
-          }
-        }
-      }}
-      ref={itemRef}
-      style={{ paddingLeft: level * PROJECT_FILE_TREE_INDENT_PX + 2 }}
-    >
-      {isFolder ? (
-        <Button
-          aria-label={i18n.t(
-            isExpanded ? "agentComponents.folderCollapse" : "agentComponents.folderExpand",
-            { name, ns: "conversation" },
-          )}
-          className="inline-grid size-5 shrink-0 place-items-center rounded-control text-muted-foreground hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation();
-            if (isExpanded) item.collapse();
-            else item.expand();
-          }}
-          size="embedded"
-          type="button"
-          variant="embedded"
-        >
-          {isLoading ? (
-            <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
-          ) : (
-            <ChevronRight
-              aria-hidden="true"
-              className={`size-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-            />
-          )}
-        </Button>
-      ) : (
-        <span aria-hidden="true" className="size-5 shrink-0" />
-      )}
-      {isFolder ? (
-        isExpanded ? (
-          <FolderOpen aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
-        ) : (
-          <Folder aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
-        )
-      ) : (
-        <File aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-      )}
-      <span
-        className="min-w-0 flex-1 truncate"
-        title={formatDisplayPath(data.kind === "entry" ? data.path : name)}
-      >
-        {name}
-      </span>
-      {data.kind === "entry" && changeStats !== undefined ? (
-        <ProjectFileTreeChangeIndicator path={data.path} stats={changeStats} />
-      ) : null}
-      {data.kind === "root" ? (
-        <ProjectFileTreeRootActions
-          onMenuOpen={() => {
-            onSelect(item.getId());
-          }}
-          onOpenProjectPath={onOpenProjectPath}
-          onReferenceProjectPath={onReferenceProjectPath}
-          onRefreshProject={onRefreshProject}
-          projectName={name}
-          projectOpenApps={projectOpenApps}
-          projectOpenPending={projectOpenPending}
-          projectPath={projectPath}
-          refreshing={projectRefreshing}
-        />
-      ) : target === null ? null : (
-        <FileTreeActions>
-          <ProjectOpenDropdownMenu
-            apps={projectOpenApps}
-            {...(download === undefined ? {} : { download })}
-            isPending={projectOpenPending}
-            onDelete={fileMutations.openDelete}
-            onOpen={() => {
-              onSelect(item.getId());
-            }}
-            {...(openInNewWindow === undefined ? {} : { onOpenInNewWindow: openInNewWindow })}
-            onReference={onReferenceProjectPath}
-            onRename={fileMutations.openRename}
-            onSelect={onOpenProjectPath}
-            target={target}
-          />
-        </FileTreeActions>
-      )}
-    </div>
-  );
-
-  const menuRow =
-    target === null ? (
-      row
-    ) : (
-      <ProjectOpenContextMenu
-        apps={projectOpenApps}
-        {...(download === undefined ? {} : { download })}
-        isPending={projectOpenPending}
-        onOpen={() => {
-          onSelect(item.getId());
-        }}
-        onReference={onReferenceProjectPath}
-        {...(openInNewWindow === undefined ? {} : { onOpenInNewWindow: openInNewWindow })}
-        onSelect={openTarget}
-        target={target}
-        {...(data.kind === "entry"
-          ? { onDelete: fileMutations.openDelete, onRename: fileMutations.openRename }
-          : {})}
-      >
-        {row}
-      </ProjectOpenContextMenu>
-    );
-  return (
-    <>
-      {menuRow}
-      {fileMutations.dialog}
-    </>
-  );
-});
 
 export function WorkbenchProjectFileTree({
   client,
@@ -472,7 +219,7 @@ export function WorkbenchProjectFileTree({
                 onOpenProjectPath={onOpenProjectPath}
                 onReferenceProjectPath={onReferenceProjectPath}
                 onRefreshDirectory={(path, serverTree) => {
-                  void refreshDirectory(path, false, serverTree);
+                  return refreshDirectory(path, false, serverTree);
                 }}
                 onRefreshProject={refreshProject}
                 onSelect={(id) => {

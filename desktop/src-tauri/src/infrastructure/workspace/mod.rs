@@ -1,3 +1,5 @@
+mod file_creation;
+pub use file_creation::create_project_file;
 mod attachments;
 mod file_search;
 mod file_search_index;

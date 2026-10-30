@@ -28,7 +28,11 @@ import { readHostFileDirectory, resolveHostAttachment } from "./host-file-browse
 import { createIdempotencyRunner } from "./idempotency-runner.js";
 import { readProjectFileTree } from "./project-file-tree.js";
 import { readProjectFileDownload } from "./project-file-download.js";
-import { deleteProjectFile, renameProjectFile } from "./project-file-mutations.js";
+import {
+  createProjectFile,
+  deleteProjectFile,
+  renameProjectFile,
+} from "./project-file-mutations.js";
 import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
 import { createProviderTurnInputResolver } from "./provider-turn-input-resolver.js";
@@ -427,6 +431,7 @@ export async function createCodexlyServer(
     readEffectiveTaskSettings,
     readFileTree,
     readFileDownload,
+    createProjectFile: options.createProjectFile ?? createProjectFile,
     deleteProjectFile: options.deleteProjectFile ?? deleteProjectFile,
     renameProjectFile: options.renameProjectFile ?? renameProjectFile,
     searchProjectFiles,

@@ -1,3 +1,4 @@
+import type { CreateProjectFileRequest, CreateProjectFileResponse } from "@codexly/protocol";
 import type {
   AsyncQuestionRepository,
   ProjectTodoRepository,
@@ -198,6 +199,10 @@ export interface ServerRouteContext {
   ) => Promise<AgentTaskSettings>;
   readonly readFileTree: (projectRoot: string, directoryPath?: string) => Promise<ProjectFileTree>;
   readonly readFileDownload: (projectRoot: string, path: string) => Promise<ProjectFileDownload>;
+  readonly createProjectFile: (
+    projectRoot: string,
+    input: CreateProjectFileRequest,
+  ) => Promise<Omit<CreateProjectFileResponse, "tree">>;
   readonly deleteProjectFile: (
     projectRoot: string,
     path: string,

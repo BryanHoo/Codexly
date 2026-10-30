@@ -57,6 +57,8 @@ pub enum AppError {
     RequestCancelled,
     #[error("filesystem request failed")]
     FilesystemRequestFailed,
+    #[error("A file or directory with that name already exists")]
+    ProjectFileConflict,
     #[error("file does not exist or cannot be accessed")]
     FileOpenTargetUnavailable,
     #[error("system default application could not open the file")]
@@ -127,6 +129,7 @@ impl Serialize for AppError {
             Self::ScheduledTaskInvalid => Some(("SCHEDULED_TASK_INVALID", self.to_string())),
             Self::ScheduledTaskNotFound => Some(("SCHEDULED_TASK_NOT_FOUND", self.to_string())),
             Self::ScheduledTaskBusy => Some(("SCHEDULED_TASK_BUSY", self.to_string())),
+            Self::ProjectFileConflict => Some(("PROJECT_FILE_CONFLICT", self.to_string())),
             Self::Workspace(error) => Some((error.code(), error.to_string())),
             _ => None,
         };

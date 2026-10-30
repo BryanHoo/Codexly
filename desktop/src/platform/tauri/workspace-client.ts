@@ -1,3 +1,4 @@
+import type { CreateProjectFileRequest, CreateProjectFileResponse } from "@codexly/protocol";
 import type { AgentEngine } from "@codexly/protocol";
 import type { ProjectTextFile, ProjectTextFileRevision, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
 import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
@@ -307,6 +308,10 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     _options: MutationOptions = {},
   ): Promise<StopProjectFileSearchResponse> {
     return this.call("stop_project_file_search", { projectId, rootPath, sessionId });
+  }
+
+  public async createProjectFile(projectId: string, rootPath: string, input: CreateProjectFileRequest, _options: MutationOptions = {}): Promise<CreateProjectFileResponse> {
+    return this.call("create_project_file", { input, projectId, rootPath });
   }
 
   public async renameProjectFile(

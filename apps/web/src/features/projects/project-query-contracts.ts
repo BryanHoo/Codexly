@@ -37,7 +37,7 @@ export type CodexlyGitMutationClient = Pick<
 export type CodexlyFileTreeReadClient = Pick<CodexlyClient, "listProjectFiles">;
 export type CodexlyFileTreeClient = Pick<
   CodexlyClient,
-  "deleteProjectFile" | "listProjectFiles" | "renameProjectFile"
+  "createProjectFile" | "deleteProjectFile" | "listProjectFiles" | "renameProjectFile"
 >;
 export type CodexlyProjectFileSearchClient = Pick<
   CodexlyClient,

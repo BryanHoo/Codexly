@@ -1,3 +1,8 @@
+import {
+  CreateProjectFileRequestSchema,
+  CreateProjectFileResponseSchema,
+  type CreateProjectFileRequest,
+} from "@codexly/protocol";
 import { registerProjectTextFileRoutes } from "./project-text-file-routes.js";
 import {
   AgentMutationErrorSchema,
@@ -65,8 +70,52 @@ export function registerProjectFileMutationRoutes(
   context: ServerRouteContext,
   resolveProjectFileRoot: ResolveProjectFileRoot,
 ): void {
-  const { deleteProjectFile, readFileTree, renameProjectFile, runIdempotent } = context;
+  const { createProjectFile, deleteProjectFile, readFileTree, renameProjectFile, runIdempotent } =
+    context;
   registerProjectTextFileRoutes(app, resolveProjectFileRoot);
+
+  app.post<{
+    Body: CreateProjectFileRequest;
+    Headers: { "idempotency-key": string };
+    Params: { projectId: string };
+    Querystring: ProjectRootQuery;
+  }>(
+    "/v1/projects/:projectId/files/create",
+    {
+      schema: {
+        body: CreateProjectFileRequestSchema,
+        headers: IdempotencyHeadersSchema,
+        params: ProjectParamsSchema,
+        querystring: ProjectRootQuerySchema,
+        response: { 200: CreateProjectFileResponseSchema, ...mutationResponses },
+      },
+    },
+    async (request) =>
+      runIdempotent(
+        [
+          "create-project-file",
+          request.params.projectId,
+          request.query.rootPath,
+          request.body.parentPath ?? "",
+        ],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          try {
+            const root = await resolveProjectFileRoot(
+              request.params.projectId,
+              request.query.rootPath,
+            );
+            const result = await createProjectFile(root.path, request.body);
+            // 返回目标父目录的权威快照，避免客户端提交后再次读取整棵树。
+            const tree = await readFileTree(root.path, request.body.parentPath ?? undefined);
+            return { ...result, tree };
+          } catch (error) {
+            mapProjectFileMutationError(error);
+          }
+        },
+      ),
+  );
 
   app.post<{
     Body: RenameProjectFileRequest;

@@ -32,7 +32,7 @@ export type NativeGitMutationClient = Pick<
 export type NativeFileTreeReadClient = Pick<NativeClient, "listProjectFiles">;
 export type NativeFileTreeClient = Pick<
   NativeClient,
-  "deleteProjectFile" | "listProjectFiles" | "renameProjectFile"
+  "createProjectFile" | "deleteProjectFile" | "listProjectFiles" | "renameProjectFile"
 >;
 export type NativeProjectFileSearchClient = Pick<
   NativeClient,

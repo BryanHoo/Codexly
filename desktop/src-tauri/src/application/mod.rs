@@ -92,3 +92,5 @@ pub mod workspace_commands;
 pub mod worktree_task_commands;
 
 pub mod search_commands;
+
+pub mod workspace_file_creation_commands;

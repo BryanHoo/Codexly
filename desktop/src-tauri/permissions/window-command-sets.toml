@@ -117,6 +117,7 @@ permissions = [
   "allow-list-project-files",
   "allow-search-project-files",
   "allow-stop-project-file-search",
+  "allow-create-project-file",
   "allow-rename-project-file",
   "allow-delete-project-file",
   "allow-open-project-file-window",

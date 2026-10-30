@@ -28,6 +28,7 @@ describe("WorkbenchProjectFileTree", () => {
       <QueryClientProvider client={queryClient}>
         <WorkbenchProjectFileTree
           client={{
+            createProjectFile: vi.fn(),
             deleteProjectFile: vi.fn(),
             listProjectFiles: vi.fn(() => Promise.resolve({ entries: [], path: null })),
             renameProjectFile: vi.fn(),

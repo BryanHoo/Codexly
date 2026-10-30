@@ -14,6 +14,31 @@ import {
 } from "./http-client.test-support.js";
 
 describe("CodexlyClient project routes", () => {
+  it("creates a project entry with the selected root and idempotency key", async () => {
+    const response = {
+      path: "docs/new.txt",
+      tree: { path: "docs", entries: [{ path: "docs/new.txt", type: "file" }] },
+    };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(response));
+    const client = new CodexlyClient({ fetch: fetchMock });
+    const input = { parentPath: "docs", name: "new.txt", type: "file" as const };
+    await expect(
+      client.createProjectFile("project one", projectRootPath, input, {
+        idempotencyKey: "new-file-key",
+      }),
+    ).resolves.toEqual(response);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/v1/projects/project%20one/files/create?rootPath=%2Fworkspace%2FCodexly",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("idempotency-key")).toBe(
+      "new-file-key",
+    );
+  });
+
   it("builds encoded Project image preview URLs", () => {
     expect(
       buildProjectImageFileUrl(

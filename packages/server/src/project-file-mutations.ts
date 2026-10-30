@@ -1,4 +1,9 @@
-import { lstat, realpath, rm } from "node:fs/promises";
+import {
+  isValidProjectFileCreationName,
+  type CreateProjectFileRequest,
+  type CreateProjectFileResponse,
+} from "@codexly/protocol";
+import { lstat, mkdir, open, realpath, rm } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { DeleteProjectFileResponse, RenameProjectFileResponse } from "@codexly/protocol";
@@ -99,4 +104,32 @@ export async function deleteProjectFile(
   // 目录删除是用户明确确认后的单次磁盘 Mutation，不跟随目录内符号链接。
   await rm(absolutePath, { recursive: true });
   return { path, status: "deleted" };
+}
+
+export async function createProjectFile(
+  projectRoot: string,
+  input: CreateProjectFileRequest,
+): Promise<Omit<CreateProjectFileResponse, "tree">> {
+  if (!isValidProjectFileCreationName(input.name) || !["file", "directory"].includes(input.type)) {
+    throw new TypeError("Project file name or type is invalid");
+  }
+  const root = await realpath(projectRoot);
+  const segments = input.parentPath === null ? [] : parseProjectRelativePath(input.parentPath);
+  if (segments.length >= MAX_PROJECT_FILE_DEPTH)
+    throw new TypeError("Project file path is invalid");
+  const parent = await realpath(resolve(root, ...segments));
+  if (parent !== root) assertPathInsideRoot(root, parent);
+  if (!(await lstat(parent)).isDirectory()) throw new TypeError("Project file parent is invalid");
+  const destination = resolve(parent, input.name);
+  try {
+    // 直接独占创建，不先查询存在性；已有文件、目录或链接均不能被覆盖。
+    if (input.type === "directory") await mkdir(destination);
+    else await (await open(destination, "wx")).close();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new TypeError("Project file target already exists", { cause: error });
+    }
+    throw error;
+  }
+  return { path: [...segments, input.name].join("/") };
 }

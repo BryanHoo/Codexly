@@ -13,6 +13,8 @@ import {
 import { ProjectOpenDropdownMenu } from "./project-open-menu.js";
 
 export function ProjectFileTreeRootActions({
+  onCreateFile,
+  onCreateDirectory,
   onMenuOpen,
   onOpenProjectPath,
   onReferenceProjectPath,
@@ -23,6 +25,8 @@ export function ProjectFileTreeRootActions({
   projectPath,
   refreshing = false,
 }: Readonly<{
+  onCreateFile: () => void;
+  onCreateDirectory: () => void;
   onMenuOpen: () => void;
   onOpenProjectPath: (appId: ProjectOpenAppId) => void;
   onReferenceProjectPath: (entry: ProjectFileSearchEntry) => void;
@@ -79,6 +83,8 @@ export function ProjectFileTreeRootActions({
       <ProjectOpenDropdownMenu
         apps={projectOpenApps}
         isPending={projectOpenPending}
+        onCreateFile={onCreateFile}
+        onCreateDirectory={onCreateDirectory}
         onOpen={onMenuOpen}
         onReference={onReferenceProjectPath}
         onSelect={onOpenProjectPath}

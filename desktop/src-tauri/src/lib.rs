@@ -97,6 +97,7 @@ use application::{
         list_project_worktrees, push_project_commits, read_project_source_file,
         rename_project_file, search_project_files, stop_project_file_search, switch_project_branch,
     },
+    workspace_file_creation_commands::create_project_file,
 };
 use infrastructure::diagnostics;
 
@@ -317,6 +318,7 @@ pub fn run() {
             list_project_files,
             search_project_files,
             stop_project_file_search,
+            create_project_file,
             rename_project_file,
             delete_project_file,
             open_project_file_window,

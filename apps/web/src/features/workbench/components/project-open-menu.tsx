@@ -1,3 +1,8 @@
+import { getProjectFileCreationMessages } from "@codexly/ui/core/project-file-creation-labels";
+import {
+  ProjectFileCreationMenuItems,
+  useProjectFileCreationMenuFocus,
+} from "@codexly/ui/core/project-file-creation-menu";
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
 import { AtSign, ChevronDown, Copy, Download, ExternalLink, FolderOpen } from "lucide-react";
 import type { ReactElement } from "react";
@@ -136,6 +141,8 @@ type ProjectOpenContextMenuItemsProps = Readonly<{
   ariaLabel?: string;
   download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
+  onCreateFile?: () => void;
+  onCreateDirectory?: () => void;
   onDelete?: () => void;
   onOpenInNewWindow?: () => void;
   onReference: (reference: ProjectFileSearchEntry) => void;
@@ -149,6 +156,8 @@ export function ProjectOpenContextMenuItems({
   ariaLabel,
   download,
   isPending,
+  onCreateFile,
+  onCreateDirectory,
   onDelete,
   onOpenInNewWindow,
   onReference,
@@ -156,12 +165,28 @@ export function ProjectOpenContextMenuItems({
   onSelect,
   target,
 }: ProjectOpenContextMenuItemsProps) {
-  const { t } = useTranslation("workbench");
+  const creationFocus = useProjectFileCreationMenuFocus();
+  const { t, i18n } = useTranslation("workbench");
   const targetApps = getProjectOpenAppsForTarget(apps, target.type);
   const targetName = getProjectTargetName(target.path);
   const reference = target.reference;
   return (
-    <ContextMenuContent aria-label={ariaLabel} className="w-52">
+    <ContextMenuContent
+      aria-label={ariaLabel}
+      onCloseAutoFocus={creationFocus.onCloseAutoFocus}
+      className="w-52"
+    >
+      {target.type === "directory" &&
+      onCreateFile !== undefined &&
+      onCreateDirectory !== undefined ? (
+        <ProjectFileCreationMenuItems
+          variant="context"
+          disabled={isPending}
+          labels={getProjectFileCreationMessages(i18n.resolvedLanguage, "")}
+          onCreateFile={creationFocus.prepareCreation(onCreateFile)}
+          onCreateDirectory={creationFocus.prepareCreation(onCreateDirectory)}
+        />
+      ) : null}
       <ContextMenuItem
         onSelect={() => {
           copyProjectTargetText(targetName);
@@ -255,6 +280,8 @@ type ProjectOpenContextMenuProps = Readonly<{
   download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
   onOpen: () => void;
+  onCreateFile?: () => void;
+  onCreateDirectory?: () => void;
   onDelete?: () => void;
   onOpenInNewWindow?: () => void;
   onReference: (reference: ProjectFileSearchEntry) => void;
@@ -269,6 +296,8 @@ export function ProjectOpenContextMenu({
   download,
   isPending,
   onOpen,
+  onCreateFile,
+  onCreateDirectory,
   onDelete,
   onOpenInNewWindow,
   onReference,
@@ -300,6 +329,9 @@ export function ProjectOpenContextMenu({
         ariaLabel={t("openMenu.targetLabel", { path: target.path })}
         {...(download === undefined ? {} : { download })}
         isPending={isPending}
+        {...(onCreateFile === undefined || onCreateDirectory === undefined
+          ? {}
+          : { onCreateFile, onCreateDirectory })}
         onReference={onReference}
         {...(onOpenInNewWindow === undefined ? {} : { onOpenInNewWindow })}
         onSelect={onSelect}

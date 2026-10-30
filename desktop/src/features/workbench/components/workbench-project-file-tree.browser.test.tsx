@@ -18,6 +18,7 @@ const change = {
 
 function createClient(): NativeFileTreeClient {
   return {
+    createProjectFile: vi.fn(),
     deleteProjectFile: vi.fn(),
     listProjectFiles: vi.fn().mockResolvedValue({
       entries: [{ path: change.path, type: "file" }],
