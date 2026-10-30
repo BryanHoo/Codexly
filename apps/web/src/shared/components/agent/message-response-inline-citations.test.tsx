@@ -18,7 +18,7 @@ describe("Web 正文来源引用", () => {
     );
     expect(markup).toContain('data-inline-citation="true"');
     expect(markup).toContain('type="button"');
-    expect(markup).toContain("example.com");
+    expect(markup).not.toContain("example.com");
     expect(markup).toContain("官方");
     expect(markup).not.toContain('href="https://www.example.com/guide"');
   });

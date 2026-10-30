@@ -16,7 +16,7 @@ describe("桌面正文来源引用", () => {
       }, source),
     );
     expect(markup).toContain('data-inline-citation="true"');
-    expect(markup).toContain("example.com");
+    expect(markup).not.toContain("example.com");
     expect(markup).toContain("官方文档");
   });
 });

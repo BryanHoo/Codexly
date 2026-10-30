@@ -17,12 +17,22 @@ afterEach(async () => {
 describe("来源引用交互", () => {
   it("悬停预览，点击外部关闭，键盘聚焦与 Escape 可操作", async () => {
     const screen = await render(<>
-      <InlineCitation href="https://www.example.com/guide" newTabLabel="在新窗口中打开">
-        官方文档
-      </InlineCitation>
+      <span style={{ fontSize: "20px", lineHeight: "32px" }}>
+        <InlineCitation href="https://www.example.com/guide" newTabLabel="在新窗口中打开">
+          官方文档
+        </InlineCitation>
+      </span>
       <button>外部区域</button>
     </>);
-    const trigger = screen.getByRole("button", { name: "example.com 官方文档" });
+    const trigger = screen.getByRole("button", { name: "官方文档" });
+    // 加载真实样式，确认来源与正文等大且没有胶囊底色，避免只检查类名而漏掉级联覆盖。
+    const style = getComputedStyle(trigger.element());
+    expect(trigger.element().textContent).toBe("官方文档");
+    expect(style.fontSize).toBe("20px");
+    expect(style.lineHeight).toBe("32px");
+    expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(style.textDecorationLine).toBe("underline");
+    expect(style.whiteSpace).toBe("normal");
     await trigger.hover();
     await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
     await expect.element(screen.getByRole("link")).toHaveAttribute("rel", "noopener noreferrer");
@@ -53,7 +63,7 @@ describe("来源引用交互", () => {
     const screen = await render(
       <MessageResponse mode="static">{`来源 [使用指南](${url})`}</MessageResponse>,
     );
-    const trigger = screen.getByRole("button", { name: "example.com 使用指南" });
+    const trigger = screen.getByRole("button", { name: "使用指南" });
     // 无 pointerenter 的点击模拟触屏路径，不能靠悬停替点击提前打开浮层。
     (trigger.element() as HTMLElement).click();
     await expect.element(trigger).toHaveAttribute("aria-expanded", "true");
@@ -72,7 +82,7 @@ describe("来源引用交互", () => {
     expect(screen.container.querySelector("[data-inline-citation]")).toBeNull();
     buffer.append("www.example.com/guide)");
     await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating />);
-    const trigger = screen.getByRole("button", { name: "example.com 官方文档" });
+    const trigger = screen.getByRole("button", { name: "官方文档" });
     await trigger.click();
     const citation = trigger.element();
     const link = screen.getByRole("link").element();

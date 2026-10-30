@@ -62,7 +62,7 @@ for (const width of [390, 1280]) {
       await expect(page.locator("[data-inline-citation]")).toHaveCount(0);
       const url = `https://example.com/${"long-source-".repeat(30)}`;
       emit(`${url.slice("https://".length)})`, 2);
-      const trigger = page.getByRole("button", { name: "example.com 官方文档" });
+      const trigger = page.getByRole("button", { name: "官方文档" });
       await expect(trigger).toBeVisible();
       if (width === 390) await trigger.tap();
       else await trigger.click();

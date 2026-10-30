@@ -59,12 +59,12 @@ export function InlineCitation({
       <HoverCardTrigger asChild>
         <Button
           aria-expanded={open}
-          className="mx-0.5 inline-flex max-w-full align-baseline rounded-pill text-caption"
+          className="inline max-w-full whitespace-normal rounded-none bg-transparent align-baseline text-[length:inherit] leading-[inherit] underline [overflow-wrap:anywhere]"
           data-inline-citation="true"
           ref={triggerRef}
-          size="toolbar"
+          size="embedded"
           type="button"
-          variant="secondary"
+          variant="link"
           onFocus={(event) => {
             // 正常聚焦交给 Radix 清除旧的悬停关闭计时器；Escape 回焦时才阻止再次打开。
             if (restoringFocusRef.current) event.preventDefault();
@@ -92,8 +92,8 @@ export function InlineCitation({
             }
           }}
         >
-          <span className="truncate">{hostname}</span>
-          {children ? <span className="sr-only"> {children}</span> : null}
+          {/* 来源沿用正文的原始文字、字号和换行，只用主色与下划线标识可交互内容。 */}
+          {children ?? title ?? hostname}
         </Button>
       </HoverCardTrigger>
       <HoverCardContent
