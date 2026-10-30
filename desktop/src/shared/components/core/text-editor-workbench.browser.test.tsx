@@ -23,7 +23,8 @@ it("提供查找替换、撤销、换行和状态；内部操作不触发失焦�
     expect(host.textContent).toContain("未保存");
     await userEvent.click(button("查找与替换"));
     expect(save).not.toHaveBeenCalled();
-    expect(host.querySelectorAll(".cm-file-search-row")).toHaveLength(2);
+    // 首次查找异步挂载界面，完成后再验证布局和替换行为。
+    await expect.poll(() => host.querySelectorAll(".cm-file-search-row")).toHaveLength(2);
     const closeSearch = host.querySelector<HTMLButtonElement>('button[name="close"]')!;
     expect(closeSearch.getBoundingClientRect().width).toBeGreaterThanOrEqual(32);
     expect(closeSearch.getBoundingClientRect().height).toBeGreaterThanOrEqual(32);

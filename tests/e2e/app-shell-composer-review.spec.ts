@@ -217,7 +217,8 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   });
   await page.goto("/p/codexly/t/task-1");
 
-  await page.getByRole("button", { name: "openai.com OpenAI" }).click();
+  // 来源按钮沿用 Markdown 原始标签；域名与完整地址留在来源预览中。
+  await page.getByRole("button", { name: "OpenAI", exact: true }).click();
   const externalLink = page.locator('[data-slot="hover-card-content"]').getByRole("link");
   await expect(externalLink).toHaveAttribute("target", "_blank");
   await expect(externalLink).toHaveAttribute("rel", "noopener noreferrer");

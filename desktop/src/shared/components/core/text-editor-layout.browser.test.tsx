@@ -24,6 +24,8 @@ it("保存文字按钮始终居右，搜索在窄容器仍保留输入宽度并�
     expect(saveButton.textContent).toBe("保存");
     expect(saveButton.getBoundingClientRect().left).toBeGreaterThan(button("自动换行").getBoundingClientRect().right);
     await userEvent.click(button("查找与替换"));
+    // 首次查找按需加载；等待真实输入挂载后再测量布局与执行替换。
+    await expect.poll(() => host.querySelector('input[name="search"]')).not.toBeNull();
     const search = host.querySelector<HTMLInputElement>('input[name="search"]')!;
     const replacement = host.querySelector<HTMLInputElement>('input[name="replace"]')!;
     expect(search.getBoundingClientRect().width).toBeGreaterThanOrEqual(140);
@@ -57,6 +59,7 @@ it("保存文字按钮始终居右，搜索在窄容器仍保留输入宽度并�
     for (const width of [320, 680]) {
       host.style.width = `${width}px`;
       await userEvent.click(button("查找与替换"));
+      await expect.poll(() => host.querySelector('input[name="search"]')).not.toBeNull();
       expect(host.scrollWidth).toBeLessThanOrEqual(width);
       expect(host.querySelector<HTMLInputElement>('input[name="search"]')!.getBoundingClientRect().width).toBeGreaterThanOrEqual(120);
       await userEvent.click(host.querySelector<HTMLButtonElement>('button[name="close"]')!);
@@ -83,6 +86,7 @@ it("旧版 WebView 在英文窄面板使用尺寸回退并在关闭后清理", a
   try {
     flushSync(() => root.render(<TooltipProvider><TextFileEditor session={session} labels={textFileEditorEnglish} /></TooltipProvider>));
     await userEvent.click(host.querySelector<HTMLButtonElement>('button[aria-label="Find and replace"]')!);
+    await expect.poll(() => host.querySelector('input[name="search"]')).not.toBeNull();
     await expect.poll(() => host.querySelector('[data-compact]')).not.toBeNull();
     expect(host.scrollWidth).toBeLessThanOrEqual(320);
     const panel = host.querySelector<HTMLElement>('[role="search"]')!;

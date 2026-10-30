@@ -1,8 +1,14 @@
-import { createElement } from "react";
+import { createElement, lazy, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { EditorView, Panel } from "@codemirror/view";
 import { getSearchQuery } from "@codemirror/search";
-import { TextEditorSearchPanel } from "./text-editor-search-panel.js";
+
+// 查找界面与图标仅在首次打开面板时下载；两端复用模块缓存，普通编辑不承担此加载成本。
+const TextEditorSearchPanel = lazy(() =>
+  import("./text-editor-search-panel.js").then((module) => ({
+    default: module.TextEditorSearchPanel,
+  })),
+);
 
 /** CodeMirror 管理查询与生命周期，React 只渲染打开的面板，不复制或扫描正文。 */
 export function createTextEditorSearchPanel(view: EditorView): Panel {
@@ -31,7 +37,13 @@ export function createTextEditorSearchPanel(view: EditorView): Panel {
         resize.observe(dom);
       }
       root = createRoot(dom);
-      root.render(createElement(TextEditorSearchPanel, { view, subscribe }));
+      root.render(
+        createElement(
+          Suspense,
+          { fallback: null },
+          createElement(TextEditorSearchPanel, { view, subscribe }),
+        ),
+      );
     },
     update() {
       const next = getSearchQuery(view.state);

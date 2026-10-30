@@ -341,7 +341,7 @@ test("does not show a tooltip for a truncated command title", async ({ page }) =
   await page.goto("/p/codexly/t/task-1");
 
   // 等待异步 Markdown 升级完成，确保 hover 与 focus 检查发生在稳定布局中。
-  await expect(page.getByRole("button", { name: "openai.com OpenAI" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "OpenAI", exact: true })).toBeVisible();
   const commandTitle = page.getByText(command, { exact: true });
   await expect(commandTitle).toBeVisible();
   expect(await commandTitle.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(
