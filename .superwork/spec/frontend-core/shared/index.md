@@ -21,6 +21,12 @@
 
 相关契约：[文档工作区](../../../../docs/document-workspace.md)、[会话加载与性能](../../../../docs/conversation-performance.md)、[复用边界](../../guides/code-reuse-thinking-guide.md)。
 
+## 分屏自适应与数量变化
+
+- Web 与桌面共用 `split-layout.ts` 和 `split-layout-presets.ts`：默认及自适应布局按窗口数量排列，两屏左右等分、三屏横向三等分、四屏田字格等分。显式选择的竖排、主次屏等预设仍按用户选择创建。
+- 横向添加分屏时按方向紧邻目标插入并整体等分；从三屏添加第四屏时统一为田字格。关闭窗口、删除或归档任务、身份去重导致窗口减少时，按减少前的可见阅读顺序重新等分，不能只折叠局部区域，也不能恢复为创建顺序。仅替换任务身份或交换位置时保留原比例；迟到的关闭不重置手动比例。
+- 重排只更新布局，保留存活窗口、输入框 DOM 和未发送草稿，不新增尺寸轮询或逐帧 React 状态。回归入口为共享 `split-layout.test.ts`、`split-layout-presets.test.ts`、`split-workspace-selection.test.ts`、Web `split-workspace-actions.test.tsx` 及桌面 `split-workspace.browser.test.tsx`；浏览器套件以真实 CSS 同时覆盖 Web / 桌面模式和 Chromium / WebKit。
+
 ## 历史回合渲染隔离
 
 - 两端回合分组在成员和顺序未变化时必须复用分组对象及 `turnIds` 引用，分组完全不变时同时复用外层数组；回合组件使用 `memo`，避免新增回合、条目或 Claude 续跑重新聚合无关历史正文与文件变更。缓存仅保留上一版 ID 分组，不积累任务或正文。

@@ -1,4 +1,4 @@
-import { remapSplitLayout, type SplitLayout } from "./split-layout.js";
+import { createSplitLayout, remapSplitLayout, type SplitLayout } from "./split-layout.js";
 import {
   removeSplitPane,
   selectSplitTask,
@@ -76,8 +76,10 @@ export function dismissSplitTask(
           ? undefined
           : splitPaneKey(first)
         : selection.activeKey,
-    layout: remapSplitLayout(selection.layout, (layoutKey) =>
-      panes.some((item) => splitPaneKey(item) === layoutKey) ? layoutKey : undefined,
+    layout: remapSplitLayout(
+      selection.layout ?? createSplitLayout(selection.panes.map(splitPaneKey)),
+      (layoutKey) =>
+        panes.some((item) => splitPaneKey(item) === layoutKey) ? layoutKey : undefined,
     ),
   };
 }

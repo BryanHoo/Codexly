@@ -246,19 +246,68 @@ describe("共享分屏操作", () => {
     expect(read().layout).toBeUndefined();
   });
 
-  it("原任务入口保持默认布局，已使用方向分屏时追加到活动窗口右侧", () => {
+  it("任务入口追加窗口与向右分屏使用相同的自动等分规则", () => {
     const read = setup();
     const task = { projectId: "project", taskId: "two" };
     read().add(task);
-    expect(read().layout).toBeUndefined();
-    read().split(task, "up");
-    const active = defined(read().activeKey);
-    const sibling = getSplitLayoutCells(defined(read().layout)).get(splitPaneKey(original));
+    read().split(task, "right");
+    const three = read();
+    const threeCells = getSplitLayoutCells(defined(three.layout));
+    three.panes.forEach((pane) => {
+      expect(threeCells.get(splitPaneKey(pane))?.width).toBeCloseTo(8 / 3);
+      expect(threeCells.get(splitPaneKey(pane))?.height).toBe(8);
+    });
     read().add({ projectId: "project", taskId: "four" });
     expect(read().panes).toHaveLength(4);
-    expect(getSplitLayoutCells(defined(read().layout)).get(splitPaneKey(original))).toEqual(
-      sibling,
-    );
-    expect(defined(getSplitLayoutCells(defined(read().layout)).get(active)).width).toBe(2);
+    getSplitLayoutCells(defined(read().layout)).forEach((cell) => {
+      expect(cell.width).toBe(4);
+      expect(cell.height).toBe(4);
+    });
+  });
+
+  it.each([0, 1, 2, 3])("关闭四屏中的第 %i 屏后横向三等分，再关闭后横向二等分", (index) => {
+    const read = setup();
+    read().applyPreset(4, "grid", { width: 1200, height: 700 });
+    read().resize("", 0.7);
+    const before = read();
+    const removed = defined(before.panes[index]);
+    const surviving = before.panes.filter((pane) => pane !== removed);
+    read().close(removed);
+    for (const count of [3, 2]) {
+      const workspace = read();
+      expect(workspace.panes).toHaveLength(count);
+      const cells = getSplitLayoutCells(defined(workspace.layout));
+      workspace.panes.forEach((pane) => {
+        expect(cells.get(splitPaneKey(pane))?.width).toBeCloseTo(8 / count);
+        expect(cells.get(splitPaneKey(pane))?.height).toBe(8);
+        expect(surviving).toContain(pane);
+      });
+      expect(workspace.panes.some((pane) => splitPaneKey(pane) === workspace.activeKey)).toBe(true);
+      if (count === 3) workspace.close(defined(workspace.panes[1]));
+    }
+  });
+
+  it("交换窗口后关闭和向右添加按可见顺序重排，迟到关闭不重置手动比例", () => {
+    const read = setup();
+    read().applyPreset(4, "grid", { width: 1200, height: 700 });
+    const [one, , three, four] = read().panes.map(splitPaneKey);
+    read().swap(defined(one), defined(four));
+    const removed = defined(read().panes[1]);
+    read().close(removed);
+    const cells = getSplitLayoutCells(defined(read().layout));
+    expect(defined(cells.get(defined(four))).x).toBe(0);
+    expect(defined(cells.get(defined(three))).x).toBeCloseTo(8 / 3);
+    expect(defined(cells.get(defined(one))).x).toBeCloseTo(16 / 3);
+    read().resize("", 0.6);
+    const layout = read().layout;
+    read().close(removed);
+    expect(read().layout).toBe(layout);
+    read().split(original, "right");
+    const after = read();
+    const grid = getSplitLayoutCells(defined(after.layout));
+    expect(grid.get(defined(four))).toEqual({ x: 0, y: 0, width: 4, height: 4 });
+    expect(grid.get(defined(three))).toEqual({ x: 4, y: 0, width: 4, height: 4 });
+    expect(grid.get(defined(one))).toEqual({ x: 0, y: 4, width: 4, height: 4 });
+    expect(grid.get(defined(after.activeKey))).toEqual({ x: 4, y: 4, width: 4, height: 4 });
   });
 });

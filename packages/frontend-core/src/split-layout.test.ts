@@ -33,17 +33,18 @@ describe("方向分屏布局", () => {
     expect(getSplitLayoutCells(original).get("one")?.width).toBe(4);
   });
 
-  it("限制比例、防止迟到的拖动修改已关闭节点，任务替换与关闭保留其余比例", () => {
+  it("限制比例并忽略无效路径，身份替换保留比例而关闭后重新等分", () => {
     const layout = defined(createSplitLayout(["one", "two", "three"]));
     expect(resizeSplitLayout(layout, "missing", 0.6)).toBe(layout);
     expect(resizeSplitLayout(layout, "", Number.NaN)).toBe(layout);
-    expect(resizeSplitLayout(layout, "", 0.5)).toBe(layout);
+    expect(resizeSplitLayout(layout, "", 1 / 3)).toBe(layout);
     expect(getSplitLayoutCells(resizeSplitLayout(layout, "", 0)).get("one")?.width).toBe(0.8);
     expect(getSplitLayoutCells(resizeSplitLayout(layout, "", 1)).get("one")?.width).toBe(7.2);
     const resized = resizeSplitLayout(layout, "", 0.65);
     const renamed = remapSplitLayout(resized, (key) => (key === "one" ? "draft" : key));
+    expect(getSplitLayoutCells(defined(renamed)).get("draft")?.width).toBe(5.2);
     const closed = remapSplitLayout(renamed, (key) => (key === "three" ? undefined : key));
-    expect(getSplitLayoutCells(defined(closed)).get("draft")?.width).toBe(5.2);
+    expect(getSplitLayoutCells(defined(closed)).get("draft")?.width).toBe(4);
     expect(getSplitLayoutCells(defined(closed)).get("two")?.height).toBe(8);
     expect(getSplitLayoutDividers("only")).toEqual([]);
   });
@@ -72,12 +73,12 @@ describe("方向分屏布局", () => {
     expect(splitLayout(next, "closed", "late", "left")).toBe(next);
   });
 
-  it("从原有四屏布局开始切分，任务替换保留位置，关闭后兄弟窗口填满空间", () => {
+  it("默认三屏横向等分，任务替换保留位置，关闭后恢复横向二等分", () => {
     const layout = createSplitLayout(["one", "two", "three"]);
     expect(getSplitLayoutCells(defined(layout)).get("one")).toEqual({
       x: 0,
       y: 0,
-      width: 4,
+      width: 8 / 3,
       height: 8,
     });
     const renamed = remapSplitLayout(layout, (key) => (key === "two" ? "draft" : key));
@@ -95,6 +96,20 @@ describe("方向分屏布局", () => {
       getSplitLayoutCells(defined(createSplitLayout(["one", "two", "three", "four"]))).get("four"),
     ).toEqual({ x: 4, y: 4, width: 4, height: 4 });
   });
+
+  it.each(["up", "down", "left", "right"] as const)(
+    "三屏向 %s 添加第四屏后统一田字格等分",
+    (direction) => {
+      const layout = defined(createSplitLayout(["one", "two", "three"]));
+      const next = splitLayout(resizeSplitLayout(layout, "", 0.7), "two", "four", direction);
+      const cells = getSplitLayoutCells(next);
+      expect(cells.size).toBe(4);
+      cells.forEach((cell) => {
+        expect(cell.width).toBe(4);
+        expect(cell.height).toBe(4);
+      });
+    },
+  );
 });
 
 describe("分屏快捷键", () => {

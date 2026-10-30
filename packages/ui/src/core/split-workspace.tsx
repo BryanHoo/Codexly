@@ -131,22 +131,21 @@ export function SplitWorkspaceProvider({
       if (!enabled) return;
       setSelection((previous) => {
         const panes = addSplitPane(previous.panes, pane);
-        return panes === previous.panes
-          ? previous
-          : {
-              ...previous,
-              panes,
-              activeKey: splitPaneKey(pane),
-              layout:
-                previous.layout === undefined
-                  ? undefined
-                  : splitLayout(
-                      previous.layout,
-                      previous.activeKey ?? splitPaneKey(previous.panes[0] ?? pane),
-                      splitPaneKey(pane),
-                      "right",
-                    ),
-            };
+        if (panes === previous.panes) return previous;
+        return {
+          ...previous,
+          panes,
+          activeKey: splitPaneKey(pane),
+          layout:
+            previous.layout === undefined
+              ? createSplitLayout(panes.map(splitPaneKey))
+              : splitLayout(
+                  previous.layout,
+                  previous.activeKey ?? splitPaneKey(previous.panes[0] ?? pane),
+                  splitPaneKey(pane),
+                  "right",
+                ),
+        };
       });
     },
     [enabled],
@@ -154,11 +153,13 @@ export function SplitWorkspaceProvider({
   const close = useCallback((pane: SplitPaneIdentity) => {
     setSelection((previous) => {
       const panes = removeSplitPane(previous.panes, pane);
+      if (panes === previous.panes || panes.length === previous.panes.length) return previous;
       return {
         ...previous,
         panes,
-        layout: remapSplitLayout(previous.layout, (key) =>
-          panes.some((item) => splitPaneKey(item) === key) ? key : undefined,
+        layout: remapSplitLayout(
+          previous.layout ?? createSplitLayout(previous.panes.map(splitPaneKey)),
+          (key) => (panes.some((item) => splitPaneKey(item) === key) ? key : undefined),
         ),
         activeKey:
           previous.activeKey === splitPaneKey(pane)
@@ -448,7 +449,6 @@ export function SplitWorkspaceGrid({
     </div>
   );
 }
-
 export function useNavigateSplitTask() {
   const pane = useContext(SplitPaneContext);
   const workspace = useSplitWorkspaceState(pane === null);

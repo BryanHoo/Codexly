@@ -52,13 +52,18 @@ describe("路由与删除更新分屏选择", () => {
     expect(syncSplitTaskRoute(selection, undefined, "tools", true).panes).toEqual([]);
   });
 
-  it.each([0, 1])("移除第 %s 个任务只关闭对应窗口，并保留有效焦点", (index) => {
+  it.each([0, 1, 2, 3])("移除第 %s 个任务后横向三等分，并保留有效焦点", (index) => {
     const removed = panes[index];
     if (removed === undefined) throw new Error("测试任务不存在");
     const next = dismissSplitTask(selection, removed, () => draft);
     expect(next.panes).toEqual(panes.filter((pane) => pane !== removed));
     expect(next.panes.some((pane) => splitPaneKey(pane) === next.activeKey)).toBe(true);
     if (index === 0) expect(next.activeKey).toBe(selection.activeKey);
+    if (next.layout === undefined) throw new Error("移除任务后布局丢失");
+    getSplitLayoutCells(next.layout).forEach((cell) => {
+      expect(cell.width).toBeCloseTo(8 / 3);
+      expect(cell.height).toBe(8);
+    });
   });
 
   it("迟到删除不关闭已切换的新任务，项目身份独立", () => {

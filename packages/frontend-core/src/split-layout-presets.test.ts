@@ -44,16 +44,16 @@ describe("中栏分屏布局预设", () => {
     ]);
   });
 
-  it("自适应依据中栏实际宽高选择布局，尺寸不可用时也能分屏", () => {
-    expect(cells(2, "auto", 1200, 600)).toEqual(cells(2, "horizontal"));
-    expect(cells(2, "auto", 600, 900)).toEqual(cells(2, "vertical"));
-    expect(cells(3, "auto", 1800, 600)).toEqual(cells(3, "horizontal"));
-    expect(cells(3, "auto", 1000, 700)).toEqual(cells(3, "main-left"));
-    expect(cells(3, "auto", 800, 1000)).toEqual(cells(3, "main-top"));
-    expect(cells(3, "auto", 400, 1200)).toEqual(cells(3, "vertical"));
-    expect(cells(4, "auto", 1000, 700)).toEqual(cells(4, "grid"));
-    expect(cells(4, "auto", 2400, 600)).toEqual(cells(4, "horizontal"));
-    expect(cells(4, "auto", 400, 1400)).toEqual(cells(4, "vertical"));
-    expect(cells(4, "auto", 0, 0)).toEqual(cells(4, "grid"));
+  it.each([
+    [1200, 600],
+    [1000, 700],
+    [800, 1000],
+    [400, 1400],
+    [2400, 600],
+    [0, 0],
+  ])("自适应在 %i×%i 中栏内按数量等分，二三屏横排、四屏田字格", (width, height) => {
+    expect(cells(2, "auto", width, height)).toEqual(cells(2, "horizontal"));
+    expect(cells(3, "auto", width, height)).toEqual(cells(3, "horizontal"));
+    expect(cells(4, "auto", width, height)).toEqual(cells(4, "grid"));
   });
 });

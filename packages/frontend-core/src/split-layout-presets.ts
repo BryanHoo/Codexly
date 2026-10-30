@@ -11,19 +11,6 @@ export const splitLayoutPresetGroups = [
   { count: 4, presets: ["auto", "horizontal", "vertical", "grid"] },
 ] as const;
 
-function autoPreset(count: number, size: SplitWorkspaceSize): SplitLayoutPreset {
-  // 点击时按中栏而非整窗的宽高选布局；极宽/极高区域使用等分，常规四屏优先田字格。
-  const aspect = size.width > 0 && size.height > 0 ? size.width / size.height : 1.4;
-  if (count === 2) return aspect >= 1 ? "horizontal" : "vertical";
-  if (count === 3) {
-    if (aspect >= 1.8) return "horizontal";
-    if (aspect <= 0.75) return "vertical";
-    return aspect >= 1 ? "main-left" : "main-top";
-  }
-  if (aspect >= 2.8) return "horizontal";
-  return aspect <= 0.36 ? "vertical" : "grid";
-}
-
 function equalLayout(
   keys: readonly string[],
   axis: "horizontal" | "vertical",
@@ -40,12 +27,13 @@ function equalLayout(
 export function createPresetSplitLayout(
   keys: readonly string[],
   preset: SplitLayoutPreset,
-  size: SplitWorkspaceSize,
+  _size: SplitWorkspaceSize,
 ): SplitLayout | undefined {
   const panes = keys.slice(0, 4);
   const [one, two, three, four] = panes;
   if (one === undefined || two === undefined) return one;
-  const resolved = preset === "auto" ? autoPreset(panes.length, size) : preset;
+  // 自适应按数量选择舒适等分，不因中栏宽高变成主次屏或过窄的四列布局。
+  const resolved = preset === "auto" ? (panes.length === 4 ? "grid" : "horizontal") : preset;
   if ((resolved === "main-left" || resolved === "main-top") && three !== undefined) {
     const horizontal = resolved === "main-left";
     return {

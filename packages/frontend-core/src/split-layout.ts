@@ -11,13 +11,28 @@ export type SplitLayout =
 export function createSplitLayout(keys: readonly string[]): SplitLayout | undefined {
   const [one, two, three, four] = keys;
   if (one === undefined || two === undefined) return one;
-  // 旧入口继续使用原来的二屏并排、三屏左侧通高、四屏田字布局。
+  // 默认按窗口数量整体等分，避免逐次对半切产生 1/2、1/4、1/4 的窄窗口。
   if (three === undefined) return { axis: "horizontal", first: one, second: two };
+  if (four === undefined) {
+    return {
+      axis: "horizontal",
+      ratio: 1 / 3,
+      first: one,
+      second: { axis: "horizontal", first: two, second: three },
+    };
+  }
   return {
     axis: "horizontal",
-    first: four === undefined ? one : { axis: "vertical", first: one, second: three },
-    second: { axis: "vertical", first: two, second: four ?? three },
+    first: { axis: "vertical", first: one, second: three },
+    second: { axis: "vertical", first: two, second: four },
   };
+}
+
+function orderedSplitKeys(layout: SplitLayout): string[] {
+  // 布局树的遍历顺序可能按列排列；按实际坐标恢复从上到下、从左到右的阅读顺序。
+  return [...getSplitLayoutCells(layout)]
+    .sort(([, first], [, second]) => first.y - second.y || first.x - second.x)
+    .map(([key]) => key);
 }
 
 export function splitLayout(
@@ -26,11 +41,19 @@ export function splitLayout(
   added: string,
   direction: SplitDirection,
 ): SplitLayout {
+  const keys = orderedSplitKeys(layout);
+  if (direction === "left" || direction === "right" || keys.length === 3) {
+    const index = keys.indexOf(target);
+    if (index === -1 || keys.includes(added)) return layout;
+    // 新窗口按方向紧邻目标插入；横向添加整体等分，第四屏统一收敛为田字格。
+    keys.splice(index + (direction === "right" || direction === "down" ? 1 : 0), 0, added);
+    return createSplitLayout(keys) ?? layout;
+  }
   if (typeof layout === "string") {
     if (layout !== target) return layout;
-    const before = direction === "left" || direction === "up";
+    const before = direction === "up";
     return {
-      axis: direction === "left" || direction === "right" ? "horizontal" : "vertical",
+      axis: "vertical",
       first: before ? added : target,
       second: before ? target : added,
     };
@@ -45,13 +68,25 @@ export function remapSplitLayout(
   map: (key: string) => string | undefined,
 ): SplitLayout | undefined {
   if (layout === undefined) return undefined;
-  if (typeof layout === "string") return map(layout);
-  const first = remapSplitLayout(layout.first, map);
-  const second = remapSplitLayout(layout.second, map);
-  // 关闭窗口时折叠其父节点，兄弟窗口自动填满释放的区域。
-  if (first === undefined) return second;
-  if (second === undefined) return first;
-  return first === layout.first && second === layout.second ? layout : { ...layout, first, second };
+  const keys = orderedSplitKeys(layout);
+  const mappedKeys = new Map<string, string>();
+  const remap = (node: SplitLayout): SplitLayout | undefined => {
+    if (typeof node === "string") {
+      const key = map(node);
+      if (key !== undefined) mappedKeys.set(node, key);
+      return key;
+    }
+    const first = remap(node.first);
+    const second = remap(node.second);
+    if (first === undefined) return second;
+    if (second === undefined) return first;
+    return first === node.first && second === node.second ? node : { ...node, first, second };
+  };
+  const next = remap(layout);
+  // 身份替换、位置交换继续保留手动比例；仅真正减少窗口时按原可见顺序整体重排。
+  return mappedKeys.size < keys.length
+    ? createSplitLayout(keys.flatMap((key) => mappedKeys.get(key) ?? []))
+    : next;
 }
 
 export const MIN_SPLIT_RATIO = 0.1;
