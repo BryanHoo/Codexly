@@ -10,6 +10,7 @@ import {
 } from "react";
 import { ChevronDown, Square, SquarePen } from "lucide-react";
 import { Button } from "./button.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
 import { SplitPaneContext } from "./split-workspace.js";
 
 const RevealComposerContext = createContext<(() => void) | undefined>(undefined);
@@ -69,36 +70,45 @@ export function SplitComposer({
   const controls = multiple ? (
     <>
       {!expanded && interruptible ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={stopLabel}
-          title={stopLabel}
-          onClick={onInterrupt}
-        >
-          <Square aria-hidden="true" className="size-3.5 fill-current" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={stopLabel}
+              onClick={onInterrupt}
+            >
+              <Square aria-hidden="true" className="size-3.5 fill-current" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{stopLabel}</TooltipContent>
+        </Tooltip>
       ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={expanded ? collapseLabel : expandLabel}
-        title={expanded ? collapseLabel : expandLabel}
-        aria-expanded={expanded}
-        aria-controls={contentId}
-        onClick={() => {
-          if (expanded) setDisclosure({ multiple, expanded: false });
-          else reveal();
-        }}
-      >
-        {expanded ? (
-          <ChevronDown aria-hidden="true" className="size-4" />
-        ) : (
-          <SquarePen aria-hidden="true" className="size-4" />
-        )}
-      </Button>
+      {/* 复用统一浮层并跟随展开状态切换文案，避免原生 title 与 Tooltip 重复显示。 */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={expanded ? collapseLabel : expandLabel}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            onClick={() => {
+              if (expanded) setDisclosure({ multiple, expanded: false });
+              else reveal();
+            }}
+          >
+            {expanded ? (
+              <ChevronDown aria-hidden="true" className="size-4" />
+            ) : (
+              <SquarePen aria-hidden="true" className="size-4" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{expanded ? collapseLabel : expandLabel}</TooltipContent>
+      </Tooltip>
     </>
   ) : null;
 
