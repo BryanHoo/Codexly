@@ -10,9 +10,6 @@ import type { DeleteProjectFileResponse, RenameProjectFileResponse } from "@code
 import { renameWithoutOverwrite } from "./rename-without-overwrite.js";
 
 const MAX_PROJECT_FILE_DEPTH = 20;
-const validFileName = /^(?!\.\.?$)[^/\\]{1,255}$/u;
-const invalidWindowsFileName =
-  /[<>:"|?*]|[. ]$|^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu;
 
 function parseProjectRelativePath(path: string): readonly string[] {
   const segments = path.split("/");
@@ -66,15 +63,8 @@ export async function renameProjectFile(
   path: string,
   name: string,
 ): Promise<Omit<RenameProjectFileResponse, "tree">> {
-  if (
-    !validFileName.test(name) ||
-    name.includes("\0") ||
-    name.includes("\r") ||
-    name.includes("\n") ||
-    (process.platform === "win32" &&
-      (invalidWindowsFileName.test(name) ||
-        name.split("").some((character) => character.charCodeAt(0) < 32)))
-  ) {
+  // 重命名与新建共用可移植名称规则，不能因部署到 Linux 就绕过 Windows 保留名校验。
+  if (!isValidProjectFileCreationName(name)) {
     throw new TypeError("Project file name is invalid");
   }
   const { absolutePath, resolvedRoot, directory } = await resolveProjectFileTarget(

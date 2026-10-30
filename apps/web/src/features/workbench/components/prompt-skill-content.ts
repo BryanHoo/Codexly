@@ -1,3 +1,4 @@
+import { joinHostPath } from "@codexly/frontend-core/host-path";
 import type { PromptDocumentPart } from "@codexly/protocol";
 import type { AgentSkill, ProjectFileSearchEntry } from "@codexly/protocol";
 
@@ -67,13 +68,7 @@ export function projectFileReferenceKey(
 export function fileReferencePlainText(
   file: Pick<ProjectFileSearchEntry, "path" | "rootPath">,
 ): string {
-  const usesWindowsSeparator = file.rootPath.includes("\\") && !file.rootPath.includes("/");
-  const separator = usesWindowsSeparator ? "\\" : "/";
-  const rootPath = file.rootPath.replace(/[\\/]+$/u, "");
-  const relativePath = usesWindowsSeparator
-    ? file.path.replace(/\//gu, "\\").replace(/^\\+/u, "")
-    : file.path.replace(/\\/gu, "/").replace(/^\/+/u, "");
-  return `@${rootPath}${separator}${relativePath}`;
+  return `@${joinHostPath(file.rootPath, file.path)}`;
 }
 
 export function partLength(part: PromptSkillContentPart): number {

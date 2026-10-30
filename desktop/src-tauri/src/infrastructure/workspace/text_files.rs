@@ -109,7 +109,10 @@ fn resolve_target(root: &Path, requested: &str) -> Result<(PathBuf, String), Wor
         let segment_text = segment
             .to_str()
             .ok_or(WorkspaceError::TextFileUnsupported)?;
-        if segment_text.eq_ignore_ascii_case(".git") || segment_text.contains([':', '\\']) {
+        // 仅 Windows 拒绝备用数据流与盘符语法；POSIX 的冒号、反斜杠属于原始文件名。
+        if segment_text.eq_ignore_ascii_case(".git")
+            || (cfg!(windows) && segment_text.contains([':', '\\']))
+        {
             return Err(WorkspaceError::TextFileUnsupported);
         }
         target.push(segment);

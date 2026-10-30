@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile, symlink, stat, chmod } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile, symlink, stat, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -14,6 +14,23 @@ async function fixture(content: string | Buffer = "\uFEFF第一行\r\n第二行\
   await writeFile(join(root, "notes.md"), content);
   return root;
 }
+it.runIf(process.platform !== "win32")("POSIX 文件名的冒号和反斜杠不重定向到其他文件", async () => {
+  const root = await fixture("original");
+  await mkdir(join(root, "a"));
+  await writeFile(join(root, "a", "b.txt"), "other");
+  for (const path of ["notes:2026.txt", "a\\b.txt"]) {
+    await writeFile(join(root, path), "original");
+    const original = await textFiles.readProjectTextFile(root, path);
+    expect(original.path).toBe(path);
+    await textFiles.saveProjectTextFile(root, {
+      path,
+      content: "edited",
+      expectedVersion: original.version,
+    });
+    expect(await readFile(join(root, path), "utf8")).toBe("edited");
+  }
+  expect(await readFile(join(root, "a", "b.txt"), "utf8")).toBe("other");
+});
 it("preserves UTF-8 BOM, CRLF and permissions on atomic save", async () => {
   const root = await fixture();
   await chmod(join(root, "notes.md"), 0o640);

@@ -11,12 +11,8 @@ pub struct CreateFileResponse {
     pub tree: FileTree,
 }
 
-pub async fn create_project_file(
-    root: &Path,
-    parent: Option<&str>,
-    name: &str,
-    kind: &str,
-) -> Result<CreateFileResponse, WorkspaceError> {
+// 新建与重命名共用可移植名称规则，避免部署系统改变校验结果。
+pub(super) fn validate_project_file_name(name: &str) -> Result<(), WorkspaceError> {
     let stem = name
         .split('.')
         .next()
@@ -38,8 +34,20 @@ pub async fn create_project_file(
         || name.chars().any(|c| {
             c.is_control() || matches!(c, '/' | '\\' | '<' | '>' | ':' | '"' | '|' | '?' | '*')
         })
-        || !matches!(kind, "file" | "directory")
     {
+        return Err(WorkspaceError::InvalidPath);
+    }
+    Ok(())
+}
+
+pub async fn create_project_file(
+    root: &Path,
+    parent: Option<&str>,
+    name: &str,
+    kind: &str,
+) -> Result<CreateFileResponse, WorkspaceError> {
+    validate_project_file_name(name)?;
+    if !matches!(kind, "file" | "directory") {
         return Err(WorkspaceError::InvalidPath);
     }
     let root = tokio::fs::canonicalize(root).await?;

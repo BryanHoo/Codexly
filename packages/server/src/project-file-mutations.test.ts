@@ -49,26 +49,24 @@ describe("project file mutations", () => {
     await renameProjectFile(root, "source", "renamed");
     expect(await readFile(join(root, "renamed", "content"), "utf8")).toBe("preserved");
   });
-  it
-    .runIf(process.platform === "win32")
-    .each([
-      "renamed.",
-      "renamed ",
-      "CON",
-      "nul.txt",
-      "COM1.log",
-      "LPT9",
-      "COM¹.txt",
-      "LPT²",
-      "file:stream",
-      'file"name',
-      "file?name",
-      "file|name",
-      "file<name",
-      "file>name",
-      "file*name",
-      "file\u0001name",
-    ])("rejects Windows filename aliases and invalid names: %j", async (name) => {
+  it.each([
+    "renamed.",
+    "renamed ",
+    "CON",
+    "nul.txt",
+    "COM1.log",
+    "LPT9",
+    "COM¹.txt",
+    "LPT²",
+    "file:stream",
+    'file"name',
+    "file?name",
+    "file|name",
+    "file<name",
+    "file>name",
+    "file*name",
+    "file\u0001name",
+  ])("rejects Windows filename aliases and invalid names: %j", async (name) => {
     const projectRoot = await createTemporaryProject();
     await writeFile(join(projectRoot, "current.txt"), "preserved\n");
     await expect(renameProjectFile(projectRoot, "current.txt", name)).rejects.toThrow(

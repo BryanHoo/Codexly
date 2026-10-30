@@ -1,3 +1,5 @@
+import { getProjectTargetAbsolutePath } from "./project-open-menu-model.js";
+import { fileReferencePlainText as referenceText } from "./prompt-skill-content.js";
 import type { AgentSkill, ProjectFileSearchEntry } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
@@ -121,4 +123,14 @@ describe("prompt file reference content", () => {
       "@/workspace/secondary/src/main.tsx",
     );
   });
+});
+
+// 同一宿主路径必须在菜单与输入框引用中保持一致，不受浏览器系统影响。
+it.each([
+  ["/srv/project\\", "docs/a.txt", "/srv/project\\/docs/a.txt"],
+  ["/srv/project", "docs/a\\b.txt", "/srv/project/docs/a\\b.txt"],
+  ["C:\\work/project", "docs/a.txt", "C:\\work/project\\docs\\a.txt"],
+])("保留宿主根目录 %s 的原始语义", (rootPath, path, expected) => {
+  expect(getProjectTargetAbsolutePath(rootPath, path)).toBe(expected);
+  expect(referenceText({ rootPath, path })).toBe(`@${expected}`);
 });

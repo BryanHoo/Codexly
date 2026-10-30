@@ -6,6 +6,8 @@
 - 桌面目标是 macOS、Windows、Ubuntu；桌面私有终端、窗口、托盘、通知能力不应进入共享 UI 的平台实现。
 - macOS Legacy 兼容规则与 Claude 限制见 [macOS 分档构建](../../../desktop/docs/macos-build-profiles.md)；能力差异见 [三端与双引擎参考](../../../desktop/docs/codexly-capability-matrix.md)。
 - 路径与进程操作使用平台 API；Python 命令使用 `python3`。初始化脚本依赖标准库 `tomllib`，须选择 Python 3.11 或更新版本。
+- Web 文件操作按服务端宿主解释路径，不能根据浏览器操作系统转换。两端复制路径和文件引用共用 `packages/frontend-core/src/host-path.ts`；POSIX 保留反斜杠、大小写和 Unicode 原始形式，Windows 识别盘符、UNC 和扩展前缀。根目录选择按目录边界及最长根匹配，不能对 POSIX 路径统一折叠大小写。
+- 新建和重命名在所有宿主上共用可移植名称规则；读取已有文件时按宿主语义解释文件名，不将 POSIX 冒号和反斜杠误判为 Windows 数据流或目录分隔符。UTF-8、BOM、LF/CRLF 和冲突校验不受浏览器系统影响。契约及官方依据见 [文本文件编辑](../../../docs/text-file-editing.md#跨系统访问)；HTTP 回归携带 Windows/Linux 浏览器标识，真机验证与浏览器标识模拟分别记录。
 - Codex 本地源码位置读取 Git 忽略的根 `.local/project-paths.json` 的 `codexSource`；未配置时使用官方源码仓库，不写入个人绝对路径。
 
 ## 性能边界

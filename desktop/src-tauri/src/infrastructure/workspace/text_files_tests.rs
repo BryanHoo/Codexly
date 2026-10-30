@@ -1,6 +1,30 @@
 use super::*;
 use std::fs;
 
+#[cfg(unix)]
+#[test]
+fn text_files_should_preserve_posix_filename_characters() {
+    let root = tempfile::tempdir().unwrap();
+    for path in ["notes:2026.txt", "a\\b.txt"] {
+        fs::write(root.path().join(path), "original").unwrap();
+        let original = read_text_file(root.path(), path).unwrap();
+        assert_eq!(original.path, path);
+        save_text_file(
+            root.path(),
+            &SaveTextInput {
+                path: path.into(),
+                content: "edited".into(),
+                expected_version: original.version,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(root.path().join(path)).unwrap(),
+            "edited"
+        );
+    }
+}
+
 #[test]
 fn text_files_preserve_bom_crlf_and_reject_stale_writes() {
     let root = tempfile::tempdir().unwrap();

@@ -1,3 +1,5 @@
+import { isWindowsHostPath, normalizeHostPath } from "./host-path.js";
+
 type DocumentDescriptor =
   | { kind: "source" | "image" | "pdf"; reference: { path: string } }
   | { kind: "diff"; change: { path: string } }
@@ -10,11 +12,14 @@ export function documentResourceId(
   projectId: string,
   rootPath: string | undefined,
 ): string {
-  const normalized = path.replaceAll("\\", "/");
-  const root = rootPath?.replaceAll("\\", "/").replace(/\/$/u, "") ?? "";
+  const windows = isWindowsHostPath(rootPath ?? path);
+  const normalized = normalizeHostPath(path, windows);
+  const root = normalizeHostPath(rootPath ?? "", windows);
   // 身份使用完整资源位置，使搜索、文件树和消息引用共用标签；请求仍保留原始路径。
   const absolute =
-    /^(?:\/|[a-z]:\/)/iu.test(normalized) || root === "" ? normalized : `${root}/${normalized}`;
+    normalized.startsWith("/") || (windows && /^[a-z]:\//iu.test(normalized)) || root === ""
+      ? normalized
+      : `${root.replace(/\/$/u, "")}/${normalized}`;
   return JSON.stringify([kind, projectId, root, absolute]);
 }
 

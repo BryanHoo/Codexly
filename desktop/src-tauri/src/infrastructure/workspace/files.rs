@@ -81,13 +81,7 @@ pub async fn rename_project_file(
     relative: &str,
     name: &str,
 ) -> Result<RenameFileResponse, WorkspaceError> {
-    if name.is_empty()
-        || name == "."
-        || name == ".."
-        || name.contains(['/', '\\', '\0', '\r', '\n'])
-    {
-        return Err(WorkspaceError::InvalidPath);
-    }
+    super::file_creation::validate_project_file_name(name)?;
     let (source, _) = resolve_mutation_target(root, relative).await?;
     // 使用已解析的同一个父目录，避免再次解析用户路径时重定向到其他位置。
     let destination = source.with_file_name(name);
@@ -199,6 +193,33 @@ mod tests {
     use std::{fs, time::SystemTime};
 
     use super::*;
+
+    #[tokio::test]
+    async fn rename_should_reject_nonportable_names_on_every_host() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("current.txt"), "preserved").unwrap();
+        for name in [
+            "CON",
+            "nul.txt",
+            "COM¹.log",
+            "trailing.",
+            "trailing ",
+            "file:stream",
+            "file?name",
+            "file\u{1}name",
+        ] {
+            assert!(
+                rename_project_file(root.path(), "current.txt", name)
+                    .await
+                    .is_err(),
+                "{name:?}"
+            );
+        }
+        assert_eq!(
+            fs::read_to_string(root.path().join("current.txt")).unwrap(),
+            "preserved"
+        );
+    }
 
     #[tokio::test]
     async fn file_operations_should_support_project_relative_paths() {

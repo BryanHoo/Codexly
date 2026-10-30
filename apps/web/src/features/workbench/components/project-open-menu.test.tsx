@@ -32,6 +32,12 @@ describe("getProjectFileManagerApp", () => {
 });
 
 describe("getProjectTargetAbsolutePath", () => {
+  it("保留 POSIX 根目录末尾反斜杠并识别 Windows 混合分隔符", () => {
+    expect(getProjectTargetAbsolutePath("/srv/project\\", "a.txt")).toBe("/srv/project\\/a.txt");
+    expect(getProjectTargetAbsolutePath("C:\\work/project", "docs/a.txt")).toBe(
+      "C:\\work/project\\docs\\a.txt",
+    );
+  });
   it("joins project-relative targets into native absolute paths", () => {
     expect(getProjectTargetAbsolutePath("/workspace/Codexly", "docs/guide.md")).toBe(
       "/workspace/Codexly/docs/guide.md",

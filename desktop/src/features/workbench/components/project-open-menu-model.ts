@@ -1,3 +1,4 @@
+import { joinHostPath } from "@codexly/frontend-core/host-path";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppKind } from "@/protocol/index.js";
 import { Code2, ExternalLink, FolderOpen, Terminal, Wrench } from "lucide-react";
@@ -38,16 +39,7 @@ export function getProjectTargetName(path: string): string {
 }
 
 export function getProjectTargetAbsolutePath(projectRootPath: string, targetPath: string): string {
-  const usesWindowsSeparator = projectRootPath.includes("\\") && !projectRootPath.includes("/");
-  const separator = usesWindowsSeparator ? "\\" : "/";
-  const rootPath = projectRootPath.replace(/[\\/]+$/u, "");
-  const relativePath = usesWindowsSeparator
-    ? targetPath.replace(/\//gu, "\\").replace(/^\\+/u, "")
-    : targetPath.replace(/\\/gu, "/").replace(/^\/+/u, "");
-
-  return relativePath === ""
-    ? rootPath || projectRootPath
-    : `${rootPath}${separator}${relativePath}`;
+  return joinHostPath(projectRootPath, targetPath);
 }
 
 export function copyProjectTargetText(text: string): void {

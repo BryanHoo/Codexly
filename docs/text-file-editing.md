@@ -55,6 +55,17 @@ JS/TS/JSX/TSX、JSON、Markdown、Python、Rust、HTML、CSS、YAML、SQL、XML 
 
 项目树提供新建文件/目录、重命名和删除。两端复用弹窗及可移植名称校验；重命名默认只选主名，点文件/目录选择全名。提交失败保留名称和内联错误，删除默认聚焦取消。同步提交锁阻止重复操作；输入改变生成新幂等键，结果不明的相同输入重试复用原键。不改变既有磁盘删除语义。
 
+## 跨系统访问
+
+Web 编辑的是**服务端机器上的项目文件**。Windows 浏览器访问 Linux 服务时使用 Linux 路径；Linux/macOS 浏览器访问 Windows 服务时使用 Windows 路径。浏览器所在系统只决定本机键盘快捷键、上传选择器和下载位置，不决定远程项目的路径、权限、文件名大小写或换行格式。浏览器本地文件与服务端文件没有自动盘符映射；上传文件与导入宿主文件是不同入口。
+
+- 文件树与搜索的项目相对路径使用 `/`；宿主绝对路径保留服务端返回值。复制路径和输入框文件引用共用 `host-path.ts`，支持 Windows 盘符、UNC 和混合分隔符。文档身份可归一化 Windows 扩展路径前缀，但请求仍发送原始路径。
+- POSIX 路径保留大小写、反斜杠和 Unicode 原始形式，不因 Windows 浏览器访问而改写。已有文件引用中的冒号、反斜杠按宿主文件名解释，编辑不能指向另一份正文。新建及重命名在所有宿主上统一采用可移植名称子集，拒绝 Windows 保留名称、控制字符和末尾点/空格；不会自动改名已有文件。
+- 目录根选择按完整目录边界匹配，嵌套时选择最长根；只对 Windows 路径忽略大小写，不能把 Linux 的 `Work` 与 `work` 合并。
+- JSON 请求与响应传递原始 UTF-8 文本。保存沿用文件的 LF/CRLF、BOM 和版本校验，不按浏览器系统转换换行；中文、表情以及路径中的空格、`#`、`&`、`+`、`%` 均需往返保真。UTF-16、GBK 等编码仍按不支持编辑处理，不进行隐式转码。
+
+HTTP 边界回归为 `packages/server/src/routes/project-text-file-routes.test.ts`，分别携带 Windows/Linux 浏览器标识并验证 LF/CRLF、BOM、特殊路径字符和旧版本冲突。共享路径及身份回归为 `host-path.test.ts`、`document-presentation.test.ts`；原生对应 `workspace::text_files` 和 `workspace::files`。浏览器标识测试不能替代 Windows/Linux 真机的文件系统权限、锁占用及原生 WebView 验证。
+
 ## 数据与性能约束
 
 共享契约仍为 `ProjectTextFile { path, content, version, revision? }` 和 `SaveProjectTextFileRequest { path, content, expectedVersion }`。保存只返回新版本与可选修订标记，不回传全文。
@@ -69,6 +80,10 @@ JS/TS/JSX/TSX、JSON、Markdown、Python、Rust、HTML、CSS、YAML、SQL、XML 
 - 在途读取合并；重新激活干净会话先检查修订标记，变化才读全文。未保存会话不被外部内容覆盖，保存仍执行 SHA-256 校验。无后台轮询、逐键网络请求或新增后台 Worker。
 
 ## 官方依据与验证入口
+
+- [Node.js 路径：Windows 与 POSIX](https://nodejs.org/api/path.html#windows-vs-posix)：路径 API 按执行机器解释路径，并提供显式的 `win32` / `posix` 示例。
+- [Node.js 不同文件系统最佳实践](https://nodejs.org/en/learn/manipulating-files/working-with-different-filesystems)：保留大小写与 Unicode 原始形式，避免永久归一化文件名。
+- [Microsoft 文件命名与路径约定](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file)：盘符、UNC、保留设备名称、非法字符及末尾点/空格。
 
 - [VS Code 基础编辑](https://code.visualstudio.com/docs/editing/codebasics.md)：默认手动保存、脏标签、查找替换与 Hot Exit 的边界。
 - [VS Code 保存错误处理源码](https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/files/browser/editors/textFileSaveErrorHandler.ts)：磁盘较新时的比较、覆盖与恢复动作。本项目继续使用条件保存。

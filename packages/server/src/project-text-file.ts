@@ -70,12 +70,15 @@ async function resolveTarget(root: string, requestedPath: string) {
         requestedPath,
       )
     : requestedPath;
-  const segments = path.split(/[\\/]/u);
+  // 路径由服务端文件系统解释；Linux 上的冒号和反斜杠不能按 Windows 路径重写。
+  const windows = process.platform === "win32";
+  const segments = path.split(windows ? /[\\/]/u : /\//u);
   if (
     !path ||
     isAbsolute(path) ||
     segments.some(
-      (s) => !s || s === "." || s === ".." || s.toLowerCase() === ".git" || s.includes(":"),
+      (s) =>
+        !s || s === "." || s === ".." || s.toLowerCase() === ".git" || (windows && s.includes(":")),
     )
   )
     throw unsupported();
