@@ -14,7 +14,8 @@ describe("MessageResponse bold boundaries", () => {
     expect(screen.container.textContent).toContain("精确恢复：记录原生");
     expect(screen.container.textContent).not.toContain("**");
     expect(screen.container.querySelector("code")?.textContent).toBe("query()");
-    await screen.getByRole("button", { name: "example.com Streaming Input" }).click();
+    // 来源按钮沿用原始 Markdown 标签，域名不再拼入可访问名称。
+    await screen.getByRole("button", { name: "Streaming Input", exact: true }).click();
     await expect.element(screen.getByRole("link")).toHaveAttribute("href", "https://example.com/");
   });
 
