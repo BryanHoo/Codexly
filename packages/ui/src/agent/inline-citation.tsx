@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Button } from "../core/button.js";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../core/hover-card.js";
+import { useMessageRole } from "./message.js";
 
 type InlineCitationProps = ComponentProps<"a"> & {
   newTabLabel: string;
@@ -40,11 +41,13 @@ export function InlineCitation({
   title,
   ...props
 }: InlineCitationProps) {
+  const role = useMessageRole();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const restoringFocusRef = useRef(false);
-  const hostname = sourceHostname(href);
+  // 用户输入保留普通链接与平台导航回调，不能套用助手输出的来源按钮和预览交互。
+  const hostname = role === "user" ? null : sourceHostname(href);
   if (hostname === null || containsImage(children)) {
     return (
       <a {...props} href={href} title={title} rel="noopener noreferrer" target="_blank">

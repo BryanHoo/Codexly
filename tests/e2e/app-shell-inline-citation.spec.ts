@@ -10,6 +10,41 @@ import {
 for (const width of [390, 1280]) {
   test.describe(`来源引用 width=${String(width)}`, () => {
     test.use({ hasTouch: width === 390 });
+    test(`@cross-browser 用户链接保持普通外链 width=${String(width)}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const url = "https://github.com/ones20250/Openwrt-AX6600";
+      await page.route(taskSnapshotRoute("task-1"), (route) =>
+        route.fulfill({
+          json: {
+            ...taskSnapshotResponse,
+            snapshot: {
+              ...taskSnapshot,
+              turns: [
+                {
+                  ...taskSnapshot.turns[0],
+                  items: [
+                    { id: "user-link", type: "message", role: "user", text: `请查看 ${url}` },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      );
+      await page.goto("/p/codexly/t/task-1");
+      const link = page.locator('[data-role="user"]').getByRole("link", { name: url });
+      // 等待异步 Markdown 升级后检查真实节点，不能只验证首载时的纯文本占位。
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", url);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(page.locator('[data-role="user"] [data-inline-citation]')).toHaveCount(0);
+      await page.route("https://github.com/**", (route) => route.fulfill({ body: "项目页面" }));
+      const popup = page.waitForEvent("popup");
+      if (width === 390) await link.tap();
+      else await link.click();
+      await (await popup).close();
+    });
+
     test(`@cross-browser 流式来源引用支持预览和外链 width=${String(width)}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const sockets: WebSocketRoute[] = [];

@@ -38,6 +38,10 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 
 const MessageRoleContext = createContext<MessageProps["from"]>("assistant");
 
+export function useMessageRole(): MessageProps["from"] {
+  return useContext(MessageRoleContext);
+}
+
 export function Message({ className, from, ...props }: MessageProps) {
   const ref = useRef<HTMLDivElement>(null);
   useConversationPrompt(ref, from === "user");

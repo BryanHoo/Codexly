@@ -19,6 +19,7 @@ Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要�
 
 ## 正文来源引用
 
+- 来源卡片仅用于助手消息；用户消息中的裸 URL 与 Markdown 网页链接保留普通链接、原标签和目标地址，直接沿用 Web 新窗口或桌面系统浏览器导航。通过共享 Message 角色上下文区分，不能依据链接内容或文件引用开关推断角色；窄屏触屏与桌面点击均不先展开来源卡片。两端 `message-response-inline-citations`、桌面 `inline-citation.browser.test.tsx` 和 Web `app-shell-inline-citation.spec.ts` 覆盖此边界。
 - HTTP(S) Markdown 来源链接复用 `@codexly/ui/agent/inline-citation` 的 HoverCard 与 Button 组合；保留原标签作为来源标题，缺失时回退域名。图片链接、本地文件、指令与非 HTTP(S) 地址继续使用原有语义。不为展示预览抓取网页，也不逐 Token 扫描全文；沿用共享增量分块树。
 - 来源支持悬停、触屏点击及键盘操作，打开动作保留真实链接的 `noopener noreferrer` 与新窗口提示；卡片关闭不抢走输入框焦点。回归入口为 `message-response-inline-citations.test.tsx` 与 `app-shell-inline-citation.spec.ts`，覆盖 Chromium / Firefox / WebKit、真实触屏、长 URL 和流式节点身份。
 

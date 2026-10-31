@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { MessageResponse } from "./message-response.js";
+import { Message } from "./message.js";
 import "../../styles/globals.css";
 
 const openExternalUrl = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -15,6 +16,22 @@ afterEach(async () => {
 });
 
 describe("来源引用交互", () => {
+  it("用户链接直接打开系统浏览器，不展开来源卡片", async () => {
+    const url = "https://github.com/ones20250/Openwrt-AX6600";
+    const screen = await render(
+      <Message from="user">
+        <MessageResponse mode="static" promptFileReferences>{`请查看 ${url}`}</MessageResponse>
+      </Message>,
+    );
+    const link = screen.getByRole("link", { name: url });
+    await expect.element(link).toHaveAttribute("href", url);
+    await link.hover();
+    expect(screen.container.querySelector("[data-inline-citation]")).toBeNull();
+    await link.click();
+    expect(openExternalUrl).toHaveBeenCalledExactlyOnceWith(url);
+    await expect.element(page.getByRole("link", { name: url })).toBeVisible();
+  });
+
   it("悬停预览，点击外部关闭，键盘聚焦与 Escape 可操作", async () => {
     const screen = await render(<>
       <span style={{ fontSize: "20px", lineHeight: "32px" }}>

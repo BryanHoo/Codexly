@@ -2,8 +2,24 @@ import { AppendOnlyTextBuffer } from "@codexly/frontend-core/append-only-text";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MessageResponse } from "./message-response.js";
+import { Message } from "./message.js";
 
 describe("Web 正文来源引用", () => {
+  it.each([
+    "https://github.com/ones20250/Openwrt-AX6600",
+    "[项目地址](https://github.com/ones20250/Openwrt-AX6600)",
+  ])("用户消息保留普通链接：%s", (source) => {
+    const markup = renderToStaticMarkup(
+      <Message from="user">
+        <MessageResponse mode="static" promptFileReferences>
+          {source}
+        </MessageResponse>
+      </Message>,
+    );
+    expect(markup).toContain('href="https://github.com/ones20250/Openwrt-AX6600"');
+    expect(markup).not.toContain('data-inline-citation="true"');
+  });
+
   it.each(["static", "streaming"] as const)("在 %s 模式显示来源按钮", (mode) => {
     const source = '参见 [官方 **文档**](https://www.example.com/guide "使用指南")。';
     const markup = renderToStaticMarkup(
