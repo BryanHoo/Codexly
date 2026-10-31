@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [0.47.0] - 2026-10-31
+## [0.47.1] - 2026-10-31
 
 ### 新增
 
@@ -20,6 +20,13 @@
 
 - 修复跨系统访问时项目路径被错误转换的问题，保留宿主文件名、大小写与原始换行。
 - 修复回复结束后仍显示等待状态，以及正文来源引用改变原文样式的问题。
+- 更新 Web 文件匹配依赖，修复取消操作后仍继续遍历和复杂匹配模式导致资源占用异常的问题。
+
+## [0.47.0] - 2026-10-31
+
+### 发布说明
+
+- 此版本未公开发布，相关更新已合并至 `0.47.1`。
 
 ## [0.46.1] - 2026-10-30
 
@@ -965,7 +972,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.47.1...HEAD
+[0.47.1]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.1
 [0.47.0]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.0
 [0.46.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.1
 [0.46.0]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.0

@@ -132,6 +132,9 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   "@wdio/tauri-service@1.3.0": desktop/patches/@wdio__tauri-service@1.3.0.patch
 overrides:
+  # 只升级静态交付的文件匹配链，修复取消后仍遍历与模式放大漏洞，避免改动旧工具的 glob API。
+  "@fastify/static>glob": 14.0.2
+  "glob@14.0.2>minimatch": 11.0.1
   # 所有 Node 类型依赖统一到当前 Node 24 运行时。
   "@types/node": "catalog:"
   # Tauri Service 固定旧 Globals；统一版本以满足 expect-webdriverio 的 peer 约束。

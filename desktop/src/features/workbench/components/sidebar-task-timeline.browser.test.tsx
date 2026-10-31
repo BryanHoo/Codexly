@@ -1,7 +1,7 @@
 import { SidebarTaskTimeline } from "@codexly/ui/core/sidebar-task-timeline";
 import { upsertSidebarTaskCatalog } from "@codexly/ui/core/sidebar-task-catalog-cache";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { userEvent } from "vitest/browser";
 import "../../../shared/styles/globals.css";
@@ -10,6 +10,7 @@ const labels = { title: "任务时间线", loading: "加载中", empty: "暂无�
   groups: { today: "今天", yesterday: "昨天", week: "近 7 天", earlier: "更早" } };
 
 describe("共享侧栏任务时间线", () => {
+  afterEach(() => vi.useRealTimers());
   it.each([10, 1000])("每组 %i 条任务时标题吸顶、组边界替换且吸顶标题仍可折叠", async count => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const now = new Date();
@@ -136,9 +137,13 @@ describe("共享侧栏任务时间线", () => {
     client.clear();
   });
 
-  it("大量历史只挂载可见行，并支持键盘导航至末项与回到首项", async () => {
+  it.each([0, 12])("%i 时：大量历史只挂载可见行，并支持键盘导航至末项与回到首项", async hour => {
+    // 覆盖 CI 的午夜和本地白天，避免单组折叠断言依赖执行时刻；只模拟 Date，保留真实浏览器定时器。
+    vi.setSystemTime(new Date(2026, 9, 31, hour, 15));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const tasks = Array.from({ length: 2_000 }, (_, index) => ({ id: String(index), projectId: "a", title: `任务 ${index}`, pinned: false, updatedAt: new Date(Date.now() - index * 1000).toISOString() }));
+    // 此用例验证同一分组的虚拟化和折叠，正午锚点保证倒序 2000 秒不会跨入昨天。
+    const taskTime = new Date(2026, 9, 31, 12).getTime();
+    const tasks = Array.from({ length: 2_000 }, (_, index) => ({ id: String(index), projectId: "a", title: `任务 ${index}`, pinned: false, updatedAt: new Date(taskTime - index * 1000).toISOString() }));
     const screen = await render(<QueryClientProvider client={client}><div style={{ height: 320, display: "flex", flexDirection: "column" }}>
       <SidebarTaskTimeline labels={labels} queries={[{ queryKey: ["timeline-test"], queryFn: async () => tasks }]}
         renderTask={task => <a className="block h-8" href={`#task-${task.id}`}>{task.title}</a>} />
@@ -156,6 +161,7 @@ describe("共享侧栏任务时间线", () => {
     await expect.poll(() => first.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(screen.getByTestId("sidebar-task-timeline").element().getBoundingClientRect().top + 32);
     expect(screen.container.querySelectorAll("a").length).toBeLessThan(40);
     const heading = screen.getByRole("button", { name: /今天/ });
+    await expect.element(heading).toHaveTextContent("今天2000");
     (heading.element() as HTMLButtonElement).focus();
     await userEvent.keyboard("{Enter}");
     await expect.element(heading).toHaveAttribute("aria-expanded", "false");
