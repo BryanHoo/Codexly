@@ -30,6 +30,8 @@ Open up to four task panes with independent drafts and queues. Files, Git, and t
 
 Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Tasks visible in foreground panes automatically mark their notifications as read; background tasks keep unread alerts. Reorder, pin, or bulk-close center file tabs and compare files with chat horizontally or vertically. Settings includes global or project saved prompts, inserted by title with `/` or `#`, and token statistics for both engines; saved prompts stay in the current client.
 
+Create files and folders in the project tree. The text editor provides search and replace, manual saving, unsaved markers, and disk conflict comparison. Closing files or switching projects offers Save, Don’t save, or Cancel. Switching tasks in the same project returns to chat while keeping tabs and drafts. See the [workspace guide](../docs/usage.en.md#files-and-previews).
+
 Marking notifications as read or resolving their requests removes the corresponding system alerts. Reading a notification does not approve an action or answer a question.
 
 Use `Alt+Shift+Arrow` to split tasks and **Help → Keyboard shortcuts** to view available shortcuts. Export a diagnostic ZIP from **Settings → About** when troubleshooting.

@@ -34,7 +34,7 @@ Web citations in replies display their source domain. Hover, click, or focus to 
 
 Open subagent details to inspect the initial task, replies, and execution history in an independently scrollable dialog. New output follows to the bottom by default. Scroll up or select text to pause, and return to the bottom to resume. Load earlier process records when needed.
 
-Consecutive commands, tools, and image-view operations share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. Completed turns summarize file changes after the reply.
+Consecutive commands, tools, image-view operations, and wait activities share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. Completed turns summarize file changes after the reply.
 
 Recent history loads first. Load older turns from the top, and expand execution groups for their details. Claude supports forks from completed replies and context compaction through the command menu. Commands and capabilities follow the selected engine.
 
@@ -42,7 +42,7 @@ Recent history loads first. Load older turns from the top, and expand execution 
 
 Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Both clients use `Alt+Shift+Arrow` (Option on macOS). Open **Help → Keyboard shortcuts** for available actions on your platform.
 
-Drag dividers to resize panes. Drafts and queues are independent; files, Git, and the desktop terminal follow the focused task. Navigation from notifications, search, or the task board preserves the layout.
+New panes share the available space equally according to the pane count. Drag dividers to resize them. Drafts and queues are independent; files, Git, and the desktop terminal follow the focused task. Navigation from notifications, search, or the task board preserves the layout.
 
 Use the drag handle in a task pane header to move it onto another pane to swap their positions; drop feedback identifies the target.
 
@@ -52,15 +52,17 @@ Mobile keeps a single-task view. Switch projects and tasks through the sidebar a
 
 Open source, Markdown, images, and PDFs in center tabs while the project tree stays visible on the right. Diffs, file reviews, and commit details also use center tabs. Select **Chat** to return to the conversation. Images support zoom and pan; attachments keep their dedicated previews.
 
-Drag document tabs to reorder them. Right-click a tab or open the tab actions menu to pin, move, or bulk-close tabs; the menu also works on mobile. Standard bulk-close actions preserve pinned tabs. Edits save before closing, and failed saves keep tabs and drafts open. Chat stays first and cannot be closed.
+Choose **New file** or **New folder** from the project root or folder menu, enter a name, and create it. Names cannot contain path separators or reserved system names; an existing item is never overwritten. File menus also offer rename and delete. Failed operations keep your input for correction and retry. Web and mobile operate on files on the server computer, whose path and file format rules apply.
 
-Use the file toolbar to compare with chat side by side or above, drag the divider to resize, and click the selected comparison button again to focus on the document. The tab bar is hidden when only chat is open. Task navigation returns to chat while keeping open file tabs. Each task pane owns its tabs. Mobile uses a single tab group and closes overlay sidebars when opening a file.
+Drag document tabs to reorder them. Right-click a tab or open the tab actions menu to pin, move, or bulk-close tabs; the menu also works on mobile. Standard bulk-close actions preserve pinned tabs. Closing unsaved files offers Save, Don’t save, or Cancel together for all affected files, including background tabs. Failed saves keep tabs and drafts open. Chat stays first and cannot be closed.
+
+Use the file toolbar to compare with chat side by side or above, drag the divider to resize, and click the selected comparison button again to focus on the document. The tab bar is hidden when only chat is open. Switching tasks within the same project returns to chat while preserving file tabs, pins, and unsaved drafts without saving. Switching to another project closes that pane’s file tabs after one confirmation for unsaved changes; cancelling or a failed save keeps the original task open. Each task pane owns its tabs. Mobile uses a single tab group and closes overlay sidebars when opening a file.
 
 On a phone or another LAN device, download files that cannot be previewed and open them with an app on that device. Choosing the system default from the file tree, chat file links, or search results first shows a download prompt; transfer starts when you select Download. Local Web access and desktop can still open files with applications on the host.
 
-Edit text in source mode; switch Markdown to source first. UTF-8 files up to 2 MiB are editable, preserving line endings and BOM. Other files remain read-only. Edits save on blur, file navigation, or window switching; use `⌘/Ctrl+S` to save manually, with undo and redo available.
+Edit text in source mode; switch Markdown to source first. UTF-8 files up to 2 MiB are editable, preserving line endings and BOM. Other files remain read-only. Unsaved tabs show a dot. Click Save or press `⌘/Ctrl+S` to write changes; blur, file navigation, and window switching do not save automatically. Use undo and redo, `⌘/Ctrl+F` for search and replace, and `Alt+Z` to toggle line wrapping.
 
-Failed saves or external conflicts keep your draft in the current window. Retry saving or choose to discard changes, which requires confirmation; cancelling keeps the draft editable. Pasting text preserves the file’s original LF or CRLF line endings. Drafts are held in memory and may not survive refreshes, forced exits, or crashes. Confirm save status before leaving.
+Failed saves keep your draft and offer retry. When the disk file changes, compare it with your draft and choose to continue editing, use the disk version, or save your draft. The latter two require confirmation, and another disk change after comparison still prevents overwriting. Pasting text preserves the file’s original LF or CRLF line endings. Drafts are held in memory and may not survive refreshes, forced exits, or crashes. Confirm save status before leaving.
 
 ## Git and worktrees
 

@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-10-31
+
+### 新增
+
+- 项目文件树支持新建文件和文件夹，统一重命名、删除及失败重试体验。
+- 文本编辑器支持手动保存、未保存标签提示、查找替换与磁盘冲突对比，关闭文件或切换项目时可统一处理草稿。
+
+### 优化
+
+- 同项目切换任务保留文件标签与草稿并返回聊天；分屏按数量自适应等分，统一编辑器和分屏控件提示。
+- 按需加载查找面板以降低编辑器加载开销，并将等待活动归入可自动折叠的操作组。
+
+### 修复
+
+- 修复跨系统访问时项目路径被错误转换的问题，保留宿主文件名、大小写与原始换行。
+- 修复回复结束后仍显示等待状态，以及正文来源引用改变原文样式的问题。
+
 ## [0.46.1] - 2026-10-30
 
 ### 新增
@@ -948,7 +965,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.0
 [0.46.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.1
 [0.46.0]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.0...v0.45.1
