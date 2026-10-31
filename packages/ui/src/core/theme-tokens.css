@@ -1,0 +1,75 @@
+/* Web、移动浏览器和桌面只维护这一份颜色与阴影，构建时内联，无额外请求。 */
+:root {
+  /* 两端共用柔和炭灰表面：正文避免纯白，浮层逐级提亮，以颜色层级代替刺眼边界。
+   * 参考 Primer Dark Dimmed 与 Atlassian elevation；保持次级文字在浮层上也达到 AA。 */
+  --ui-color-window: light-dark(#ffffff, #23272e);
+  --ui-color-content: light-dark(#ffffff, #282c34);
+  --ui-color-sidebar: light-dark(#ffffff, #23272e);
+  --ui-color-panel: light-dark(#ffffff, #262b32);
+  --ui-color-raised: light-dark(#ffffff, #2e343d);
+  --ui-color-dialog: light-dark(#ffffff, #323943);
+  --ui-color-control: light-dark(rgb(17 17 17 / 0.04), rgb(173 186 199 / 0.08));
+  --ui-color-code-inline: light-dark(rgb(17 17 17 / 0.08), rgb(173 186 199 / 0.12));
+  --ui-color-control-hover: light-dark(rgb(23 23 23 / 0.075), rgb(173 186 199 / 0.1));
+  --ui-color-control-active: light-dark(rgb(0 106 255 / 0.09), rgb(117 172 245 / 0.14));
+  --ui-color-separator: light-dark(rgb(23 23 23 / 0.06), rgb(173 186 199 / 0.08));
+  --ui-color-separator-strong: light-dark(rgb(23 23 23 / 0.11), rgb(173 186 199 / 0.18));
+  --ui-color-text: light-dark(#111111, #c8cdd5);
+  --ui-color-text-muted: light-dark(rgb(17 17 17 / 0.72), #a6aeb9);
+  --ui-color-text-subtle: light-dark(rgb(17 17 17 / 0.52), #99a3b0);
+  /* 终端保持稳定的 GitHub Dimmed 暗色介质，与工作台的明暗切换解耦。 */
+  --ui-color-terminal: #22272e;
+  --ui-color-terminal-header: #2d333b;
+  --ui-color-terminal-control-hover: rgb(173 186 199 / 0.1);
+  --ui-color-terminal-foreground: #adbac7;
+  --ui-color-terminal-muted: #909dab;
+  --ui-color-terminal-separator: rgb(173 186 199 / 0.1);
+  --ui-color-accent: light-dark(#006aff, #75acf5);
+  --ui-color-accent-strong: light-dark(#0057d6, #91bfff);
+  --ui-color-accent-soft: light-dark(rgb(0 106 255 / 0.09), rgb(117 172 245 / 0.14));
+  --ui-color-diff-added: light-dark(#28a948, #8ddb8c);
+  --ui-color-diff-removed: light-dark(#eb001d, #f47067);
+  --ui-color-warning: light-dark(#b25900, #daaa3f);
+  --ui-color-task-running: light-dark(#087cf0, #75acf5);
+  --ui-color-task-waiting: light-dark(#e59a00, #daaa3f);
+  /* 暖绿完成态与冷蓝运行态拉开色相和明度，保证小圆点也能快速辨认。 */
+  --ui-color-task-completed: light-dark(#4d7c0f, #9fbd73);
+  --ui-color-task-failed: light-dark(#ed1b2e, #f47067);
+  --ui-color-danger: var(--ui-color-diff-removed);
+  --ui-color-focus: var(--ui-color-accent);
+  --ui-color-scrim: light-dark(rgb(23 23 23 / 0.16), rgb(0 0 0 / 0.52));
+  --ui-color-wallpaper-overlay: light-dark(#ffffff, #282c34);
+  --ui-color-scrollbar-thumb: light-dark(rgb(60 60 67 / 0.36), rgb(235 235 245 / 0.3));
+  --ui-color-scrollbar-thumb-hover: light-dark(rgb(60 60 67 / 0.5), rgb(235 235 245 / 0.42));
+
+  /* 固定栏使用单像素低对比分隔，保留原生应用的结构感而不形成重边框。 */
+  --ui-shadow-divider: 1px 0 0 var(--ui-color-separator);
+  --ui-shadow-divider-reverse: -1px 0 0 var(--ui-color-separator);
+  --ui-shadow-toolbar: 0 1px 0 var(--ui-color-separator);
+  --ui-shadow-control: 0 1px 2px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.28));
+  --ui-shadow-panel:
+    0 12px 32px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.42)),
+    0 2px 7px light-dark(rgb(23 23 23 / 0.06), rgb(0 0 0 / 0.3));
+  --ui-shadow-floating:
+    0 8px 24px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.4)),
+    0 1px 4px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.3));
+  --ui-shadow-focus: 0 0 0 3px light-dark(rgb(0 106 255 / 0.2), rgb(51 156 255 / 0.25));
+  --ui-shadow-timeline-node: 0 0 0 3px var(--ui-color-content);
+}
+
+/* 显式覆盖前景语义，避免运行环境仅将 color-scheme 应用于原生控件和局部属性。 */
+body:has(.workbench-background[data-has-image="true"][data-background-tone="light"]) {
+  color-scheme: light;
+  --ui-color-text: #111111;
+  --ui-color-text-muted: rgb(17 17 17 / 0.72);
+  --ui-color-text-subtle: rgb(17 17 17 / 0.52);
+  --ui-color-wallpaper-overlay: #ffffff;
+}
+
+body:has(.workbench-background[data-has-image="true"][data-background-tone="dark"]) {
+  color-scheme: dark;
+  --ui-color-text: #c8cdd5;
+  --ui-color-text-muted: #a6aeb9;
+  --ui-color-text-subtle: #99a3b0;
+  --ui-color-wallpaper-overlay: #282c34;
+}

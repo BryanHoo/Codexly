@@ -5,7 +5,7 @@ import {
   type ThemedToken,
 } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-import githubDark from "shiki/themes/github-dark.mjs";
+import githubDark from "shiki/themes/github-dark-dimmed.mjs";
 import githubLight from "shiki/themes/github-light.mjs";
 
 import { projectLanguageModules, type HighlightLanguage } from "./code-languages.js";
@@ -82,7 +82,7 @@ export async function highlightCode(
         : batchSource;
     const result = highlighter.codeToTokens(batch, {
       lang: language,
-      themes: { dark: "github-dark", light: "github-light" },
+      themes: { dark: "github-dark-dimmed", light: "github-light" },
       ...(grammarState === undefined ? {} : { grammarState }),
       tokenizeMaxLineLength: HIGHLIGHT_MAX_LINE_LENGTH,
     });

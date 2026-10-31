@@ -144,11 +144,13 @@ describe("Project folder actions", () => {
 });
 
 describe("TaskStatusIndicator", () => {
-  it("uses vivid status colors and a running glow that respects reduced motion", () => {
-    const css = ["globals.css", "workbench.css"]
-      .map((fileName) =>
-        readFileSync(new URL(`../../../shared/styles/${fileName}`, import.meta.url), "utf8"),
-      )
+  it("uses distinct status colors and a running glow that respects reduced motion", () => {
+    const css = [
+      new URL("../../../shared/styles/globals.css", import.meta.url),
+      new URL("../../../shared/styles/workbench.css", import.meta.url),
+      new URL("../../../../../../packages/ui/src/core/theme-tokens.css", import.meta.url),
+    ]
+      .map((url) => readFileSync(url, "utf8"))
       .join("\n");
     const keyframes = css.slice(
       css.indexOf("@keyframes task-running-glow-breathe"),
@@ -163,10 +165,10 @@ describe("TaskStatusIndicator", () => {
     );
 
     expect(css).toContain("@keyframes task-running-glow-breathe");
-    expect(css).toContain("--ui-color-task-running: light-dark(#087cf0, #2196ff);");
-    expect(css).toContain("--ui-color-task-waiting: light-dark(#e59a00, #ffb300);");
-    expect(css).toContain("--ui-color-task-completed: light-dark(#4d7c0f, #a3e635);");
-    expect(css).toContain("--ui-color-task-failed: light-dark(#ed1b2e, #ff3b4f);");
+    expect(css).toContain("--ui-color-task-running: light-dark(#087cf0, #75acf5);");
+    expect(css).toContain("--ui-color-task-waiting: light-dark(#e59a00, #daaa3f);");
+    expect(css).toContain("--ui-color-task-completed: light-dark(#4d7c0f, #9fbd73);");
+    expect(css).toContain("--ui-color-task-failed: light-dark(#ed1b2e, #f47067);");
     expect(css).toContain("animation: task-running-glow-breathe 1.2s");
     expect(keyframes).toContain("opacity: 0.2");
     expect(keyframes).toContain("opacity: 0.45");

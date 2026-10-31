@@ -186,23 +186,23 @@ test("provides reusable design tokens for light and dark themes", async ({ page 
   });
 
   expect(await readTheme("dark")).toEqual({
-    accent: "rgb(51, 156, 255)",
+    accent: "rgb(117, 172, 245)",
     bodyFontWeight: "450",
     bodyFontSize: expect.stringMatching(/^0?\.875rem$/),
-    content: "rgb(24, 24, 24)",
-    control: "rgba(255, 255, 255, 0.07)",
-    diffAdded: "rgb(64, 201, 119)",
-    diffRemoved: "rgb(250, 66, 62)",
-    ink: "rgb(255, 255, 255)",
-    inlineCodeBackground: "rgba(255, 255, 255, 0.12)",
-    mutedInk: "rgba(255, 255, 255, 0.68)",
-    panel: "rgb(24, 24, 24)",
-    sidebar: "rgb(24, 24, 24)",
-    semanticControlHover: "rgba(255, 255, 255, 0.1)",
-    semanticBrand: "rgb(51, 156, 255)",
+    content: "rgb(40, 44, 52)",
+    control: "rgba(173, 186, 199, 0.08)",
+    diffAdded: "rgb(141, 219, 140)",
+    diffRemoved: "rgb(244, 112, 103)",
+    ink: "rgb(200, 205, 213)",
+    inlineCodeBackground: "rgba(173, 186, 199, 0.12)",
+    mutedInk: "rgb(166, 174, 185)",
+    panel: "rgb(38, 43, 50)",
+    sidebar: "rgb(35, 39, 46)",
+    semanticControlHover: "rgba(173, 186, 199, 0.1)",
+    semanticBrand: "rgb(117, 172, 245)",
     spaceUnit: expect.stringMatching(/^0?\.25rem$/),
-    subtleInk: "rgba(255, 255, 255, 0.5)",
-    surface: "rgb(24, 24, 24)",
+    subtleInk: "rgb(153, 163, 176)",
+    surface: "rgb(35, 39, 46)",
   });
 });
 

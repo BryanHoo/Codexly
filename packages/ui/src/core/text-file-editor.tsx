@@ -192,7 +192,7 @@ export function TextFileEditor({
   return (
     <div
       ref={frame}
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-content"
+      className="file-theme flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-content"
       data-inline-text-editor=""
       onKeyDown={(event) => {
         // 工具栏也属于当前文件；在按钮上按保存快捷键不能触发浏览器“另存网页”。

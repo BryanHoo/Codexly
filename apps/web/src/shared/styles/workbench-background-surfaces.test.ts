@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const workbenchCss = readFileSync(new URL("./workbench.css", import.meta.url), "utf8");
+const themeCss = readFileSync(
+  new URL("../../../../../packages/ui/src/core/theme-tokens.css", import.meta.url),
+  "utf8",
+);
 const codeCommentsSource = readFileSync(
   new URL("../components/agent/code-comments.tsx", import.meta.url),
   "utf8",
@@ -14,11 +18,11 @@ const promptControlsSource = readFileSync(
 
 describe("工作台背景浮层", () => {
   it("根据背景亮度同步切换完整前景色方案", () => {
-    expect(workbenchCss).toMatch(
+    expect(themeCss).toMatch(
       /data-background-tone="light"[^}]*\{[^}]*color-scheme:\s*light;[^}]*--ui-color-text:\s*#111111;[^}]*--ui-color-text-muted:[^}]*--ui-color-text-subtle:[^}]*--ui-color-wallpaper-overlay:\s*#ffffff;/u,
     );
-    expect(workbenchCss).toMatch(
-      /data-background-tone="dark"[^}]*\{[^}]*color-scheme:\s*dark;[^}]*--ui-color-text:\s*#ffffff;[^}]*--ui-color-text-muted:[^}]*--ui-color-text-subtle:[^}]*--ui-color-wallpaper-overlay:\s*#181818;/u,
+    expect(themeCss).toMatch(
+      /data-background-tone="dark"[^}]*\{[^}]*color-scheme:\s*dark;[^}]*--ui-color-text:\s*#c8cdd5;[^}]*--ui-color-text-muted:[^}]*--ui-color-text-subtle:[^}]*--ui-color-wallpaper-overlay:\s*#282c34;/u,
     );
   });
 

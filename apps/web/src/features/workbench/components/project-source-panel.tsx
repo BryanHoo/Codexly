@@ -254,7 +254,7 @@ export function ProjectSourcePanel({
   return (
     <section
       aria-label={formatDisplayPath(sourcePath)}
-      className="flex h-full min-h-0 flex-col bg-raised"
+      className="file-theme flex h-full min-h-0 flex-col bg-raised"
       onScrollCapture={handleSourceScroll}
       ref={contentRef}
     >
@@ -381,7 +381,7 @@ export function ProjectSourcePanel({
                 </Tooltip>
               }
             />
-            <div className="min-h-0 overflow-auto px-5 py-4 sm:px-8 sm:py-6">
+            <div className="file-markdown min-h-0 overflow-auto px-5 py-4 sm:px-8 sm:py-6">
               <LazyMessageResponse className="mx-auto max-w-4xl">
                 {sourceContent}
               </LazyMessageResponse>

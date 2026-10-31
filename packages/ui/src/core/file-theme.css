@@ -1,0 +1,73 @@
+/* 配色取自 GitHub 官方 Light / Dark Dimmed 主题。
+ * CSS 原生切换亮暗色，不重新创建 CodeMirror、语法树或 Shiki token。
+ * https://github.com/primer/github-vscode-theme
+ */
+:root {
+  --file-background: light-dark(#ffffff, #22272e);
+  --file-foreground: light-dark(#24292e, #adbac7);
+  --file-surface: light-dark(#f6f8fa, #2d333b);
+  --file-muted: light-dark(#586069, #909dab);
+  --file-border: light-dark(#e1e4e8, #444c56);
+  --file-accent: light-dark(#0366d6, #539bf5);
+  --file-selection: light-dark(#0366d625, #539bf540);
+  --file-active-line: light-dark(#f6f8fa, #636e7b1a);
+  --file-search-match: light-dark(#ffdf5d66, #eac55f40);
+  --file-search-selected: light-dark(#ffdf5d, #966600);
+  --file-bracket-match: light-dark(#34d05840, #57ab5a40);
+  --file-syntax-comment: light-dark(#6a737d, #768390);
+  --file-syntax-keyword: light-dark(#d73a49, #f47067);
+  --file-syntax-constant: light-dark(#005cc5, #6cb6ff);
+  --file-syntax-string: light-dark(#032f62, #96d0ff);
+  --file-syntax-entity: light-dark(#6f42c1, #dcbdfb);
+  --file-syntax-variable: light-dark(#24292e, #adbac7);
+  --file-syntax-type: light-dark(#e36209, #f69d50);
+  --file-syntax-invalid: light-dark(#b31d28, #ff938a);
+}
+
+.file-theme {
+  /* 局部覆盖使文件头、工具栏、Markdown 与编辑器共用 GitHub 色板；不影响聊天与浮层。 */
+  --ui-color-content: var(--file-background);
+  --ui-color-raised: var(--file-surface);
+  --ui-color-text: var(--file-foreground);
+  --ui-color-text-muted: var(--file-muted);
+  --ui-color-text-subtle: var(--file-muted);
+  --ui-color-separator: var(--file-border);
+  --ui-color-separator-strong: var(--file-border);
+  --ui-color-control: var(--file-active-line);
+  --ui-color-control-hover: light-dark(#e1e4e880, #636e7b33);
+  --ui-color-code-inline: light-dark(#1b1f230d, #636e7b66);
+  --ui-color-accent: var(--file-accent);
+  --ui-color-accent-strong: var(--file-accent);
+  --ui-color-accent-soft: var(--file-selection);
+  color: var(--file-foreground);
+  background-color: var(--file-background);
+}
+
+.file-markdown {
+  line-height: 1.7;
+}
+
+.file-markdown :is(h1, h2) {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--file-border);
+}
+
+.file-markdown blockquote {
+  color: var(--file-muted);
+  border-left-color: var(--file-border);
+}
+
+.file-markdown :not(pre) > code {
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  background-color: var(--ui-color-code-inline);
+  font-size: 85%;
+}
+
+.file-markdown :is(th, td) {
+  border-color: var(--file-border);
+}
+
+.file-markdown tr:nth-child(2n) {
+  background-color: var(--file-surface);
+}

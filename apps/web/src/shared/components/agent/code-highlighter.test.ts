@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createHighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import typescript from "shiki/langs/typescript.mjs";
-import githubDark from "shiki/themes/github-dark.mjs";
+import githubDark from "shiki/themes/github-dark-dimmed.mjs";
 import githubLight from "shiki/themes/github-light.mjs";
 
 import { highlightCode } from "./code-highlighter.js";
@@ -34,7 +34,7 @@ describe("highlightCode", () => {
       try {
         const expected = reference.codeToTokens(code, {
           lang: "typescript",
-          themes: { dark: "github-dark", light: "github-light" },
+          themes: { dark: "github-dark-dimmed", light: "github-light" },
         });
         expect((await highlightCode(code, "typescript")).lines).toEqual(expected.tokens);
       } finally {

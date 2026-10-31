@@ -1,3 +1,5 @@
+@import "../../../../../packages/ui/src/core/theme-tokens.css";
+@import "../../../../../packages/ui/src/core/file-theme.css";
 @import "@codexly/ui/core/document-workspace.css";
 @import "@codexly/ui/core/toaster.css";
 @import "@codexly/ui/core/workbench-status-bar.css";
@@ -31,61 +33,6 @@
 
 :root {
   color-scheme: light dark;
-
-  /* 大面积区域保持指定纯色，交互层级只叠加透明 ink，避免浅灰底和明显分割。 */
-  --ui-color-window: light-dark(#ffffff, #181818);
-  --ui-color-content: light-dark(#ffffff, #181818);
-  --ui-color-sidebar: light-dark(#ffffff, #181818);
-  --ui-color-panel: light-dark(#ffffff, #181818);
-  --ui-color-raised: light-dark(#ffffff, #202020);
-  --ui-color-dialog: var(--ui-color-raised);
-  --ui-color-control: light-dark(rgb(17 17 17 / 0.04), rgb(255 255 255 / 0.07));
-  --ui-color-code-inline: light-dark(rgb(17 17 17 / 0.08), rgb(255 255 255 / 0.12));
-  --ui-color-control-hover: light-dark(rgb(23 23 23 / 0.075), rgb(255 255 255 / 0.1));
-  --ui-color-control-active: light-dark(rgb(0 106 255 / 0.09), rgb(51 156 255 / 0.14));
-  --ui-color-separator: light-dark(rgb(23 23 23 / 0.06), rgb(255 255 255 / 0.07));
-  --ui-color-separator-strong: light-dark(rgb(23 23 23 / 0.11), rgb(255 255 255 / 0.13));
-  --ui-color-text: light-dark(#111111, #ffffff);
-  --ui-color-text-muted: light-dark(rgb(17 17 17 / 0.72), rgb(255 255 255 / 0.68));
-  --ui-color-text-subtle: light-dark(rgb(17 17 17 / 0.52), rgb(255 255 255 / 0.5));
-  /* 终端保持稳定暗色介质，避免命令输出随应用主题切换而失去 ANSI 对比度。 */
-  --ui-color-terminal: light-dark(#181818, #111111);
-  --ui-color-terminal-header: light-dark(#202020, #181818);
-  --ui-color-terminal-control-hover: rgb(255 255 255 / 0.1);
-  --ui-color-terminal-foreground: #f5f5f5;
-  --ui-color-terminal-muted: rgb(245 245 245 / 0.62);
-  --ui-color-terminal-separator: rgb(255 255 255 / 0.1);
-  --ui-color-accent: light-dark(#006aff, #339cff);
-  --ui-color-accent-strong: light-dark(#0057d6, #69b7ff);
-  --ui-color-accent-soft: light-dark(rgb(0 106 255 / 0.09), rgb(51 156 255 / 0.14));
-  --ui-color-diff-added: light-dark(#28a948, #40c977);
-  --ui-color-diff-removed: light-dark(#eb001d, #fa423e);
-  --ui-color-warning: light-dark(#b25900, #ffb347);
-  --ui-color-task-running: light-dark(#087cf0, #2196ff);
-  --ui-color-task-waiting: light-dark(#e59a00, #ffb300);
-  /* 暖绿完成态与冷蓝运行态拉开色相和明度，保证小圆点也能快速辨认。 */
-  --ui-color-task-completed: light-dark(#4d7c0f, #a3e635);
-  --ui-color-task-failed: light-dark(#ed1b2e, #ff3b4f);
-  --ui-color-danger: var(--ui-color-diff-removed);
-  --ui-color-focus: var(--ui-color-accent);
-  --ui-color-scrim: light-dark(rgb(23 23 23 / 0.16), rgb(0 0 0 / 0.52));
-  --ui-color-wallpaper-overlay: light-dark(#ffffff, #181818);
-  --ui-color-scrollbar-thumb: light-dark(rgb(60 60 67 / 0.36), rgb(235 235 245 / 0.3));
-  --ui-color-scrollbar-thumb-hover: light-dark(rgb(60 60 67 / 0.5), rgb(235 235 245 / 0.42));
-
-  /* 固定栏使用单像素低对比分隔，保留原生应用的结构感而不形成重边框。 */
-  --ui-shadow-divider: 1px 0 0 var(--ui-color-separator);
-  --ui-shadow-divider-reverse: -1px 0 0 var(--ui-color-separator);
-  --ui-shadow-toolbar: 0 1px 0 var(--ui-color-separator);
-  --ui-shadow-control: 0 1px 2px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.28));
-  --ui-shadow-panel:
-    0 12px 32px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.42)),
-    0 2px 7px light-dark(rgb(23 23 23 / 0.06), rgb(0 0 0 / 0.3));
-  --ui-shadow-floating:
-    0 8px 24px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.4)),
-    0 1px 4px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.3));
-  --ui-shadow-focus: 0 0 0 3px light-dark(rgb(0 106 255 / 0.2), rgb(51 156 255 / 0.25));
-  --ui-shadow-timeline-node: 0 0 0 3px var(--ui-color-content);
 
   --ui-font-family-text:
     "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",

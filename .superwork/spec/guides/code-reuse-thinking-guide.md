@@ -35,7 +35,7 @@
 - Popup 可悬停，Portal 避免滚动容器裁剪，Positioner 保持 8px 视口留白并允许翻转；长路径可换行，箭头继承 Popup 背景，动效遵循减少动态效果设置。Base UI 新依赖须纳入桌面浏览器测试的预打包列表，避免测试中途重新优化、重载及重复加载 React。
 - 回归入口为 `desktop/src/shared/components/core/tooltip.browser.test.tsx`（两端入口、Chromium/WebKit、事件/ref、禁用按钮包装、菜单组合、延迟分组和宽窄屏）与 `tests/e2e/app-shell-tooltip.spec.ts`（三浏览器、明暗主题、键盘、减少动态效果及真实触屏）。
 - Base UI 迁移后的 Web 首屏 gzip 预算为 360 KiB，工作台就绪为 520 KiB，最大异步依赖组仍为 640 KiB；以 `tools/verify-web-bundle.mjs` 的实际静态依赖闭包测量，预算变更不替代交互和渲染性能验证。
-- 桌面以 `desktop/performance-budget.json` 校验未压缩的首屏及完整场景闭包：首屏 475,000 字节；workspace 1,820,000、markdown 2,320,000、cppHighlight 2,900,000 字节；textEditor 2,150,000、taskWindow 550,000 字节。两端统计口径不同，不能直接比较 gzip 与原始字节预算。
+- 桌面以 `desktop/performance-budget.json` 校验未压缩的首屏及完整场景闭包：首屏 475,000 字节；workspace 1,820,000、markdown 2,320,000、cppHighlight 2,900,000 字节；textEditor 2,200,000、taskWindow 550,000 字节。两端统计口径不同，不能直接比较 gzip 与原始字节预算。
 
 ## 共享 Dialog 与 Drawer
 

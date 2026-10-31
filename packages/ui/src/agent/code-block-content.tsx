@@ -123,7 +123,6 @@ export function CodeBlockContent({
     initialRect: CODE_VIEWPORT_INITIAL_RECT,
     overscan: CODE_LINE_OVERSCAN,
   });
-  const palette = pageStates[0]?.tokenized;
 
   useEffect(() => {
     if (highlightedLine === null || highlightedLine < 1) return;
@@ -139,8 +138,8 @@ export function CodeBlockContent({
       <pre
         className="relative m-0 min-w-full bg-transparent font-mono text-body-small leading-6 text-foreground"
         style={{
-          backgroundColor: palette?.background ?? "transparent",
-          color: palette?.foreground ?? "inherit",
+          backgroundColor: "var(--file-background, transparent)",
+          color: "var(--file-foreground, inherit)",
           height: virtualizer.getTotalSize() + CODE_LINE_HEIGHT_PX,
         }}
       >

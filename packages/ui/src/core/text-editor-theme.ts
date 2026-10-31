@@ -1,42 +1,37 @@
 import { EditorView } from "@codemirror/view";
 import { defaultHighlightStyle, HighlightStyle } from "@codemirror/language";
 
-// 复用官方语义标签，仅替换颜色；用 CSS 变量响应主题，切换主题不重建解析器或编辑状态。
-const darkSyntaxColors: Readonly<Record<string, string>> = {
-  "#404740": "#a6accd",
-  "#708": "#c792ea",
-  "#219": "#82aaff",
-  "#164": "#c3e88d",
-  "#a11": "#ecc48d",
-  "#e40": "#f78c6c",
-  "#00f": "#82aaff",
-  "#30a": "#c792ea",
-  "#085": "#89ddff",
-  "#167": "#89ddff",
-  "#256": "#b2ccd6",
-  "#00c": "#82aaff",
-  "#940": "#a6accd",
-  "#f00": "#ff5370",
+// 保留 CodeMirror 官方语义标签，映射为 GitHub 色板；不再混用默认浅色与其他暗色主题。
+// 颜色由共享 CSS 变量解析，切换主题不会重建解析器、编辑状态或撤销历史。
+const syntaxRoles: Readonly<Record<string, string>> = {
+  "#404740": "comment",
+  "#708": "keyword",
+  "#219": "constant",
+  "#164": "constant",
+  "#a11": "string",
+  "#e40": "string",
+  "#00f": "variable",
+  "#30a": "variable",
+  "#085": "type",
+  "#167": "entity",
+  "#256": "constant",
+  "#00c": "constant",
+  "#940": "comment",
+  "#f00": "invalid",
 };
 export const editorHighlightStyle = HighlightStyle.define(
   defaultHighlightStyle.specs.map((style) =>
     typeof style["color"] === "string"
-      ? { ...style, color: `var(--editor-syntax-${style["color"].slice(1)}, ${style["color"]})` }
+      ? { ...style, color: `var(--file-syntax-${syntaxRoles[style["color"]] ?? "variable"})` }
       : style,
   ),
 );
 
 export const editorTheme = EditorView.theme({
-  '[data-theme="dark"] &': Object.fromEntries(
-    Object.entries(darkSyntaxColors).map(([light, dark]) => [
-      `--editor-syntax-${light.slice(1)}`,
-      dark,
-    ]),
-  ),
   "&": {
     height: "100%",
-    color: "var(--color-foreground)",
-    backgroundColor: "var(--color-content)",
+    color: "var(--file-foreground)",
+    backgroundColor: "var(--file-background)",
   },
   ".cm-scroller": {
     overflow: "auto",
@@ -49,9 +44,9 @@ export const editorTheme = EditorView.theme({
     margin: "8px 8px 8px auto",
     width: "min(680px, calc(100% - 16px))",
     boxSizing: "border-box",
-    border: "1px solid var(--color-separator)",
+    border: "1px solid var(--file-border)",
     borderRadius: "var(--radius-control, 8px)",
-    background: "var(--color-content)",
+    background: "var(--file-background)",
     fontFamily: "var(--font-sans, sans-serif)",
     fontSize: "12px",
   },
@@ -71,17 +66,17 @@ export const editorTheme = EditorView.theme({
   ".cm-file-search-replace-actions": { gridArea: "actions", justifySelf: "end" },
   ".cm-file-search-field": {
     height: "32px",
-    border: "1px solid var(--color-separator-strong)",
+    border: "1px solid var(--file-border)",
     borderRadius: "var(--radius-control, 6px)",
-    background: "var(--color-content)",
+    background: "var(--file-background)",
   },
   '.cm-file-search-field [data-align="inline-start"]': { order: "-1" },
   '.cm-file-search-field [data-align="inline-end"]': { paddingRight: "4px" },
   ".cm-file-search-field:focus-within": {
-    borderColor: "var(--color-brand)",
-    boxShadow: "0 0 0 2px color-mix(in srgb, var(--color-brand) 12%, transparent)",
+    borderColor: "var(--file-accent)",
+    boxShadow: "0 0 0 2px color-mix(in srgb, var(--file-accent) 12%, transparent)",
   },
-  ".cm-file-search-field:has([aria-invalid=true])": { borderColor: "var(--color-danger)" },
+  ".cm-file-search-field:has([aria-invalid=true])": { borderColor: "var(--ui-color-danger)" },
   ".cm-file-search-field input": {
     width: "0",
     minWidth: "0",
@@ -100,32 +95,40 @@ export const editorTheme = EditorView.theme({
       gridTemplateAreas: '"find find close" "replace replace replace" "nav actions actions"',
     },
   },
-  ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--color-brand) 20%, transparent)" },
-  ".cm-searchMatch-selected": { outline: "1px solid var(--color-brand)" },
-  ".cm-collapsedLines": {
-    background: "var(--color-raised)",
-    color: "var(--color-muted-foreground)",
-    border: "1px solid var(--color-separator)",
+  ".cm-searchMatch": { backgroundColor: "var(--file-search-match)" },
+  ".cm-searchMatch-selected": {
+    backgroundColor: "var(--file-search-selected)",
+    outline: "1px solid var(--file-accent)",
   },
-  ".cm-collapsedLines:hover": { background: "var(--color-control-hover)" },
+  "&.cm-focused .cm-matchingBracket": { backgroundColor: "var(--file-bracket-match)" },
+  "&.cm-focused .cm-nonmatchingBracket": {
+    outline: "1px solid var(--file-syntax-invalid)",
+  },
+  ".cm-collapsedLines": {
+    background: "var(--file-surface)",
+    color: "var(--file-muted)",
+    border: "1px solid var(--file-border)",
+  },
+  ".cm-collapsedLines:hover": { background: "var(--ui-color-control-hover)" },
   ".cm-foldGutter": { width: "14px" },
-  ".cm-content": { padding: "12px 0", caretColor: "var(--color-foreground)" },
+  ".cm-content": { padding: "12px 0", caretColor: "var(--file-accent)" },
   ".cm-gutters": {
-    backgroundColor: "var(--color-raised)",
-    color: "var(--color-muted-foreground)",
+    backgroundColor: "var(--file-background)",
+    color: "var(--file-muted)",
     border: "none",
   },
-  ".cm-activeLine": { backgroundColor: "var(--color-control-hover)" },
+  ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "var(--file-active-line)" },
   "&.cm-focused": { outline: "none" },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-    backgroundColor: "color-mix(in srgb, var(--color-brand) 25%, transparent)",
+  // 同时覆盖原生选择与 CodeMirror 绘制选择，触屏和桌面使用同一选区颜色。
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
+    backgroundColor: "var(--file-selection)",
   },
-  ".cm-cursor": { borderLeftColor: "var(--color-foreground)" },
-  ".cm-panels": { backgroundColor: "var(--color-raised)", color: "var(--color-foreground)" },
+  ".cm-cursor": { borderLeftColor: "var(--file-accent)" },
+  ".cm-panels": { backgroundColor: "var(--file-background)", color: "var(--file-foreground)" },
   ".cm-textfield, .cm-button": {
     color: "inherit",
-    background: "var(--color-content)",
-    border: "1px solid var(--color-separator-strong)",
+    background: "var(--file-background)",
+    border: "1px solid var(--file-border)",
     borderRadius: "6px",
     fontSize: "12px",
     minHeight: "28px",

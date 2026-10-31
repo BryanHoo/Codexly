@@ -8,6 +8,8 @@
 - [跨层契约](cross-layer-thinking-guide.md)：协议、引擎身份、本地存储和事件链路。
 - [跨平台与性能](cross-platform-thinking-guide.md)：桌面平台差异、移动浏览器及性能验证。
 
+- [共享主题与文件配色](theme-design.md)：柔和暗色、GitHub 文件主题与编辑状态验证。
+
 ## 验证入口
 
 所有命令从仓库根目录运行。包管理器由根 `package.json` 固定为 `pnpm@11.22.0`，工作区由 `pnpm-workspace.yaml` 定义；Bun 只用于编译桌面宿主。
