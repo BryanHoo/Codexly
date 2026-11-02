@@ -1,3 +1,4 @@
+import type { AgentThreadMemory } from "@codexly/protocol";
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
   AgentGlobalApprovalPolicy,
@@ -264,6 +265,8 @@ export class PendingRequestResolutionError extends Error {
 
 // Core 只声明 Provider 无关能力，具体 RPC、传输顺序与进程生命周期留在外层。
 export interface AgentProvider {
+  /** 仅读取当前会话所选记忆版本，不恢复会话或读取全局记忆文件。 */
+  readThreadMemory?(taskId: string): Promise<AgentThreadMemory>;
   /** 切换存活会话权限并等待原生确认；无会话时只更新下次运行的任务状态。 */
   updateTaskPermissionMode?(taskId: string, mode: ClaudePermissionMode): Promise<void>;
   readTaskMetadata?(taskId: string): Promise<AgentTask | undefined>;

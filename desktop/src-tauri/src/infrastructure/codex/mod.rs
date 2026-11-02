@@ -150,6 +150,7 @@ pub use conversation_advanced::{
     clear_goal, compact_task, fork_task, set_goal_objective, start_review, update_goal,
     upload_feedback,
 };
+mod thread_memory;
 pub use conversation_background::{list_background_terminals, terminate_background_terminal};
 pub use conversation_commands::{interrupt_turn, start_turn, steer_turn, update_thread_settings};
 pub use conversation_events::map_server_event_now;
@@ -170,6 +171,7 @@ pub use process::{CodexProcess, SUPPORTED_CODEX_VERSION};
 pub use runtime_manager::{inspect_codex_runtime, install_codex_runtime};
 pub use sidebar::{list_projects, read_project};
 pub use tasks::{delete_task, read_task, task_working_directory, unsubscribe_task};
+pub use thread_memory::read_thread_memory;
 mod conversation_access;
 mod model_cache;
 #[cfg(test)]

@@ -1,3 +1,4 @@
+import { AgentThreadMemorySchema } from "@codexly/protocol";
 import type { AgentEngine } from "@codexly/protocol";
 import {
   SubmitTaskResponseSchema,
@@ -218,6 +219,10 @@ export class TaskHttpClient extends SessionHttpClient {
       OpenAgentTaskAttachmentResponseSchema,
       options,
     );
+  }
+
+  public async readThreadMemory(projectId: string, taskId: string, options: ReadOptions = {}) {
+    return this.read(`${taskPath(projectId, taskId)}/memory`, AgentThreadMemorySchema, options);
   }
 
   public async listBackgroundTerminals(

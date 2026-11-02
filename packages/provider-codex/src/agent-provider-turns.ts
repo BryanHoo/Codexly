@@ -1,3 +1,4 @@
+import type { AgentThreadMemory } from "@codexly/protocol";
 import type {
   AgentProviderEventListener,
   AgentProviderTurnInput,
@@ -35,6 +36,7 @@ import { CodexAgentProviderQueue } from "./agent-provider-queue.js";
 import { mapCodexGoal } from "./codex-goal-mapping.js";
 import { mapCodexTurnSettings } from "./codex-turn-settings.js";
 import { interruptCodexTurn } from "./codex-turn-interrupt.js";
+import { readCodexThreadMemory } from "./codex-thread-memory.js";
 import { steerCodexTurn } from "./codex-turn-steer.js";
 
 export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
@@ -303,6 +305,11 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       throw new CodexProtocolMappingError("Codex turn settings update status is invalid");
     }
     return status;
+  }
+
+  public async readThreadMemory(taskId: string): Promise<AgentThreadMemory> {
+    this.assertKnownProjectTask(taskId);
+    return readCodexThreadMemory(this.client, taskId);
   }
 
   public async listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage> {

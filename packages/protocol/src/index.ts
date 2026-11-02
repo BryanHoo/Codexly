@@ -87,12 +87,7 @@ export {
   type NavigableAgentTaskResponse,
   type ResyncRequired,
 } from "./agent-event.js";
-export {
-  EventStreamMetricsResponseSchema,
-  EventStreamProjectMetricsSchema,
-  type EventStreamMetricsResponse,
-  type EventStreamProjectMetrics,
-} from "./server-metrics.js";
+export * from "./server-metrics.js";
 export {
   AgentActivityItemSchema,
   AgentApprovalReviewActionSchema,
@@ -498,3 +493,4 @@ export * from "./claude-extensions.js";
 export { AgentThreadConfigurationSchema } from "./agent-attachments.js";
 export * from "./task-activity.js";
 export * from "./token-usage.js";
+export { AgentThreadMemorySchema, type AgentThreadMemory } from "./thread-memory.js";

@@ -138,6 +138,7 @@ fn main() {
         "update_task_goal",
         "clear_task_goal",
         "upload_feedback",
+        "read_thread_memory",
         "list_background_terminals",
         "terminate_background_terminal",
         "list_queued_submissions",

@@ -19,7 +19,17 @@ const staticRoot = fileURLToPath(new URL("../../dist/web", import.meta.url));
 // Fake Server 由当前 Node.js 执行，确保 Windows 不会把测试脚本当成原生 .exe。
 const fakeAppServer = spawn(
   process.execPath,
-  [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
+  [
+    fakeAppServerPath,
+    "app-server",
+    "--enable",
+    "plugins",
+    // 与正式启动及 Fake App Server 的参数契约保持一致，不在测试启动时预取插件。
+    "-c",
+    "features.plugin_discovery_prefetch=false",
+    "--listen",
+    "stdio://",
+  ],
   {
     env: { ...process.env, FAKE_APP_SERVER_SCENARIO: "realtime-actions" },
     shell: false,

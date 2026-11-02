@@ -72,6 +72,25 @@ pub async fn upload_feedback(
 }
 
 #[tauri::command(rename_all = "camelCase")]
+pub async fn read_thread_memory(
+    app: AppHandle,
+    project_id: String,
+    task_id: String,
+    state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"].as_str() != Some("codex") {
+        // 非 Codex 会话直接说明能力不支持，不建立无关引擎连接。
+        return Ok(serde_json::json!({ "status": "unsupported", "summary": null }));
+    }
+    let connection = state.codex_connection().await?;
+    let response = codex::read_thread_memory(&connection, &project_id, &task_id)
+        .await
+        .map_err(AppError::from)?;
+    serde_json::to_value(response).map_err(|_| AppError::CodexRequestFailed)
+}
+
+#[tauri::command(rename_all = "camelCase")]
 pub async fn list_background_terminals(
     project_id: String,
     task_id: String,

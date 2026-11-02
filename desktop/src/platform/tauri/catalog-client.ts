@@ -1,3 +1,4 @@
+import type { AgentThreadMemory } from "@codexly/protocol";
 import type { TokenUsageQuery, TokenUsageResponse } from "@codexly/protocol";
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
@@ -26,6 +27,11 @@ import { TauriWorkspaceClient } from "./workspace-client.js";
 import type { GlobalInstructions, MemorySettings, MemorySettingsUpdate } from "@/protocol/index.js";
 
 export class TauriCatalogClient extends TauriWorkspaceClient {
+  public async readThreadMemory(projectId: string, taskId: string, options: ReadOptions = {}): Promise<AgentThreadMemory> {
+    return this.callCancellable("read_thread_memory", { projectId, taskId }, options.signal);
+  }
+
+
   public async compressHistory(): Promise<HistoryCompressionResult> {
     return this.call("compress_history");
   }

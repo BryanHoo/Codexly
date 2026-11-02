@@ -11,6 +11,11 @@ import type {
   ProjectOpenAppId,
   ProjectGitCommit,
 } from "@codexly/protocol";
+import {
+  ThreadMemorySection,
+  threadMemoryLabels,
+  type ThreadMemoryClient,
+} from "@codexly/ui/core/thread-memory-section";
 import { RefreshCw } from "lucide-react";
 import { lazy, Suspense, useMemo } from "react";
 import { Tabs } from "radix-ui";
@@ -75,7 +80,7 @@ type WorkbenchInspectorProps = Readonly<{
   gitStatusError?: Error | null;
   gitStatusPending?: boolean;
   gitStatusRefreshing?: boolean;
-  gitClient?: CodexlyWorkbenchClient;
+  gitClient?: CodexlyWorkbenchClient & ThreadMemoryClient;
   mcpServers?: readonly AgentMcpServer[];
   mcpStatusSource?: AgentMcpServerPage["statusSource"];
   mcpObservedAt?: string | null | undefined;
@@ -206,6 +211,15 @@ export function WorkbenchInspector({
   const projectRootName = projectPath.split(/[\\/]/u).filter(Boolean).at(-1) ?? projectName;
   const contextContent = (
     <div className="h-full space-y-5 overflow-y-auto p-2.5">
+      {activeTab === "context" && projectId !== undefined && taskId !== undefined ? (
+        <ThreadMemorySection
+          client={gitClient ?? codexlyClient}
+          projectId={projectId}
+          taskId={taskId}
+          revision={`${task?.turns.at(-1)?.id ?? ""}:${task?.turns.at(-1)?.status ?? ""}`}
+          labels={threadMemoryLabels[i18n.language.startsWith("zh") ? "zh" : "en"]}
+        />
+      ) : null}
       {task?.goal === null || task?.goal === undefined ? null : (
         <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
       )}

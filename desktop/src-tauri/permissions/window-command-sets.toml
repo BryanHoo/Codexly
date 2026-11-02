@@ -107,6 +107,7 @@ permissions = [
   "allow-update-task-goal",
   "allow-clear-task-goal",
   "allow-upload-feedback",
+  "allow-read-thread-memory",
   "allow-list-background-terminals",
   "allow-terminate-background-terminal",
   "allow-list-queued-submissions",

@@ -1,3 +1,4 @@
+import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AgentEngine, AgentTask, ClaudePermissionMode } from "@codexly/protocol";
 import type {
   AgentProvider,
@@ -227,6 +228,14 @@ export class EngineProjectRouter implements AgentProvider {
   }
   async listMcpServers(...args: Parameters<AgentProvider["listMcpServers"]>) {
     return (await this.#method(args[0], "listMcpServers"))(...args);
+  }
+  async readThreadMemory(taskId: string): Promise<AgentThreadMemory> {
+    const engine = this.#ephemeral.get(taskId) ?? (await this.#task(taskId)).provider;
+    // Claude 没有此实验能力，不能因查看上下文启动 Codex。
+    if (engine !== "codex") return { status: "unsupported", summary: null };
+    return (
+      this.#adapter(engine).readThreadMemory?.(taskId) ?? { status: "unsupported", summary: null }
+    );
   }
   async listBackgroundTerminals(...args: Parameters<AgentProvider["listBackgroundTerminals"]>) {
     return (await this.#method(args[0], "listBackgroundTerminals"))(...args);

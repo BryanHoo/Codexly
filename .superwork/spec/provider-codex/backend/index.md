@@ -52,3 +52,12 @@
 - Web 服务与桌面启动 Codex App Server 时以进程参数设置 `features.plugin_discovery_prefetch=false`，保留 `plugins` 启用及官方已安装插件同步，不写用户全局配置。正式服务和配置诊断共用各端功能参数，避免有效配置不一致。
 - 插件页沿用共享 `CodexOfficialPluginsPane`：挂载时查询列表，60 秒内复用查询缓存，首次加载使用既有骨架；不增加后台预热、定时器或独立缓存。
 - 该开关只关闭启动发现预取，不关闭插件资源下载、市场自动更新或会话工具推荐。回归入口为 `app-server-process.test.ts`、`startup-config.test.ts`，桌面对应 `process_tests.rs`、`startup_config_tests.rs`。
+
+## 会话记忆摘要
+
+- `thread/memory/read` 为实验接口，返回已加载会话所选版本的 `summary: string | null`；null 表示禁用或摘要缺失、不可读、空白，不是故障。不能恢复历史会话或读取全局文件代替真实结果。
+- 共用 `@codexly/protocol` 的 `AgentThreadMemory` 契约，区分 `ready`、`not_loaded`、`unsupported`；只将明确的线程缺失和方法不存在映射为正常状态，其他错误保留。Claude 不为此启动 Codex。
+- Web/移动与桌面共用 `ThreadMemorySection`，仅上下文可见时查询，不轮询、不落盘，按项目/任务隔离，卸载清理缓存；正文安全显示为保留换行的纯文本。HTTP 禁止缓存，两条传输都校验任务归属。
+- 依据与用户说明见 [会话记忆摘要](../../../../docs/thread-memory.md)；验证入口为 `agent-provider-memory.test.ts`、`app-memory.test.ts`、`http-client-memory.test.ts`、原生 `thread_memory::tests` 和桌面 `thread-memory.browser.test.tsx`。
+
+- 产品展示仅在摘要为非空白文本时出现；空值、未加载、能力不可用及首次失败都隐藏整个模块，不展示内部说明。刷新使用与 MCP 相同的 `RefreshCw`、`icon-sm`、Tooltip 和忙碌动画；失败保留已有摘要供继续阅读和重试，成功返回空值则隐藏。

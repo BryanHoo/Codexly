@@ -130,6 +130,11 @@ export class CodexRuntimeProjectProvider implements AgentProvider {
     return this.#delegate.updateTurnApprovalsReviewer(taskId, turnId, reviewer);
   }
 
+  public async readThreadMemory(taskId: string) {
+    await this.#ensureTaskOwner(taskId);
+    return this.#delegate.readThreadMemory(taskId);
+  }
+
   public async listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage> {
     await this.#ensureTaskOwner(taskId);
     return this.#delegate.listBackgroundTerminals(taskId);
