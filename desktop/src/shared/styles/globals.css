@@ -19,9 +19,6 @@
 :root {
   color-scheme: light dark;
 
-  --ui-font-family-text:
-    "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
-    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --ui-font-family-mono:
     "Geist Mono", ui-monospace, "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
   /* 提升各层级字重但保留明确级差，增强紧凑工作台中的快速扫描能力。 */
