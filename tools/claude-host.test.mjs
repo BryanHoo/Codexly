@@ -22,6 +22,7 @@ test(
     const usage = new Map();
     let calls = 0;
     let titleCalls = 0;
+    let discoveryCalls = 0;
     const messageBodies = [];
     const proofContent = `approved${"x".repeat(400000)}`;
     const api = createServer((request, response) => {
@@ -53,6 +54,8 @@ test(
         assert.equal(request.headers["x-api-key"], "local-host-test");
         const body = JSON.parse(raw);
         const isTitle = body.model === "gateway-haiku";
+        // 新版网关默认延迟加载任务工具；模拟模型先发现工具，再执行原有审批与计划流程。
+        const discoverTasks = !isTitle && !body.tools?.some((tool) => tool.name === "TaskCreate");
         if (isTitle) {
           titleCalls++;
           assert.ok(
@@ -66,7 +69,8 @@ test(
             JSON.stringify(body).includes("Always test"),
             "user CLAUDE.md must apply even with project settings disabled",
           );
-          calls++;
+          if (discoverTasks) discoveryCalls++;
+          else calls++;
         }
         let useTool = !isTitle && [1, 3, 5].includes(calls);
         const content = useTool
@@ -97,7 +101,16 @@ test(
           useTool = true;
         }
         // 真实 SDK 执行任务工具，验证结构化结果、跨进程恢复与计划投影的完整链路。
-        if (!isTitle && calls === 1) {
+        if (discoverTasks) {
+          assert.ok(body.tools.some((tool) => tool.name === "ToolSearch"));
+          content.splice(0, content.length, {
+            type: "tool_use",
+            id: `discover-tasks-${discoveryCalls}`,
+            name: "ToolSearch",
+            input: { query: "select:TaskCreate,TaskUpdate", max_results: 2 },
+          });
+          useTool = true;
+        } else if (!isTitle && calls === 1) {
           assert.ok(body.tools.some((tool) => tool.name === "TaskCreate"));
           content.unshift({
             type: "tool_use",
@@ -201,9 +214,10 @@ test(
         {
           stdio: ["pipe", "pipe", "pipe"],
           env: {
+            // 不继承工具搜索开关，稳定验证 SDK 默认的网关延迟加载行为。
             ...Object.fromEntries(
               Object.entries(process.env).filter(
-                ([key]) => !/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key),
+                ([key]) => !/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$|ENABLE_TOOL_SEARCH$)/u.test(key),
               ),
             ),
             HOME: directory,
@@ -347,6 +361,7 @@ test(
       );
       assert.equal(tasks.get("task").title, "编写验证文件");
       assert.ok(titleCalls > 0);
+      assert.ok(discoveryCalls > 0, "原生网关会话必须覆盖延迟任务工具发现");
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
       // 真实分发宿主在同一原生回合内接收引导；排队项仍支持读取、排序和取消。

@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -121,11 +121,12 @@ async function localApi(tool?: { name: string; input: Record<string, unknown> })
 
 it.each([
   { modelContextWindow: 400000, autoCompactWindow: 300000, expected: 300000 },
+  { modelContextWindow: 400000, autoCompactWindow: 300000, loadProject: true, expected: 123456 },
   { modelContextWindow: 500000, autoCompactWindow: null, expected: 500000 },
   { modelContextWindow: null, autoCompactWindow: null, expected: 200000 },
 ])(
   "真实 SDK 从原生配置读取自定义模型窗口：$expected",
-  async ({ expected, ...windows }) => {
+  async ({ expected, loadProject = false, ...windows }) => {
     const root = await nativeTestDirectory("claude-context-contract-");
     const api = await localApi();
     const config = new ClaudeConfiguration(root, join(root, "native"));
@@ -134,6 +135,13 @@ it.each([
       ...windows,
       modelAliases: { opus: "", sonnet: "gpt-6.1-sol", haiku: "" },
     });
+    // 项目配置故意与用户配置冲突，同时覆盖排除来源和显式启用来源两个方向。
+    // SDK 0.3.314 修复了未列入 settingSources 的设置仍可能生效的问题。
+    await mkdir(join(root, ".claude"), { recursive: true });
+    await writeFile(
+      join(root, ".claude", "settings.json"),
+      JSON.stringify({ autoCompactWindow: 123456 }),
+    );
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
@@ -155,7 +163,7 @@ it.each([
         model: "sonnet",
         tools: [],
         persistSession: false,
-        settingSources: ["user"],
+        settingSources: loadProject ? ["user", "project", "local"] : ["user"],
         abortController: controller,
         settings: { apiKeyHelper: "", forceLoginMethod: "console" },
         env: {
