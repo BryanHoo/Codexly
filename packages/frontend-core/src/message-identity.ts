@@ -54,8 +54,29 @@ export function retainSnapshotTurnItems<Item extends IdentityItem>(
   incoming: readonly Item[],
   turnId: string,
 ): Item[] {
-  const incomingById = new Map(incoming.map((item) => [item.id, item]));
-  const retained = resolveMessageAliases(current, incoming, turnId).map((item) => {
+  // 身份关联属于整个会话，后续摘要省略别名不能撤销它。先索引已有关系，
+  // 让原生历史与持久回答交替返回各自 ID 时仍能原位接管，不依赖正文猜测。
+  const currentByIdentity = new Map<string, Item>();
+  for (const item of current) {
+    if (item.type !== "message") continue;
+    currentByIdentity.set(item.id, item);
+    for (const alias of item.identityAliases ?? []) currentByIdentity.set(alias, item);
+  }
+  const normalized = incoming.map((item) => {
+    if (item.type !== "message") return item;
+    const identities = [item.id, ...(item.identityAliases ?? [])];
+    const aliases = new Set(item.identityAliases);
+    for (const id of identities) {
+      const previous = currentByIdentity.get(id);
+      if (previous === undefined) continue;
+      aliases.add(previous.id);
+      for (const alias of previous.identityAliases ?? []) aliases.add(alias);
+    }
+    aliases.delete(item.id);
+    return aliases.size === 0 ? item : { ...item, identityAliases: [...aliases] };
+  });
+  const incomingById = new Map(normalized.map((item) => [item.id, item]));
+  const retained = resolveMessageAliases(current, normalized, turnId).map((item) => {
     const authoritative = incomingById.get(item.id);
     incomingById.delete(item.id);
     return authoritative ?? item;

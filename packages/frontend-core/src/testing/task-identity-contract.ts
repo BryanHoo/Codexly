@@ -156,6 +156,28 @@ export function taskIdentityContract(createStore: (initial: Response) => Contrac
     store.getState().applyEvents([completed(message("canonical", "完成", ["old"]), 1)]);
     expect(ids(store)).toEqual(["canonical", "tail"]);
   });
+  test("切回任务后旧回答 ID 再次出现仍原位接管，缺省别名不能丢失身份", () => {
+    const answer = {
+      ...message("native-answer", "范围\n整个项目", ["persisted-answer"]),
+      role: "user" as const,
+    };
+    const withoutAliases = {
+      id: answer.id,
+      type: answer.type,
+      role: answer.role,
+      text: answer.text,
+    };
+    const tail = message("tail", "继续执行");
+    const store = createStore(response([answer, tail]));
+    // 中间快照可能不带别名；之后恢复持久回答时仍须识别同一实体。
+    store.getState().reconcile(response([withoutAliases, tail]));
+    for (let index = 0; index < 3; index++) {
+      store.getState().reconcile(response([tail, { ...withoutAliases, id: "persisted-answer" }]));
+      expect(ids(store)).toEqual(["persisted-answer", "tail"]);
+      store.getState().reconcile(response([withoutAliases, tail]));
+      expect(ids(store)).toEqual(["native-answer", "tail"]);
+    }
+  });
   test("别名接管释放旧正文的内存预算", () => {
     const canonical = message("canonical", "完成", ["old"]);
     const store = createStore(response([message("old", "长正文".repeat(10_000)), message("tail")]));
