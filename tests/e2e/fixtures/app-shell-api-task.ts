@@ -26,6 +26,11 @@ export async function handleAppShellTaskRoute(
   let body: unknown;
   if (url.pathname === "/v1/tasks/completed/query") {
     body = { data: [], nextCursor: null };
+  } else if (
+    /^\/v1\/projects\/[^/]+\/tasks\/[^/]+\/memory$/u.test(url.pathname) &&
+    route.request().method() === "GET"
+  ) {
+    body = { status: "ready", summary: null };
   } else if (url.pathname.endsWith("/async-questions") && route.request().method() === "GET") {
     body = { data: [] };
   } else if (

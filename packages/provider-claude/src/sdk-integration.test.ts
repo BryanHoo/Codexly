@@ -15,6 +15,7 @@ import { expect, it, vi } from "vitest";
 import { ClaudeConfiguration, claudeEnvironment } from "./config.js";
 import { ClaudeRuntime } from "./runtime.js";
 import { ClaudeTurnProjection } from "./turn-projection.js";
+import { record } from "./sdk-values.js";
 
 /** Windows runner 的 TEMP 可能包含 8.3 短名；统一真实路径，避免 CLI 与 SDK 索引使用不同目录键。 */
 async function nativeTestDirectory(prefix: string): Promise<string> {
@@ -530,13 +531,22 @@ it("projects a real SDK Bash result into the shared command item", async () => {
     },
   });
   try {
-    for await (const message of stream) turn.receive(message);
+    let bashResult: Record<string, unknown> = {};
+    for await (const message of stream) {
+      if (message.type === "user" && message.tool_use_result) {
+        bashResult = record(message.tool_use_result);
+      }
+      turn.receive(message);
+    }
+    expect(bashResult["stdout"]).toBe("native-command-proof");
+    expect(bashResult["stderr"]).toEqual(expect.any(String));
     expect(turn.status).toBe("completed");
     const command = turn.snapshot().items.find((item) => item.id === "native-tool");
     expect(command).toMatchObject({
       type: "command",
       command: "printf native-command-proof",
-      output: "native-command-proof",
+      // Windows 的 SDK 可能附带 cwd 重置提示；投影须同时保留 stdout 与工具提示。
+      output: [bashResult["stdout"], bashResult["stderr"]].filter(Boolean).join("\n"),
       status: "completed",
     });
     expect(command).not.toHaveProperty("exitCode");

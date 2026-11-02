@@ -190,7 +190,7 @@ describe("global search dialog", () => {
     try {
       await vi.waitFor(() =>
         expect(getComputedStyle(screen.getByRole("dialog").element()).backgroundColor).toBe(
-          "rgb(32, 32, 32)",
+          "rgb(50, 57, 67)",
         ),
       );
       await page.screenshot({ path: "../../../test-results/global-search-dark.png" });

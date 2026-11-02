@@ -112,12 +112,9 @@ describeRealRuntime("三平台真实 Codex 原生链路", () => {
     await passthroughNativeCommands(REAL_COMMANDS);
     await releaseApplicationStartup();
     await browser.waitUntil(
-      async () =>
-        browser.execute(
-          () =>
-            (window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls.start_runtime?.length ?? 0) > 0,
-        ),
-      { timeout: 19 * 60_000, timeoutMsg: "应用未完成私有 Codex 自动安装及启动链路" },
+      // connect_runtime 可以先完成自动启动；直接核对真实状态，不依赖 UI 再发起 start_runtime。
+      async () => (await invokeNative<RuntimeSnapshot>("start_runtime")).status === "ready",
+      { timeout: 19 * 60_000, timeoutMsg: "真实 Codex app-server 未进入 ready 状态" },
     );
   });
 

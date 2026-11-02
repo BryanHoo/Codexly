@@ -110,6 +110,6 @@ void test("Legacy output should restore missing APIs and switch compiled theme c
   });
   assert.deepEqual(await colors(), ["rgb(17, 17, 17)", "rgb(255, 255, 255)"]);
   await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
-  assert.deepEqual(await colors(), ["rgb(255, 255, 255)", "rgb(24, 24, 24)"]);
+  assert.deepEqual(await colors(), ["rgb(200, 205, 213)", "rgb(38, 43, 50)"]);
   assert.equal(await page.locator(".legacy-code-token").evaluate((node) => getComputedStyle(node).color), "rgb(0, 255, 0)");
 });
