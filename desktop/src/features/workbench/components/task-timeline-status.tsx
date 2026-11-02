@@ -4,7 +4,8 @@ import type { MessageFileReference } from "../../../shared/components/agent/mess
 import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
 import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
 import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
-import { resolveTurnProcessingTime, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import { useTurnProcessingTime } from "@codexly/ui/agent/use-turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -14,15 +15,11 @@ import {
   type Project,
 } from "@/protocol/index.js";
 import { ChevronRight, Copy, GitFork, MessageSquareCode } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { copyText } from "../../../platform/tauri/clipboard.js";
 import { v4 as createUuid } from "uuid";
 
 import { i18n } from "../../../i18n/i18n.js";
-import {
-  getApplicationDetailViewUpdateGate,
-  runDetailViewInterval,
-} from "../../../shared/lifecycle/application-visibility.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import {
   notifyActionError,
@@ -235,8 +232,6 @@ export function SubagentToolItem({
   );
 }
 
-const TURN_PROCESSING_TIMER_INTERVAL_MS = 1_000;
-
 export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
   dateTime: string;
   label: string;
@@ -263,21 +258,7 @@ export function TurnProcessingTime({
   status,
 }: TurnProcessingTiming &
   Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
-  const [now, setNow] = useState(() => Date.now());
-  const { isRunning, totalSeconds } = resolveTurnProcessingTime({ status, startedAt, completedAt }, now);
-
-  useEffect(() => {
-    if (!isRunning) {
-      return;
-    }
-
-    // 后台持续一段时间后停止计时提交，恢复时直接按当前时间校准。
-    return runDetailViewInterval(
-      getApplicationDetailViewUpdateGate(),
-      () => setNow(Date.now()),
-      TURN_PROCESSING_TIMER_INTERVAL_MS,
-    );
-  }, [isRunning, startedAt]);
+  const { isRunning, totalSeconds } = useTurnProcessingTime({ status, startedAt, completedAt });
 
   if (totalSeconds === null && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);

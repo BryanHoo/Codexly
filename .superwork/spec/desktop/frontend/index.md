@@ -6,6 +6,8 @@
 
 ## 契约与检查项
 
+- [ ] 回合耗时展示共用 UI 的 `useTurnProcessingTime`：页面隐藏立即停止秒级刷新，恢复按当前绝对时间校准；终态与卸载释放订阅，分屏共用单一定时器。回归入口为 `packages/ui/src/agent/turn-processing-clock.test.ts`。
+
 - [ ] 使用 Tauri 原生链路；将 IPC、终端、窗口与系统集成留在平台适配层，共用组件和纯逻辑复用 UI / Frontend Core。
 - [ ] 状态栏图标显示开关默认开启，原生配置即时生效并跨重启保留；隐藏仅控制图标，不改变关闭窗口后最小化到托盘的行为。回归入口为 `tray-settings-field.browser.test.tsx` 与 Rust `tray_settings` 测试。
 - [ ] 关于页的检查更新按钮必须保持固定位置，版本状态、检查中文案和安装入口变化不能让连续点击落到安装按钮；布局回归需加载真实样式，并按原坐标再次点击。验证入口为 `global-settings-about.browser.test.tsx`，覆盖窄窗口及 Chromium / WebKit。

@@ -4,10 +4,8 @@ import type { MessageFileReference } from "../../../shared/components/agent/mess
 import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
 import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
 import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
-import {
-  resolveTurnProcessingTime,
-  type TurnProcessingTiming,
-} from "@codexly/frontend-core/turn-processing-time";
+import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import { useTurnProcessingTime } from "@codexly/ui/agent/use-turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -18,7 +16,7 @@ import {
 } from "@codexly/protocol";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { ChevronRight, Copy, GitFork, MessageSquareCode } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { v4 as createUuid } from "uuid";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -223,8 +221,6 @@ export function SubagentToolItem({
   );
 }
 
-const TURN_PROCESSING_TIMER_INTERVAL_MS = 1_000;
-
 export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
   dateTime: string;
   label: string;
@@ -250,25 +246,7 @@ export function TurnProcessingTime({
   startedAt,
   status,
 }: TurnProcessingTiming & Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
-  const [now, setNow] = useState(() => Date.now());
-  const { isRunning, totalSeconds } = resolveTurnProcessingTime(
-    { status, startedAt, completedAt },
-    now,
-  );
-
-  useEffect(() => {
-    if (!isRunning) {
-      return;
-    }
-
-    // 只更新独立计时行，Turn 完成后立即清理并改用服务端终态时间。
-    const intervalId = globalThis.setInterval(() => {
-      setNow(Date.now());
-    }, TURN_PROCESSING_TIMER_INTERVAL_MS);
-    return () => {
-      globalThis.clearInterval(intervalId);
-    };
-  }, [isRunning, startedAt]);
+  const { isRunning, totalSeconds } = useTurnProcessingTime({ status, startedAt, completedAt });
 
   if (totalSeconds === null && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
