@@ -1,28 +1,29 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { createHarness } from "./app-all.test-support.js";
-import { task } from "./app.test-support.js";
 
-test("returns null when a readable task exists on a later pinned archive page", async () => {
-  const { app, listTasks } = await createHarness();
-  listTasks
-    .mockResolvedValueOnce({ data: [], nextCursor: null })
-    .mockResolvedValueOnce({ data: [], nextCursor: "next" })
-    .mockResolvedValueOnce({ data: [task], nextCursor: null });
-
-  const response = await app.inject({
-    method: "GET",
-    url: "/v1/projects/codexly/tasks/task-1/navigation",
-  });
-
-  expect(response.statusCode).toBe(200);
-  expect(response.json()).toEqual({ task: null });
-  expect(listTasks).toHaveBeenLastCalledWith({
-    archived: true,
-    cursor: "next",
-    limit: 100,
-    pinnedOnly: true,
-  });
-});
+test.each([false, true, undefined])(
+  "queries archive state once by identity (%s) without scanning 202 archive pages",
+  async (archived) => {
+    const { app, provider, listTasks } = await createHarness();
+    // 每个归档分区准备 101 页；导航不能随归档量增加列表请求。
+    listTasks.mockImplementation((input) => {
+      const page = Number(input?.cursor ?? 0);
+      return Promise.resolve({ data: [], nextCursor: page < 100 ? String(page + 1) : null });
+    });
+    const isTaskArchived = vi.fn(() => Promise.resolve(archived));
+    Object.assign(provider, { isTaskArchived });
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/projects/codexly/tasks/task-1/navigation",
+    });
+    expect(response.statusCode).toBe(200);
+    if (archived === false)
+      expect(response.json()).toMatchObject({ task: { snapshot: { id: "task-1" } } });
+    else expect(response.json()).toEqual({ task: null });
+    expect(isTaskArchived).toHaveBeenCalledExactlyOnceWith("task-1");
+    expect(listTasks).not.toHaveBeenCalled();
+  },
+);
 
 test("returns null for a missing task without listing archives", async () => {
   const { app, listTasks } = await createHarness();
@@ -30,7 +31,6 @@ test("returns null for a missing task without listing archives", async () => {
     method: "GET",
     url: "/v1/projects/codexly/tasks/missing/navigation",
   });
-
   expect(response.statusCode).toBe(200);
   expect(response.json()).toEqual({ task: null });
   expect(listTasks).not.toHaveBeenCalled();
@@ -43,33 +43,7 @@ test("normalizes an unavailable historical provider task", async () => {
     method: "GET",
     url: "/v1/projects/codexly/tasks/task-1/navigation",
   });
-
   expect(response.statusCode).toBe(200);
   expect(response.json()).toEqual({ task: null });
   expect(listTasks).not.toHaveBeenCalled();
-});
-
-test("returns a fresh task snapshot when neither archive partition contains it", async () => {
-  const { app, listTasks } = await createHarness();
-  listTasks.mockResolvedValue({ data: [], nextCursor: null });
-  const response = await app.inject({
-    method: "GET",
-    url: "/v1/projects/codexly/tasks/task-1/navigation",
-  });
-
-  expect(response.statusCode).toBe(200);
-  expect(response.json()).toMatchObject({ task: { snapshot: { id: "task-1" } } });
-  expect(listTasks).toHaveBeenCalledTimes(2);
-});
-
-test("rejects archive pagination that does not advance", async () => {
-  const { app, listTasks } = await createHarness();
-  listTasks.mockResolvedValue({ data: [], nextCursor: "stalled" });
-  const response = await app.inject({
-    method: "GET",
-    url: "/v1/projects/codexly/tasks/task-1/navigation",
-  });
-
-  expect(response.statusCode).toBe(500);
-  expect(listTasks).toHaveBeenCalledTimes(2);
 });

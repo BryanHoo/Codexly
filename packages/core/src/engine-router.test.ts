@@ -55,6 +55,24 @@ describe("application task engine routing", () => {
     return { router, codex, claude, tasks, listeners };
   }
 
+  it.each(["codex", "claude"])(
+    "reads %s archive state by application identity without loading the engine",
+    async (id) => {
+      const { router, tasks, codex, claude } = setup();
+      expect(await router.isTaskArchived(id)).toBe(false);
+      const task = tasks.get(id);
+      if (!task) throw new Error("Missing fixture task");
+      tasks.set(id, { ...task, archived: true, pinned: true });
+      expect(await router.isTaskArchived(id)).toBe(true);
+      tasks.set(id, { ...task, projectId: "foreign" });
+      expect(await router.isTaskArchived(id)).toBeUndefined();
+      tasks.delete(id);
+      expect(await router.isTaskArchived(id)).toBeUndefined();
+      expect(codex.readTask).not.toHaveBeenCalled();
+      expect(claude.readTask).not.toHaveBeenCalled();
+    },
+  );
+
   it("selects the engine only during creation and routes reads by persisted identity", async () => {
     const { router, codex, claude } = setup();
     await router.startTask({ engine: "claude" });

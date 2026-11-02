@@ -39,6 +39,7 @@ export function createProvider() {
   const updateGoal = vi.fn<AgentProvider["updateGoal"]>(() =>
     Promise.reject(new Error("Goal is not configured")),
   );
+  const isTaskArchived = vi.fn<AgentProvider["isTaskArchived"]>(() => Promise.resolve(false));
   const archiveTask = vi.fn(() => Promise.resolve());
   const deleteTask = vi.fn(() => Promise.resolve());
   const forkTask = vi.fn(() => Promise.resolve({ ...task, id: "task-2", title: "续接任务" }));
@@ -197,6 +198,7 @@ export function createProvider() {
   const provider: AgentProvider = {
     updateTurnApprovalsReviewer: vi.fn(() => Promise.resolve("applied" as const)),
     archiveTask,
+    isTaskArchived,
     clearGoal,
     compactTask,
     deleteTask,
@@ -236,6 +238,7 @@ export function createProvider() {
   };
   return {
     archiveTask,
+    isTaskArchived,
     clearGoal,
     compactTask,
     deleteTask,

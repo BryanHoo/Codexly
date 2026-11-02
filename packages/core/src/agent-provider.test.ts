@@ -86,6 +86,9 @@ describe("AgentProvider", () => {
           });
         },
       },
+      isTaskArchived() {
+        return Promise.resolve(false);
+      },
       archiveTask() {
         return Promise.resolve();
       },

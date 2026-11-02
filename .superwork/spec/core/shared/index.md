@@ -26,3 +26,9 @@
 - 明确拒绝后先持久化回退执行占用，再恢复可编辑、可发送状态。仓储以 `null` 表示回退，且仅允许从 `starting` 清除，禁止覆盖已接受的 `started` 结果。Web SQLite、内存与桌面 Claude 文件仓储保持一致。
 - 未绑定回合的“立即发送”允许在同一任务锁内重新读取状态并补发一次；显式绑定回合的引导不得改投后来回合。连续拒绝保留队列；结果未知继续阻塞，不能自动重复发送。
 - 回归入口为 `packages/server/src/persistent-task-queue.test.ts`、`app-queue-dispatch.test.ts`、`sqlite-queue-execution.test.ts`、`packages/provider-codex/src/agent-provider-steer-errors.test.ts` 与 `packages/provider-claude/src/queue-repository.test.ts`，覆盖轮次切换、历史残留、重启恢复、并发幂等及未知结果保护。
+
+## 单任务导航的归档状态
+
+- `AgentProvider.isTaskArchived` 按应用任务 ID 精确读取本地归档状态；不存在、项目或引擎归属不符、无法确认时返回 `undefined`。查询不读取会话正文、不启动引擎，也不遍历普通归档或置顶归档列表。
+- 导航仅在项目匹配且归档状态明确为 `false` 时返回快照；查询故障继续传播，不得当作未归档。应用引擎路由直接读取本地目录，保持 Web、移动浏览器和共享 Claude 宿主的管理状态语义一致；桌面原生链路继续使用本地目录。
+- 回归入口：`packages/server/src/app-task-navigation.test.ts` 模拟每个归档分区 101 页并断言零列表请求、一次状态查询；`engine-router.test.ts`、Codex `agent-provider-archive-state.test.ts` 与 Claude `provider.test.ts` 覆盖身份归属和归档状态。

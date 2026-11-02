@@ -271,6 +271,8 @@ export interface AgentProvider {
   updateTaskPermissionMode?(taskId: string, mode: ClaudePermissionMode): Promise<void>;
   readTaskMetadata?(taskId: string): Promise<AgentTask | undefined>;
   readonly queue?: AgentProviderQueue;
+  /** 按应用任务身份查询归档状态；不存在、作用域不符或无法确认时返回 undefined，禁止扫描列表。 */
+  isTaskArchived(taskId: string): Promise<boolean | undefined>;
   archiveTask(taskId: string): Promise<void>;
   compactTask(taskId: string, options?: AgentTurnOptions): Promise<void>;
   deleteTask(taskId: string): Promise<void>;

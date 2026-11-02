@@ -72,6 +72,11 @@ export class CodexRuntimeProjectProvider implements AgentProvider {
     return this.#delegate.archiveTask(taskId);
   }
 
+  public isTaskArchived(taskId: string): Promise<boolean | undefined> {
+    // 委托层按持久化项目身份校验，查询不会接管运行时任务所有权。
+    return this.#delegate.isTaskArchived(taskId);
+  }
+
   public async readTaskMetadata(taskId: string): Promise<AgentTask | undefined> {
     if (!this.#delegate.hasLocalCatalog) return this.readTask(taskId);
     const task = await this.#delegate.readTaskMetadata(taskId);

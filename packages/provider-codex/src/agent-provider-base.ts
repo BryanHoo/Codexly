@@ -291,6 +291,15 @@ export abstract class CodexAgentProviderBase {
     await taskArchive.archiveCodexTask(this.client, taskId);
   }
 
+  public async isTaskArchived(taskId: string): Promise<boolean | undefined> {
+    // 应用任务 ID 直接命中目录；置顶与普通归档共用此状态，不触发上游列表 RPC。
+    const task = await this.client.readLocalTask?.(taskId);
+    return task?.provider === "codex" &&
+      task.projectId === (this.project.kind === "temporary" ? null : this.project.id)
+      ? task.archived
+      : undefined;
+  }
+
   public get hasLocalCatalog(): boolean {
     return this.client.readLocalTask !== undefined;
   }

@@ -3748,3 +3748,20 @@ it("does not wait for a stalled usage write when stopping an already completed s
     await stopping;
   }
 });
+
+it("reads archive state without loading history and rejects foreign task identities", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  expect(await h.provider.isTaskArchived(task.id)).toBe(false);
+  await h.provider.archiveTask(task.id);
+  expect(await h.provider.isTaskArchived(task.id)).toBe(true);
+  const local = h.tasks.get(task.id);
+  assert.ok(local);
+  h.tasks.set(task.id, { ...local, projectId: "foreign" });
+  expect(await h.provider.isTaskArchived(task.id)).toBeUndefined();
+  h.tasks.set(task.id, { ...local, provider: "codex" });
+  expect(await h.provider.isTaskArchived(task.id)).toBeUndefined();
+  expect(await h.provider.isTaskArchived("missing")).toBeUndefined();
+  expect(h.getSessionMessages).not.toHaveBeenCalled();
+  h.tasks.set(task.id, local);
+});

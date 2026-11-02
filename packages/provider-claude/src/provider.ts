@@ -183,6 +183,12 @@ export class ClaudeAgentProvider {
     const task = createClaudeTask(this.scope, options.workspacePath);
     return claudeTask(await this.store.catalog("task.put", task));
   }
+  async isTaskArchived(id: string): Promise<boolean | undefined> {
+    // 只查询本地管理状态，避免为导航加载历史或恢复 SDK 会话。
+    const task = await this.store.catalog("task.read", { id });
+    const projectId = this.scope.kind === "temporary" ? null : this.scope.id;
+    return task?.provider === "claude" && task.projectId === projectId ? task.archived : undefined;
+  }
   async readTaskMetadata(id: string): Promise<AgentTask | undefined> {
     const task = await this.store.catalog("task.read", { id });
     return task?.provider === "claude" &&

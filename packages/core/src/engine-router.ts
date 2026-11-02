@@ -117,6 +117,14 @@ export class EngineProjectRouter implements AgentProvider {
     return this.#engineMethod("codex", "readSandboxMode")();
   }
 
+  async isTaskArchived(id: string): Promise<boolean | undefined> {
+    // 管理状态由本地目录持有，精确查询无需启动引擎或读取会话历史。
+    const task = await this.store.catalog("task.read", { id });
+    return task?.projectId === (this.scope.kind === "temporary" ? null : this.scope.id)
+      ? task.archived
+      : undefined;
+  }
+
   async readTaskMetadata(id: string): Promise<AgentTask | undefined> {
     const task = await this.store.catalog("task.read", { id });
     return task?.projectId === (this.scope.kind === "temporary" ? null : this.scope.id)
