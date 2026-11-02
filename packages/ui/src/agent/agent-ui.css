@@ -100,18 +100,13 @@
   }
 }
 
-/* 共享 AI 界面的节奏：过程紧凑、正文舒展；动画只作用于新增节点和真实状态变化。 */
+/* 共享 AI 界面的节奏：折叠摘要与上下文留出呼吸空间，内部操作仍保持可扫描密度。 */
 .agent-timeline {
   display: flex;
   width: 100%;
   min-width: 0;
   flex-direction: column;
-  gap: 0.375rem;
-}
-
-/* 过程条目与上下文仅留 6px；连续正文额外补足至 16px，保持段落阅读节奏。 */
-.agent-timeline > [data-entry-kind="message"] + [data-entry-kind="message"] {
-  margin-block-start: 0.625rem;
+  gap: 1rem;
 }
 
 .agent-operation-list {
@@ -127,7 +122,7 @@
 
 /* 五条 28px 摘要行加四个 4px 间隔；展开详情也留在同一窗口内，不撑开会话。 */
 .agent-operation-group-content {
-  margin-block: 0.375rem;
+  margin-block: 0.75rem;
   margin-inline-start: 0.4375rem;
   padding: 0 0 0 0.75rem;
 }

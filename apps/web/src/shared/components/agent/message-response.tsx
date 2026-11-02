@@ -465,7 +465,7 @@ function MessageResponseContent({
             props.plugins === undefined &&
             !promptFileReferences
           }
-          className={`size-full break-words [&_blockquote]:border-l-2 [&_blockquote]:border-separator [&_blockquote]:pl-3 [&_code]:font-mono [&_code]:text-body-small [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:object-contain [&_pre]:overflow-x-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${className}`}
+          className={`size-full markdown-typography ${className}`}
           controls={MESSAGE_RESPONSE_CONTROLS}
           {...props}
           BlockComponent={InteractiveMessageBlock}
