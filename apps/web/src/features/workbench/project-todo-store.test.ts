@@ -69,6 +69,55 @@ describe("project todo server state", () => {
     );
     expect(store.readWorking("project-a", "todo-1")).toBeUndefined();
   });
+  it("releases rebuildable views only after the last consumer leaves", () => {
+    const { store, queryClient } = setup();
+    const key = store.queryOptions("project-a").queryKey;
+    queryClient.setQueryData(key, { data: [todo] });
+    queryClient.setQueryData(store.queryOptions("project-b").queryKey, {
+      data: [{ ...todo, projectId: "project-b" }],
+    });
+    const first = store.subscribe(vi.fn());
+    const last = store.subscribe(vi.fn());
+    const original = store.list("project-a");
+    const other = store.list("project-b");
+    expect(store.list("project-a")).toBe(original);
+    first();
+    expect(store.list("project-a")).toBe(original);
+    last();
+
+    const unsubscribe = store.subscribe(vi.fn());
+    const rebuilt = store.list("project-a");
+    // 查询数据保持相同引用，仍须重建视图，防止读到新数据掩盖旧缓存未释放。
+    expect(rebuilt).not.toBe(original);
+    expect(rebuilt).toEqual(original);
+    expect(store.list("project-a")).toBe(rebuilt);
+    expect(store.list("project-b")).not.toBe(other);
+    unsubscribe();
+    queryClient.clear();
+  });
+  it("preserves working drafts across idle query removal and resumes updates", () => {
+    const { store, queryClient } = setup();
+    const key = store.queryOptions("project-a").queryKey;
+    queryClient.setQueryData(key, { data: [todo] });
+    const unsubscribe = store.subscribe(vi.fn());
+    const working = { ...draft, content: [{ type: "text" as const, text: "未保存修改" }] };
+    store.updateWorking("project-a", todo.id, working);
+    store.list("project-a");
+    unsubscribe();
+    queryClient.removeQueries({ queryKey: key });
+    expect(queryClient.getQueryData(key)).toBeUndefined();
+    expect(store.readWorking("project-a", todo.id)).toBe(working);
+
+    const listener = vi.fn();
+    const stop = store.subscribe(listener);
+    expect(store.list("project-a")).toEqual([]);
+    queryClient.setQueryData(key, { data: [{ ...todo, version: 2 }] });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(store.read("project-a", todo.id)?.workingDraft).toBe(working);
+    expect(store.read("project-a", todo.id)?.version).toBe(1);
+    stop();
+    queryClient.clear();
+  });
   it("does not remove a todo or its draft when the server rejects deletion", async () => {
     const { store, client } = setup();
     await store.create("project-a", draft);

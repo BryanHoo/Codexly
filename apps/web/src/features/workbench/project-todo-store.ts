@@ -192,6 +192,9 @@ export function createProjectTodoStore({
         if (listeners.size === 0) {
           unsubscribe?.();
           unsubscribe = undefined;
+          // 退订后无法接收查询回收的 removed 事件，立即释放可重建视图，避免继续持有待办数组。
+          // 本地编辑副本独立保存在 working 中，恢复订阅后仍可叠加到最新查询数据上。
+          views.clear();
         }
       };
     },

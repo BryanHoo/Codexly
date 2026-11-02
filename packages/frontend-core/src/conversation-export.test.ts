@@ -1,10 +1,10 @@
 import type { AgentItem, AgentTask, AgentTaskSnapshotResponse, AgentTurn } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import {
-  createConversationExport,
+  collectConversationExport as createConversationExport,
   MAX_CONVERSATION_EXPORT_BYTES,
   type ConversationRecord,
-} from "./conversation-export.js";
+} from "./conversation-export-collector.js";
 
 const timestamp = "2026-10-25T00:00:00.000Z";
 const task: AgentTask = {
@@ -47,6 +47,29 @@ function page(turns: AgentTurn[], cursor: string | null = null): AgentTaskSnapsh
 }
 
 describe("createConversationExport", () => {
+  it("分块序列化超长正文，不向 JSON.stringify 交付整页或完整正文", async () => {
+    const source = page([turn("t", [message("body", '中\\"\n🐈'.repeat(20_000))])]);
+    const stringify = JSON.stringify;
+    const spy = vi.spyOn(JSON, "stringify").mockImplementation((value, replacer, space) => {
+      if (
+        (typeof value === "object" && value !== null) ||
+        (typeof value === "string" && value.length > 16_384)
+      )
+        throw new Error("unbounded stringify");
+      return stringify(value, replacer, space);
+    });
+    try {
+      const result = await createConversationExport(
+        { readTask: vi.fn().mockResolvedValue(source) },
+        task,
+      );
+      expect(
+        (JSON.parse(await result.content.text()) as ConversationRecord).turns[0]?.items,
+      ).toEqual(source.snapshot.turns[0]?.items);
+    } finally {
+      spy.mockRestore();
+    }
+  });
   it("按 UTF-8 字节限制大小，超限时拒绝导出", async () => {
     const source = page([
       turn("large", [message("body", "🐈".repeat(MAX_CONVERSATION_EXPORT_BYTES / 4))]),
@@ -76,7 +99,7 @@ describe("createConversationExport", () => {
         { ...task, engine },
         new Date(timestamp),
       );
-      const json = JSON.parse(result.content) as ConversationRecord;
+      const json = JSON.parse(await result.content.text()) as ConversationRecord;
       expect(json).toMatchObject({
         format: "codexly-conversation",
         version: 1,
@@ -89,7 +112,7 @@ describe("createConversationExport", () => {
       expect(json.turns[1]?.items[2]).toHaveProperty("text", expect.stringContaining("你好 🐈"));
       expect(json.turns[1]?.itemTimings?.["b"]).toEqual({ startedAtMs: 10, completedAtMs: 20 });
       expect(json).not.toHaveProperty("settings");
-      expect(result.content).not.toContain("turnsNextCursor");
+      expect(await result.content.text()).not.toContain("turnsNextCursor");
       expect(result.fileName).toMatch(/\.json$/u);
       expect(result.fileName).not.toMatch(/[/:\\*?"<>|]/u);
       expect(readTask.mock.calls.map((args: unknown[]) => args[2])).toEqual([
@@ -119,15 +142,15 @@ describe("createConversationExport", () => {
       { readTask: vi.fn().mockResolvedValue(source) },
       task,
     );
-    expect((JSON.parse(result.content) as ConversationRecord).turns[0]?.items).toEqual(
+    expect((JSON.parse(await result.content.text()) as ConversationRecord).turns[0]?.items).toEqual(
       source.snapshot.turns[0]?.items,
     );
-    expect(result.content).not.toContain("private-cursor");
+    expect(await result.content.text()).not.toContain("private-cursor");
     const empty = await createConversationExport(
       { readTask: vi.fn().mockResolvedValue(page([])) },
       task,
     );
-    expect((JSON.parse(empty.content) as ConversationRecord).turns).toEqual([]);
+    expect((JSON.parse(await empty.content.text()) as ConversationRecord).turns).toEqual([]);
   });
 
   it("检测循环游标，后续读取失败时不返回半份导出", async () => {
@@ -155,4 +178,47 @@ describe("createConversationExport", () => {
       ),
     ).rejects.toThrow(/identity/iu);
   });
+});
+
+it("Worker 逐页读取并在成功、读取失败、运行错误和解码错误后释放", async () => {
+  const { createConversationExport: exportInWorker } = await import("./conversation-export.js");
+  class ExportWorker {
+    static current: ExportWorker;
+    onmessage: ((event: { data: unknown }) => void) | undefined;
+    onerror: (() => void) | undefined;
+    onmessageerror: (() => void) | undefined;
+    postMessage = vi.fn();
+    terminate = vi.fn();
+    constructor() {
+      ExportWorker.current = this;
+    }
+  }
+  vi.stubGlobal("Worker", ExportWorker);
+  try {
+    for (const outcome of ["done", "read", "error", "messageerror", "limit"] as const) {
+      const readTask = vi.fn().mockRejectedValue(new Error("offline"));
+      const pending = exportInWorker({ readTask }, task, new Date(timestamp));
+      const worker = ExportWorker.current;
+      expect(worker.postMessage).toHaveBeenCalledWith({
+        type: "start",
+        task,
+        exportedAt: timestamp,
+      });
+      const file = { fileName: "conversation.json", content: new Blob(["{}"]) };
+      if (outcome === "done") worker.onmessage?.({ data: { type: "done", file } });
+      else if (outcome === "read")
+        worker.onmessage?.({ data: { type: "read", options: { summary: false } } });
+      else if (outcome === "error") worker.onerror?.();
+      else if (outcome === "messageerror") worker.onmessageerror?.();
+      else
+        worker.onmessage?.({ data: { type: "error", name: "RangeError", message: "too large" } });
+      if (outcome === "done") await expect(pending).resolves.toEqual(file);
+      else await expect(pending).rejects.toThrow(outcome === "limit" ? RangeError : Error);
+      expect(worker.terminate).toHaveBeenCalledTimes(1);
+      if (outcome === "read")
+        expect(readTask).toHaveBeenCalledWith(task.projectId, task.id, { summary: false });
+    }
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

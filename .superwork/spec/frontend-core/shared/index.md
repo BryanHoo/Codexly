@@ -60,6 +60,7 @@
 ## 对话 JSON 导出
 
 - 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。
+- 完整历史归并、去重与 JSON 序列化在按需创建的共用 Worker 内执行；逐页请求并等待处理，成功或失败均终止 Worker。长字符串按固定窗口转义，输入和输出均累计 UTF-8 字节预算，禁止为校验大小生成整页/整份字符串和编码缓冲。输出使用 Blob 分片，Web 直接下载；桌面在 Worker 释放后异步读取正文交给原生保存接口，原生 IPC 仍有整份字符串开销。64 MiB 是文件限制，不承诺进程内存上限。
 - JSON 保留 `format: codexly-conversation`、`version: 1`、`exportedAt`、`task` 与 `turns`。各端条目变体原样保留，附件只含元数据，不加入内部游标、授权下载 URL、设置或附件二进制；运行中任务不承诺原子快照，也不提供导入恢复。
 - 菜单互斥状态跨关闭重开共用，结束即释放；导出模块按需加载。Web 下载后延迟释放 Blob URL，桌面专用命令只写入原生保存窗口选择的路径，取消返回正常空结果，不授予通用文件写权限。
 - 验证：`conversation-export.test.ts`、Web 的 `app-shell-conversation-export.spec.ts`（三引擎宽窄屏）、桌面的 `project-sidebar-task-row.browser.test.tsx` 与 `conversation_export_commands` Rust 测试。操作说明见 [工作台使用](../../../../docs/usage.md)。
