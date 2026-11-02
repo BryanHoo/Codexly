@@ -1,3 +1,4 @@
+import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentAttachment,
@@ -55,6 +56,7 @@ export function createComposerTurnOptions(
 export type WorkbenchComposerHandle = Readonly<{
   buildPlan: () => Promise<boolean>;
   insertFollowup: (prompt: string) => void;
+  editMessage: (message: EditableUserMessage) => void;
   referenceProjectPath: (file: ProjectFileSearchEntry) => void;
   submitCurrent: () => Promise<boolean>;
 }>;

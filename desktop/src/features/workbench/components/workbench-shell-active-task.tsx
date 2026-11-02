@@ -1,3 +1,5 @@
+import { MessageEditProvider } from "@codexly/ui/core/message-edit";
+import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
 import { PendingRequestDock } from "./pending-request-dock.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
@@ -190,7 +192,12 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   };
 
   const selectFollowup = useCallback((prompt: string) => composerRef.current?.insertFollowup(prompt), [composerRef]);
+  const editMessage = useCallback(
+    (message: EditableUserMessage) => composerRef.current?.editMessage(message),
+    [composerRef],
+  );
   return (
+    <MessageEditProvider onEdit={writeBlocked ? null : editMessage}>
     <MessageFollowupProvider onSelect={writeBlocked ? null : selectFollowup}>
       <div className="flex min-h-0 flex-1 flex-col" inert={writeBlocked}>
       <AsyncQuestionProvider
@@ -285,5 +292,6 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         taskId={taskId}
       />
     </MessageFollowupProvider>
+    </MessageEditProvider>
   );
 });

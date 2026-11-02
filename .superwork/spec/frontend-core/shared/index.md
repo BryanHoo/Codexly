@@ -104,3 +104,12 @@
 - 页面隐藏时保留新通知未读；恢复可见或窗口重新获得焦点时自动确认所有仍显示的任务。React Activity 隐藏、任务卸载及删除必须注销身份，避免旧焦点持续吞掉后台通知。
 - 使用已有活动订阅与页面生命周期事件，不增加轮询、逐 Token 扫描或滚动状态；已读不解除审批和待回答事实。桌面可见任务的新终态同时确认原生活动。
 - 验证入口：共享 `task-view-state.test.ts`、两端 `project-runtime-notifications.test.ts` 与桌面 `task-visibility.browser.test.tsx`（Chromium / WebKit，覆盖无点击分屏、滚动、隐藏和恢复）。
+
+## 用户消息再次编辑
+
+- 用户消息的编辑动作只回填所属会话草稿并聚焦，不修改历史、不自动提交。发送继续使用现有新输入路径，原始消息与回复保留；两端共用 `message-edit-draft.ts` 和 UI 的 `message-edit.tsx`，不创建历史更新协议或额外请求。
+- 恢复正文原始空白及当前可用技能令牌，已移除技能回退为 `$name` 文本；历史附件 URL 不能当成可提交附件，附件沿用输入框历史导航语义。回填时退出历史导航并关闭建议菜单，保留当前附件和发送设置。
+- 编辑入口紧邻复制，仅用户消息提供；独立只读时间线和桌面非写入所有者隐藏入口。分屏动作绑定各自 Composer，不能查询全局输入框或改变其他聊天焦点。
+- 回归入口：`packages/frontend-core/src/message-edit-draft.test.ts`、`desktop/tests/browser/message-edit.browser.test.tsx`；浏览器套件驱动两端真实时间线与输入框，覆盖 Chromium / WebKit、360px / 960px、回填、焦点、修改后新输入提交、原消息不变、只读和分屏隔离。
+
+- Web 完整发送回归：`tests/e2e/app-shell-message-edit.spec.ts` 在 Chromium / Firefox / WebKit 验证宽窄屏点击、真实提交请求、新条目追加及旧消息和回复保留。

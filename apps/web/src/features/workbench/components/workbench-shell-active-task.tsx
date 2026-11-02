@@ -1,3 +1,5 @@
+import { MessageEditProvider } from "@codexly/ui/core/message-edit";
+import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
 import { PendingRequestDock } from "./pending-request-dock.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
@@ -177,91 +179,97 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     (prompt: string) => composerRef.current?.insertFollowup(prompt),
     [composerRef],
   );
+  const editMessage = useCallback(
+    (message: EditableUserMessage) => composerRef.current?.editMessage(message),
+    [composerRef],
+  );
   return (
-    <MessageFollowupProvider onSelect={selectFollowup}>
-      <TaskTimeline
-        pendingRequestsExternal
-        onBuildPlan={() => composerRef.current?.buildPlan() ?? Promise.resolve(false)}
-        {...(capabilities?.tasks.fork === true ? { onForkTask: forkTask } : {})}
-        // Timeline 已携带 Diff 或受控文件引用，普通与临时 Task 共用同一套查看入口。
-        onOpenFileDiff={onOpenFileDiff}
-        onOpenSourceFile={onOpenSourceFile}
-        onReviewFileChanges={onReviewFileChanges}
-        onResolvePendingRequest={resolvePendingRequest}
-        projectId={projectId}
-        projectRootPath={projectPath}
-        key={taskScope}
-        runtime={runtime}
-        {...(pendingPrompt === undefined ? {} : { pendingPrompt })}
-        scrollToBottomSignal={timelineScrollToBottomSignal}
-        {...(retainedSubmissionStartedAt === undefined
-          ? {}
-          : { submissionStartedAt: retainedSubmissionStartedAt })}
-        {...(retainedSubmissionTurnId === undefined
-          ? {}
-          : { submissionTurnId: retainedSubmissionTurnId })}
-        taskId={taskId}
-        {...(startingSnapshot === undefined ? {} : { startingSnapshot })}
-      />
-      <PendingRequestDock
-        key={`requests:${taskScope}`}
-        store={runtime.store}
-        connected={runtime.connectionState === "connected"}
-        onResolve={resolvePendingRequest}
-      />
-      <WorkbenchComposer
-        composerRef={composerRef}
-        capabilities={capabilities}
-        client={client}
-        followUpBehavior={followUpBehavior}
-        fastModeAvailable={fastModeAvailable}
-        fastModeDefault={fastModeDefault}
-        models={models}
-        modelsError={modelsError}
-        modelsPending={modelsPending || runtime.isPending}
-        onDirectSubmission={(prompt) => {
-          beginSubmission();
-          setPendingPrompt(prompt);
-          setTimelineScrollToBottomSignal((current) => current + 1);
-        }}
-        onSubmissionFailed={() => {
-          setPendingPrompt(undefined);
-        }}
-        onOpenProjectPath={onOpenProjectPath}
-        onProjectRootChange={onProjectRootChange}
-        {...(workspace === undefined ? {} : { workspace })}
-        onRequestNotificationPermission={onRequestNotificationPermission}
-        onFastModeChange={(enabled, settings) => onProjectTaskDefaultsChange(settings, enabled)}
-        onSettingsChange={(settings, _field, fastMode) =>
-          settingsMutation.mutateAsync({ settings, fastMode }).then(() => undefined)
-        }
-        onSubmissionStateChange={handleSubmissionStateChange}
-        onTaskStarted={onTaskStarted}
-        onTurnStarted={(turn, input, messageAttachments) => {
-          const confirmedStartedAt = getSubmissionStartedAt() ?? turn.startedAt;
-          setSubmittedPromptState({
-            prompt: {
-              input,
-              messageAttachments,
-              ...(confirmedStartedAt === null ? {} : { submissionStartedAt: confirmedStartedAt }),
-              turn,
-            },
-            taskScope,
-          });
-        }}
-        projectId={projectId}
-        projectPath={projectPath}
-        projectPathOpenAvailable={projectPathOpenAvailable}
-        projectPathOpenDisabled={projectPathOpenDisabled}
-        projectRoots={projectRoots}
-        projectToolsEnabled={projectToolsEnabled}
-        selectedProjectRootId={selectedProjectRootId}
-        {...(gitStatus === undefined ? {} : { gitStatus })}
-        runtime={runtime}
-        settings={runtime.metadata?.settings ?? startingSnapshot?.settings ?? fallbackSettings}
-        skills={skills}
-        taskId={taskId}
-      />
-    </MessageFollowupProvider>
+    <MessageEditProvider onEdit={editMessage}>
+      <MessageFollowupProvider onSelect={selectFollowup}>
+        <TaskTimeline
+          pendingRequestsExternal
+          onBuildPlan={() => composerRef.current?.buildPlan() ?? Promise.resolve(false)}
+          {...(capabilities?.tasks.fork === true ? { onForkTask: forkTask } : {})}
+          // Timeline 已携带 Diff 或受控文件引用，普通与临时 Task 共用同一套查看入口。
+          onOpenFileDiff={onOpenFileDiff}
+          onOpenSourceFile={onOpenSourceFile}
+          onReviewFileChanges={onReviewFileChanges}
+          onResolvePendingRequest={resolvePendingRequest}
+          projectId={projectId}
+          projectRootPath={projectPath}
+          key={taskScope}
+          runtime={runtime}
+          {...(pendingPrompt === undefined ? {} : { pendingPrompt })}
+          scrollToBottomSignal={timelineScrollToBottomSignal}
+          {...(retainedSubmissionStartedAt === undefined
+            ? {}
+            : { submissionStartedAt: retainedSubmissionStartedAt })}
+          {...(retainedSubmissionTurnId === undefined
+            ? {}
+            : { submissionTurnId: retainedSubmissionTurnId })}
+          taskId={taskId}
+          {...(startingSnapshot === undefined ? {} : { startingSnapshot })}
+        />
+        <PendingRequestDock
+          key={`requests:${taskScope}`}
+          store={runtime.store}
+          connected={runtime.connectionState === "connected"}
+          onResolve={resolvePendingRequest}
+        />
+        <WorkbenchComposer
+          composerRef={composerRef}
+          capabilities={capabilities}
+          client={client}
+          followUpBehavior={followUpBehavior}
+          fastModeAvailable={fastModeAvailable}
+          fastModeDefault={fastModeDefault}
+          models={models}
+          modelsError={modelsError}
+          modelsPending={modelsPending || runtime.isPending}
+          onDirectSubmission={(prompt) => {
+            beginSubmission();
+            setPendingPrompt(prompt);
+            setTimelineScrollToBottomSignal((current) => current + 1);
+          }}
+          onSubmissionFailed={() => {
+            setPendingPrompt(undefined);
+          }}
+          onOpenProjectPath={onOpenProjectPath}
+          onProjectRootChange={onProjectRootChange}
+          {...(workspace === undefined ? {} : { workspace })}
+          onRequestNotificationPermission={onRequestNotificationPermission}
+          onFastModeChange={(enabled, settings) => onProjectTaskDefaultsChange(settings, enabled)}
+          onSettingsChange={(settings, _field, fastMode) =>
+            settingsMutation.mutateAsync({ settings, fastMode }).then(() => undefined)
+          }
+          onSubmissionStateChange={handleSubmissionStateChange}
+          onTaskStarted={onTaskStarted}
+          onTurnStarted={(turn, input, messageAttachments) => {
+            const confirmedStartedAt = getSubmissionStartedAt() ?? turn.startedAt;
+            setSubmittedPromptState({
+              prompt: {
+                input,
+                messageAttachments,
+                ...(confirmedStartedAt === null ? {} : { submissionStartedAt: confirmedStartedAt }),
+                turn,
+              },
+              taskScope,
+            });
+          }}
+          projectId={projectId}
+          projectPath={projectPath}
+          projectPathOpenAvailable={projectPathOpenAvailable}
+          projectPathOpenDisabled={projectPathOpenDisabled}
+          projectRoots={projectRoots}
+          projectToolsEnabled={projectToolsEnabled}
+          selectedProjectRootId={selectedProjectRootId}
+          {...(gitStatus === undefined ? {} : { gitStatus })}
+          runtime={runtime}
+          settings={runtime.metadata?.settings ?? startingSnapshot?.settings ?? fallbackSettings}
+          skills={skills}
+          taskId={taskId}
+        />
+      </MessageFollowupProvider>
+    </MessageEditProvider>
   );
 });

@@ -234,6 +234,7 @@ export const conversation = {
     orchestrating: "正在协调子代理",
   },
   timeline: {
+    editMessage: "编辑为新消息",
     approvalReview: {
       action: {
         command: "命令",

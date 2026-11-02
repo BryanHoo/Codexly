@@ -2,8 +2,9 @@ import type { WorkbenchComposerHandle } from "./workbench-composer-contracts.js"
 import type { createComposerSubmission } from "./workbench-composer-submission.js";
 
 export function createComposerHandle({
-  activeTurnId, buildPlanPrompt, clearMode, disabled = false, referenceProjectPath, submitCurrent, submitPrompt, insertFollowup = () => undefined,
+  editMessage = () => undefined, activeTurnId, buildPlanPrompt, clearMode, disabled = false, referenceProjectPath, submitCurrent, submitPrompt, insertFollowup = () => undefined,
 }: Readonly<{
+  editMessage?: WorkbenchComposerHandle["editMessage"];
   activeTurnId: string | undefined;
   disabled?: boolean;
   buildPlanPrompt: string;
@@ -14,11 +15,13 @@ export function createComposerHandle({
   submitPrompt: ReturnType<typeof createComposerSubmission>;
 }>): WorkbenchComposerHandle {
   if (disabled) return {
+    editMessage: () => undefined,
     insertFollowup,
     answerQuestions: async () => false, buildPlan: async () => false,
     referenceProjectPath: () => undefined, submitCurrent: async () => false,
   };
   return {
+    editMessage,
     insertFollowup,
     answerQuestions: (text) => submitPrompt({ files: [], text }, [], {
       // 问题回答复用提交锁，但不清空草稿、不继承计划或 Goal 模式，也不排队。

@@ -14,7 +14,6 @@ import type {
   ProjectFileSearchEntry,
 } from "@codexly/protocol";
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-
 import type { PromptInputAttachment } from "../../../shared/components/agent/prompt-input.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import { useComposerDraftStore, type ComposerDraft } from "../composer-draft-context.js";
@@ -490,6 +489,7 @@ export function useComposerSession({
     setPendingTaskState,
     setComposerModeState,
     setPromptContent,
+    setPromptHistoryIndex,
     setReviewMenuMode,
     setSettingsOverride,
     setSubmittedTurnState,

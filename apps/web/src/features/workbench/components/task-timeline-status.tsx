@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
@@ -296,11 +296,13 @@ export function TurnProcessingTime({
 }
 
 export function MessageMetadata({
+  editAction,
   lastTurnId,
   modeLabel,
   onForkTask,
   text,
 }: Readonly<{
+  editAction?: ReactNode;
   lastTurnId?: string;
   modeLabel?: string;
   onForkTask?: ForkTaskAction;
@@ -350,6 +352,7 @@ export function MessageMetadata({
       >
         <Copy className="size-3.5" aria-hidden="true" />
       </MessageAction>
+      {editAction}
       {lastTurnId === undefined || onForkTask === undefined ? null : (
         <MessageAction
           disabled={forkPending}

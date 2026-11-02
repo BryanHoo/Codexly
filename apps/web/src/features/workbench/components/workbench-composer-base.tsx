@@ -1,4 +1,4 @@
-import { createComposerFollowup } from "./workbench-composer-followup.js";
+import { createComposerDraftActions } from "./workbench-composer-followup.js";
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useAccess } from "../../access/access-context.js";
 import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
@@ -246,7 +246,7 @@ export function WorkbenchComposerBase({
     turnControlsDisabled,
   });
   useImperativeHandle(composerRef, () => ({
-    insertFollowup: createComposerFollowup(session),
+    ...createComposerDraftActions(session, skills),
     buildPlan: () => {
       setComposerModeState(undefined); // 避免后续 Turn 再次请求生成计划。
       return submitPrompt({ files: [], text: t("composer.buildPlanPrompt") }, [], {

@@ -234,6 +234,7 @@ export const conversation = {
     orchestrating: "Coordinating subagents",
   },
   timeline: {
+    editMessage: "Edit as new message",
     approvalReview: {
       action: {
         command: "Command",

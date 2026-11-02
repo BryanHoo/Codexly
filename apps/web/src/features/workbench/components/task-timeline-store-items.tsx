@@ -1,3 +1,4 @@
+import { MessageEditAction } from "@codexly/ui/core/message-edit";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { useStore } from "zustand";
 
@@ -191,6 +192,14 @@ export function StoredUserMessageValue({
         {...(item.type === "review"
           ? { modeLabel: i18n.t("timeline.reviewMode", { ns: "conversation" }) }
           : {})}
+        editAction={
+          item.type === "message" ? (
+            <MessageEditAction
+              message={item}
+              label={i18n.t("timeline.editMessage", { ns: "conversation" })}
+            />
+          ) : null
+        }
         text={copiedText}
       />
     </Message>

@@ -484,6 +484,7 @@ export function useComposerSession({
     setPendingTaskState,
     setComposerModeState,
     setPromptContent,
+    setPromptHistoryIndex,
     setReviewMenuMode,
     setSettingsOverride,
     setSubmittedTurnState,
