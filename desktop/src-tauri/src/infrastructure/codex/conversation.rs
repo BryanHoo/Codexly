@@ -366,8 +366,40 @@ fn map_thread_status(status: &NativeThreadStatus) -> Result<&'static str, Connec
     }
 }
 
-pub(super) fn map_turn(turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
+pub(super) fn map_turn(mut turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
     let status = map_status(&turn.status, true)?;
+    // 0.166 的历史和实时 Turn 共用条目时间；新值按字段优先，null/缺失保留旧分页计时。
+    // 仅检查当前已加载条目，借用正文，避免为恢复耗时额外加载或复制整段历史。
+    for item in &turn.items {
+        let read_timestamp = |key: &str| match item.get(key) {
+            None | Some(Value::Null) => Ok(None),
+            Some(value) => value
+                .as_i64()
+                // IPC 进入 JavaScript 后仍须保持毫秒整数精度，与 Web 适配器边界一致。
+                .filter(|value| (0..=9_007_199_254_740_991).contains(value))
+                .map(Some)
+                .ok_or(ConnectionError::InvalidMessage),
+        };
+        let started_at_ms = read_timestamp("startedAtMs")?;
+        let completed_at_ms = read_timestamp("completedAtMs")?;
+        if started_at_ms.is_none() && completed_at_ms.is_none() {
+            continue;
+        }
+        let id = item
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or(ConnectionError::InvalidMessage)?;
+        let timing = turn
+            .item_timings
+            .get_or_insert_with(BTreeMap::new)
+            .entry(id.to_owned())
+            .or_insert(AgentItemTiming {
+                started_at_ms: None,
+                completed_at_ms: None,
+            });
+        timing.started_at_ms = started_at_ms.or(timing.started_at_ms);
+        timing.completed_at_ms = completed_at_ms.or(timing.completed_at_ms);
+    }
     let mut items = turn
         .items
         .into_iter()
@@ -389,6 +421,10 @@ pub(super) fn map_turn(turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
 #[cfg(test)]
 #[path = "conversation_pagination_tests.rs"]
 mod pagination_tests;
+
+#[cfg(test)]
+#[path = "codex_166_contract_tests.rs"]
+mod codex_166_contract_tests;
 
 #[cfg(test)]
 #[path = "runtime_session_tests.rs"]

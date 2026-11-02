@@ -18,7 +18,7 @@ use super::connection::{AppServerConnection, ConnectionError};
 use super::runtime_manager::{RuntimeDiscoveryError, find_compatible_codex_binary};
 use super::stderr::spawn_codex_stderr_tasks;
 
-pub const SUPPORTED_CODEX_VERSION: &str = "0.164.0";
+pub const SUPPORTED_CODEX_VERSION: &str = "0.166.0";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 // 首次启动内置二进制可能等待系统校验；预留冷启动预算，超时仍终止并回收子进程。
 const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(15);
@@ -36,7 +36,7 @@ pub enum ProcessError {
     VersionProbeTimeout,
     #[error("Codex probe output exceeded the limit")]
     OutputTooLarge,
-    #[error("unsupported Codex version; expected 0.164.0")]
+    #[error("unsupported Codex version; expected 0.166.0")]
     UnsupportedVersion,
     #[error(transparent)]
     RuntimeDiscovery(#[from] RuntimeDiscoveryError),

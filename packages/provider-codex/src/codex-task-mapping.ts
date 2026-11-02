@@ -221,7 +221,7 @@ export function mapAgentTurn(
   }
   const turnId = explicitTurnId ?? expectString(turn["id"], "Codex turn id");
   const rawItemTimings = turn["itemTimings"];
-  const itemTimings =
+  let itemTimings =
     rawItemTimings === undefined
       ? undefined
       : Object.fromEntries(
@@ -249,6 +249,28 @@ export function mapAgentTurn(
           ),
         );
   const nativeItems = turn["items"].map((item) => expectRecord(item, "Codex turn item"));
+  // 0.166 将生命周期时间直接放入 ThreadItem；按字段优先使用新值，缺失时保留旧分页计时。
+  // 只遍历已加载的一页，不为耗时读取完整历史；null 表示未记录，不能伪造成 0。
+  for (const item of nativeItems) {
+    const timing: { startedAtMs?: number; completedAtMs?: number } = {};
+    for (const key of ["startedAtMs", "completedAtMs"] as const) {
+      const timestamp = item[key];
+      if (timestamp === undefined || timestamp === null) continue;
+      if (!Number.isSafeInteger(timestamp) || (timestamp as number) < 0) {
+        throw new CodexProtocolMappingError(`Codex item timing ${key} is invalid`);
+      }
+      timing[key] = timestamp as number;
+    }
+    if (Object.keys(timing).length === 0) continue;
+    const id = expectString(item["id"], "Codex item timing id");
+    itemTimings ??= {};
+    Object.defineProperty(itemTimings, id, {
+      configurable: true,
+      enumerable: true,
+      value: { ...itemTimings[id], ...timing },
+      writable: true,
+    });
+  }
   const enteredReviewMode = nativeItems.find((item) => item["type"] === "enteredReviewMode");
   const exitedReviewMode = nativeItems.findLast(
     (item) =>

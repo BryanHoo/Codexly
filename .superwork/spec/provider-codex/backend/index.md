@@ -40,3 +40,9 @@
 - 单次最多 10 秒、每条输出最多 1 MiB；配置失败的非零退出仍解析 stdout JSON。只认完整的版本/配置要求或结构化错误信封；无效输出和诊断不可用不得覆盖原始启动错误。上游配置错误行列已从 1 开始，禁止再次偏移。
 - 配置要求只供诊断显示；`doctor` 在应用 SQLite 检查前预检。组织策略可能访问网络，认证错误按上游 `action: relogin` 提示用户重新登录，诊断不自动修改账号或配置。
 - 两端共用 `packages/provider-codex/test/fixtures/startup-config.json` 契约样本；回归入口为 `startup-config.test.ts`、`app-server-process.test.ts`、`src/cli-command-start.test.ts` 和桌面 `startup_config_tests.rs`。用户排查入口见 [常见问题](../../../../docs/faq.md#codex-启动失败如何检查配置)。
+
+## 条目生命周期计时
+
+- Codex 0.166 的 `ThreadItem.startedAtMs` / `completedAtMs` 映射到既有 `itemTimings`，历史和回合事件使用同一边界；条目字段优先，null / 缺失按字段回退旧分页计时，不能伪造成零。零值有效，负值、非整数和超出 JavaScript 安全整数范围的值均拒绝。
+- 只检查已加载的条目，不为计时追读过程分页或完整历史；Rust 借用原始正文，公开事件与 UI 不携带额外上游元数据。
+- 两端共用 `packages/provider-codex/test/fixtures/codex-166-item-timings.json`，测试入口为 `codex-166-contract.test.ts` 和原生 `codex_166_contract_tests.rs`；升级依据与验证见 [0.166.0 升级评估](../../../../docs/codex-0.166.0-upgrade.md)。

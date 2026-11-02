@@ -48,7 +48,7 @@ async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
   const runtime = new CodexAppServerProcess(
     child,
     { path: process.execPath, source: "explicit" },
-    { raw: "codex-cli 0.164.0", version: "0.164.0" },
+    { raw: "codex-cli 0.166.0", version: "0.166.0" },
     { rpcTimeoutMs: 1_000, shutdownTimeoutMs: 2_000 },
   );
   await runtime.waitForSpawn();
@@ -181,7 +181,7 @@ describe("CodexAppServerProcess", () => {
       },
       initialized: true,
     });
-    expect(runtime.version.version).toBe("0.164.0");
+    expect(runtime.version.version).toBe("0.166.0");
     expect(runtime.closed).toBe(false);
   });
 
@@ -289,7 +289,7 @@ describe("CodexAppServerProcess", () => {
       const runtime = new CodexAppServerProcess(
         child,
         { path: "/fake/codex", source: "explicit" },
-        { raw: "codex-cli 0.164.0", version: "0.164.0" },
+        { raw: "codex-cli 0.166.0", version: "0.166.0" },
         { rpcTimeoutMs: 100, shutdownTimeoutMs: 5 },
       );
       const pending = expect(runtime.client.request("slow")).rejects.toBeInstanceOf(
@@ -316,7 +316,7 @@ describe("CodexAppServerProcess", () => {
       const runtime = new CodexAppServerProcess(
         child,
         { path: "/fake/codex", source: "explicit" },
-        { raw: "codex-cli 0.164.0", version: "0.164.0" },
+        { raw: "codex-cli 0.166.0", version: "0.166.0" },
         { rpcTimeoutMs: 100, shutdownTimeoutMs: 5 },
       );
 

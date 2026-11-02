@@ -282,10 +282,12 @@ fn map_codex_error_info(value: Option<&Value>) -> (&'static str, Option<u64>) {
         Some("flexUnavailable") => "flex_unavailable",
         Some("serverOverloaded") => "server_overloaded",
         Some("tooManyDenials") => "too_many_denials",
-        Some("cyberPolicy" | "misalignmentPolicyViolation") => "policy_blocked",
+        Some("cyberPolicy" | "misalignmentPolicyViolation" | "policyCapacityUnavailable") => {
+            "policy_blocked"
+        }
         Some("internalServerError") => "internal_error",
         Some("unauthorized") => "unauthorized",
-        Some("badRequest") => "bad_request",
+        Some("badRequest" | "modelNotFound") => "bad_request",
         Some("sandboxError") => "sandbox_error",
         Some(_) | None => "other",
     };

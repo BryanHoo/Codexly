@@ -63,7 +63,10 @@ function mapProviderErrorInfo(value: unknown): Readonly<{
     cyberPolicy: "policy_blocked",
     flexUnavailable: "flex_unavailable",
     internalServerError: "internal_error",
+    // 模型不可用与策略容量限制均不能被宿主当作普通过载自动重试。
+    modelNotFound: "bad_request",
     other: "other",
+    policyCapacityUnavailable: "policy_blocked",
     rateLimitExceeded: "rate_limit_exceeded",
     sandboxError: "sandbox_error",
     serverOverloaded: "server_overloaded",

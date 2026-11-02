@@ -1,0 +1,266 @@
+[
+  {
+    "name": "新条目保留毫秒时间",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": 1000,
+          "completedAtMs": 1456
+        }
+      ]
+    },
+    "expected": {
+      "command-1": {
+        "startedAtMs": 1000,
+        "completedAtMs": 1456
+      }
+    }
+  },
+  {
+    "name": "缺失时间不伪造耗时",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace"
+        }
+      ]
+    },
+    "expected": null
+  },
+  {
+    "name": "空值兼容旧记录",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": null,
+          "completedAtMs": null
+        }
+      ]
+    },
+    "expected": null
+  },
+  {
+    "name": "零值有效",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": 0,
+          "completedAtMs": 0
+        }
+      ]
+    },
+    "expected": {
+      "command-1": {
+        "startedAtMs": 0,
+        "completedAtMs": 0
+      }
+    }
+  },
+  {
+    "name": "条目按字段优先并回退旧分页时间",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": 1000,
+          "completedAtMs": null
+        }
+      ],
+      "itemTimings": {
+        "command-1": {
+          "startedAtMs": 999,
+          "completedAtMs": 1456
+        }
+      }
+    },
+    "expected": {
+      "command-1": {
+        "startedAtMs": 1000,
+        "completedAtMs": 1456
+      }
+    }
+  },
+  {
+    "name": "保留旧分页时间",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace"
+        }
+      ],
+      "itemTimings": {
+        "command-1": {
+          "startedAtMs": 1000,
+          "completedAtMs": 1456
+        }
+      }
+    },
+    "expected": {
+      "command-1": {
+        "startedAtMs": 1000,
+        "completedAtMs": 1456
+      }
+    }
+  },
+  {
+    "name": "拒绝负时间",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": -1
+        }
+      ]
+    },
+    "invalid": true
+  },
+  {
+    "name": "拒绝小数",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": 1.5
+        }
+      ]
+    },
+    "invalid": true
+  },
+  {
+    "name": "拒绝字符串",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": "1000"
+        }
+      ]
+    },
+    "invalid": true
+  },
+  {
+    "name": "拒绝不安全整数",
+    "turn": {
+      "id": "turn-1",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "error": null,
+      "items": [
+        {
+          "id": "command-1",
+          "type": "commandExecution",
+          "command": "pwd",
+          "cwd": "/workspace",
+          "status": "completed",
+          "exitCode": 0,
+          "aggregatedOutput": "/workspace",
+          "startedAtMs": 9007199254740992
+        }
+      ]
+    },
+    "invalid": true
+  }
+]
