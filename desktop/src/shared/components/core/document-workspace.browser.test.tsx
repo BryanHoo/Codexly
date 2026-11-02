@@ -6,8 +6,47 @@ import { DocumentWorkspace } from "@codexly/ui/core/document-workspace";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
 import { SplitWorkspaceProvider, SplitWorkspaceGrid, useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
+import { TerminalContext, TerminalFooter } from "../../../features/terminal/components/terminal-context.js";
 
 describe("双端共用中栏标签与聊天对照", () => {
+  it("文件标签隐藏外置底栏，返回聊天或并排对照时恢复且保留草稿", async () => {
+    const host = document.createElement("div");
+    const footer = document.createElement("div");
+    document.body.append(host, footer);
+    const root = createRoot(host);
+    let state: ReturnType<typeof useDocumentWorkspace<{ id: string }>>;
+    function View() {
+      const workspace = useDocumentWorkspace<{ id: string }>("footer-visibility");
+      useLayoutEffect(() => { state = workspace; }, [workspace]);
+      return <TerminalContext value={{ projectId: "project", rootId: undefined, footer,
+        toggle: () => undefined, captureFocus: () => undefined }}>
+        <DocumentWorkspace workspace={workspace} locale="zh-CN"
+          describe={(doc) => ({ title: doc.id, detail: doc.id, kind: "source" })}
+          renderDocument={(doc) => <div>{doc.id}</div>}>
+          <textarea aria-label="聊天草稿" />
+          <TerminalFooter><button>分支、项目路径、上下文</button></TerminalFooter>
+        </DocumentWorkspace>
+      </TerminalContext>;
+    }
+    try {
+      flushSync(() => root.render(<View />));
+      const editor = host.querySelector("textarea")!;
+      editor.value = "保留聊天草稿";
+      expect(footer.textContent).toContain("分支、项目路径、上下文");
+      flushSync(() => { void state!.open({ id: "a.ts" }); });
+      // 外置 Portal 不在 Activity 的 DOM 隐藏边界内，必须单独跟随聊天可见性。
+      await expect.poll(() => footer.querySelector("button")).toBeNull();
+      flushSync(() => { void state!.select(null); });
+      await expect.poll(() => footer.textContent).toContain("分支、项目路径、上下文");
+      expect(host.querySelector("textarea")).toBe(editor);
+      expect(editor.value).toBe("保留聊天草稿");
+      flushSync(() => { void state!.open({ id: "a.ts" }); void state!.compare("right"); });
+      await expect.poll(() => footer.textContent).toContain("分支、项目路径、上下文");
+      expect(editor.checkVisibility()).toBe(true);
+      flushSync(() => { void state!.compare(null); });
+      await expect.poll(() => footer.querySelector("button")).toBeNull();
+    } finally { flushSync(() => root.unmount()); host.remove(); footer.remove(); }
+  });
   it("任务导航回到聊天并保留文件标签，普通分屏聚焦不改变文档", async () => {
     const host = document.createElement("div");
     document.body.append(host);

@@ -2,6 +2,8 @@ import { createContext, useContext, useLayoutEffect, useRef, type RefObject } fr
 import type { DocumentEditorBinding, DocumentEditorRegistry } from "./document-editor-registry.js";
 
 export type DocumentLeaveGuard = () => boolean | Promise<boolean>;
+// Portal 底栏位于聊天 DOM 之外，需共享可见性；独立聊天默认显示。
+export const DocumentChatVisibilityContext = createContext(true);
 export const DocumentNavigationContext = createContext<RefObject<DocumentLeaveGuard | null> | null>(
   null,
 );

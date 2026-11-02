@@ -17,7 +17,11 @@ import { MessageSquare } from "lucide-react";
 import type { WorkspaceDocument } from "@codexly/frontend-core/document-workspace";
 import type { useDocumentWorkspace } from "./use-document-workspace.js";
 import { DocumentWorkspaceResizer } from "./document-workspace-resizer.js";
-import { DocumentNavigationContext, DocumentEditorContext } from "./document-navigation.js";
+import {
+  DocumentNavigationContext,
+  DocumentEditorContext,
+  DocumentChatVisibilityContext,
+} from "./document-navigation.js";
 import type {
   DocumentPresentation,
   DocumentWorkspaceTabs as DocumentWorkspaceTabsComponent,
@@ -142,18 +146,20 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
       ) : null}
       <div className="document-workspace-body" data-direction={direction ?? "single"} ref={bodyRef}>
         {/* 聊天固定在同一 React 位置；隐藏只暂停视图副作用，任务运行时仍由外层持续接收事件。 */}
-        <Activity mode={chatVisible ? "visible" : "hidden"}>
-          <div
-            className="document-workspace-chat"
-            role={hasDocuments ? "tabpanel" : "region"}
-            id={`${id}-chat`}
-            aria-label={hasDocuments ? undefined : chat}
-            aria-labelledby={hasDocuments ? `${id}-tab-0` : undefined}
-            tabIndex={0}
-          >
-            {children}
-          </div>
-        </Activity>
+        <DocumentChatVisibilityContext value={chatVisible}>
+          <Activity mode={chatVisible ? "visible" : "hidden"}>
+            <div
+              className="document-workspace-chat"
+              role={hasDocuments ? "tabpanel" : "region"}
+              id={`${id}-chat`}
+              aria-label={hasDocuments ? undefined : chat}
+              aria-labelledby={hasDocuments ? `${id}-tab-0` : undefined}
+              tabIndex={0}
+            >
+              {children}
+            </div>
+          </Activity>
+        </DocumentChatVisibilityContext>
         {selected === undefined ? null : (
           <div
             className="document-workspace-document"
