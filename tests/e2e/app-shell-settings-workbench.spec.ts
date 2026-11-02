@@ -259,6 +259,11 @@ test("opens message images in a preview dialog @cross-browser", async ({ context
   const attachment = userMessage.locator('[data-message-attachment="image"]');
   const textBubble = userMessage.locator('[data-message-text="true"]');
   await expect(attachment).toBeVisible();
+  // 先以真实阅读滚动解除底部跟随，避免首载 Markdown 完成布局时移走旧消息里的图片。
+  const viewport = page.locator('[data-slot="message-scroller-viewport"]');
+  await viewport.hover();
+  await page.mouse.wheel(0, -10_000);
+  await expect.poll(() => viewport.evaluate((element) => element.scrollTop)).toBe(0);
   await expect(attachment).toHaveCSS("border-radius", "8px");
   await expect(attachment).toHaveCSS("height", "160px");
   await expect(attachment).toHaveCSS("width", "160px");

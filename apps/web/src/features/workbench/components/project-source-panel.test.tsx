@@ -64,6 +64,10 @@ describe("project image previews", () => {
       new URL("../../../shared/components/agent/message-response.tsx", import.meta.url),
       "utf8",
     );
+    const markdownStyles = readFileSync(
+      new URL("../../../../../../packages/ui/src/agent/streaming-markdown.css", import.meta.url),
+      "utf8",
+    );
     const messageImageSource = readFileSync(
       new URL("./message-image-attachment.tsx", import.meta.url),
       "utf8",
@@ -73,8 +77,9 @@ describe("project image previews", () => {
       "utf8",
     );
 
-    expect(messageResponseSource).toContain(
-      "[&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:object-contain",
+    expect(messageResponseSource).toContain("markdown-typography");
+    expect(markdownStyles).toMatch(
+      /\.markdown-typography img\s*\{\s*display: block;\s*max-width: 100%;\s*height: auto;\s*object-fit: contain;\s*\}/u,
     );
     const otherPreviews = [
       "../../../../../../desktop/src/features/workbench/components/message-image-attachment.tsx",
