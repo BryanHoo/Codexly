@@ -13,6 +13,12 @@
 
 跨端数据语义见 [本地目录与任务](../../../../docs/local-catalog.md)，引擎语义见 [智能体引擎](../../../../docs/agent-engines.md)。
 
+## 异步回答的历史接管
+
+- 持久回答补回快照后，原生用户消息接管时必须通过 `identityAliases` 声明持久回答的 `messageId`，保留原生 ID、已有别名和元数据；重复恢复不新增别名或实体。不能只因正文已存在就跳过身份关联，否则前端合并快照会保留两条回答。
+- 回执仅匹配对应问题与下一次同文提问之间的用户消息，不能把后一次回答关联到前一次问题。
+- 回归入口：Core `async-question.test.ts`、Server `app-async-questions.test.ts`（持久化重启及 HTTP 别名）和 Web `task-store-identity.test.ts`（运行中及终态快照反复接管）。桌面没有 Web 持久回答补回路径，继续复用共享的身份别名消费规则。
+
 ## 排队消息的轮次切换与拒绝恢复
 
 - [共享队列](../../../../packages/core/src/persistent-task-queue.ts) 与两端输入框一致，从时间升序历史中选择最新运行回合，避免命中旧会话残留的未完成标记。

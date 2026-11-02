@@ -66,6 +66,35 @@ test("applies a server-provided alias without comparing message content", () => 
   expect(store.getState().getItem("canonical", "turn-running")).toMatchObject({ text: "权威内容" });
 });
 
+test.each(["running", "completed"] as const)(
+  "replaces a restored async answer when native history takes over (%s)",
+  (status) => {
+    const question = item("question", "请选择范围");
+    const answer = { ...item("persisted-answer", "范围\n整个项目"), role: "user" as const };
+    const turn = response([]).snapshot.turns[0];
+    if (turn === undefined) throw new Error("Missing turn fixture");
+    const restored = createResponse({
+      turns: [{ ...turn, status, items: [question, answer] }],
+    });
+    const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, restored);
+    const native = {
+      ...restored,
+      snapshot: {
+        ...restored.snapshot,
+        turns: restored.snapshot.turns.map((turn) => ({
+          ...turn,
+          items: [question, { ...answer, id: "native-answer", identityAliases: [answer.id] }],
+        })),
+      },
+    };
+    // 重复恢复历史仍须只显示一次，且清理已被接管的补位实体。
+    store.getState().reconcile(native);
+    store.getState().reconcile(native);
+    expect(readTurnItemIds(store, "turn-running")).toEqual([question.id, "native-answer"]);
+    expect(store.getState().getItem(answer.id, "turn-running")).toBeUndefined();
+  },
+);
+
 test("removes an already rendered alias when item completion announces its canonical identity", () => {
   const store = makeStore();
   store.getState().applyEvents([

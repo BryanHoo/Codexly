@@ -110,7 +110,22 @@ describe("async question domain", () => {
     const restored = restoreAsyncQuestionAnswers(snapshot, [record]);
     expect(restored.turns[0]?.items).toEqual([message, { ...answer, id: "persisted-answer" }]);
     const nativeSnapshot = { ...snapshot, turns: [{ ...turn, items: [message, answer] }] };
-    expect(restoreAsyncQuestionAnswers(nativeSnapshot, [record])).toBe(nativeSnapshot);
+    const nativeRestored = restoreAsyncQuestionAnswers(nativeSnapshot, [record]);
+    expect(nativeRestored.turns[0]?.items).toEqual([
+      message,
+      { ...answer, identityAliases: ["persisted-answer"] },
+    ]);
+    expect(restoreAsyncQuestionAnswers(nativeRestored, [record])).toBe(nativeRestored);
+    // 保留已有原生别名，并允许已经包含持久 ID 的快照直接复用。
+    const aliasedSnapshot = {
+      ...snapshot,
+      turns: [{ ...turn, items: [message, { ...answer, identityAliases: ["old-native"] }] }],
+    };
+    expect(restoreAsyncQuestionAnswers(aliasedSnapshot, [record]).turns[0]?.items[1]).toEqual({
+      ...answer,
+      identityAliases: ["old-native", "persisted-answer"],
+    });
+    expect(restoreAsyncQuestionAnswers(restored, [record])).toBe(restored);
 
     // 两次同文提问各有一次回答，后一条原生回答不能冒充前一条的回执。
     const repeatedTurn = {
@@ -136,7 +151,7 @@ describe("async question domain", () => {
       message,
       { ...answer, id: "persisted-answer" },
       { ...message, id: "second-question" },
-      answer,
+      { ...answer, identityAliases: ["second-answer"] },
     ]);
     expect(restoreAsyncQuestionAnswers(repeated, [record, secondRecord])).toBe(repeated);
   });

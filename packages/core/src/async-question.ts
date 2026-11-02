@@ -96,13 +96,30 @@ export function restoreAsyncQuestionAnswers(
     const questionIndex = questionIndexes[occurrence];
     if (questionIndex === undefined) continue;
     // 同文再次提问的回答只归属于对应出现次数，不能跨过下一组相同问题复用回执。
-    const alreadyPresent = turn.items
+    const answerOffset = turn.items
       .slice(questionIndex + 1, questionIndexes[occurrence + 1])
-      .some(
+      .findIndex(
         (item) =>
           item.type === "message" && item.role === "user" && item.text === result.input.text,
       );
-    if (alreadyPresent) continue;
+    if (answerOffset >= 0) {
+      const answerIndex = questionIndex + 1 + answerOffset;
+      const answer = turn.items[answerIndex];
+      if (answer?.type !== "message") continue;
+      if (answer.id === result.messageId || answer.identityAliases?.includes(result.messageId))
+        continue;
+      // 原生历史接管持久回答时必须声明旧 ID；否则同一会话的快照合并会保留两条回答。
+      // 仅关联当前问题出现区间内的回执，保留原生 ID、已有别名及消息元数据。
+      const items = [...turn.items];
+      items[answerIndex] = {
+        ...answer,
+        identityAliases: [...(answer.identityAliases ?? []), result.messageId],
+      };
+      turns = turns.map((candidate, index) =>
+        index === turnIndex ? { ...turn, items } : candidate,
+      );
+      continue;
+    }
 
     // Codex 的运行中 steer 回答可能不进入历史快照，用持久结果补回原问题之后。
     const items = [...turn.items];

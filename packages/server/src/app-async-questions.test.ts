@@ -169,6 +169,35 @@ describe("async question API", () => {
             "text" in item ? item.text : null,
           ]),
       ).toContainEqual(["message", "user", "范围\n整个项目"]);
+      // 刷新恢复的回答随后进入原生历史时，HTTP 响应须保留补位 ID 的接管关系。
+      const persistedId = results[0].json<{ messageId: string }>().messageId;
+      second.readTask.mockResolvedValue({
+        ...source,
+        turns: source.turns.map((turn) => ({
+          ...turn,
+          items: [
+            question,
+            { id: "native-answer", type: "message", role: "user", text: "范围\n整个项目" },
+          ],
+        })),
+      });
+      const nativeTask = await second.app.inject({
+        method: "GET",
+        url: "/v1/projects/codexly/tasks/task-1",
+      });
+      expect(nativeTask.statusCode, nativeTask.body).toBe(200);
+      expect(
+        nativeTask.json<{ snapshot: { turns: { items: unknown[] }[] } }>().snapshot.turns[0]?.items,
+      ).toEqual([
+        question,
+        {
+          id: "native-answer",
+          type: "message",
+          role: "user",
+          text: "范围\n整个项目",
+          identityAliases: [persistedId],
+        },
+      ]);
     },
   );
   it("starts an idle task using persisted settings and rejects incomplete answers", async () => {
