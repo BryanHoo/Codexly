@@ -1,6 +1,8 @@
 //! 仅在启动握手失败后执行轻量配置诊断，不进入正常启动路径或注销恢复路径。
 
-use super::process::{ProcessError, background_process_command, read_limited};
+use super::process::{
+    APP_SERVER_ARGUMENTS, ProcessError, background_process_command, read_limited,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{ffi::OsStr, fmt, process::Stdio, time::Duration};
@@ -65,13 +67,8 @@ pub(super) fn build_startup_config_command(
     let mut command = background_process_command(program);
     // 沿用桌面正式握手的历史客户端名 codeagent，保持组织策略请求身份一致。
     command
-        .args([
-            "app-server",
-            "--enable",
-            "plugins",
-            "--print-startup-config",
-            "--startup-client-info",
-        ])
+        .args(APP_SERVER_ARGUMENTS)
+        .args(["--print-startup-config", "--startup-client-info"])
         .arg(
             json!({"name":"codeagent", "title":"Codexly", "version":env!("CARGO_PKG_VERSION")})
                 .to_string(),

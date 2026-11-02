@@ -268,11 +268,21 @@ fn parse_codex_cli_version(output: &str) -> Option<&str> {
     }
 }
 
+// 正式服务与配置诊断共用功能参数，只关闭发现预取，保留已安装插件同步。
+pub(super) const APP_SERVER_ARGUMENTS: [&str; 5] = [
+    "app-server",
+    "--enable",
+    "plugins",
+    "-c",
+    "features.plugin_discovery_prefetch=false",
+];
+
 fn build_app_server_command(program: &OsStr, runtime_path: Option<&OsStr>) -> Command {
     let mut command = background_process_command(program);
     // 不设置 CODEX_HOME，让官方逻辑继承用户配置或回退到默认 ~/.codex。
     command
-        .args(["app-server", "--enable", "plugins", "--listen", "stdio://"])
+        .args(APP_SERVER_ARGUMENTS)
+        .args(["--listen", "stdio://"])
         .env("LOG_FORMAT", "json")
         .env("RUST_LOG", "warn")
         .stdin(Stdio::piped())

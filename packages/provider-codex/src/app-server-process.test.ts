@@ -37,7 +37,16 @@ async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
   // Fake Server 由当前 Node.js 执行，避免 Windows 把测试脚本误当成原生 Codex Binary。
   const child = spawn(
     process.execPath,
-    [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
+    [
+      fakeAppServerPath,
+      "app-server",
+      "--enable",
+      "plugins",
+      "-c",
+      "features.plugin_discovery_prefetch=false",
+      "--listen",
+      "stdio://",
+    ],
     {
       env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
       shell: false,
@@ -150,7 +159,7 @@ describe("CodexAppServerProcess", () => {
   );
 
   it.runIf(process.platform !== "win32")(
-    "enables the plugins feature for the production app-server process",
+    "loads plugins without discovery prefetch for the production app-server process",
     async () => {
       const runtime = await startCodexAppServer({
         appVersion: "1.2.3",
@@ -161,7 +170,15 @@ describe("CodexAppServerProcess", () => {
       runtimes.push(runtime);
 
       await expect(runtime.client.request("inspect")).resolves.toMatchObject({
-        args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
+        args: [
+          "app-server",
+          "--enable",
+          "plugins",
+          "-c",
+          "features.plugin_discovery_prefetch=false",
+          "--listen",
+          "stdio://",
+        ],
       });
     },
   );
@@ -171,7 +188,15 @@ describe("CodexAppServerProcess", () => {
 
     await expect(runtime.client.request("echo", { ok: true })).resolves.toEqual({ ok: true });
     await expect(runtime.client.request("inspect")).resolves.toEqual({
-      args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
+      args: [
+        "app-server",
+        "--enable",
+        "plugins",
+        "-c",
+        "features.plugin_discovery_prefetch=false",
+        "--listen",
+        "stdio://",
+      ],
       initializeParams: {
         capabilities: {
           experimentalApi: true,

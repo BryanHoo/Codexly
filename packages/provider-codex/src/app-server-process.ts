@@ -12,8 +12,9 @@ import { readCodexStartupConfig, CodexStartupConfigError } from "./startup-confi
 import { JsonlRpcClient, RpcConnectionClosedError } from "./jsonl-rpc-client.js";
 import { CODEX_OPT_OUT_NOTIFICATION_METHODS } from "./codex-mapping-common.js";
 
-// 插件仍需显式启用；API Key 模型发现已默认开启，交由 Codex 配置决定。
-const APP_SERVER_ARGUMENTS = ["app-server", "--enable", "plugins", "--listen", "stdio://"] as const;
+import { CODEX_APP_SERVER_ARGUMENTS } from "./app-server-arguments.js";
+
+const APP_SERVER_ARGUMENTS = [...CODEX_APP_SERVER_ARGUMENTS, "--listen", "stdio://"] as const;
 const MAX_STDERR_LENGTH = 8_192;
 
 export interface StartCodexAppServerOptions {

@@ -1,3 +1,4 @@
+import { CODEX_APP_SERVER_ARGUMENTS } from "./app-server-arguments.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { RpcErrorPayload } from "./jsonl-rpc-client.js";
@@ -90,9 +91,7 @@ export async function readCodexStartupConfig(
     output = await (options.execute ?? executeProbe)(
       binaryPath,
       [
-        "app-server",
-        "--enable",
-        "plugins",
+        ...CODEX_APP_SERVER_ARGUMENTS,
         "--print-startup-config",
         "--startup-client-info",
         JSON.stringify({

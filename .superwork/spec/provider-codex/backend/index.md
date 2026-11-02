@@ -46,3 +46,9 @@
 - Codex 0.166 的 `ThreadItem.startedAtMs` / `completedAtMs` 映射到既有 `itemTimings`，历史和回合事件使用同一边界；条目字段优先，null / 缺失按字段回退旧分页计时，不能伪造成零。零值有效，负值、非整数和超出 JavaScript 安全整数范围的值均拒绝。
 - 只检查已加载的条目，不为计时追读过程分页或完整历史；Rust 借用原始正文，公开事件与 UI 不携带额外上游元数据。
 - 两端共用 `packages/provider-codex/test/fixtures/codex-166-item-timings.json`，测试入口为 `codex-166-contract.test.ts` 和原生 `codex_166_contract_tests.rs`；升级依据与验证见 [0.166.0 升级评估](../../../../docs/codex-0.166.0-upgrade.md)。
+
+## 插件发现按需查询
+
+- Web 服务与桌面启动 Codex App Server 时以进程参数设置 `features.plugin_discovery_prefetch=false`，保留 `plugins` 启用及官方已安装插件同步，不写用户全局配置。正式服务和配置诊断共用各端功能参数，避免有效配置不一致。
+- 插件页沿用共享 `CodexOfficialPluginsPane`：挂载时查询列表，60 秒内复用查询缓存，首次加载使用既有骨架；不增加后台预热、定时器或独立缓存。
+- 该开关只关闭启动发现预取，不关闭插件资源下载、市场自动更新或会话工具推荐。回归入口为 `app-server-process.test.ts`、`startup-config.test.ts`，桌面对应 `process_tests.rs`、`startup_config_tests.rs`。

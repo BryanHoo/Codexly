@@ -16,7 +16,15 @@ fn command_should_use_stdio_and_inherit_official_codex_home() {
     let command = command.as_std();
 
     assert_eq!(command.get_program(), "codex-test");
-    let expected = vec!["app-server", "--enable", "plugins", "--listen", "stdio://"];
+    let expected = vec![
+        "app-server",
+        "--enable",
+        "plugins",
+        "-c",
+        "features.plugin_discovery_prefetch=false",
+        "--listen",
+        "stdio://",
+    ];
     assert_eq!(command.get_args().collect::<Vec<_>>(), expected);
     assert!(command.get_envs().all(|(key, _)| key != "CODEX_HOME"));
     assert_eq!(
