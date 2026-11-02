@@ -364,9 +364,17 @@ export async function generateCommitMessageWithCodex(
   const task = await provider.startTask({ ephemeral: true });
   const completedAssistantMessages = new Map<string, string>();
   let turnId: string | undefined;
-  let turnFinished = false;
+  const lifecycle = { turnFinished: false, cleanupStarted: false, taskReleased: false };
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let unsubscribeEvents: (() => void) | undefined;
+  const releaseTask = async () => {
+    if (lifecycle.taskReleased) return;
+    try {
+      lifecycle.taskReleased = (await provider.unsubscribeTask(task.id)) !== "busy";
+    } catch {
+      // 清理失败不能覆盖生成错误；启动 RPC 尚未结束时，允许在其结束后再尝试释放。
+    }
+  };
   try {
     const completedTurn = new Promise<AgentTurn>((resolve, reject) => {
       unsubscribeEvents = provider.subscribeEvents(
@@ -382,7 +390,7 @@ export async function generateCommitMessageWithCodex(
             // App Server 先交付最终 Message Item，终态 Turn 不保证重复携带完整 items。
             completedAssistantMessages.set(event.turnId, event.payload.item.text);
           } else if (event.type === "turn.completed") {
-            turnFinished = true;
+            lifecycle.turnFinished = true;
             resolve(event.payload.turn);
           } else if (event.type === "provider.error" && !event.payload.willRetry) {
             reject(new Error(event.payload.message));
@@ -394,29 +402,51 @@ export async function generateCommitMessageWithCodex(
         reject(new Error("Commit message generation timed out"));
       }, COMMIT_MESSAGE_TIMEOUT_MS);
     });
-    const startedTurn = await provider.startTurn(
-      task.id,
-      {
-        files: [],
-        images: [],
-        outputSchema: COMMIT_MESSAGE_OUTPUT_SCHEMA,
-        skills: [],
-        text: prompt,
-        textAttachments: [],
-      },
-      {
-        ...settings,
-        approvalPolicy: "never",
-        approvalsReviewer: "user",
-        sandboxMode: "read-only",
-      },
-    );
-    turnId = startedTurn.id;
-    if (startedTurn.status !== "running") {
-      turnFinished = true;
-      return readGeneratedCommitMessage(startedTurn);
-    }
-    const turn = await completedTurn;
+    // 先建立事件与 RPC 的共同接收者，再调用启动 RPC，覆盖同步抛错和提前到达的错误事件。
+    const startedTurn = Promise.resolve()
+      .then(() =>
+        provider.startTurn(
+          task.id,
+          {
+            files: [],
+            images: [],
+            outputSchema: COMMIT_MESSAGE_OUTPUT_SCHEMA,
+            skills: [],
+            text: prompt,
+            textAttachments: [],
+          },
+          {
+            ...settings,
+            approvalPolicy: "never",
+            approvalsReviewer: "user",
+            sandboxMode: "read-only",
+          },
+        ),
+      )
+      .then(
+        async (turn) => {
+          turnId = turn.id;
+          if (turn.status !== "running") {
+            lifecycle.turnFinished = true;
+          } else if (lifecycle.cleanupStarted && !lifecycle.turnFinished) {
+            // 超时或错误可先于 RPC 返回；迟到的运行中 Turn 仍需中断，且清理失败不能再次产生拒绝。
+            await provider.interruptTurn(task.id, turn.id).catch(() => undefined);
+          }
+          if (lifecycle.cleanupStarted) await releaseTask();
+          return turn;
+        },
+        async (error: unknown) => {
+          // 启动期间退订可能返回 busy；迟到的 RPC 失败后也要补做所有权释放。
+          if (lifecycle.cleanupStarted) await releaseTask();
+          throw error;
+        },
+      );
+    // 完成事件、启动失败和超时立即参与竞争，避免等待 RPC 时出现无人接管的拒绝。
+    // 启动响应已是终态时直接使用响应，否则继续接收完成事件；全程共享同一个超时。
+    const turn = await Promise.race([
+      completedTurn,
+      startedTurn.then((started) => (started.status === "running" ? completedTurn : started)),
+    ]);
     return readGeneratedCommitMessage(turn, completedAssistantMessages.get(turn.id));
   } catch (error) {
     if (error instanceof MutationHttpError) {
@@ -429,15 +459,16 @@ export async function generateCommitMessageWithCodex(
       true,
     );
   } finally {
+    lifecycle.cleanupStarted = true;
     if (timeout !== undefined) {
       clearTimeout(timeout);
     }
     unsubscribeEvents?.();
-    if (!turnFinished && turnId !== undefined) {
+    if (!lifecycle.turnFinished && turnId !== undefined) {
       await provider.interruptTurn(task.id, turnId).catch(() => undefined);
     }
     // 临时 Task 不落盘，只需释放事件订阅和运行时所有权。
-    await provider.unsubscribeTask(task.id).catch(() => undefined);
+    await releaseTask();
   }
 }
 
