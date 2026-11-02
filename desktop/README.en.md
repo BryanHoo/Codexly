@@ -22,6 +22,8 @@ For Windows portable builds, extract the entire ZIP and keep the executable, Cla
 
 Desktop shares conversations, approvals, queues, files, Git, extensions, and scheduled workflows with Web and mobile. It adds a native project terminal, global shortcuts, a separate task window, system notifications, and tray integration. Enable startup at login in **Settings → General**.
 
+User messages can be edited into the current composer and sent as new messages, preserving the original history. The context panel displays available Codex session memory summaries and supports manual refresh. The interface uses system fonts; elapsed-time refresh pauses in the background and recalibrates on return.
+
 Sending focuses the new question and preserves your position while reading. Enable **Sticky messages** and **Message navigation anchors** independently in **Settings → General → Editor**; both default to off. Preview cited web sources and follow or pause output in subagent details. Consecutive commands, tools, and image-view operations share a five-row summary window with complete output in separate detail dialogs. Completed turns summarize file changes after the reply.
 
 Toggle **Show status bar icon** in **Settings → General** to show or hide the system tray icon immediately. The choice persists after restart. Hiding it keeps the app running and preserves the behavior of minimizing to the tray when the window closes.

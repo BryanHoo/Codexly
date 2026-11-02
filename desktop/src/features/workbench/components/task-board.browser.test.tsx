@@ -228,7 +228,8 @@ describe("TaskBoard", () => {
 
     const cards = Array.from(document.querySelectorAll<HTMLElement>(".task-board-card"));
     expect(cards.length).toBeGreaterThan(2);
-    expect(new Set(cards.map((card) => card.getBoundingClientRect().height)).size).toBe(1);
+    // 悬停位移在 Chromium 的矩形测量中会产生浮点舍入；等高约束检查布局尺寸，避免动画干扰。
+    expect(new Set(cards.map((card) => card.offsetHeight)).size).toBe(1);
   });
 
   it("突出显示未查看的新完成任务并保持旧完成任务为普通样式", async () => {

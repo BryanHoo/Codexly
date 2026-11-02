@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-11-02
+
+### 新增
+
+- 用户消息支持编辑为新消息，回填当前输入框后可修改并重新发送；上下文面板支持查看和刷新当前 Codex 会话的记忆摘要。
+- 升级适配 Codex 0.166.0 并更新 Claude SDK，保留双引擎各自的配置与能力。
+
+### 优化
+
+- 统一桌面、Web 与移动浏览器的系统字体、柔和暗色、流式回复排版及附件预览，改善正文间距与文件配色。
+- 优化长对话导出、任务导航及插件目录加载，减少界面阻塞与启动开销；回合耗时在后台暂停刷新，回到前台自动校准。
+
+### 修复
+
+- 修复异步回答与原生历史接管时消息重复，以及提交说明生成超时和迟到响应处理异常的问题。
+- 修复用户消息网页链接导航，以及桌面独占文档视图仍显示聊天底栏的问题。
+
 ## [0.47.1] - 2026-10-31
 
 ### 新增
@@ -972,7 +989,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.47.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/BryanHoo/Codexly/compare/v0.47.1...v0.48.0
 [0.47.1]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.1
 [0.47.0]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.0
 [0.46.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...v0.46.1

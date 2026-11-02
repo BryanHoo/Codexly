@@ -33,6 +33,7 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 
 - **Work with Codex or Claude**: configure either independently, or configure both and choose an engine for each new task. Existing tasks keep their engine.
 - **Follow execution**: see streaming replies, commands, tools, plans, and file changes. Respond to approvals and questions above the composer, steer running work, or queue follow-up messages persistently.
+- **Reuse earlier questions**: edit a user message into the current composer and send it as a new message. View available Codex session memory summaries in the context panel.
 - **Read long conversations**: sending focuses the new question, scrolling preserves your reading position, and optional sticky messages and navigation anchors help you revisit content. Preview cited sources and open operation or subagent details on demand.
 - **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, clean up archived tasks by date, and export complete conversations as JSON. Handle alerts or clear read notifications in the notification center. Open the task board, extensions, and schedules from the sidebar.
 - **Work in parallel**: open up to four task panes in the desktop app or a computer browser, drag to swap their positions, and keep independent drafts and queues. Mobile uses a single-task view.

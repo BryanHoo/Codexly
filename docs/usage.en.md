@@ -38,6 +38,10 @@ Consecutive commands, tools, image-view operations, and wait activities share a 
 
 Recent history loads first. Load older turns from the top, and expand execution groups for their details. Claude supports forks from completed replies and context compaction through the command menu. Commands and capabilities follow the selected engine.
 
+Use the edit button beside a user message to replace the current task’s text draft with its text and skill references and focus the composer. Historical attachments are not automatically reattached; add them as needed. Review and send it as a new message; the original conversation is preserved. In split views, only that task’s draft changes.
+
+The context panel shows an available Codex session memory summary. Select Refresh to update it. The section stays hidden when no summary or supported interface is available; a failed refresh preserves existing content for retry. This is separate from the global memory toggle and reset in Settings.
+
 ## Panes and mobile
 
 Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Both clients use `Alt+Shift+Arrow` (Option on macOS). Open **Help → Keyboard shortcuts** for available actions on your platform.
