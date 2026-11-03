@@ -207,6 +207,7 @@ impl AppServerConnection {
                     return Ok(json!({}));
                 }
                 "thread/archive" | "thread/unarchive" => {
+                    self.mutate_native_lifecycle(&task, method, timeout).await?;
                     let task = catalog
                         .call(
                             "task.patch",
@@ -220,6 +221,7 @@ impl AppServerConnection {
                     });
                 }
                 "thread/delete" => {
+                    self.mutate_native_lifecycle(&task, method, timeout).await?;
                     catalog.call("task.remove", json!({"id":id})).await?;
                     return Ok(json!({}));
                 }
@@ -388,6 +390,67 @@ impl AppServerConnection {
     }
 }
 
+impl AppServerConnection {
+    /// 原生生命周期成功后才能提交目录；方法不支持时保留本地管理能力。
+    async fn mutate_native_lifecycle(
+        &self,
+        task: &Value,
+        method: &str,
+        timeout: Duration,
+    ) -> Result<(), ConnectionError> {
+        if task["status"] == "active" && method != "thread/unarchive" {
+            return Err(crate::infrastructure::local_catalog::CatalogError::TaskRunning.into());
+        }
+        let Some(session_id) = task["sessionId"].as_str() else {
+            return Ok(());
+        };
+        // 必须使用原始请求和原生 ID，避免再次进入本地拦截层或延迟创建空会话。
+        let result: Result<Value, _> = self
+            .request_raw(method, &json!({"threadId":session_id}), timeout)
+            .await;
+        match result {
+            Ok(value) if value.is_object() => Ok(()),
+            Ok(_) => Err(ConnectionError::InvalidMessage),
+            Err(ConnectionError::Request { code: -32601, .. }) => Ok(()),
+            // 删除原生成功但目录写入失败时，再次删除可以完成剩余本地清理。
+            Err(ConnectionError::Request {
+                code: -32600,
+                ref message,
+            }) if method == "thread/delete"
+                && (*message == format!("thread not found: {session_id}")
+                    || *message == format!("no rollout found for thread id {session_id}")) =>
+            {
+                Ok(())
+            }
+            Err(ConnectionError::Request {
+                code: -32600,
+                ref message,
+            }) if method == "thread/unarchive"
+                && *message == format!("no archived rollout found for thread id {session_id}") =>
+            {
+                // 兼容旧版本仅本地归档；核实原生会话仍存在，不能掩盖真正的读取故障。
+                let response: Value = self
+                    .request_raw(
+                        "thread/read",
+                        &json!({"threadId":session_id,"includeTurns":false}),
+                        timeout,
+                    )
+                    .await?;
+                if response["thread"]["id"] == session_id {
+                    Ok(())
+                } else {
+                    Err(ConnectionError::InvalidMessage)
+                }
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "local_catalog_bridge_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "local_catalog_lifecycle_tests.rs"]
+mod lifecycle_tests;

@@ -14,6 +14,14 @@
 
 能力差异与原生配置见 [智能体引擎参考](../../../../docs/agent-engines.md)。
 
+## 任务归档与永久删除
+
+- Web 与桌面必须在本地目录边界将应用任务 ID 映射为原生 sessionId，先调用 `thread/archive`、`thread/unarchive` 或 `thread/delete`，确认成功后再提交本地状态及成功事件；尚未绑定的空任务保持本地管理，不启动引擎。
+- 仅 RPC `-32601` 明确方法不支持时回退本地操作，其他权限、断连、超时和运行冲突须保留本地记录。删除时仅精确匹配 `-32600` 与 `thread not found: <sessionId>` 或 `no rollout found for thread id <sessionId>` 视为原生已删除；后者已由固定版本的真实运行时验证。
+- 兼容旧版仅本地归档：恢复收到精确的无归档历史错误时，必须按原生 ID 读取元数据核实会话仍存在后再更新本地状态，不加载完整正文或新增后台轮询。桌面与回合启动、恢复和退订共用任务锁。
+- Claude 继续使用共享 SDK `deleteSession` 删除原生会话；当前 SDK 无归档能力，归档/恢复只操作应用记录。详细语义见 [本地目录与任务](../../../../docs/local-catalog.md#归档恢复与永久删除)。
+- 回归入口为 Server 的 `local-catalog-lifecycle.test.ts` 与 Rust `local_catalog_bridge::lifecycle_tests`；`CODEXLY_REAL_RUNTIME_TEST=1` 使用隔离目录的真实固定版本 Codex 验证底层历史生命周期，无模型调用。
+
 ## 停止回合的完成竞态
 
 - 停止操作须幂等：Web 路由预检确认指定回合已结束时，保留任务和回合归属校验，直接确认且不调用 Provider，不能误停之后的新回合。

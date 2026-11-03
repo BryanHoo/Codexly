@@ -190,6 +190,7 @@ export async function createLocalCatalogClient(
           return {};
         }
         if (method === "thread/archive" || method === "thread/unarchive") {
+          await mutateNativeLifecycle(raw, task, method, timeout, signal);
           const updated = await store.catalog("task.patch", {
             id: task.id,
             archived: method === "thread/archive",
@@ -204,6 +205,7 @@ export async function createLocalCatalogClient(
           return updated.archived ? {} : { thread: localTaskThread(updated) };
         }
         if (method === "thread/delete") {
+          await mutateNativeLifecycle(raw, task, method, timeout, signal);
           await store.catalog("task.remove", { id: task.id });
           publish("thread/deleted", { threadId: task.id });
           if (task.sessionId !== null)
@@ -344,4 +346,51 @@ export async function createLocalCatalogClient(
       return translated;
     },
   };
+}
+
+/** 原生操作先完成再提交目录，失败保留本地绑定作为重试入口。 */
+async function mutateNativeLifecycle(
+  raw: CodexRpcClient,
+  task: LocalTask,
+  method: string,
+  timeout?: number,
+  signal?: Parameters<CodexRpcClient["request"]>[3],
+): Promise<void> {
+  // 尚未执行的空任务没有引擎历史，管理操作不能为它创建原生会话。
+  if (task.status === "active" && method !== "thread/unarchive")
+    throw new Error("Stop the running task before archiving or deleting");
+  if (task.sessionId === null) return;
+  try {
+    expectRecord(await raw.request(method, { threadId: task.sessionId }, timeout, signal), method);
+  } catch (error) {
+    // 只认官方 JSON-RPC 的方法不存在；断连、超时、权限等普通故障继续传播。
+    if (error instanceof RpcResponseError && error.code === -32601) return;
+    if (error instanceof RpcResponseError && error.code === -32600) {
+      if (
+        method === "thread/delete" &&
+        (error.message === `thread not found: ${task.sessionId}` ||
+          error.message === `no rollout found for thread id ${task.sessionId}`)
+      )
+        return;
+      // 旧版只在本地归档：原生可能一直处于活动区。确认会话存在后再恢复本地状态。
+      if (
+        method === "thread/unarchive" &&
+        error.message === `no archived rollout found for thread id ${task.sessionId}`
+      ) {
+        const response = expectRecord(
+          await raw.request(
+            "thread/read",
+            { threadId: task.sessionId, includeTurns: false },
+            timeout,
+            signal,
+          ),
+          "thread/read",
+        );
+        const thread = expectRecord(response["thread"], "thread/read thread");
+        if (thread["id"] !== task.sessionId) throw error;
+        return;
+      }
+    }
+    throw error;
+  }
 }

@@ -5,6 +5,9 @@ use crate::infrastructure::local_catalog::{
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+#[path = "sidebar_task_lifecycle.rs"]
+mod lifecycle;
+
 use super::{
     error::AppError, scheduled_task_runner::start_turn_for_task,
     sidebar_task_settings::effective_task_settings, state::AppState, task_workspace,
@@ -404,9 +407,7 @@ pub async fn archive_task(
             task_id,
         });
     }
-    catalog
-        .call("task.patch", json!({"id":task_id,"archived":true}))
-        .await?;
+    lifecycle::mutate_codex(&state, &catalog, &task, "thread/archive").await?;
     state
         .publish_catalog_task_change(&app, &project_id, &task_id, Some("archived"))
         .await;
@@ -424,13 +425,9 @@ pub async fn unarchive_task(
     state: State<'_, AppState>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
     let catalog = local_catalog(&app)?;
-    catalog.owned_task(&project_id, &task_id).await?;
+    let task = catalog.owned_task(&project_id, &task_id).await?;
     let response = AgentTaskMutationResponse {
-        task: map_task(
-            &catalog
-                .call("task.patch", json!({"id":task_id,"archived":false}))
-                .await?,
-        )?,
+        task: map_task(&lifecycle::restore(&state, &catalog, &task).await?)?,
     };
     state
         .remember_task_metadata(
@@ -467,7 +464,7 @@ pub async fn delete_task(
             )
             .await?;
     } else {
-        catalog.call("task.remove", json!({"id":task_id})).await?;
+        lifecycle::mutate_codex(&state, &catalog, &task, "thread/delete").await?;
     }
     let working_directory = task["cwd"].as_str().map(std::path::PathBuf::from);
     task_workspace::remove_deleted_workspace(
