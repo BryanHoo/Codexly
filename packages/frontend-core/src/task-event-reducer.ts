@@ -1,5 +1,9 @@
 import type { TaskEventModel } from "@codexly/protocol";
-import { applyMessageAliases, resolveMessageAliases } from "./message-identity.js";
+import {
+  applyMessageAliases,
+  resolveMessageAliases,
+  retainMessageAliases,
+} from "./message-identity.js";
 import { createTaskItemKey, retainPendingRequest } from "./task-state.js";
 import { retainTurnItemTimings, recordToolItemTiming } from "./task-event-timing.js";
 import type {
@@ -79,6 +83,11 @@ export function createTaskEventReducer<
       const item = state.itemStoresByKey.get(key)?.read();
       return item === undefined ? [] : [item];
     });
+    const currentById = new Map(currentItems.map((item) => [item.id, item]));
+    // 终态摘要可能省略服务端补充的别名，先保留身份再执行原位归并。
+    terminalItems = terminalItems.map((item) =>
+      retainMessageAliases(currentById.get(item.id), item),
+    );
     const normalizedCurrentItems = resolveMessageAliases(currentItems, terminalItems, turnId);
     const currentItemIds = new Set(normalizedCurrentItems.map((item) => item.id));
     const terminalItemsById = new Map(terminalItems.map((item) => [item.id, item]));
@@ -311,7 +320,11 @@ export function createTaskEventReducer<
         }
         const itemKey = createTaskItemKey(event.turnId, event.itemId);
         const currentItemStore = state.itemStoresByKey.get(itemKey);
-        const currentItemIds = applyMessageAliases(state, event.turnId, event.payload.item);
+        const item = retainMessageAliases(
+          event.payload.item.type === "message" ? currentItemStore?.read() : undefined,
+          event.payload.item,
+        );
+        const currentItemIds = applyMessageAliases(state, event.turnId, item);
         const itemAlreadyExists = currentItemIds.includes(itemKey);
         const submittedUserItemId = `submitted-user-${event.turnId}`;
         const submittedUserItemKey = createTaskItemKey(event.turnId, submittedUserItemId);
@@ -337,9 +350,9 @@ export function createTaskEventReducer<
           state.itemStoresByKey.delete(submittedUserItemKey);
         }
         if (currentItemStore === undefined) {
-          state.itemStoresByKey.set(itemKey, options.createItemStore(event.payload.item));
+          state.itemStoresByKey.set(itemKey, options.createItemStore(item));
         } else {
-          currentItemStore.replace(event.payload.item);
+          currentItemStore.replace(item);
           changedItemStores.add(currentItemStore);
         }
         const timedTurn = recordToolItemTiming(currentTurn, event);

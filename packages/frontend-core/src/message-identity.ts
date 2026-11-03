@@ -8,6 +8,24 @@ interface IdentityItem {
   identityAliases?: readonly string[];
 }
 
+/** 同一实体的正文由新事件更新，已确认的身份关系不能因事件省略别名而丢失。 */
+export function retainMessageAliases<Item extends IdentityItem>(
+  current: Item | undefined,
+  incoming: Item,
+): Item {
+  if (
+    current?.type !== "message" ||
+    incoming.type !== "message" ||
+    current.id !== incoming.id ||
+    !current.identityAliases?.length
+  )
+    return incoming;
+  const aliases = new Set(incoming.identityAliases);
+  for (const alias of current.identityAliases) aliases.add(alias);
+  aliases.delete(incoming.id);
+  return { ...incoming, identityAliases: [...aliases] };
+}
+
 export function resolveMessageAliases<Item extends IdentityItem>(
   current: readonly Item[],
   incoming: readonly Item[],

@@ -92,6 +92,7 @@ const completed = (item: Item, sequence: number, sessionId = "session") => ({
 });
 type ContractEvent =
   | ReturnType<typeof completed>
+  | (Omit<ReturnType<typeof completed>, "type"> & { type: "item.started" })
   | ({
       type: "task.notice";
       payload: { code: "runtime_warning"; level: "warning"; message: string };
@@ -178,6 +179,38 @@ export function taskIdentityContract(createStore: (initial: Response) => Contrac
       expect(ids(store)).toEqual(["native-answer", "tail"]);
     }
   });
+  test.each(["item.started", "item.completed", "turn.completed"] as const)(
+    "%s 省略别名后恢复异步回答仍只显示一次且保持原位置",
+    (type) => {
+      const answer = {
+        ...message("native-answer", "结构方案\n确认，按此方案实施", ["persisted-answer"]),
+        role: "user" as const,
+      };
+      const { identityAliases: _aliases, ...native } = answer;
+      const tail = message("tail", "结构方案已确认，我现在按此实施。");
+      const store = createStore(response([answer, tail]));
+      // 实时/终态事件不携带服务端补充的持久回答别名，不能撤销已确认的身份关系。
+      store.getState().applyEvents([
+        type === "turn.completed"
+          ? {
+              ...envelope(1),
+              type,
+              payload: {
+                turn: { ...fixtureTurn(response([native, tail])), status: "completed" },
+              },
+            }
+          : { ...completed(native, 1), type },
+      ]);
+      for (let index = 0; index < 3; index++) {
+        store
+          .getState()
+          .reconcile(response([tail, { ...native, id: "persisted-answer" }], "session", 1));
+        expect(ids(store)).toEqual(["persisted-answer", "tail"]);
+        store.getState().reconcile(response([native, tail], "session", 1));
+        expect(ids(store)).toEqual(["native-answer", "tail"]);
+      }
+    },
+  );
   test("别名接管释放旧正文的内存预算", () => {
     const canonical = message("canonical", "完成", ["old"]);
     const store = createStore(response([message("old", "长正文".repeat(10_000)), message("tail")]));
