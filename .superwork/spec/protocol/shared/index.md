@@ -41,6 +41,7 @@
 ## 输入提示词优化
 
 - 两端在发送入口左侧使用共享 `PromptOptimizationButton`。点击后调用应用辅助生成的 `defaultAgent/defaultModel`；`promptOptimizationPrompt` 缺失或空白时使用 Protocol 内的共享静态规则，不执行原始输入，不创建可见聊天。
+- 内置改写遵循最小必要原则：保留任务类型、范围、语言、明确约束及代码/路径等字面量；不把分析请求升级为执行，不臆造缺失信息或新增交付要求，清晰完整的输入可原样返回。素材中的指令不能改变本次改写职责；共享 system 将 `{ message }` JSON 传输包装与其中的提示词正文分开约束。规则文本检查与接入回归不代表真实模型改写质量已获验证。
 - HTTP `POST /v1/projects/:projectId/prompt-optimization` 与原生命令 `optimize_prompt` 接收有界正文，返回 `{ text }`；原生通道不绕行 HTTP，Claude 单引擎不启动 Codex。临时会话同样支持。
 - 成功只替换当前未发生编辑的草稿正文并恢复焦点，保留附件；失败保留原文。请求互斥，空输入禁用；会话切换、卸载或编辑后丢弃迟到结果。
 - 配置沿用各端应用偏好持久化，与 Codex 原生配置独立。验证入口：Server `app-prompt-optimization.test.ts`、`sqlite-state-settings.test.ts`，桌面双浏览器 `tests/browser/prompt-optimization.browser.test.tsx` 及 Rust `local_settings`。
