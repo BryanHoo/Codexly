@@ -1,3 +1,8 @@
+import {
+  createInterruptedReplyRecovery,
+  type InterruptedReplyStorage,
+} from "@codexly/frontend-core/interrupted-replies";
+import { appPreferenceStorage } from "../../../platform/tauri/app-storage.js";
 import type { AgentEvent } from "@/protocol/index.js";
 import { acceptTaskEvent, prependTaskHistoryPage } from "@codexly/frontend-core";
 import { createStore } from "zustand/vanilla";
@@ -21,7 +26,13 @@ import { reconcileSnapshot, reconstructSnapshot } from "./task-store-snapshot.js
 export function createTaskStore(
   identity: TaskStoreIdentity,
   initialResponse?: TaskStoreHydrationResponse,
+  replyStorage: InterruptedReplyStorage | undefined = appPreferenceStorage,
 ): TaskStore {
+  const replyRecovery = createInterruptedReplyRecovery(identity, replyStorage);
+  const restoreReplies = (response: TaskStoreHydrationResponse): TaskStoreHydrationResponse => ({
+    ...response,
+    snapshot: { ...response.snapshot, turns: replyRecovery.restore(response.snapshot.turns) },
+  });
   const initialData =
     initialResponse === undefined
       ? {
@@ -42,7 +53,7 @@ export function createTaskStore(
           turnsNextCursor: null,
           turnsById: {},
         }
-      : normalizeSnapshot(initialResponse);
+      : normalizeSnapshot(restoreReplies(initialResponse));
 
   if (
     initialResponse !== undefined &&
@@ -61,10 +72,25 @@ export function createTaskStore(
       const changedItemStores = new Set<TaskItemStore>();
       set((currentState) => {
         let nextState = currentState;
-        for (const event of events) {
+        for (const incomingEvent of events) {
+          let event = incomingEvent;
           // Task、Session 与 Sequence 共同约束事件身份和顺序。
           if (!acceptTaskEvent(nextState.taskId, nextState.checkpoint, event)) {
             continue;
+          }
+          // 中断终态可能省略尚未完成的消息，先保存该回合已经接收的正文。
+          if (
+            event.type === "turn.completed" &&
+            event.provider === "codex" &&
+            event.payload.turn.status === "interrupted"
+          ) {
+            const items = (nextState.itemKeysByTurnId[event.turnId] ?? []).flatMap((key) => {
+              const item = nextState.itemStoresByKey.get(key)?.read();
+              return item === undefined ? [] : [item];
+            });
+            replyRecovery.save({ ...event.payload.turn, items });
+            const restored = replyRecovery.restore([event.payload.turn])[0];
+            if (restored !== undefined) event = { ...event, payload: { turn: restored } };
           }
           const previousState = nextState;
           const retainedEntityBytesBefore = measureEventEntityBytes(previousState, event);
@@ -122,7 +148,9 @@ export function createTaskStore(
     },
     connectionState: "connecting",
     writeAccess: "checking",
-    setWriteAccess(writeAccess) { set({ writeAccess }); },
+    setWriteAccess(writeAccess) {
+      set({ writeAccess });
+    },
     error: null,
     hydrate(response) {
       if (
@@ -132,7 +160,7 @@ export function createTaskStore(
         throw new Error("Task store identity does not match the snapshot");
       }
       set((state) => {
-        const normalized = normalizeSnapshot(response);
+        const normalized = normalizeSnapshot(restoreReplies(response));
         const warnings = retainedWarnings(state, response.checkpoint.sessionId);
         return {
           ...normalized,
@@ -154,7 +182,7 @@ export function createTaskStore(
         throw new Error("Task store identity does not match the history page");
       }
       const changedItemStores = new Set<TaskItemStore>();
-      set((state) => prependNormalizedHistory(state, response, changedItemStores));
+      set((state) => prependNormalizedHistory(state, restoreReplies(response), changedItemStores));
       for (const itemStore of changedItemStores) {
         itemStore.publish();
       }
@@ -176,7 +204,7 @@ export function createTaskStore(
           // 同一事件会话内禁止旧 Snapshot 回滚 Store，否则历史回放会重复追加 Delta。
           return state;
         }
-        const normalized = normalizeSnapshot(reconcileSnapshot(state, response));
+        const normalized = normalizeSnapshot(reconcileSnapshot(state, restoreReplies(response)));
         const warnings = retainedWarnings(state, response.checkpoint.sessionId);
         return {
           ...normalized,
@@ -218,7 +246,10 @@ function prependNormalizedHistory(
   changedItemStores: Set<TaskItemStore>,
 ): TaskStoreState {
   const history = normalizeSnapshot(response);
-  const { addedTurnIds, addedItemKeys, itemKeysByTurnId, turnsById } = prependTaskHistoryPage(state, history);
+  const { addedTurnIds, addedItemKeys, itemKeysByTurnId, turnsById } = prependTaskHistoryPage(
+    state,
+    history,
+  );
   const itemStoresByKey = new Map(state.itemStoresByKey);
   for (const itemKey of addedItemKeys) {
     const itemStore = history.itemStoresByKey.get(itemKey);
@@ -243,7 +274,8 @@ function prependNormalizedHistory(
     estimateRetainedBytes(state.turnsNextCursor) +
     estimateRetainedBytes(response.snapshot.turnsNextCursor);
   for (const turnId of history.turnIds) {
-    retainedBytes += estimateRetainedBytes(turnsById[turnId]) - estimateRetainedBytes(state.turnsById[turnId]);
+    retainedBytes +=
+      estimateRetainedBytes(turnsById[turnId]) - estimateRetainedBytes(state.turnsById[turnId]);
   }
   for (const itemKey of addedItemKeys) {
     retainedBytes += itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0;
@@ -277,7 +309,11 @@ function measureEventEntityBytes(state: TaskStoreState, event: AgentEvent): numb
   ) {
     retainedBytes += estimateRetainedBytes(state.turnsById[event.turnId]);
   }
-  if (event.type === "task.notice" || event.type === "turn.completed" || event.type === "turn.started") {
+  if (
+    event.type === "task.notice" ||
+    event.type === "turn.completed" ||
+    event.type === "turn.started"
+  ) {
     retainedBytes += state.notices.reduce(
       (total, notice) => total + estimateRetainedBytes(notice),
       0,

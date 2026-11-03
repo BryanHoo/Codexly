@@ -1,3 +1,8 @@
+import {
+  createInterruptedReplyRecovery,
+  browserInterruptedReplyStorage,
+  type InterruptedReplyStorage,
+} from "@codexly/frontend-core/interrupted-replies";
 import type { AgentEvent } from "@codexly/protocol";
 import { acceptTaskEvent, prependTaskHistoryPage } from "@codexly/frontend-core";
 import { createStore } from "zustand/vanilla";
@@ -20,7 +25,13 @@ import { reconcileSnapshot, reconstructSnapshot } from "./task-store-snapshot.js
 export function createTaskStore(
   identity: TaskStoreIdentity,
   initialResponse?: TaskStoreHydrationResponse,
+  replyStorage: InterruptedReplyStorage | undefined = browserInterruptedReplyStorage(),
 ): TaskStore {
+  const replyRecovery = createInterruptedReplyRecovery(identity, replyStorage);
+  const restoreReplies = (response: TaskStoreHydrationResponse): TaskStoreHydrationResponse => ({
+    ...response,
+    snapshot: { ...response.snapshot, turns: replyRecovery.restore(response.snapshot.turns) },
+  });
   const initialData =
     initialResponse === undefined
       ? {
@@ -41,7 +52,7 @@ export function createTaskStore(
           turnsNextCursor: null,
           turnsById: {},
         }
-      : normalizeSnapshot(initialResponse);
+      : normalizeSnapshot(restoreReplies(initialResponse));
 
   if (
     initialResponse !== undefined &&
@@ -60,10 +71,25 @@ export function createTaskStore(
       const changedItemStores = new Set<TaskItemStore>();
       set((currentState) => {
         let nextState = currentState;
-        for (const event of events) {
+        for (const incomingEvent of events) {
+          let event = incomingEvent;
           // Task、Session 与 Sequence 共同约束事件身份和顺序。
           if (!acceptTaskEvent(nextState.taskId, nextState.checkpoint, event)) {
             continue;
+          }
+          // 中断终态可能省略尚未完成的消息，先保存该回合已经接收的正文。
+          if (
+            event.type === "turn.completed" &&
+            event.provider === "codex" &&
+            event.payload.turn.status === "interrupted"
+          ) {
+            const items = (nextState.itemKeysByTurnId[event.turnId] ?? []).flatMap((key) => {
+              const item = nextState.itemStoresByKey.get(key)?.read();
+              return item === undefined ? [] : [item];
+            });
+            replyRecovery.save({ ...event.payload.turn, items });
+            const restored = replyRecovery.restore([event.payload.turn])[0];
+            if (restored !== undefined) event = { ...event, payload: { turn: restored } };
           }
           const previousState = nextState;
           const retainedEntityBytesBefore = measureEventEntityBytes(previousState, event);
@@ -129,7 +155,7 @@ export function createTaskStore(
         throw new Error("Task store identity does not match the snapshot");
       }
       set((state) => {
-        const normalized = normalizeSnapshot(response);
+        const normalized = normalizeSnapshot(restoreReplies(response));
         const retainedWarnings =
           state.checkpoint?.sessionId === response.checkpoint.sessionId
             ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")
@@ -156,7 +182,7 @@ export function createTaskStore(
         throw new Error("Task store identity does not match the history page");
       }
       const changedItemStores = new Set<TaskItemStore>();
-      set((state) => prependNormalizedHistory(state, response, changedItemStores));
+      set((state) => prependNormalizedHistory(state, restoreReplies(response), changedItemStores));
       for (const itemStore of changedItemStores) {
         itemStore.publish();
       }
@@ -178,7 +204,7 @@ export function createTaskStore(
           // 同一事件会话内禁止旧 Snapshot 回滚 Store，否则历史回放会重复追加 Delta。
           return state;
         }
-        const normalized = normalizeSnapshot(reconcileSnapshot(state, response));
+        const normalized = normalizeSnapshot(reconcileSnapshot(state, restoreReplies(response)));
         const retainedWarnings =
           checkpoint?.sessionId === response.checkpoint.sessionId
             ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")

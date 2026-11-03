@@ -125,3 +125,9 @@
 - Web 与桌面共用 `use-git-commit-draft.tsx` 和 `git-commit-workspace.tsx`。本地提交成功后同步清空内存引用与持久草稿中的提交信息、生成撤销内容及本次文件选择，再更新 React 状态；不能仅依赖下一次渲染或 250ms 防抖保存。
 - 提交响应晚于面板卸载时仍必须清理原仓库、工作树和分支的草稿，避免重新打开恢复已提交信息。请求失败保留草稿；普通关闭、刷新与重新打开继续保留未提交信息。
 - 回归入口：`desktop/src/features/workbench/components/commit-draft-cleanup.browser.test.tsx` 驱动两端真实面板，在 Chromium / WebKit 覆盖面板存活、等待中关闭及请求失败；`commit-selection.browser.test.tsx` 保护普通关闭恢复与刷新选择。
+
+## 中断结果正文恢复
+
+- Codex 流式消息在收到 `item.completed` 前可能尚未进入原生历史；中断终态与历史快照中的空消息不能撤销此前已显示的正文。两端复用 `interrupted-replies.ts`，在中断终态按项目、任务、回合和消息 ID 保存非过程助手正文，正常流式输出不逐 Token 写盘。
+- 首屏创建、hydrate、reconcile 和历史续页均应用同一恢复规则，仅补充匹配的中断回合；正常完成回合以及已有非空权威消息保持原样。Web 使用当前浏览器存储，桌面注入原生 `appPreferenceStorage`；恢复记录不替代原生历史，不提供跨浏览器同步。
+- 验证入口为两端 `task-store-interrupted-replies.test.ts`（真实 Store 重建、新 session、空终态及重复恢复）、共享 `interrupted-replies.test.ts`，以及 Web `app-shell-interrupted-replies.spec.ts`（Chromium / Firefox / WebKit、390px / 1280px、停止后切换与页面重启）。
