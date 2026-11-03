@@ -3,7 +3,7 @@ import { expect, projects, test } from "./fixtures/app-shell.js";
 for (const scope of ["project", "chat"] as const) {
   for (const entry of scope === "project" ? ["new", "existing"] : ["new"]) {
     for (const width of [1280, 390]) {
-      test(`发送下拉保存提示词并保留当前正文（${scope} ${entry} ${width}） @cross-browser`, async ({
+      test(`发送下拉保存提示词并保留当前正文（${scope} ${entry} ${String(width)}） @cross-browser`, async ({
         page,
       }) => {
         await page.setViewportSize({ width, height: 900 });
@@ -87,17 +87,19 @@ for (const scope of ["project", "chat"] as const) {
 }
 
 for (const width of [1280, 390]) {
-  test(`发送下拉保存待办且左侧直接发送（${width}） @cross-browser`, async ({ page }) => {
+  test(`发送下拉保存待办且左侧直接发送（${String(width)}） @cross-browser`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.route("**/v1/projects/codexly/todos", async (route) => {
       if (route.request().method() !== "POST") return route.fallback();
+      // 请求 JSON 先收窄为 unknown，避免 any 泄漏到待办模拟响应。
+      const draft: unknown = route.request().postDataJSON();
       const todo = {
         id: "saved-todo",
         projectId: "codexly",
         version: 1,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        draft: route.request().postDataJSON(),
+        draft,
       };
       await route.fulfill({ json: { todo, todos: { data: [todo] } } });
     });

@@ -68,6 +68,9 @@ export function globalSettingsFromRow(row) {
     ...(row.default_agent == null ? {} : { defaultAgent: row.default_agent }),
     commitMessagePrompt: row.commit_message_prompt,
     ...(row.task_title_prompt ? { taskTitlePrompt: row.task_title_prompt } : {}),
+    ...(row.prompt_optimization_prompt
+      ? { promptOptimizationPrompt: row.prompt_optimization_prompt }
+      : {}),
     // 此字段由 Codex config.toml 管理，本地仓储仅提供自动模式占位。
     modelContextWindow: null,
     defaultOpenAppId: row.default_open_app_id,

@@ -495,3 +495,5 @@ export * from "./task-activity.js";
 export { AgentThreadMemorySchema, type AgentThreadMemory } from "./thread-memory.js";
 
 export * from "./saved-prompts.js";
+
+export * from "./prompt-optimization.js";

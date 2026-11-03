@@ -101,6 +101,8 @@ pub(super) struct GlobalSettings {
     pub commit_message_prompt: String,
     #[serde(default)]
     pub task_title_prompt: String,
+    #[serde(default)]
+    pub prompt_optimization_prompt: String,
     #[serde(deserialize_with = "Option::deserialize")]
     pub default_open_app_id: Option<String>,
     pub fast_mode: bool,
@@ -126,6 +128,7 @@ impl GlobalSettings {
             && non_empty(&self.default_model, 256)
             && self.commit_message_prompt.len() <= 4_000
             && self.task_title_prompt.len() <= 4_000
+            && self.prompt_optimization_prompt.len() <= 4_000
             && self
                 .model_context_window
                 .is_none_or(|tokens| (1..=9_007_199_254_740_991).contains(&tokens))
@@ -142,6 +145,7 @@ impl GlobalSettings {
             default_model: self.default_model,
             commit_message_prompt: self.commit_message_prompt,
             task_title_prompt: self.task_title_prompt,
+            prompt_optimization_prompt: self.prompt_optimization_prompt,
             default_open_app_id: self.default_open_app_id,
             follow_up_behavior: self.follow_up_behavior,
             pet: self.pet,
@@ -158,6 +162,8 @@ pub(super) struct LocalPreferences {
     pub default_model: String,
     pub commit_message_prompt: String,
     pub task_title_prompt: String,
+    #[serde(default)]
+    pub prompt_optimization_prompt: String,
     pub default_open_app_id: Option<String>,
     pub follow_up_behavior: FollowUpBehavior,
     #[serde(deserialize_with = "object")]
@@ -171,6 +177,7 @@ impl Default for LocalPreferences {
             default_model: "gpt-6-luna".into(),
             commit_message_prompt: String::new(),
             task_title_prompt: String::new(),
+            prompt_optimization_prompt: String::new(),
             default_open_app_id: None,
             follow_up_behavior: FollowUpBehavior::Queue,
             pet: PetSettings::default(),
@@ -184,6 +191,7 @@ impl LocalPreferences {
             && non_empty(&self.default_model, 256)
             && self.commit_message_prompt.len() <= 4_000
             && self.task_title_prompt.len() <= 4_000
+            && self.prompt_optimization_prompt.len() <= 4_000
     }
 }
 

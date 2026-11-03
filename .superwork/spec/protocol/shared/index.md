@@ -37,3 +37,10 @@
 
 - 设置不再提供用量统计；HTTP `/v1/usage`、原生 `get_token_usage` 和目录 `usage.*` 操作均已移除，两种引擎不再采集统计。旧数据库统计表不主动清理，避免破坏已有用户数据。
 - 对话的 `usage.updated` 事件和上下文占用展示继续保留，与历史统计无关。
+
+## 输入提示词优化
+
+- 两端在发送入口左侧使用共享 `PromptOptimizationButton`。点击后调用应用辅助生成的 `defaultAgent/defaultModel`；`promptOptimizationPrompt` 缺失或空白时使用 Protocol 内的共享静态规则，不执行原始输入，不创建可见聊天。
+- HTTP `POST /v1/projects/:projectId/prompt-optimization` 与原生命令 `optimize_prompt` 接收有界正文，返回 `{ text }`；原生通道不绕行 HTTP，Claude 单引擎不启动 Codex。临时会话同样支持。
+- 成功只替换当前未发生编辑的草稿正文并恢复焦点，保留附件；失败保留原文。请求互斥，空输入禁用；会话切换、卸载或编辑后丢弃迟到结果。
+- 配置沿用各端应用偏好持久化，与 Codex 原生配置独立。验证入口：Server `app-prompt-optimization.test.ts`、`sqlite-state-settings.test.ts`，桌面双浏览器 `tests/browser/prompt-optimization.browser.test.tsx` 及 Rust `local_settings`。

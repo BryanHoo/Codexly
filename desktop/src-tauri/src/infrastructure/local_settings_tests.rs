@@ -174,6 +174,7 @@ fn typed_settings_should_enforce_fields_nullability_and_bounds() {
         ("reasoningEffort", json!("x".repeat(65))),
         ("defaultModel", json!("x".repeat(257))),
         ("commitMessagePrompt", json!("x".repeat(4001))),
+        ("promptOptimizationPrompt", json!("x".repeat(4001))),
         ("pet", json!({"enabled":false})),
     ] {
         let mut settings = default_global_settings();

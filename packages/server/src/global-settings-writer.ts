@@ -37,6 +37,7 @@ export function createGlobalSettingsWriter(
                 "defaultModel",
                 "commitMessagePrompt",
                 "taskTitlePrompt",
+                "promptOptimizationPrompt",
                 "defaultOpenAppId",
                 "followUpBehavior",
                 "pet",

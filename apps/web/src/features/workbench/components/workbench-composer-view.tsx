@@ -420,6 +420,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
             }
           >
             <>
+              {props.promptOptimization}
               {props.captureSubmitVisible ? (
                 props.captureMode ? (
                   submitButton

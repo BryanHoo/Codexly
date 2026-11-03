@@ -1,4 +1,4 @@
-import { createComposerDraftActions } from "./workbench-composer-followup.js";
+import * as draft from "./workbench-composer-followup.js";
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useAccess } from "../../access/access-context.js";
 import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
@@ -70,7 +70,7 @@ export function WorkbenchComposerBase({
   skills,
   taskId,
 }: WorkbenchComposerProps) {
-  const { t } = useTranslation(["workbench", "settings"]);
+  const { t, i18n } = useTranslation(["workbench", "settings"]);
   useActionErrorToast(modelsError, t("composer.modelListFailed"));
   const access = useAccess();
   const todoEditing = useProjectTodoEditing(projectId, initialTodoId);
@@ -246,7 +246,7 @@ export function WorkbenchComposerBase({
     turnControlsDisabled,
   });
   useImperativeHandle(composerRef, () => ({
-    ...createComposerDraftActions(session, skills),
+    ...draft.createComposerDraftActions(session, skills),
     buildPlan: () => {
       setComposerModeState(undefined); // 避免后续 Turn 再次请求生成计划。
       return submitPrompt({ files: [], text: t("composer.buildPlanPrompt") }, [], {
@@ -334,6 +334,7 @@ export function WorkbenchComposerBase({
       : "queue";
   const composerView = (
     <WorkbenchComposerView
+      promptOptimization={draft.optimizeButton(session, client, projectId, skills, i18n.language)}
       engineControls={engineControls}
       asyncQuestions={
         <AsyncQuestionComposer

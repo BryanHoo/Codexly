@@ -1,3 +1,4 @@
+import { registerPromptOptimizationRoutes } from "./routes/prompt-optimization-routes.js";
 import {
   DiagnosticLogBuffer,
   createDiagnosticLogger,
@@ -474,6 +475,7 @@ export async function createCodexlyServer(
   registerDiagnosticRoutes(app, diagnosticLogs);
   registerCodexDiagnosticRoutes(app, options.provider);
   await app.register(registerRuntimeRoutes, routeContext);
+  await app.register(registerPromptOptimizationRoutes, routeContext);
   await app.register(registerEngineRoutes, routeContext);
   await app.register(registerPersonalizationRoutes, routeContext);
   await app.register(registerHistoryStorageRoutes(options.localCatalogStore), routeContext);

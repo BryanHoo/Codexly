@@ -124,6 +124,7 @@ describe("SQLite settings state", () => {
       defaultModel: "gpt-5.6-terra",
       commitMessagePrompt: "突出说明用户可见影响。",
       taskTitlePrompt: "使用简短中文概括任务目标。",
+      promptOptimizationPrompt: "保留意图并明确验收条件。",
       modelContextWindow: null,
       defaultOpenAppId: "visual-studio-code" as const,
       fastMode: true,

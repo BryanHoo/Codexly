@@ -7,5 +7,5 @@
     "rootDir": "src",
     "tsBuildInfoFile": "../../.cache/types/protocol.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.json"]
 }

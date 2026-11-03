@@ -1,6 +1,7 @@
 import {
   GLOBAL_SETTINGS_MIGRATIONS,
   TASK_TITLE_PROMPT_MIGRATION,
+  PROMPT_OPTIMIZATION_MIGRATION,
   WORKBENCH_PET_SETTINGS_MIGRATION,
 } from "./global-settings-persistence.js";
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
@@ -8,13 +9,11 @@ import { PROJECT_TODO_MIGRATION } from "./project-todo-migration.js";
 import { ASYNC_QUESTION_MIGRATION } from "./async-question-migration.js";
 import { SHARED_CATALOG_PROJECTION_SQL } from "./shared-catalog-projection.js";
 import { LOCAL_CATALOG_SQL } from "./local-catalog-schema.js";
-
 export type SqliteMigration = Readonly<{
   name: string;
   sql: string;
   version: number;
 }>;
-
 export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   {
     name: "create_local_state",
@@ -497,4 +496,5 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   },
   TASK_TITLE_PROMPT_MIGRATION,
   { name: "share_desktop_catalog_projection", version: 34, sql: SHARED_CATALOG_PROJECTION_SQL },
+  PROMPT_OPTIMIZATION_MIGRATION,
 ];

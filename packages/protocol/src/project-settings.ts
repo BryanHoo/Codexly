@@ -107,6 +107,8 @@ const AgentGlobalSettingProperties = {
   commitMessagePrompt: Type.String({ maxLength: 4_000 }),
   // 留空或省略时沿用内置标题指令，兼容升级前的应用偏好。
   taskTitlePrompt: Type.Optional(Type.String({ maxLength: 4_000 })),
+  // 旧配置可省略；空白内容使用应用内置输入优化规则。
+  promptOptimizationPrompt: Type.Optional(Type.String({ maxLength: 4_000 })),
   // 文件专用系统关联不能成为 Project 根目录的默认打开方式。
   defaultOpenAppId: Type.Union([
     Type.Exclude(ProjectOpenAppIdSchema, Type.Literal("system-default")),

@@ -67,7 +67,7 @@ export type WorkbenchComposerProps = Readonly<{
   engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
-  client: NativeMutationClient &
+  client: { optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }> } & NativeMutationClient &
     Pick<
       NativeGitMutationClient,
       | "createProjectBranch"

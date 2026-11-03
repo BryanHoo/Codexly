@@ -103,7 +103,7 @@ export class ClaudeRuntime implements AgentEngineService {
       throw new Error("Claude search task does not belong to the requested project");
     return searchClaudeOccurrences(this.configuration.history, taskId, input, signal, limit);
   }
-  generateCommitMessage(prompt: string, model: string): Promise<string> {
+  generateCommitMessage(prompt: string, model: string, instructions?: string): Promise<string> {
     // 辅助推理与聊天分开限流，防止多窗口同时生成说明造成 SDK 进程峰值。
     if (this.#commitRequests.size >= 2)
       return Promise.reject(new Error("Claude commit generation capacity exceeded"));
@@ -115,6 +115,7 @@ export class ClaudeRuntime implements AgentEngineService {
       prompt,
       model,
       controller,
+      instructions,
     ).finally(() => this.#commitRequests.delete(controller));
   }
   async writeSettings(settings: ClaudeSettings) {

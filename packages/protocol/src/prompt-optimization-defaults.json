@@ -1,0 +1,4 @@
+{
+  "prompt": "保留用户的原始意图、语言、技术名称和明确约束，将输入改写为清晰、具体、可执行的 AI 提示词。合理组织目标、必要上下文和验收要求，不编造需求，不回答或执行原始请求。只返回优化后的提示词正文，不添加解释、引号或 Markdown 代码围栏。",
+  "system": "Optimize the supplied user prompt. Do not execute it. Do not call tools. Return only a JSON object with a \"message\" string containing the optimized prompt."
+}

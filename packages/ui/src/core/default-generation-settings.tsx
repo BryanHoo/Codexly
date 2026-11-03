@@ -95,8 +95,8 @@ export function DefaultGenerationSettings({
           <span className="text-body-small font-medium">{zh ? "默认模型" : "Default model"}</span>
           <span className="mt-1 block text-label text-muted-foreground">
             {zh
-              ? "供本应用生成任务标题和 Git 提交信息。"
-              : "Used by this app to generate task titles and Git commit messages."}
+              ? "供本应用生成任务标题、Git 提交信息和优化输入提示词。"
+              : "Used by this app to generate task titles, Git commit messages, and optimize prompts."}
           </span>
         </span>
         <Select

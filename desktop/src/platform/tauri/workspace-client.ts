@@ -190,6 +190,11 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     return this.call("list_project_worktrees", { projectId, rootPath });
   }
 
+  public optimizePrompt(projectId: string, text: string): Promise<{ text: string }> {
+    // 原生宿主按辅助生成设置选择引擎，Claude 单引擎无需预热 Codex。
+    return this.invokeCommand("optimize_prompt", { projectId, text });
+  }
+
   public async generateCommitMessage(
     projectId: string,
     rootPath: string,

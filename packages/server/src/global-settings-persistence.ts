@@ -36,3 +36,9 @@ export const TASK_TITLE_PROMPT_MIGRATION = {
   version: 33,
   sql: "ALTER TABLE global_settings ADD COLUMN task_title_prompt TEXT NOT NULL DEFAULT '';",
 } as const;
+
+export const PROMPT_OPTIMIZATION_MIGRATION = {
+  name: "persist_prompt_optimization",
+  version: 35,
+  sql: "ALTER TABLE global_settings ADD COLUMN prompt_optimization_prompt TEXT NOT NULL DEFAULT '';",
+} as const;

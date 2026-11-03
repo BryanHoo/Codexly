@@ -161,6 +161,7 @@ fn main() {
         "create_task_worktree",
         "start_worktree_task",
         "generate_commit_message",
+        "optimize_prompt",
         "commit_project_changes",
         // 远端检查、连接与推送共用此命令，必须生成 ACL 权限后才能由主窗口调用。
         "push_project_commits",

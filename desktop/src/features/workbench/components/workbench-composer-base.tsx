@@ -1,4 +1,4 @@
-import { createComposerDraftActions } from "./workbench-composer-followup.js";
+import { createComposerDraftActions, createComposerOptimizationButton } from "./workbench-composer-followup.js";
 import type { AgentTaskSettings } from "@/protocol/index.js";
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -67,7 +67,7 @@ export function WorkbenchComposerBase({
   skills,
   taskId,
 }: WorkbenchComposerProps) {
-  const { t } = useTranslation(["workbench", "settings"]);
+  const { t, i18n } = useTranslation(["workbench", "settings"]);
   const projectDraftStore = useProjectDraftStore();
   const projectDrafts = useProjectDrafts(projectId);
   const initialEditingProjectDraft =
@@ -348,6 +348,7 @@ export function WorkbenchComposerBase({
   const submitAction = resolveComposerSubmitAction(state, hasComposerInput, followUpBehavior, canSteer);
   const composerView = (
     <WorkbenchComposerView
+      promptOptimization={createComposerOptimizationButton(session, client, projectId, skills, i18n.language)}
       engineControls={engineControls}
       activeCommandIndex={activeCommandIndex}
       activeCommandItemId={activeCommandItemId}

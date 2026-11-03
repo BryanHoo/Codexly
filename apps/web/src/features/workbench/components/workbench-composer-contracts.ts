@@ -66,7 +66,9 @@ export type WorkbenchComposerProps = Readonly<{
   engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
-  client: CodexlyMutationClient &
+  client: {
+    optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }>;
+  } & CodexlyMutationClient &
     Pick<
       CodexlyGitMutationClient,
       | "createProjectBranch"

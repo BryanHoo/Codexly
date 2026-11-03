@@ -105,6 +105,7 @@ const AgentGlobalSettingProperties = {
   defaultModel: Type.String({ minLength: 1 }),
   commitMessagePrompt: Type.String({ maxLength: 4_000 }),
   taskTitlePrompt: SharedGlobalSettingsSchema.properties.taskTitlePrompt,
+  promptOptimizationPrompt: SharedGlobalSettingsSchema.properties.promptOptimizationPrompt,
   // 文件专用系统关联不能成为 Project 根目录的默认打开方式。
   defaultOpenAppId: Type.Union([
     Type.Exclude(ProjectOpenAppIdSchema, Type.Literal("system-default")),

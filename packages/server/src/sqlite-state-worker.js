@@ -108,7 +108,7 @@ function createOperations(database) {
              FROM project_defaults WHERE project_id = ?`,
           ),
           readGlobalSettings: database.prepare(
-            `SELECT task_title_prompt, default_agent, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt,
+            `SELECT prompt_optimization_prompt, task_title_prompt, default_agent, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt,
                   model, reasoning_effort, sandbox_mode, default_open_app_id, fast_mode, follow_up_behavior, pet_enabled, pet_id
            FROM global_settings WHERE id = 1`,
           ),
@@ -135,10 +135,11 @@ function createOperations(database) {
     `),
           writeGlobalSettings: database.prepare(`
       INSERT INTO global_settings (
-        id, task_title_prompt, default_agent, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt, model,
+        id, prompt_optimization_prompt, task_title_prompt, default_agent, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt, model,
         reasoning_effort, sandbox_mode, default_open_app_id, fast_mode, follow_up_behavior, pet_enabled, pet_id, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        prompt_optimization_prompt = excluded.prompt_optimization_prompt,
         task_title_prompt = excluded.task_title_prompt,
         default_agent = excluded.default_agent,
         approval_policy = excluded.approval_policy,
@@ -403,6 +404,7 @@ function createOperations(database) {
     writeGlobalSettings(payload) {
       const settings = payload.settings;
       requireStatements().writeGlobalSettings.run(
+        settings.promptOptimizationPrompt ?? "",
         settings.taskTitlePrompt ?? "",
         settings.defaultAgent ?? null,
         serializeApprovalPolicy(settings.approvalPolicy),

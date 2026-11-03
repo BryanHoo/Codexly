@@ -28,6 +28,7 @@ export type CommandAvailability = Readonly<{ available: boolean; reason?: string
 
 export type WorkbenchComposerViewProps = Readonly<{
   engineControls?: ReactNode;
+  promptOptimization?: ReactNode;
   asyncQuestions?: ReactNode;
   activeCommandIndex: number;
   activeCommandItemId: string | undefined;

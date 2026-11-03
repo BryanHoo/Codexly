@@ -1,3 +1,4 @@
+import { PROMPT_OPTIMIZATION_SYSTEM } from "@codexly/protocol";
 import { ClaudeHostQueue } from "./host-queue.js";
 import { claudeExtensionCommand } from "./extensions-cli.js";
 import { exportClaudeAttachment } from "./attachment-export.js";
@@ -163,10 +164,14 @@ if (process.argv.includes("--version")) {
       method = message["method"];
     if (method === "profile")
       return runtime.inspect(message["scope"] as AgentTaskScope | undefined);
-    if (method === "commit.generate") {
+    if (method === "commit.generate" || method === "prompt.optimize") {
       if (typeof params["prompt"] !== "string" || typeof params["model"] !== "string")
         throw new Error("Invalid commit request");
-      return runtime.generateCommitMessage(params["prompt"], params["model"]);
+      return runtime.generateCommitMessage(
+        params["prompt"],
+        params["model"],
+        method === "prompt.optimize" ? PROMPT_OPTIMIZATION_SYSTEM : undefined,
+      );
     }
     if (method === "title.generate") {
       if (

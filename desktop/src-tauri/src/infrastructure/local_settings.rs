@@ -15,8 +15,9 @@ use super::settings_object::{Object, object};
 use types::{GlobalSettings, LocalPreferences, ProjectSettings};
 
 const SETTINGS_VERSION: u8 = 1;
-pub(crate) const GLOBAL_FIELDS: [&str; 16] = [
+pub(crate) const GLOBAL_FIELDS: [&str; 17] = [
     "taskTitlePrompt",
+    "promptOptimizationPrompt",
     "defaultAgent",
     "approvalPolicy",
     "approvalsReviewer",
@@ -33,8 +34,9 @@ pub(crate) const GLOBAL_FIELDS: [&str; 16] = [
     "sandboxMode",
     "webSearch",
 ];
-const LOCAL_FIELDS: [&str; 7] = [
+const LOCAL_FIELDS: [&str; 8] = [
     "taskTitlePrompt",
+    "promptOptimizationPrompt",
     "defaultAgent",
     "defaultModel",
     "commitMessagePrompt",
@@ -208,6 +210,7 @@ pub(crate) fn default_global_settings() -> Value {
         "defaultModel": "gpt-6-luna",
         "commitMessagePrompt": "",
         "taskTitlePrompt": "",
+        "promptOptimizationPrompt": "",
         "defaultOpenAppId": null,
         "fastMode": false,
         "followUpBehavior": "queue",

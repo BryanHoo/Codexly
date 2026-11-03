@@ -1,3 +1,4 @@
+import { OptimizePromptResponseSchema } from "@codexly/protocol";
 import {
   SavedPromptsSchema,
   type SavedPromptsRequest,
@@ -39,6 +40,20 @@ export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
 
 export class CodexlyClient extends AsyncQuestionHttpClient {
+  public optimizePrompt(projectId: string, text: string): Promise<{ text: string }> {
+    return this.request(
+      `/v1/projects/${encodeURIComponent(projectId)}/prompt-optimization`,
+      OptimizePromptResponseSchema,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+        body: JSON.stringify({ text }),
+      },
+      undefined,
+      { timeoutMs: 150_000 },
+    );
+  }
+
   public syncSavedPrompts(input: SavedPromptsRequest): Promise<SharedSavedPrompt[]> {
     return this.request("/v1/saved-prompts", SavedPromptsSchema, {
       method: "POST",

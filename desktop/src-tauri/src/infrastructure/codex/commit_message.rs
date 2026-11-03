@@ -23,7 +23,7 @@ struct ThreadStartParams<'a> {
     approval_policy: &'static str,
     config: ThreadConfig,
     cwd: &'a str,
-    developer_instructions: &'static str,
+    developer_instructions: &'a str,
     ephemeral: bool,
     history_mode: &'static str,
     model: &'a str,
@@ -93,6 +93,21 @@ pub async fn start_commit_message_thread(
     root: &Path,
     model: &str,
 ) -> Result<String, ConnectionError> {
+    start_generation_thread(
+        connection,
+        root,
+        model,
+        "Do not call tools. Generate only the requested commit message from the supplied changes.",
+    )
+    .await
+}
+
+pub async fn start_generation_thread(
+    connection: &AppServerConnection,
+    root: &Path,
+    model: &str,
+    instructions: &str,
+) -> Result<String, ConnectionError> {
     let cwd = root.to_str().ok_or(ConnectionError::InvalidMessage)?;
     let response: ThreadStartResponse = connection
         .request(
@@ -101,7 +116,7 @@ pub async fn start_commit_message_thread(
                 approval_policy: "never",
                 config: ephemeral_thread_config(),
                 cwd,
-                developer_instructions: "Do not call tools. Generate only the requested commit message from the supplied changes.",
+                developer_instructions: instructions,
                 ephemeral: true,
                 history_mode: "paginated",
                 model,
@@ -124,6 +139,17 @@ pub async fn start_commit_message_turn(
     changes: &str,
 ) -> Result<(), ConnectionError> {
     let prompt = format!("{instruction}\n\n以下是选中的 Git 变更：\n{changes}");
+    start_generation_turn(connection, thread_id, model, &prompt)
+        .await
+        .map(|_| ())
+}
+
+pub async fn start_generation_turn(
+    connection: &AppServerConnection,
+    thread_id: &str,
+    model: &str,
+    prompt: &str,
+) -> Result<String, ConnectionError> {
     let response: TurnStartResponse = connection
         .request(
             "turn/start",
@@ -145,7 +171,7 @@ pub async fn start_commit_message_turn(
         )
         .await?;
     (!response.turn.id.is_empty())
-        .then_some(())
+        .then_some(response.turn.id)
         .ok_or(ConnectionError::InvalidMessage)
 }
 

@@ -1,3 +1,6 @@
+import { createElement } from "react";
+import { PromptOptimizationButton } from "@codexly/ui/core/prompt-optimization-button";
+import { createPromptSkillContent, serializePromptSkillContent, recognizePromptSkillReferences } from "./prompt-skill-content.js";
 import { createMessageEditDraftAction } from "@codexly/frontend-core/message-edit-draft";
 import type { AgentSkill } from "@codexly/protocol";
 import { createFollowupDraftAction } from "@codexly/frontend-core/followup-draft";
@@ -33,4 +36,28 @@ export function createComposerDraftActions(session: ReturnType<typeof useCompose
     insertFollowup: createComposerFollowup(session),
     editMessage: createMessageEdit(session, skills),
   };
+}
+
+/** 共享按钮只接受字符串；平台适配负责正文、Skill 和持久草稿的同步替换。 */
+export function createComposerOptimizationButton(
+  session: ReturnType<typeof useComposerSession>,
+  client: { optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }> },
+  projectId: string,
+  skills: readonly AgentSkill[],
+  language: string,
+) {
+  const generate = client.optimizePrompt?.bind(client);
+  if (!generate) return undefined;
+  return createElement(PromptOptimizationButton, {
+    language, scope: session.composerScope,
+    text: serializePromptSkillContent(session.promptContent),
+    disabled: session.draftInputDisabled || session.isSubmitting,
+    generate: (text) => generate(projectId, text),
+    replace: (text) => {
+      session.closeCommandMenu(); session.closeFileMenu();
+      session.replacePromptContent(recognizePromptSkillReferences(createPromptSkillContent(text), skills));
+      session.skillEditorRef.current?.focus();
+    },
+    onError: session.setMutationError,
+  });
 }

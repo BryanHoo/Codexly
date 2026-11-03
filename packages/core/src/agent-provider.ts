@@ -408,7 +408,7 @@ export interface AgentEngineService {
     signal: AbortSignal,
     instructions?: string,
   ): Promise<string>;
-  generateCommitMessage?(prompt: string, model: string): Promise<string>;
+  generateCommitMessage?(prompt: string, model: string, instructions?: string): Promise<string>;
   readSettings(): Promise<ClaudeSettings>;
   writeSettings(settings: ClaudeSettings): Promise<ClaudeSettings>;
   inspect(scope?: AgentTaskScope): Promise<AgentEngineProfile>;

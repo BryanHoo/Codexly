@@ -10,6 +10,7 @@ export async function generateClaudeCommitMessage(
   prompt: string,
   model: string,
   controller: AbortController,
+  instructions?: string,
 ): Promise<string> {
   if (!model.trim() || model.length > 200 || prompt.length > 128_000)
     throw new Error("Invalid commit message request");
@@ -37,6 +38,7 @@ export async function generateClaudeCommitMessage(
         abortController: controller,
         maxTurns: 3,
         systemPrompt:
+          instructions ??
           'Generate a concise Conventional Commit message from the provided changes. Do not call tools. Return only a JSON object with a "message" string.',
         outputFormat: {
           type: "json_schema",

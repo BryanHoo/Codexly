@@ -1,3 +1,4 @@
+use application::prompt_optimization_commands::optimize_prompt;
 mod application;
 pub mod domain;
 mod encoding;
@@ -327,6 +328,7 @@ pub fn run() {
             application::worktree_task_commands::create_task_worktree,
             application::worktree_task_commands::start_worktree_task,
             generate_commit_message,
+            optimize_prompt,
             commit_project_changes,
             push_project_commits,
             upload_attachment,

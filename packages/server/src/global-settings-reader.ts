@@ -40,6 +40,9 @@ export function resolveGlobalSettings(
     defaultModel,
     commitMessagePrompt: stored?.commitMessagePrompt ?? "",
     ...(stored?.taskTitlePrompt ? { taskTitlePrompt: stored.taskTitlePrompt } : {}),
+    ...(stored?.promptOptimizationPrompt
+      ? { promptOptimizationPrompt: stored.promptOptimizationPrompt }
+      : {}),
     // 窗口只从 Codex 读取；不继承 SQLite 快照，也不硬编码特定模型容量。
     modelContextWindow: runtimeDefaults.modelContextWindow ?? null,
     defaultOpenAppId: stored?.defaultOpenAppId ?? null,

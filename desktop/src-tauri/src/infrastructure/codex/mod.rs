@@ -139,7 +139,7 @@ pub use catalogs::{
 };
 pub use commit_message::{
     parse_commit_message_output, resolve_commit_message_settings, start_commit_message_thread,
-    start_commit_message_turn,
+    start_commit_message_turn, start_generation_thread, start_generation_turn,
 };
 pub(crate) use connection::ConnectionError;
 pub use connection::{AppServerConnection, ServerMessage};
