@@ -1,8 +1,7 @@
 import { cn } from "../lib/utils.js";
 import { Skeleton } from "./skeleton.js";
 
-type LoadingSkeletonVariant =
-  "list" | "conversation" | "settings" | "cards" | "statistics" | "workspace" | "code";
+type LoadingSkeletonVariant = "list" | "conversation" | "settings" | "cards" | "workspace" | "code";
 type LoadingSkeletonProps = Readonly<{
   label: string;
   variant?: LoadingSkeletonVariant;
@@ -98,27 +97,6 @@ function CardsSkeleton() {
   );
 }
 
-function StatisticsSkeleton() {
-  return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-        {[0, 1, 2, 3].map((metric) => (
-          <div key={metric} className="space-y-4">
-            <Skeleton className="h-2.5 w-16" />
-            <Skeleton className="h-9 w-3/4" />
-            <Skeleton className="h-2 w-12 opacity-60" />
-          </div>
-        ))}
-      </div>
-      <div className="space-y-4 rounded-xl border border-separator/60 p-4">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-32 w-full opacity-60" />
-      </div>
-      <ListSkeleton />
-    </div>
-  );
-}
-
 function WorkspaceSkeleton() {
   return (
     <div className="flex h-full min-h-0">
@@ -172,8 +150,6 @@ export function LoadingSkeleton({ label, variant = "list", className }: LoadingS
           <SettingsSkeleton />
         ) : variant === "cards" ? (
           <CardsSkeleton />
-        ) : variant === "statistics" ? (
-          <StatisticsSkeleton />
         ) : variant === "code" ? (
           <CodeSkeleton />
         ) : (

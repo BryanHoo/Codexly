@@ -1,4 +1,3 @@
-import type { TokenUsageQuery, TokenUsageResponse } from "@codexly/protocol";
 import {
   engineSettingsPath,
   type EngineSettingsScope,
@@ -313,17 +312,6 @@ export class CodexlyTransport {
       AgentProviderConnectionMutationResponseSchema,
       options,
     );
-  }
-
-  public async getTokenUsage(
-    query: TokenUsageQuery,
-    options: ReadOptions = {},
-  ): Promise<TokenUsageResponse> {
-    const params = new URLSearchParams({ year: String(query.year) });
-    if (query.engine) params.set("engine", query.engine);
-    if (query.day) params.set("day", query.day);
-    const { TokenUsageResponseSchema } = await import("./token-usage-response.js");
-    return this.read(`/v1/usage?${params}`, TokenUsageResponseSchema, options);
   }
 
   public async getGlobalSettings(

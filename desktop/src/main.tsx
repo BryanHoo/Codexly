@@ -25,7 +25,7 @@ if (!(rootElement instanceof HTMLElement)) {
 const applicationRoot = rootElement;
 const windowSurface = new URLSearchParams(window.location.search).get("window");
 const appSurface =
-  windowSurface === "desktop-pet" || windowSurface === "project-file" || windowSurface === "task-window" ? windowSurface : "main";
+  windowSurface === "desktop-pet" || windowSurface === "project-file" ? windowSurface : "main";
 document.documentElement.dataset.appSurface = appSurface;
 installPerformanceMonitoring();
 installGlobalDiagnostics();
@@ -48,9 +48,9 @@ async function initializeAppStorageSafely(): Promise<void> {
 
 async function startApplication(): Promise<void> {
   await prepareWebviewTestBridge();
-  if (appSurface === "project-file" || appSurface === "task-window") {
+  if (appSurface === "project-file") {
     const { prepareAuxiliaryWindow } = await import("./app/auxiliary-window-application.js");
-    const WindowApplication = await prepareAuxiliaryWindow(appSurface, initializeAppStorageSafely);
+    const WindowApplication = await prepareAuxiliaryWindow(initializeAppStorageSafely);
     createRoot(applicationRoot, reactDiagnosticHandlers).render(
       <StrictMode>
         <I18nextProvider i18n={i18n}><WindowApplication /></I18nextProvider>

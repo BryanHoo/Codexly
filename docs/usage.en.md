@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [简体中文](usage.md) · [Getting started](getting-started.en.md)
 
-This guide covers desktop, computer browsers, and mobile browsers. Files, Git operations, and agents run on the computer hosting Codexly. Desktop adds a native terminal, global shortcuts, a separate task window, system notifications, and tray integration.
+This guide covers desktop, computer browsers, and mobile browsers. Files, Git operations, and agents run on the computer hosting Codexly. Desktop adds a native terminal, global shortcuts, system notifications, and tray integration.
 
 ## Projects and tasks
 
@@ -91,10 +91,6 @@ Select Codex or Claude in the extension center and manage Skills, MCP, and offic
 Search and filter extensions, then choose global or current-project scope before making changes. Claude supports installing, enabling, disabling, updating, and uninstalling plugins from the official catalog. Its project Skills and MCP lists show that project's configuration only. Codex project MCP entries are read-only. Third-party Skills marketplace entry points have been removed; local Skills remain manageable. MCP toggles show configuration, not live connection status.
 
 Models, reasoning, permissions, and context settings are engine-specific. Defaults apply to new tasks; existing conversations retain their choices. Declaring a context window does not increase a provider's actual capacity. Claude permissions do not provide Codex's OS sandbox, and extension configuration is not copied across engines.
-
-## Usage statistics
-
-Open **Settings → Usage statistics** to filter token totals, active days, trends, and a yearly heatmap by year and engine. Select a date for its top 50 tasks by usage. Dates use UTC; the heatmap scrolls horizontally on mobile. Statistics record newly observed usage without backfilling earlier history and do not represent remaining credits, costs, or official billing. Desktop and Web on the same host share these records.
 
 ## Data across clients
 

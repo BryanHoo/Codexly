@@ -22,7 +22,7 @@
 
 ## 共享加载占位
 
-- 内容首载复用 `@codexly/ui/core/skeleton` 原语和 `core/loading-skeleton` 的列表、会话、设置、卡片、统计、工作台及代码轮廓；两端注入现有翻译，不新增加载请求或计时器。骨架颜色映射现有 `control-hover` 主题，不能直接使用项目未定义的上游 `accent` 令牌。
+- 内容首载复用 `@codexly/ui/core/skeleton` 原语和 `core/loading-skeleton` 的列表、会话、设置、卡片、工作台及代码轮廓；两端注入现有翻译，不新增加载请求或计时器。骨架颜色映射现有 `control-hover` 主题，不能直接使用项目未定义的上游 `accent` 令牌。
 - 只在内容尚不可用时显示骨架；后台刷新、部分项目结果和已有会话快照保留内容，错误继续显示错误与重试，真实生成、下载和保存进度沿用原有反馈。
 - 整个占位只提供一个本地化 `status` 和 `aria-busy`，装饰图形隐藏，不生成可聚焦控件；动画仅在 `motion-safe` 下执行。固定骨架数量，避免订阅查询或创建逐帧 React 状态。
 - 回归入口：Web `app-shell-skeleton.spec.ts` 验证请求未完成与完成切换、窄屏和减少动态效果；桌面 `loading-skeleton.browser.test.tsx` 以真实样式验证 Chromium / WebKit、320px、明暗主题、可见颜色及焦点，不能把移动端已隐藏的桌面侧栏作为可见性测量对象。
@@ -35,7 +35,7 @@
 - Popup 可悬停，Portal 避免滚动容器裁剪，Positioner 保持 8px 视口留白并允许翻转；长路径可换行，箭头继承 Popup 背景，动效遵循减少动态效果设置。Base UI 新依赖须纳入桌面浏览器测试的预打包列表，避免测试中途重新优化、重载及重复加载 React。
 - 回归入口为 `desktop/src/shared/components/core/tooltip.browser.test.tsx`（两端入口、Chromium/WebKit、事件/ref、禁用按钮包装、菜单组合、延迟分组和宽窄屏）与 `tests/e2e/app-shell-tooltip.spec.ts`（三浏览器、明暗主题、键盘、减少动态效果及真实触屏）。
 - Base UI 迁移后的 Web 首屏 gzip 预算为 360 KiB，工作台就绪为 520 KiB，最大异步依赖组仍为 640 KiB；以 `tools/verify-web-bundle.mjs` 的实际静态依赖闭包测量，预算变更不替代交互和渲染性能验证。
-- 桌面以 `desktop/performance-budget.json` 校验未压缩的首屏及完整场景闭包：首屏 475,000 字节；workspace 1,820,000、markdown 2,320,000、cppHighlight 2,900,000 字节；textEditor 2,200,000、taskWindow 550,000 字节。两端统计口径不同，不能直接比较 gzip 与原始字节预算。
+- 桌面以 `desktop/performance-budget.json` 校验未压缩的首屏及完整场景闭包：首屏 475,000 字节；workspace 1,820,000、markdown 2,320,000、cppHighlight 2,900,000 字节；textEditor 2,200,000 字节。两端统计口径不同，不能直接比较 gzip 与原始字节预算。
 
 ## 共享 Dialog 与 Drawer
 
@@ -55,3 +55,7 @@
 - 设置保存仍使用稳定 `settings-save` ID 原位更新；重试关闭旧通知后交还原业务动作，失败离页保护仍能重新展示。正文保持自然高度，不让 Content 的百分比高度与卡片高度动画形成 ResizeObserver 反馈；长正文独立滚动且保留操作入口。
 - 关闭按钮由 Base UI 在通知展开或键盘聚焦时暴露给辅助技术；测试先悬停或用 F6 定位通知区域，再操作按钮。Toast 原语使用 dialog 语义，通知测试定位 `data-slot="toast"` 或标题文字，不能继续依赖旧 status/alert 容器或渲染容器内查询，因为 Portal 挂载到 body。
 - 回归入口为桌面 `toaster.browser.test.tsx`（Chromium / WebKit、堆叠、宽窄屏、长文、同 ID 更新、重试及设置保存）与 Web `app-shell-toast.spec.ts`（三浏览器、明暗主题、减少动态效果、键盘关闭及焦点恢复）；测试依赖预打包包含 `@base-ui/react/toast`。
+
+## 桌面辅助窗口边界
+
+- 任务小窗已移除；不再创建任务窗口、保留专有订阅或投影消息。独立文件窗口和桌宠继续沿用各自懒加载入口与最小 ACL。窗口权限变更运行 `desktop/scripts/tauri-acl.test.mjs` 核对注册、调用与授权一致。

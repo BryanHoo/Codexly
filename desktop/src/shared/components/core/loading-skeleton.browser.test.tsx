@@ -17,7 +17,7 @@ for (const width of [320, 1440]) {
       const screen = await render(
         <div style={{ width: "100%" }}>
           <button type="button">保持焦点</button>
-          {(["list", "conversation", "settings", "cards", "statistics", "workspace", "code"] as const).map((variant) => (
+          {(["list", "conversation", "settings", "cards", "workspace", "code"] as const).map((variant) => (
             <div key={variant} style={{ height: variant === "workspace" ? 600 : undefined }}>
               <LoadingSkeleton variant={variant} label={`正在加载 ${variant}`} />
             </div>
@@ -28,7 +28,7 @@ for (const width of [320, 1440]) {
       (trigger.element() as HTMLElement).focus();
       await expect.element(trigger).toHaveFocus();
       const regions = document.querySelectorAll<HTMLElement>('[data-slot="loading-skeleton"]');
-      expect(regions).toHaveLength(7);
+      expect(regions).toHaveLength(6);
       for (const region of regions) {
         expect(region.getBoundingClientRect().width).toBeGreaterThan(0);
         expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth);

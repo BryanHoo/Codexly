@@ -26,13 +26,6 @@ import type { SettingsSectionId } from "./global-settings-fields.js";
 import { GeneralSettingsPanel } from "./general-settings-panel.js";
 import { GlobalSettingsAccess } from "./global-settings-access.js";
 
-const UsageStatistics = lazy(() =>
-  Promise.all([
-    import("@codexly/ui/core/usage-statistics.css"),
-    import("@codexly/ui/core/usage-statistics"),
-  ]).then(([, module]) => ({ default: module.UsageStatistics })),
-);
-
 const SavedPromptsSettings = lazy(() =>
   import("@codexly/ui/core/saved-prompts-settings").then((module) => ({
     default: module.SavedPromptsSettings,
@@ -206,17 +199,7 @@ export function GlobalSettingsPage({
         />
       ) : null}
       <Suspense fallback={status}>
-        {activeSection === "usage" ? (
-          <UsageStatistics
-            client={{
-              getTokenUsage: (query) =>
-                client.getTokenUsage
-                  ? client.getTokenUsage(query)
-                  : Promise.reject(new Error("Usage storage unavailable")),
-            }}
-            language={language}
-          />
-        ) : activeSection === "prompts" ? (
+        {activeSection === "prompts" ? (
           <SavedPromptsSettings
             language={language}
             projects={projectData?.projects}

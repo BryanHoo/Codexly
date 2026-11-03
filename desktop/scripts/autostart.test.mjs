@@ -18,7 +18,7 @@ void test("仅主窗口获准读取和修改登录启动项", () => {
   for (const command of ["enable", "disable", "is-enabled"]) {
     assert.ok(main.permissions.includes(`autostart:allow-${command}`));
   }
-  for (const name of ["project-file", "task-window", "desktop-pet"]) {
+  for (const name of ["project-file", "desktop-pet"]) {
     const auxiliary = JSON.parse(read(`src-tauri/capabilities/${name}.json`));
     assert.ok(!JSON.stringify(auxiliary.permissions).includes("autostart:"));
   }

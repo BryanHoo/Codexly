@@ -21,11 +21,11 @@ Projects and agent processes run on the computer hosting Codexly. Your phone nee
 
 ## Choose how to use it
 
-| Client  | Best for                                                                                                   | Get started                                                                                                                              |
-| ------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Desktop | Daily local development with a project terminal, global shortcuts, a separate task window, and system tray | [Download for macOS, Windows, or Ubuntu](https://github.com/BryanHoo/Codexly/releases) · [Installation](desktop/docs/installation.en.md) |
-| Web     | Working in a computer browser or hosting a workspace on your LAN                                           | Install Node.js 24+ and [start the Web server](#web)                                                                                     |
-| Mobile  | Following tasks, approving tools, and reviewing files and changes from a phone or tablet browser           | Connect to a Web server with LAN access enabled; see [Mobile](#mobile)                                                                   |
+| Client  | Best for                                                                                         | Get started                                                                                                                              |
+| ------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop | Daily local development with a project terminal, global shortcuts, and system tray               | [Download for macOS, Windows, or Ubuntu](https://github.com/BryanHoo/Codexly/releases) · [Installation](desktop/docs/installation.en.md) |
+| Web     | Working in a computer browser or hosting a workspace on your LAN                                 | Install Node.js 24+ and [start the Web server](#web)                                                                                     |
+| Mobile  | Following tasks, approving tools, and reviewing files and changes from a phone or tablet browser | Connect to a Web server with LAN access enabled; see [Mobile](#mobile)                                                                   |
 
 Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Silicon or Intel, and a separate macOS 12.4+ Intel Legacy build. Packages include agent runtimes, with no separate Node.js or Bun installation. Legacy supports Codex only. Mobile uses a touch-friendly Web interface and requires no separate app.
 
@@ -38,7 +38,7 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 - **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, clean up archived tasks by date, and export complete conversations as JSON. Handle alerts or clear read notifications in the notification center. Open the task board, extensions, and schedules from the sidebar.
 - **Work in parallel**: open up to four task panes in the desktop app or a computer browser, drag to swap their positions, and keep independent drafts and queues. Mobile uses a single-task view.
 - **Read and edit project files**: create files and folders in the project tree, browse code, Markdown, images, and PDFs, and edit supported text with manual saving, search and replace, and disk conflict comparison. Reorder, pin, or bulk-close document tabs and compare files with chat. Attach files and images or reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
-- **Reuse instructions and track usage**: save global or project prompts and insert them by title with `/` or `#`. View token statistics for both engines, a yearly heatmap, and daily task details in Settings.
+- **Reuse saved instructions**: save global or project prompts and insert them by title with `/` or `#`.
 - **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits.
 - **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
 

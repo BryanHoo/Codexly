@@ -11,7 +11,6 @@ import { taskEngine } from "@codexly/protocol";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@/protocol/index.js";
 import {
   Archive,
-  ArrowUpRight,
   CircleCheckBig,
   CircleX,
   Clock3,
@@ -21,7 +20,6 @@ import {
   Pin,
   Trash2,
 } from "lucide-react";
-import { toast } from "@codexly/ui/core/notifications";
 import type { ReactNode } from "react";
 import { createLink } from "@tanstack/react-router";
 const TaskRouteLink = createLink(SidebarTaskAnchor);
@@ -278,18 +276,6 @@ export function TaskActionMenu({
           {t(`split.${splitAction}`)}
         </DropdownMenuItem>
       ) : null}
-      <DropdownMenuItem
-        className={taskActionClassName}
-        disabled={isPending}
-        onSelect={() => {
-          void import("../../task-window/open-task-window.js")
-            .then(({ openTaskWindowFromMenu }) => openTaskWindowFromMenu(task.projectId, task.id))
-            .catch(() => toast.error(t("taskWindow.failed")));
-        }}
-      >
-        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-        {t("taskWindow.open")}
-      </DropdownMenuItem>
       <DropdownMenuItem className={taskActionClassName} disabled={isPending} onSelect={onPin}>
         <Pin className="size-3.5" aria-hidden="true" />
         {task.pinned ? t("sidebar.unpin") : t("sidebar.pin")}

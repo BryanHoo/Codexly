@@ -24,9 +24,9 @@ use application::{
     },
     catalog_commands::{
         cancel_provider_login, configure_custom_provider, get_global_settings,
-        get_project_defaults, get_provider_connection, get_token_usage, list_mcp_servers,
-        list_models, list_skills, logout_provider, retry_mcp_servers,
-        start_official_provider_login, update_global_settings, update_project_defaults,
+        get_project_defaults, get_provider_connection, list_mcp_servers, list_models, list_skills,
+        logout_provider, retry_mcp_servers, start_official_provider_login, update_global_settings,
+        update_project_defaults,
     },
     commands::{
         acknowledge_runtime_events, cancel_native_request, connect_runtime, get_app_info,
@@ -73,10 +73,6 @@ use application::{
     task_board_commands::list_completed_tasks,
     task_fork_commands::fork_task,
     task_subscription_commands::{release_task_subscription, retain_task_subscription},
-    task_window_commands::{
-        acknowledge_task_window, close_task_window, connect_task_window, drag_task_window,
-        open_task_window, restore_task_window,
-    },
     temporary_workspace_commands::{
         choose_temporary_workspace_root, get_temporary_workspace_settings,
     },
@@ -186,12 +182,6 @@ pub fn run() {
             enable_autostart,
             get_tray_icon_visible,
             set_tray_icon_visible,
-            open_task_window,
-            connect_task_window,
-            acknowledge_task_window,
-            close_task_window,
-            restore_task_window,
-            drag_task_window,
             #[cfg(feature = "webview-tests")]
             application::terminal_probe::probe_terminal_protocol,
             #[cfg(feature = "webview-tests")]
@@ -251,7 +241,6 @@ pub fn run() {
             configure_custom_provider,
             logout_provider,
             get_global_settings,
-            get_token_usage,
             application::personalization_commands::get_global_instructions,
             application::saved_prompts_commands::sync_saved_prompts,
             application::personalization_commands::save_global_instructions,

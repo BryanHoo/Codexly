@@ -56,7 +56,6 @@
     "docs/text-file-editing.md",
     "docs/global-search.md",
     "docs/document-workspace.md",
-    "docs/usage-statistics.md",
     "docs/conversation-performance.md",
     "docs/scheduled-task-idempotency.md",
     "docs/images/codexly-preview.png"

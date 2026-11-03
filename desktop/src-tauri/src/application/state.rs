@@ -90,7 +90,6 @@ pub struct AppState {
 
 #[derive(Default)]
 struct RuntimeSession {
-    task_windows: Arc<super::task_window_runtime::TaskWindowRuntime>,
     event_sender: Option<Arc<RuntimeEventStream>>,
     event_generation: u64,
     event_order: Arc<Mutex<()>>,
@@ -115,9 +114,6 @@ struct RuntimeSession {
 }
 
 impl AppState {
-    pub(super) async fn task_windows(&self) -> Arc<super::task_window_runtime::TaskWindowRuntime> {
-        Arc::clone(&self.runtime.lock().await.task_windows)
-    }
     pub fn project_file_search(&self) -> &ProjectFileSearch {
         &self.file_search
     }

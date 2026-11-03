@@ -50,7 +50,7 @@ test("validates HTTP payloads and exposes the shared store without starting an e
   const { provider } = createProvider();
   const app = await createCodexlyServer({
     ...createServerOptions(provider),
-    tokenUsageStore: store,
+    localCatalogStore: store,
   });
   try {
     const prompt = { id: "http", name: "接口检查", content: "检查内容" };

@@ -20,7 +20,7 @@ For Windows portable builds, extract the entire ZIP and keep the executable, Cla
 
 ## Desktop workspace
 
-Desktop shares conversations, approvals, queues, files, Git, extensions, and scheduled workflows with Web and mobile. It adds a native project terminal, global shortcuts, a separate task window, system notifications, and tray integration. Enable startup at login in **Settings → General**.
+Desktop shares conversations, approvals, queues, files, Git, extensions, and scheduled workflows with Web and mobile. It adds a native project terminal, global shortcuts, system notifications, and tray integration. Enable startup at login in **Settings → General**.
 
 User messages can be edited into the current composer and sent as new messages, preserving the original history. The context panel displays available Codex session memory summaries and supports manual refresh. The interface uses system fonts; elapsed-time refresh pauses in the background and recalibrates on return.
 
@@ -30,7 +30,7 @@ Toggle **Show status bar icon** in **Settings → General** to show or hide the 
 
 Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
 
-Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Tasks visible in foreground panes automatically mark their notifications as read; background tasks keep unread alerts. Reorder, pin, or bulk-close center file tabs and compare files with chat horizontally or vertically. Settings includes global or project saved prompts, inserted by title with `/` or `#`, and token statistics for both engines; saved prompts are shared with Web and mobile browsers on the same host, with automatic migration and refresh when a window regains focus.
+Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Tasks visible in foreground panes automatically mark their notifications as read; background tasks keep unread alerts. Reorder, pin, or bulk-close center file tabs and compare files with chat horizontally or vertically. Settings includes global or project saved prompts, inserted by title with `/` or `#`; saved prompts are shared with Web and mobile browsers on the same host, with automatic migration and refresh when a window regains focus.
 
 Create files and folders in the project tree. The text editor provides search and replace, manual saving, unsaved markers, and disk conflict comparison. Closing files or switching projects offers Save, Don’t save, or Cancel. Switching tasks in the same project returns to chat while keeping tabs and drafts. See the [workspace guide](../docs/usage.en.md#files-and-previews).
 

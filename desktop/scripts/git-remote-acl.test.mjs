@@ -19,11 +19,11 @@ void test("Git remote operations are granted only to the main window", () => {
   assert.ok(main.permissions.includes("main-window-commands"));
   const sets = read("src-tauri/permissions/window-command-sets.toml").split("[[set]]").slice(1);
   assert.ok(sets.some((set) => set.includes('identifier = "main-window-commands"')));
-  // Git 写操作仅授权工作台主窗口，文件预览、只读任务小窗与桌宠保持原有权限边界。
+  // Git 写操作仅授权工作台主窗口，文件预览与桌宠保持原有权限边界。
   for (const set of sets) {
     assert.equal(set.includes(`"${permission}"`), set.includes('identifier = "main-window-commands"'), `${command} has an incorrect window grant`);
   }
-  for (const name of ["project-file", "task-window", "desktop-pet"]) {
+  for (const name of ["project-file", "desktop-pet"]) {
     const auxiliary = JSON.parse(read(`src-tauri/capabilities/${name}.json`));
     assert.ok(!auxiliary.permissions.includes("main-window-commands"), name);
     assert.ok(!auxiliary.permissions.includes(permission), name);

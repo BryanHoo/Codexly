@@ -22,7 +22,7 @@ void test("official plugin refresh is granted only to the main window", () => {
   for (const set of sets) {
     assert.equal(set.includes(`"${permission}"`), set.includes('identifier = "main-window-commands"'), "reconcile_official_plugins has an incorrect window grant");
   }
-  for (const name of ["project-file", "task-window", "desktop-pet"]) {
+  for (const name of ["project-file", "desktop-pet"]) {
     const auxiliary = JSON.parse(read(`src-tauri/capabilities/${name}.json`));
     assert.ok(!auxiliary.permissions.includes("main-window-commands"), name);
     assert.ok(!auxiliary.permissions.includes(permission), name);

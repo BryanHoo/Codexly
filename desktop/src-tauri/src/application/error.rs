@@ -27,10 +27,6 @@ pub enum AppError {
     QueuedContentChanged,
     #[error("global instructions changed; reload before saving")]
     GlobalInstructionsChanged,
-    #[error("task window operation failed")]
-    TaskWindowFailed,
-    #[error("at most three task windows can be open")]
-    TaskWindowLimit,
     #[error(transparent)]
     Terminal(#[from] crate::domain::project_terminal::TerminalError),
     #[error("failed to start Codex runtime")]
@@ -115,7 +111,6 @@ impl Serialize for AppError {
             Self::GlobalInstructionsChanged => {
                 Some(("GLOBAL_INSTRUCTIONS_CHANGED", self.to_string()))
             }
-            Self::TaskWindowLimit => Some(("TASK_WINDOW_LIMIT", self.to_string())),
             Self::Terminal(error) => Some((error.code(), error.to_string())),
             Self::CodexThreadBusy => Some(("CODEX_THREAD_BUSY", self.to_string())),
             Self::TaskSnapshotBusy => Some(("TASK_SNAPSHOT_BUSY", self.to_string())),

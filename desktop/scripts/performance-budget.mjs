@@ -83,7 +83,6 @@ function resolveScenarioRoots(manifest) {
     workspace: [workspace],
     // 编辑场景包含工作区与编辑器的全部静态依赖；语言解析器另行按需加载。
     textEditor: [workspace, "../packages/ui/src/core/text-file-editor.tsx"],
-    taskWindow: ["src/features/task-window/task-window.tsx"],
   };
 }
 

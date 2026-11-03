@@ -23,9 +23,6 @@ mod item_pagination;
 #[cfg(test)]
 use item_pagination::hydrate_paginated_turn;
 use item_pagination::{read_summary_turn_page, read_turn_page};
-#[cfg(test)]
-#[path = "conversation_preview_tests.rs"]
-mod preview_tests;
 /// 进程内只初始化一次，所有引擎、快照和事件共用；重启后拒绝旧进程的序号与实体。
 pub(crate) fn runtime_session_id() -> &'static str {
     static SESSION: std::sync::LazyLock<String> =
@@ -246,76 +243,6 @@ async fn read_task_snapshot_view(
             updated_at: unix_seconds_to_rfc3339(thread.updated_at),
         },
     })
-}
-
-/// 小窗只读取最近回合的一页，禁止沿游标展开历史或读取 Goal 等无关状态。
-pub async fn read_task_preview(
-    connection: &AppServerConnection,
-    project_id: &str,
-    task_id: &str,
-) -> Result<
-    (
-        String,
-        &'static str,
-        Vec<crate::domain::conversation::AgentItem>,
-    ),
-    ConnectionError,
-> {
-    if let Some(catalog) = &connection.catalog {
-        catalog.owned_task(project_id, task_id).await?;
-    }
-    let response: NativeThreadResponse = connection
-        .request(
-            "thread/read",
-            &ThreadReadParams {
-                include_turns: false,
-                thread_id: task_id,
-            },
-            REQUEST_TIMEOUT,
-        )
-        .await?;
-    let thread = response.thread;
-    validate_thread(&thread, project_id, task_id)?;
-    let page: ThreadTurnsListResponse = connection
-        .request(
-            "thread/turns/list",
-            &ThreadTurnsListParams {
-                cursor: None,
-                items_view: "notLoaded",
-                limit: 1,
-                sort_direction: "desc",
-                thread_id: task_id,
-            },
-            REQUEST_TIMEOUT,
-        )
-        .await?;
-    let mut items = Vec::new();
-    if let Some(turn) = page.data.into_iter().next() {
-        let page: ThreadItemsListResponse = connection
-            .request(
-                "thread/items/list",
-                &ThreadItemsListParams {
-                    cursor: None,
-                    limit: 12,
-                    sort_direction: "desc",
-                    thread_id: task_id,
-                    turn_id: &turn.id,
-                },
-                REQUEST_TIMEOUT,
-            )
-            .await?;
-        for entry in page.data.into_iter().take(12).rev() {
-            if entry.turn_id != turn.id {
-                return Err(ConnectionError::InvalidMessage);
-            }
-            items.push(map_item(entry.item)?);
-        }
-    }
-    Ok((
-        normalized_title(thread.name.as_deref(), &thread.preview),
-        map_thread_status(&thread.status)?,
-        items,
-    ))
 }
 
 fn validate_page_cursors(

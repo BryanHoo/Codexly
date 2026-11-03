@@ -8,10 +8,10 @@
 
 - [ ] 保持内部依赖图最底层，不导入其他内部包，也不承载运行时编排或 Provider 专有逻辑。
 - [ ] 协议变化同时核对 Client、Server、两种 Provider 及桌面原生 / 前端映射，并更新契约测试和 `CHANGELOG.md`。
-- [ ] 修改 `local-catalog-schema.json`、`app-storage-migration.json`、`token-usage-sql.json` 时同步验证 Node / Rust 消费者和同机共享存储兼容性。
+- [ ] 修改 `local-catalog-schema.json`、`app-storage-migration.json` 时同步验证 Node / Rust 消费者和同机共享存储兼容性。
 - [ ] 执行 `pnpm exec vitest run packages/protocol/src`、`pnpm typecheck`、`pnpm lint:architecture`；按影响补充消费者测试。
 
-事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[用量统计](../../../../docs/usage-statistics.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
+事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
 
 ## Web 诊断契约
 
@@ -32,3 +32,8 @@
 - 创建弹窗与菜单共用 `packages/ui/src/core/project-file-creation.tsx` 和 `project-file-creation-menu.tsx`；校验、同步提交锁、错误保留名称及焦点行为一致。菜单进入弹窗时阻止菜单关闭抢回焦点；取消不写入，提交期间锁定关闭，关闭后回到对应目录。
 - 创建响应直接更新父目录缓存，等待 Headless Tree 子项刷新完成后再展开目录；不能在 loading 期间调用 expand，因为会被忽略。保留其他目录展开状态，不轮询或重载整树。
 - 回归入口：`packages/server/src/project-file-creation.test.ts`、`app-file-creation.test.ts`，Rust `workspace::file_creation`，桌面 `project-file-creation.browser.test.tsx`，Web `tests/e2e/app-shell-file-creation.spec.ts`。覆盖独占创建、越界、中文名、根/子目录菜单、提交互斥、错误恢复，以及三浏览器与真实触屏。
+
+## 已移除的统计契约
+
+- 设置不再提供用量统计；HTTP `/v1/usage`、原生 `get_token_usage` 和目录 `usage.*` 操作均已移除，两种引擎不再采集统计。旧数据库统计表不主动清理，避免破坏已有用户数据。
+- 对话的 `usage.updated` 事件和上下文占用展示继续保留，与历史统计无关。

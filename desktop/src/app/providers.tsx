@@ -39,7 +39,7 @@ export function createAppQueryClient() {
 }
 
 const queryClient = createAppQueryClient();
-// 主窗口 Provider 独占装配，避免独立任务窗口加载提示词同步模块。
+// 主窗口 Provider 独占装配，避免辅助窗口加载提示词同步模块。
 initializeSavedPrompts();
 
 type AppProvidersProps = Readonly<{

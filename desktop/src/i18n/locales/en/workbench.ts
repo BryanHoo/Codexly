@@ -7,12 +7,10 @@ import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-la
 import { gitCommit } from "./git-commit.js";
 import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
-import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
   engine: engineEnglish,
   textEditor: textFileEditorEnglish,
   split: splitWorkspaceEnglish,
-  taskWindow,
   pet: {
     activeTasks: "Active tasks",
     activitySummary: "{{count}} active tasks, {{waiting}} waiting for attention",

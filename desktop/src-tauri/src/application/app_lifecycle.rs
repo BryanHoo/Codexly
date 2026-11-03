@@ -180,13 +180,6 @@ pub(crate) fn show_main_window_at_route(app: &AppHandle, route: String) {
     queue_main_window_restore(app, Some(route));
 }
 
-pub(super) fn restore_main_window_at_route(app: &AppHandle, route: String) -> tauri::Result<()> {
-    let generation = app
-        .state::<MainWindowLifecycle>()
-        .prepare_show(Some(route.clone()));
-    restore_main_window(app, generation, Some(route))
-}
-
 pub(super) fn visible_main_window_route(app: &AppHandle) -> Option<String> {
     let window = app.get_webview_window(MAIN_WINDOW_LABEL)?;
     // 隐藏或最小化窗口不算用户正在查看，后台完成仍应保留待查看气泡。

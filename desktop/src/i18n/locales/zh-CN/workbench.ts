@@ -7,12 +7,10 @@ import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-la
 import { gitCommit } from "./git-commit.js";
 import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
-import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
   engine: engineChinese,
   textEditor: textFileEditorChinese,
   split: splitWorkspaceChinese,
-  taskWindow,
   pet: {
     activeTasks: "活动任务",
     activitySummary: "{{count}} 个活动任务，其中 {{waiting}} 个等待处理",

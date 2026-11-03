@@ -10,7 +10,6 @@ mod operations;
 mod preview_tests;
 mod previews;
 mod saved_prompts;
-mod token_usage;
 
 #[derive(Clone)]
 pub struct LocalCatalog {
@@ -19,7 +18,6 @@ pub struct LocalCatalog {
 }
 struct SharedConnection {
     database: Mutex<Option<Connection>>,
-    usage: OnceLock<tokio::sync::mpsc::Sender<Value>>,
 }
 static STORES: OnceLock<Mutex<HashMap<PathBuf, Weak<SharedConnection>>>> = OnceLock::new();
 
@@ -50,7 +48,6 @@ impl LocalCatalog {
         stores.retain(|_, store| store.strong_count() > 0);
         let inner = Arc::new(SharedConnection {
             database: Mutex::new(None),
-            usage: OnceLock::new(),
         });
         stores.insert(path.clone(), Arc::downgrade(&inner));
         Ok(Self { inner, path })
@@ -100,7 +97,6 @@ impl LocalCatalog {
                 "../../../../../packages/protocol/src/local-catalog-schema.json"
             ))
             .map_err(|_| CatalogError::InvalidMessage)?;
-            token_usage::initialize(&db)?;
             saved_prompts::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)

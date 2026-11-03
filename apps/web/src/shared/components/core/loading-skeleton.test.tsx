@@ -6,23 +6,18 @@ import { ArchivedTaskListView } from "../../../features/workbench/components/arc
 import { WorkbenchInspectorChanges } from "../../../features/workbench/components/workbench-inspector-changes.js";
 
 describe("共享加载骨架", () => {
-  it.each([
-    "list",
-    "conversation",
-    "settings",
-    "cards",
-    "statistics",
-    "workspace",
-    "code",
-  ] as const)("%s 只播报一次加载状态，不暴露占位图形或可聚焦控件", (variant) => {
-    const html = renderToStaticMarkup(<LoadingSkeleton label="正在加载…" variant={variant} />);
-    expect(html.match(/role="status"/gu)).toHaveLength(1);
-    expect(html.match(/正在加载…/gu)).toHaveLength(1);
-    expect(html).toContain('aria-busy="true"');
-    expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain('data-slot="skeleton"');
-    expect(html).not.toMatch(/<(button|input|a)\b/u);
-  });
+  it.each(["list", "conversation", "settings", "cards", "workspace", "code"] as const)(
+    "%s 只播报一次加载状态，不暴露占位图形或可聚焦控件",
+    (variant) => {
+      const html = renderToStaticMarkup(<LoadingSkeleton label="正在加载…" variant={variant} />);
+      expect(html.match(/role="status"/gu)).toHaveLength(1);
+      expect(html.match(/正在加载…/gu)).toHaveLength(1);
+      expect(html).toContain('aria-busy="true"');
+      expect(html).toContain('aria-hidden="true"');
+      expect(html).toContain('data-slot="skeleton"');
+      expect(html).not.toMatch(/<(button|input|a)\b/u);
+    },
+  );
 
   it("允许调用方覆盖形状并遵循减少动态效果设置", () => {
     const html = renderToStaticMarkup(<Skeleton className="h-4 w-24 rounded-full" />);

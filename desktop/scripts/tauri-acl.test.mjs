@@ -99,7 +99,7 @@ void test("frontend IPC calls have registered handlers and at least one enabled 
 void test("main-only directory creation, cancellation and Git writes stay isolated from auxiliary windows", () => {
   const commands = ["cancel_native_request", "create_project_directory", "push_project_commits", "commit_project_changes"];
   for (const command of commands) assert.ok(allowedByWindow("main").has(command), `${command} denied in main`);
-  for (const label of ["project-file-test", "task-window-test", "desktop-pet"]) {
+  for (const label of ["project-file-test", "desktop-pet"]) {
     for (const command of commands) assert.ok(!allowedByWindow(label).has(command), `${command} unexpectedly granted to ${label}`);
   }
 });
@@ -113,9 +113,8 @@ void test("independent file windows can persist Markdown preview preferences and
 
 void test("window entry points retain their required app and plugin permissions", () => {
   const required = {
-    main: ["open_task_window", "configure_desktop_pet", "connect_runtime", "push_project_commits", "list_project_worktrees", "create_task_worktree", "start_worktree_task"],
+    main: ["configure_desktop_pet", "connect_runtime", "push_project_commits", "list_project_worktrees", "create_task_worktree", "start_worktree_task"],
     "project-file-test": ["initialize_app_storage", "read_project_source_file", "read_project_text_file", "read_project_text_file_revision", "save_project_text_file", "cache_project_image", "get_project_pdf_file", "open_project", "record_frontend_diagnostic"],
-    "task-window-test": ["connect_task_window", "acknowledge_task_window", "close_task_window", "restore_task_window", "drag_task_window", "record_frontend_diagnostic"],
     "desktop-pet": ["get_desktop_pet_state", "get_desktop_pet_drag_strategy", "get_desktop_pet_position", "show_desktop_pet", "set_desktop_pet_drag_position", "start_desktop_pet_native_drag", "move_desktop_pet", "layout_desktop_pet", "open_desktop_pet_task", "list_workbench_pets", "record_frontend_diagnostic"],
   };
   for (const [label, commands] of Object.entries(required)) {
@@ -128,10 +127,8 @@ void test("window entry points retain their required app and plugin permissions"
   });
   for (const capability of capabilities) {
     const enabled = new Set(ids(capability.permissions));
-    if (capability.identifier !== "task-window") {
       assert.ok(enabled.has("core:event:allow-listen"), capability.identifier);
       assert.ok(enabled.has("core:event:allow-unlisten"), capability.identifier);
-    }
     if (capability.identifier === "default") {
       for (const permission of ["autostart:allow-disable", "autostart:allow-is-enabled", "clipboard-manager:allow-write-text", "opener:allow-open-url"]) {
         assert.ok(enabled.has(permission), permission);
