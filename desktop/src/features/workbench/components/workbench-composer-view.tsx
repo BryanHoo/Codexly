@@ -1,4 +1,8 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
+import {
+  ComposerSubmitActions,
+  composerSubmitButtonClassName,
+} from "@codexly/ui/core/composer-submit-actions";
 import { SplitComposer } from "@codexly/ui/core/split-composer";
 import { useContext } from "react";
 import {
@@ -11,7 +15,16 @@ import {
   MAX_AGENT_IMAGE_TOTAL_BYTES,
   MAX_AGENT_TEXT_BYTES,
 } from "@/protocol/index.js";
-import { ArrowDown, ArrowUp, Folder, LoaderCircle, Pencil, Save, SendHorizontal, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Folder,
+  LoaderCircle,
+  Pencil,
+  Save,
+  SendHorizontal,
+  X,
+} from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { TerminalContext } from "../../terminal/components/terminal-context.js";
@@ -35,15 +48,12 @@ import {
 import { movePromptCommandSelection } from "./prompt-command.js";
 import { WorkbenchComposerFooter } from "./workbench-composer-footer.js";
 import { shouldNavigatePromptHistory } from "./prompt-history.js";
+import { serializePromptSkillContent } from "./prompt-skill-content.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
 import { ProjectRootSelector } from "./project-root-selector.js";
 import { ComposerCommandMenu } from "./workbench-composer-command-menu.js";
 import { ComposerFileMenu } from "./workbench-composer-file-menu.js";
-import { ComposerDraftSaveButton } from "./project-draft-controls.js";
-import {
-  ComposerAttachments,
-  ComposerConfigurationToolbar,
-} from "./workbench-composer-toolbar.js";
+import { ComposerAttachments, ComposerConfigurationToolbar } from "./workbench-composer-toolbar.js";
 import {
   resolveQueuedPromptSummary,
   type WorkbenchComposerViewProps,
@@ -115,293 +125,339 @@ export function ComposerProjectRootControls({
 
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const terminal = useContext(TerminalContext);
-  const { t } = useTranslation(["workbench", "settings"]);
+  const { t, i18n } = useTranslation(["workbench", "settings"]);
+  const sendLabel = i18n.language.startsWith("zh") ? "发送" : "Send";
+  const submitButton = (
+    <PromptInputSubmit
+      aria-label={
+        props.captureSubmitLabel ??
+        (props.submitAction === "queue"
+          ? t("composer.queueMessage")
+          : props.submitAction === "steer"
+            ? t("composer.sendSteer")
+            : props.submitAction === "interrupt"
+              ? t("composer.stop")
+              : t("composer.submit"))
+      }
+      disabled={
+        props.turnControlsDisabled ||
+        props.submitAction === "blocked" ||
+        (props.submitAction === "start" &&
+          ((!props.captureMode && !props.canSubmit) ||
+            props.selectedModel === undefined ||
+            props.selectedReasoningEffort === undefined)) ||
+        (props.submitAction === "interrupt" &&
+          (!props.canInterrupt || props.activeTurnId === undefined))
+      }
+      className={props.captureMode ? "size-8 shrink-0" : composerSubmitButtonClassName}
+      onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
+      status={props.state === "running" && props.hasComposerInput ? "idle" : props.state}
+      type={props.submitAction === "interrupt" ? "button" : "submit"}
+    >
+      {props.captureMode ? (
+        <Save aria-hidden="true" />
+      ) : props.submitAction === "interrupt" ? (
+        t("composer.stop")
+      ) : (
+        sendLabel
+      )}
+    </PromptInputSubmit>
+  );
   return (
     <ComposerInteractionBoundary access={props.writeAccess}>
-    <SplitComposer
-      collapsible={props.footerVisible}
-      label={t("composer.landmark")}
-      expandLabel={t("split.expandComposer")}
-      collapseLabel={t("split.collapseComposer")}
-      stopLabel={t("composer.stop")}
-      onInterrupt={props.onInterrupt}
-      footer={(controls, collapsed) => <WorkbenchComposerFooter props={props} controls={controls} collapsed={collapsed} rootControls={<ComposerProjectRootControls
-        onOpen={props.onOpenProjectPath} onRootChange={props.onProjectRootChange} projectPath={props.projectPath}
-        projectPathOpenDisabled={props.projectPathOpenDisabled} roots={props.projectRoots} selectedRootId={props.selectedProjectRootId}
-      />} />}
-      interruptible={props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined}
-    >
-      {/* 底栏移出文档裁剪区时，保留 12px 留白供共享输入框的均衡阴影自然淡出。 */}
-      <div className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-3" : ""}`} ref={props.commandSurfaceRef}>
-        <ComposerCommandMenu props={props} />
-        <ComposerFileMenu props={props} />
-        {props.queuedPrompts.length === 0 ? null : (
-          <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
-            {props.queuedPrompts.map((queuedPrompt, index) => {
-              const summary = resolveQueuedPromptSummary(
-                queuedPrompt,
-                t("composer.attachmentCount", { count: queuedPrompt.files.length }),
-              );
-              return (
-                <div
-                  className="flex min-w-0 items-center gap-2 rounded-control border border-separator bg-control px-2 py-1.5"
-                  key={queuedPrompt.id}
-                  role="listitem"
-                >
-                  <span className="min-w-0 flex-1 truncate text-label text-foreground">
-                    {summary}
-                  </span>
-                  {queuedPrompt.status === "awaiting-response" ? (
-                    <span
-                      aria-label={t("composer.waitingToSend")}
-                      className="inline-flex shrink-0 items-center gap-1 text-caption text-muted-foreground"
-                      role="status"
-                    >
-                      <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
-                      {t("composer.waitingToSend")}
-                    </span>
-                  ) : (
-                    <>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            aria-label={t("composer.moveQueuedUp", { summary })}
-                            disabled={props.isSubmitting || index === 0}
-                            onClick={() => {
-                              props.moveQueuedPrompt(queuedPrompt.id, -1);
-                            }}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <ArrowUp aria-hidden="true" className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("composer.moveQueuedUpTooltip")}</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            aria-label={t("composer.moveQueuedDown", { summary })}
-                            disabled={
-                              props.isSubmitting ||
-                              index === props.queuedPrompts.length - 1
-                            }
-                            onClick={() => {
-                              props.moveQueuedPrompt(queuedPrompt.id, 1);
-                            }}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <ArrowDown aria-hidden="true" className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("composer.moveQueuedDownTooltip")}</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            aria-label={t("composer.editQueued", { summary })}
-                            disabled={props.isSubmitting}
-                            onClick={() => {
-                              props.editQueuedPrompt(queuedPrompt);
-                            }}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Pencil aria-hidden="true" className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("composer.editQueuedTooltip")}</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            aria-label={t("composer.steerNow", { summary })}
-                            className="hover:text-brand"
-                            disabled={
-                              props.isSubmitting ||
-                              props.taskId === undefined ||
-                              (props.activeTurnId === undefined
-                                ? !props.canSubmit
-                                : !props.canSteer)
-                            }
-                            onClick={() => {
-                              props.steerQueuedPrompt(queuedPrompt);
-                            }}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <SendHorizontal aria-hidden="true" className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("composer.steerNowTooltip")}</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            aria-label={t("composer.cancelQueued", { summary })}
-                            className="hover:text-danger"
-                            disabled={props.isSubmitting}
-                            onClick={() => {
-                              props.removeQueuedPrompt(queuedPrompt.id);
-                            }}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <X aria-hidden="true" className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("composer.cancelQueuedTooltip")}</TooltipContent>
-                      </Tooltip>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+      <SplitComposer
+        collapsible={props.footerVisible}
+        label={t("composer.landmark")}
+        expandLabel={t("split.expandComposer")}
+        collapseLabel={t("split.collapseComposer")}
+        stopLabel={t("composer.stop")}
+        onInterrupt={props.onInterrupt}
+        footer={(controls, collapsed) => (
+          <WorkbenchComposerFooter
+            props={props}
+            controls={controls}
+            collapsed={collapsed}
+            rootControls={
+              <ComposerProjectRootControls
+                onOpen={props.onOpenProjectPath}
+                onRootChange={props.onProjectRootChange}
+                projectPath={props.projectPath}
+                projectPathOpenDisabled={props.projectPathOpenDisabled}
+                roots={props.projectRoots}
+                selectedRootId={props.selectedProjectRootId}
+              />
+            }
+          />
         )}
-        <PromptInput
-          attachments={props.attachments}
-          aria-busy={props.state === "submitting" || props.state === "reconnecting"}
-          className="w-full"
-          data-state={props.state}
-          disabled={props.attachmentsDisabled}
-          fileAccept={AGENT_FILE_ACCEPT}
-          globalDrop
-          imageAccept={AGENT_IMAGE_ACCEPT}
-          largePasteCharacterThreshold={LARGE_PASTE_CHARACTER_THRESHOLD}
-          maxFileSize={MAX_AGENT_FILE_BYTES}
-          maxFileTotalSize={MAX_AGENT_FILE_TOTAL_BYTES}
-          maxImageSize={MAX_AGENT_IMAGE_BYTES}
-          maxImages={MAX_AGENT_IMAGES}
-          maxImageTotalSize={MAX_AGENT_IMAGE_TOTAL_BYTES}
-          maxTextSize={MAX_AGENT_TEXT_BYTES}
-          multiple
-          onAttachmentsChange={props.onAttachmentsChange}
-          onError={(error) => {
-            props.onViewError(new Error(error.message));
-          }}
-          onSubmit={props.onSubmit}
-          pastedTextFileName={PASTED_TEXT_ATTACHMENT_NAME}
+        interruptible={
+          props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined
+        }
+      >
+        {/* 底栏移出文档裁剪区时，保留 12px 留白供共享输入框的均衡阴影自然淡出。 */}
+        <div
+          className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-3" : ""}`}
+          ref={props.commandSurfaceRef}
         >
-          <ComposerAttachments />
-          <PromptInputBody>
-            <PromptSkillEditor
-              aria-activedescendant={props.activeCommandItemId}
-              aria-controls={
-                props.commandMenuOpen || props.fileMenuOpen ? props.commandMenuId : undefined
-              }
-              aria-expanded={props.commandMenuOpen || props.fileMenuOpen}
-              aria-haspopup="listbox"
-              aria-label={t("composer.taskInput")}
-              content={props.promptContent}
-              disabled={props.draftInputDisabled}
-              onChange={props.onPromptChange}
-              onKeyDown={(event) => {
-                if (isPromptInputComposing(event.nativeEvent)) {
-                  return;
+          <ComposerCommandMenu props={props} />
+          <ComposerFileMenu props={props} />
+          {props.queuedPrompts.length === 0 ? null : (
+            <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
+              {props.queuedPrompts.map((queuedPrompt, index) => {
+                const summary = resolveQueuedPromptSummary(
+                  queuedPrompt,
+                  t("composer.attachmentCount", { count: queuedPrompt.files.length }),
+                );
+                return (
+                  <div
+                    className="flex min-w-0 items-center gap-2 rounded-control border border-separator bg-control px-2 py-1.5"
+                    key={queuedPrompt.id}
+                    role="listitem"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-label text-foreground">
+                      {summary}
+                    </span>
+                    {queuedPrompt.status === "awaiting-response" ? (
+                      <span
+                        aria-label={t("composer.waitingToSend")}
+                        className="inline-flex shrink-0 items-center gap-1 text-caption text-muted-foreground"
+                        role="status"
+                      >
+                        <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
+                        {t("composer.waitingToSend")}
+                      </span>
+                    ) : (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label={t("composer.moveQueuedUp", { summary })}
+                              disabled={props.isSubmitting || index === 0}
+                              onClick={() => {
+                                props.moveQueuedPrompt(queuedPrompt.id, -1);
+                              }}
+                              size="icon-sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <ArrowUp aria-hidden="true" className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("composer.moveQueuedUpTooltip")}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label={t("composer.moveQueuedDown", { summary })}
+                              disabled={
+                                props.isSubmitting || index === props.queuedPrompts.length - 1
+                              }
+                              onClick={() => {
+                                props.moveQueuedPrompt(queuedPrompt.id, 1);
+                              }}
+                              size="icon-sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <ArrowDown aria-hidden="true" className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("composer.moveQueuedDownTooltip")}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label={t("composer.editQueued", { summary })}
+                              disabled={props.isSubmitting}
+                              onClick={() => {
+                                props.editQueuedPrompt(queuedPrompt);
+                              }}
+                              size="icon-sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Pencil aria-hidden="true" className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("composer.editQueuedTooltip")}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label={t("composer.steerNow", { summary })}
+                              className="hover:text-brand"
+                              disabled={
+                                props.isSubmitting ||
+                                props.taskId === undefined ||
+                                (props.activeTurnId === undefined
+                                  ? !props.canSubmit
+                                  : !props.canSteer)
+                              }
+                              onClick={() => {
+                                props.steerQueuedPrompt(queuedPrompt);
+                              }}
+                              size="icon-sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <SendHorizontal aria-hidden="true" className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("composer.steerNowTooltip")}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label={t("composer.cancelQueued", { summary })}
+                              className="hover:text-danger"
+                              disabled={props.isSubmitting}
+                              onClick={() => {
+                                props.removeQueuedPrompt(queuedPrompt.id);
+                              }}
+                              size="icon-sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <X aria-hidden="true" className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("composer.cancelQueuedTooltip")}</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <PromptInput
+            attachments={props.attachments}
+            aria-busy={props.state === "submitting" || props.state === "reconnecting"}
+            className="w-full"
+            data-state={props.state}
+            disabled={props.attachmentsDisabled}
+            fileAccept={AGENT_FILE_ACCEPT}
+            globalDrop
+            imageAccept={AGENT_IMAGE_ACCEPT}
+            largePasteCharacterThreshold={LARGE_PASTE_CHARACTER_THRESHOLD}
+            maxFileSize={MAX_AGENT_FILE_BYTES}
+            maxFileTotalSize={MAX_AGENT_FILE_TOTAL_BYTES}
+            maxImageSize={MAX_AGENT_IMAGE_BYTES}
+            maxImages={MAX_AGENT_IMAGES}
+            maxImageTotalSize={MAX_AGENT_IMAGE_TOTAL_BYTES}
+            maxTextSize={MAX_AGENT_TEXT_BYTES}
+            multiple
+            onAttachmentsChange={props.onAttachmentsChange}
+            onError={(error) => {
+              props.onViewError(new Error(error.message));
+            }}
+            onSubmit={props.onSubmit}
+            pastedTextFileName={PASTED_TEXT_ATTACHMENT_NAME}
+          >
+            <ComposerAttachments />
+            <PromptInputBody>
+              <PromptSkillEditor
+                aria-activedescendant={props.activeCommandItemId}
+                aria-controls={
+                  props.commandMenuOpen || props.fileMenuOpen ? props.commandMenuId : undefined
                 }
-                if (props.commandMenuOpen || props.fileMenuOpen) {
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-                    props.setActiveCommandIndex((currentIndex) =>
-                      movePromptCommandSelection(
-                        currentIndex,
-                        event.key === "ArrowDown" ? 1 : -1,
-                        props.menuItemCount,
-                      ),
-                    );
+                aria-expanded={props.commandMenuOpen || props.fileMenuOpen}
+                aria-haspopup="listbox"
+                aria-label={t("composer.taskInput")}
+                content={props.promptContent}
+                disabled={props.draftInputDisabled}
+                onChange={props.onPromptChange}
+                onKeyDown={(event) => {
+                  if (isPromptInputComposing(event.nativeEvent)) {
                     return;
                   }
-                  if (event.key === "Enter" && !isPromptInputNewlineShortcut(event)) {
-                    event.preventDefault();
-                    props.onSelectActiveCommand();
+                  if (props.commandMenuOpen || props.fileMenuOpen) {
+                    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                      event.preventDefault();
+                      props.setActiveCommandIndex((currentIndex) =>
+                        movePromptCommandSelection(
+                          currentIndex,
+                          event.key === "ArrowDown" ? 1 : -1,
+                          props.menuItemCount,
+                        ),
+                      );
+                      return;
+                    }
+                    if (event.key === "Enter" && !isPromptInputNewlineShortcut(event)) {
+                      event.preventDefault();
+                      props.onSelectActiveCommand();
+                    }
+                    return;
                   }
-                  return;
-                }
-                if (
-                  (event.key === "ArrowDown" || event.key === "ArrowUp") &&
-                  !(event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
-                ) {
-                  const direction = event.key === "ArrowUp" ? "previous" : "next";
-                  const input = event.currentTarget;
                   if (
-                    input.selectionStart === input.selectionEnd &&
-                    shouldNavigatePromptHistory(
-                      input.value,
-                      input.selectionStart,
-                      direction,
-                    ) &&
-                    props.onPromptHistoryNavigate(direction)
+                    (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+                    !(event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
                   ) {
-                    event.preventDefault();
+                    const direction = event.key === "ArrowUp" ? "previous" : "next";
+                    const input = event.currentTarget;
+                    if (
+                      input.selectionStart === input.selectionEnd &&
+                      shouldNavigatePromptHistory(input.value, input.selectionStart, direction) &&
+                      props.onPromptHistoryNavigate(direction)
+                    ) {
+                      event.preventDefault();
+                    }
                   }
-                }
-              }}
-              placeholder={resolveComposerPlaceholder(props.taskId)}
-              ref={props.skillEditorRef}
-              skills={props.skills}
-              scope={props.composerScope}
-            />
-          </PromptInputBody>
-          <ComposerConfigurationToolbar props={props} leading={<PromptInputActionAddAttachments
-                className="size-8 shrink-0 px-0"
-                disabled={props.attachmentsDisabled}
-                onSelectKind={props.onSelectAttachmentKind}
-              />}>
-            <>
-              {props.captureMode ? null : (
-                <ComposerDraftSaveButton
-                  disabled={!props.hasComposerInput || props.isSubmitting}
-                  editing={props.editingProjectDraftId !== undefined}
-                  onSave={props.onProjectDraftSave}
+                }}
+                placeholder={resolveComposerPlaceholder(props.taskId)}
+                ref={props.skillEditorRef}
+                skills={props.skills}
+                scope={props.composerScope}
+              />
+            </PromptInputBody>
+            <ComposerConfigurationToolbar
+              props={props}
+              leading={
+                <PromptInputActionAddAttachments
+                  className="size-8 shrink-0 px-0"
+                  disabled={props.attachmentsDisabled}
+                  onSelectKind={props.onSelectAttachmentKind}
                 />
-              )}
-              {!props.captureMode || props.captureSubmitVisible ? (
-                <PromptInputSubmit
-                  aria-label={
-                    props.captureSubmitLabel ?? (props.submitAction === "queue"
-                      ? t("composer.queueMessage")
-                      : props.submitAction === "steer"
-                        ? t("composer.sendSteer")
-                        : props.submitAction === "interrupt"
-                          ? t("composer.stop")
-                          : t("composer.submit"))
-                  }
-                  disabled={
-                    props.turnControlsDisabled ||
-                    props.submitAction === "blocked" ||
-                    (props.submitAction === "start" &&
-                      ((!props.captureMode && !props.canSubmit) ||
-                        props.selectedModel === undefined ||
-                        props.selectedReasoningEffort === undefined)) ||
-                    (props.submitAction === "interrupt" &&
-                      (!props.canInterrupt || props.activeTurnId === undefined))
-                  }
-                  className="size-8 shrink-0"
-                  onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
-                  status={props.state === "running" && props.hasComposerInput ? "idle" : props.state}
-                  type={props.submitAction === "interrupt" ? "button" : "submit"}
-                >
-                  {props.captureMode ? <Save aria-hidden="true" /> : undefined}
-                </PromptInputSubmit>
-              ) : null}
-
-            </>
-          </ComposerConfigurationToolbar>
-        </PromptInput>
-      </div>
-      {props.modelsError === null ? null : (
-        <p className="mx-auto mt-1 w-full max-w-content px-1 text-caption text-danger" role="alert">
-          {t("composer.modelListFailed")}
-        </p>
-      )}
-    </SplitComposer>
+              }
+            >
+              <>
+                {!props.captureMode || props.captureSubmitVisible ? (
+                  props.captureMode ? (
+                    submitButton
+                  ) : (
+                    <ComposerSubmitActions
+                      project={
+                        props.projectToolsEnabled
+                          ? { id: props.projectId, name: props.projectName }
+                          : undefined
+                      }
+                      language={i18n.language}
+                      content={serializePromptSkillContent(props.promptContent)}
+                      disabled={props.draftInputDisabled || props.isSubmitting}
+                      todoDisabled={!props.hasComposerInput || props.isSubmitting}
+                      todoLabel={t(
+                        props.editingProjectDraftId !== undefined
+                          ? "composer.saveDraftChanges"
+                          : "composer.saveAsDraft",
+                      )}
+                      onSaveTodo={props.onProjectDraftSave}
+                    >
+                      {submitButton}
+                    </ComposerSubmitActions>
+                  )
+                ) : null}
+              </>
+            </ComposerConfigurationToolbar>
+          </PromptInput>
+        </div>
+        {props.modelsError === null ? null : (
+          <p
+            className="mx-auto mt-1 w-full max-w-content px-1 text-caption text-danger"
+            role="alert"
+          >
+            {t("composer.modelListFailed")}
+          </p>
+        )}
+      </SplitComposer>
     </ComposerInteractionBoundary>
   );
 }

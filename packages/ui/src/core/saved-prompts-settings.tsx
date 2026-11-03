@@ -1,16 +1,10 @@
 import { toast } from "./notifications.js";
 import { Bookmark, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useId, useMemo, useRef, useState } from "react";
-import {
-  savedPromptLimits,
-  validateSavedPrompt,
-  type SavedPrompt,
-  type SavedPromptDraft,
-} from "@codexly/frontend-core/saved-prompts";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
+import type { SavedPrompt, SavedPromptDraft } from "@codexly/frontend-core/saved-prompts";
 import { Button } from "./button.js";
 import { Input } from "./input.js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
-import { Textarea } from "./textarea.js";
 import {
   Dialog,
   DialogContent,
@@ -20,13 +14,14 @@ import {
   DialogTitle,
 } from "./dialog.js";
 import {
-  saveSharedPrompt,
   removeSharedPrompt,
   useSavedPrompts,
   useSavedPromptsStatus,
   refreshSavedPrompts,
 } from "./saved-prompts-store.js";
 import { savedPromptsCopy } from "./saved-prompts-copy.js";
+
+const SavedPromptEditor = lazy(() => import("./saved-prompt-editor.js"));
 
 const emptyDraft: SavedPromptDraft = { name: "", content: "" };
 
@@ -55,11 +50,8 @@ export function SavedPromptsSettings({
   const [scope, setScope] = useState("all");
   const [search, setSearch] = useState("");
   const [editor, setEditor] = useState<{ original: SavedPromptDraft; id?: string }>();
-  const [draft, setDraft] = useState<SavedPromptDraft>(emptyDraft);
   const [deleting, setDeleting] = useState<SavedPrompt>();
-  const [discarding, setDiscarding] = useState(false);
   const [error, setError] = useState<keyof typeof copy.errors>();
-  const id = useId();
   const query = search.trim().toLocaleLowerCase();
   const filtered = useMemo(
     () =>
@@ -73,55 +65,9 @@ export function SavedPromptsSettings({
       ),
     [prompts, scope, query],
   );
-  const dirty =
-    editor &&
-    (draft.name !== editor.original.name ||
-      draft.content !== editor.original.content ||
-      draft.projectId !== editor.original.projectId);
   const openEditor = (prompt?: SavedPrompt) => {
-    const original = prompt ?? emptyDraft;
-    setEditor({ original, ...(prompt ? { id: prompt.id } : {}) });
-    setDraft(original);
-    setError(undefined);
+    setEditor({ original: prompt ?? emptyDraft, ...(prompt ? { id: prompt.id } : {}) });
   };
-  const closeEditor = () => {
-    if (busy.current) return;
-    if (dirty) setDiscarding(true);
-    else setEditor(undefined);
-  };
-  const save = async () => {
-    if (busy.current) return;
-    const invalid =
-      draft.projectId !== undefined && !projectNames.has(draft.projectId)
-        ? "project"
-        : validateSavedPrompt(draft);
-    if (invalid) {
-      setError(invalid);
-      return;
-    }
-    try {
-      busy.current = true;
-      setPending(true);
-      await saveSharedPrompt(draft, editor?.id);
-      setEditor(undefined);
-      toast.success(copy.saved);
-    } catch (cause) {
-      setError(
-        cause instanceof Error &&
-          (cause.message === "duplicate" || ("status" in cause && cause.status === 409))
-          ? "duplicate"
-          : "storage",
-      );
-    } finally {
-      busy.current = false;
-      setPending(false);
-    }
-  };
-  const update = (field: keyof SavedPromptDraft, value: string) => {
-    setDraft((current) => ({ ...current, [field]: value }));
-    setError(undefined);
-  };
-  const errorId = `${id}-error`;
   return (
     <section id="settings-panel-prompts" className="space-y-6">
       <header className="space-y-2">
@@ -270,128 +216,19 @@ export function SavedPromptsSettings({
         </div>
       )}
 
-      <Dialog
-        open={editor !== undefined}
-        onOpenChange={(open) => {
-          if (!open) closeEditor();
-        }}
-      >
-        <DialogContent
-          closeLabel={copy.close}
-          className="max-w-xl"
-          onInteractOutside={(event) => {
-            event.preventDefault();
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>{editor?.id ? copy.editTitle : copy.add}</DialogTitle>
-            <DialogDescription>{copy.insertHint}</DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void save();
+      {editor ? (
+        <Suspense fallback={null}>
+          <SavedPromptEditor
+            language={language}
+            initialDraft={editor.original}
+            promptId={editor.id}
+            projects={projects}
+            onClose={() => {
+              setEditor(undefined);
             }}
-          >
-            <div className="space-y-1.5">
-              <label htmlFor={`${id}-name`} className="text-body-small font-medium">
-                {copy.name}
-              </label>
-              <Input
-                id={`${id}-name`}
-                autoFocus
-                maxLength={savedPromptLimits.name}
-                value={draft.name}
-                placeholder={copy.namePlaceholder}
-                aria-invalid={error === "name" || error === "duplicate"}
-                aria-describedby={error === "name" || error === "duplicate" ? errorId : undefined}
-                onChange={(event) => {
-                  update("name", event.currentTarget.value);
-                }}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label id={`${id}-scope-label`} className="text-body-small font-medium">
-                {copy.scope}
-              </label>
-              <Select
-                value={draft.projectId ? `project:${draft.projectId}` : "global"}
-                onValueChange={(value) => {
-                  setDraft((current) => {
-                    const { projectId: _projectId, ...fields } = current;
-                    return value === "global" ? fields : { ...fields, projectId: value.slice(8) };
-                  });
-                  setError(undefined);
-                }}
-              >
-                <SelectTrigger
-                  className="w-full"
-                  aria-labelledby={`${id}-scope-label`}
-                  aria-describedby={`${id}-scope-hint${error === "project" ? ` ${errorId}` : ""}`}
-                  aria-invalid={error === "project"}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" className="max-w-[calc(100vw-2rem)]">
-                  <SelectItem value="global">{copy.global}</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={`project:${project.id}`}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                  {draft.projectId && !projectNames.has(draft.projectId) ? (
-                    <SelectItem disabled value={`project:${draft.projectId}`}>
-                      {copy.unavailable}
-                    </SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
-              <p
-                id={`${id}-scope-hint`}
-                className="text-label leading-relaxed text-muted-foreground"
-              >
-                {copy.scopeHint}
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor={`${id}-content`} className="text-body-small font-medium">
-                  {copy.content}
-                </label>
-                <span className="text-label tabular-nums text-subtle-foreground">
-                  {draft.content.length} / {savedPromptLimits.content}
-                </span>
-              </div>
-              <Textarea
-                id={`${id}-content`}
-                className="min-h-48 text-body-small leading-relaxed"
-                maxLength={savedPromptLimits.content}
-                value={draft.content}
-                placeholder={copy.contentPlaceholder}
-                aria-invalid={error === "content"}
-                aria-describedby={error === "content" ? errorId : undefined}
-                onChange={(event) => {
-                  update("content", event.currentTarget.value);
-                }}
-              />
-            </div>
-            {error ? (
-              <p id={errorId} role="alert" className="text-body-small text-danger">
-                {copy.errors[error]}
-              </p>
-            ) : null}
-            <DialogFooter>
-              <Button type="button" variant="ghost" disabled={pending} onClick={closeEditor}>
-                {copy.cancel}
-              </Button>
-              <Button type="submit" disabled={pending}>
-                {copy.save}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          />
+        </Suspense>
+      ) : null}
 
       <Dialog
         open={deleting !== undefined}
@@ -450,40 +287,6 @@ export function SavedPromptsSettings({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* 脏草稿只有明确放弃才丢弃，Escape 与取消共用同一保护流程。 */}
-      {discarding ? (
-        <Dialog open onOpenChange={setDiscarding}>
-          <DialogContent closeLabel={copy.close}>
-            <DialogHeader>
-              <DialogTitle>{copy.discardTitle}</DialogTitle>
-              <DialogDescription>{copy.discardDescription}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="ghost"
-                autoFocus
-                onClick={() => {
-                  setDiscarding(false);
-                }}
-              >
-                {copy.continue}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => {
-                  setDiscarding(false);
-                  setEditor(undefined);
-                }}
-              >
-                {copy.discard}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
     </section>
   );
 }

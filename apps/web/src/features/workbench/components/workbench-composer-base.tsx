@@ -443,14 +443,13 @@ export function WorkbenchComposerBase({
       onSelectSkill={selectSkill}
       onSettingsChange={updateSettings}
       onSubmit={(message) => void todoActions.submit(message)}
-      onViewError={(error) => {
-        setMutationError(error);
-      }}
+      onViewError={setMutationError}
       projectPath={projectPath}
       projectPathOpenAvailable={projectPathOpenAvailable}
       projectPathOpenDisabled={projectPathOpenDisabled}
       projectRoots={projectRoots}
       projectToolsEnabled={projectToolsEnabled}
+      projectId={projectId}
       projectName={projectName ?? projectId}
       projectTodos={todos}
       promptContent={promptContent}

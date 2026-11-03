@@ -52,6 +52,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   workspace,
   onTaskStarted,
   projectId,
+  projectName,
   projectPath,
   projectPathOpenAvailable,
   projectPathOpenDisabled,
@@ -91,6 +92,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     messageAttachments?: readonly AgentMessageAttachment[],
   ) => void;
   projectId: string;
+  projectName: string;
   projectPath: string;
   projectPathOpenAvailable: boolean;
   projectPathOpenDisabled: boolean;
@@ -257,6 +259,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
             });
           }}
           projectId={projectId}
+          projectName={projectName}
           projectPath={projectPath}
           projectPathOpenAvailable={projectPathOpenAvailable}
           projectPathOpenDisabled={projectPathOpenDisabled}

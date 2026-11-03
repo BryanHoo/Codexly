@@ -442,14 +442,13 @@ export function WorkbenchComposerBase({
       onSelectSkill={selectSkill}
       onSettingsChange={updateSettings}
       onSubmit={(message) => void projectDraftActions.submit(message)}
-      onViewError={(error) => {
-        setMutationError(error);
-      }}
+      onViewError={setMutationError}
       projectPath={projectPath}
       projectPathOpenDisabled={projectPathOpenDisabled}
       projectRoots={projectRoots}
       projectToolsEnabled={projectToolsEnabled}
       projectDrafts={projectDrafts}
+      projectId={projectId}
       projectName={projectName}
       promptContent={promptContent}
       queuedPrompts={composerQueue.queuedPrompts}

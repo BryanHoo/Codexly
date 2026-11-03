@@ -1,3 +1,4 @@
+import { ComposerPromptProjectsContext } from "@codexly/ui/core/composer-submit-actions";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
@@ -134,6 +135,7 @@ export function WorkbenchShellLayout({
   const taskWriteBlocked =
     workspaceContent === undefined && taskId !== undefined && runtime.writeAccess !== undefined && runtime.writeAccess !== "writable";
   return (
+    <ComposerPromptProjectsContext value={projects}>
     <TaskInteractionContext value={taskWriteBlocked ? JSON.stringify([projectId, taskId]) : null}>
       <div
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -380,5 +382,6 @@ export function WorkbenchShellLayout({
         />
       </div>
     </TaskInteractionContext>
+    </ComposerPromptProjectsContext>
   );
 }

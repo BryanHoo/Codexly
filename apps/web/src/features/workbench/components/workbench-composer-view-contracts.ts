@@ -105,6 +105,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   projectPathOpenDisabled: boolean;
   projectRoots: readonly ProjectRoot[];
   projectToolsEnabled: boolean;
+  projectId: string;
   projectName: string;
   projectTodos: readonly ProjectTodoRecord[];
   promptContent: PromptSkillContent;

@@ -39,6 +39,12 @@
 
 ## 共享 Dialog 与 Drawer
 
+- 新建与已有任务入口都必须向输入框传递项目显示名称，不能以 ID 代替；项目 ID 只用于绑定和保存。提示词弹窗固定点击时的范围，但同一项目名称加载或重命名后应更新显示，不覆盖用户编辑或改绑项目。回归使用名称与 ID 明显不同的数据，严格核对名称；浏览器入口为 `app-shell-composer-save.spec.ts` 与桌面 `composer-prompt-project.browser.test.tsx`。
+
+- 从发送菜单新建提示词时，项目会话默认选择当前项目，普通聊天默认全局；正文与项目 ID 在点击时一起固定，避免弹窗打开后切换会话导致范围错绑。范围选项必须包含全局及完整项目列表，用户可任意重选；两端工作台通过 `ComposerPromptProjectsContext` 提供已加载的项目目录，不额外请求。保存回归必须核对重选后的 `projectId` 或全局缺省值。
+
+- 聊天发送区复用 `core/composer-submit-actions.tsx`：左侧保持提交动作，右侧菜单保存待办或常用提示词，不切换默认动作。提示词编辑复用按需加载的 `core/saved-prompt-editor.tsx`，点击时复制原始正文，保存后保留聊天草稿。Portal 内表单的提交事件必须停止 React 冒泡，避免触发外层聊天提交；校验、提交锁及未保存修改保护与设置页共用。回归入口为 `tests/e2e/app-shell-composer-save.spec.ts`（宽窄屏、三浏览器）和桌面 `saved-prompts.browser.test.tsx`。
+
 - 2026-10-29 用户要求视觉一并采用官方组件设计：关闭控件独立定位于浮层右上角，固定 32×32px、图标 16px。此规则替代旧共享 UI 索引中“标题等高、14px 图标”的旧要求；禁止再用 `w-[1em]`、`size="embedded"` 或继承标题字号压缩关闭入口。长标题留出右侧空间，不能用标题高度决定按钮形状。
 - 普通模态窗口统一通过 `packages/ui/src/core/dialog.tsx` 使用 shadcn Base UI Dialog；侧边抽屉通过 `drawer.tsx` 使用 Base UI Drawer 的 Portal、Viewport、Popup、Content。`Sheet` 仅保留兼容导出，新增调用使用 Drawer，方向由 Root 的 `swipeDirection` 指定。
 - Root / Trigger 同步加载；Portal / Popup 与 Drawer 手势层分别由 `dialog-surface.tsx`、`drawer-surface.tsx` 在首次打开时动态加载，关闭状态不得请求这两个模块。首次加载后保留轻量边界，让 Base UI 完成退出动画并卸载 DOM，重开复用模块缓存。

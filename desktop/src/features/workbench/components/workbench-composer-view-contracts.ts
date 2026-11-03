@@ -97,7 +97,10 @@ export type WorkbenchComposerViewProps = Readonly<{
   onSelectAttachmentKind: (kind: PromptInputAttachmentKind) => void;
   onSelectFileReference: (file: ProjectFileSearchEntry) => void;
   onSelectSkill: (skill: AgentSkill) => void;
-  onSettingsChange: (settings: AgentTaskSettings, field: keyof AgentTaskSettings) => Promise<void> | void;
+  onSettingsChange: (
+    settings: AgentTaskSettings,
+    field: keyof AgentTaskSettings,
+  ) => Promise<void> | void;
   onSubmit: (message: PromptInputMessage) => void;
   onViewError: (error: Error) => void;
   projectPath: string;
@@ -105,6 +108,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   projectRoots: readonly ProjectRoot[];
   projectToolsEnabled: boolean;
   projectDrafts: readonly ProjectDraftRecord[];
+  projectId: string;
   projectName: string;
   promptContent: PromptSkillContent;
   queuedPrompts: readonly QueuedComposerPrompt[];

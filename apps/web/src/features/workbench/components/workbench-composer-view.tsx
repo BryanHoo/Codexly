@@ -1,4 +1,8 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
+import {
+  ComposerSubmitActions,
+  composerSubmitButtonClassName,
+} from "@codexly/ui/core/composer-submit-actions";
 import { SplitComposer } from "@codexly/ui/core/split-composer";
 import {
   AGENT_FILE_ACCEPT,
@@ -34,8 +38,8 @@ import {
 import { movePromptCommandSelection } from "./prompt-command.js";
 import { WorkbenchComposerFooter } from "./workbench-composer-footer.js";
 import { ComposerCaptureSubmitIcon } from "./composer-capture-submit-icon.js";
-import { ComposerTodoSaveButton } from "./project-todo-controls.js";
 import { shouldNavigatePromptHistory } from "./prompt-history.js";
+import { serializePromptSkillContent } from "./prompt-skill-content.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
 import { ProjectRootSelector } from "./project-root-selector.js";
 import { ComposerCommandMenu } from "./workbench-composer-command-menu.js";
@@ -106,8 +110,46 @@ export function ComposerProjectRootControls({
   );
 }
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
-  const { t } = useTranslation(["workbench", "settings"]);
+  const { t, i18n } = useTranslation(["workbench", "settings"]);
   const editingIndex = props.queuedPrompts.findIndex((prompt) => prompt.status === "editing");
+  const sendLabel = i18n.language.startsWith("zh") ? "发送" : "Send";
+  const submitButton = (
+    <PromptInputSubmit
+      aria-label={
+        props.captureMode
+          ? t("actions.save")
+          : props.submitAction === "queue"
+            ? t("composer.queueMessage")
+            : props.submitAction === "steer"
+              ? t("composer.sendSteer")
+              : props.submitAction === "interrupt"
+                ? t("composer.stop")
+                : t("composer.submit")
+      }
+      disabled={
+        props.turnControlsDisabled ||
+        props.submitAction === "blocked" ||
+        (props.submitAction === "start" &&
+          ((!props.captureMode && !props.canSubmit) ||
+            props.selectedModel === undefined ||
+            props.selectedReasoningEffort === undefined)) ||
+        (props.submitAction === "interrupt" &&
+          (!props.canInterrupt || props.activeTurnId === undefined))
+      }
+      className={props.captureMode ? "size-8 shrink-0" : composerSubmitButtonClassName}
+      onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
+      status={props.state === "running" && props.hasComposerInput ? "idle" : props.state}
+      type={props.submitAction === "interrupt" ? "button" : "submit"}
+    >
+      {props.captureMode ? (
+        <ComposerCaptureSubmitIcon />
+      ) : props.submitAction === "interrupt" ? (
+        t("composer.stop")
+      ) : (
+        sendLabel
+      )}
+    </PromptInputSubmit>
+  );
   return (
     <SplitComposer
       collapsible={props.footerVisible}
@@ -378,45 +420,30 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
             }
           >
             <>
-              {props.projectToolsEnabled && !props.captureMode ? (
-                <ComposerTodoSaveButton
-                  disabled={!props.hasComposerInput || props.isSubmitting}
-                  editing={props.editingTodoId !== undefined}
-                  onSave={props.onProjectTodoSave}
-                />
-              ) : null}
               {props.captureSubmitVisible ? (
-                <PromptInputSubmit
-                  aria-label={
-                    props.captureMode
-                      ? t("actions.save")
-                      : props.submitAction === "queue"
-                        ? t("composer.queueMessage")
-                        : props.submitAction === "steer"
-                          ? t("composer.sendSteer")
-                          : props.submitAction === "interrupt"
-                            ? t("composer.stop")
-                            : t("composer.submit")
-                  }
-                  disabled={
-                    props.turnControlsDisabled ||
-                    props.submitAction === "blocked" ||
-                    (props.submitAction === "start" &&
-                      ((!props.captureMode && !props.canSubmit) ||
-                        props.selectedModel === undefined ||
-                        props.selectedReasoningEffort === undefined)) ||
-                    (props.submitAction === "interrupt" &&
-                      (!props.canInterrupt || props.activeTurnId === undefined))
-                  }
-                  className="size-8 shrink-0"
-                  onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
-                  status={
-                    props.state === "running" && props.hasComposerInput ? "idle" : props.state
-                  }
-                  type={props.submitAction === "interrupt" ? "button" : "submit"}
-                >
-                  {props.captureMode ? <ComposerCaptureSubmitIcon /> : undefined}
-                </PromptInputSubmit>
+                props.captureMode ? (
+                  submitButton
+                ) : (
+                  <ComposerSubmitActions
+                    project={
+                      props.projectToolsEnabled
+                        ? { id: props.projectId, name: props.projectName }
+                        : undefined
+                    }
+                    language={i18n.language}
+                    content={serializePromptSkillContent(props.promptContent)}
+                    disabled={props.draftInputDisabled || props.isSubmitting}
+                    todoDisabled={!props.hasComposerInput || props.isSubmitting}
+                    todoLabel={t(
+                      props.editingTodoId !== undefined
+                        ? "composer.saveTodoChanges"
+                        : "composer.saveAsTodo",
+                    )}
+                    onSaveTodo={props.projectToolsEnabled ? props.onProjectTodoSave : undefined}
+                  >
+                    {submitButton}
+                  </ComposerSubmitActions>
+                )
               ) : null}
             </>
           </ComposerConfigurationToolbar>
