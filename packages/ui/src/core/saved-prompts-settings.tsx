@@ -1,6 +1,6 @@
 import { toast } from "./notifications.js";
 import { Bookmark, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
   savedPromptLimits,
   validateSavedPrompt,
@@ -19,7 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./dialog.js";
-import { savedPromptsStore, useSavedPrompts } from "./saved-prompts-store.js";
+import {
+  saveSharedPrompt,
+  removeSharedPrompt,
+  useSavedPrompts,
+  useSavedPromptsStatus,
+  refreshSavedPrompts,
+} from "./saved-prompts-store.js";
 import { savedPromptsCopy } from "./saved-prompts-copy.js";
 
 const emptyDraft: SavedPromptDraft = { name: "", content: "" };
@@ -39,6 +45,9 @@ export function SavedPromptsSettings({
 }>) {
   const copy = savedPromptsCopy(language);
   const prompts = useSavedPrompts();
+  const syncStatus = useSavedPromptsStatus();
+  const busy = useRef(false);
+  const [pending, setPending] = useState(false);
   const projectNames = useMemo(
     () => new Map(projects.map((project) => [project.id, project.name])),
     [projects],
@@ -76,10 +85,12 @@ export function SavedPromptsSettings({
     setError(undefined);
   };
   const closeEditor = () => {
+    if (busy.current) return;
     if (dirty) setDiscarding(true);
     else setEditor(undefined);
   };
-  const save = () => {
+  const save = async () => {
+    if (busy.current) return;
     const invalid =
       draft.projectId !== undefined && !projectNames.has(draft.projectId)
         ? "project"
@@ -89,11 +100,21 @@ export function SavedPromptsSettings({
       return;
     }
     try {
-      savedPromptsStore.save(draft, editor?.id);
+      busy.current = true;
+      setPending(true);
+      await saveSharedPrompt(draft, editor?.id);
       setEditor(undefined);
       toast.success(copy.saved);
     } catch (cause) {
-      setError(cause instanceof Error && cause.message === "duplicate" ? "duplicate" : "storage");
+      setError(
+        cause instanceof Error &&
+          (cause.message === "duplicate" || ("status" in cause && cause.status === 409))
+          ? "duplicate"
+          : "storage",
+      );
+    } finally {
+      busy.current = false;
+      setPending(false);
     }
   };
   const update = (field: keyof SavedPromptDraft, value: string) => {
@@ -111,6 +132,16 @@ export function SavedPromptsSettings({
           {copy.local}
         </p>
       </header>
+      {syncStatus === "error" ? (
+        <div role="alert" className="space-y-2 text-body-small text-danger">
+          <p>{copy.loadError}</p>
+          <Button type="button" variant="ghost" onClick={refreshSavedPrompts}>
+            {copy.retry}
+          </Button>
+        </div>
+      ) : syncStatus === "loading" ? (
+        <p role="status">{copy.loading}</p>
+      ) : null}
       {projectsUnavailable ? (
         <p role="status" className="text-body-small text-muted-foreground">
           {copy.projectsUnavailable}
@@ -260,7 +291,7 @@ export function SavedPromptsSettings({
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              save();
+              void save();
             }}
           >
             <div className="space-y-1.5">
@@ -351,10 +382,12 @@ export function SavedPromptsSettings({
               </p>
             ) : null}
             <DialogFooter>
-              <Button type="button" variant="ghost" onClick={closeEditor}>
+              <Button type="button" variant="ghost" disabled={pending} onClick={closeEditor}>
                 {copy.cancel}
               </Button>
-              <Button type="submit">{copy.save}</Button>
+              <Button type="submit" disabled={pending}>
+                {copy.save}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -363,7 +396,7 @@ export function SavedPromptsSettings({
       <Dialog
         open={deleting !== undefined}
         onOpenChange={(open) => {
-          if (!open) setDeleting(undefined);
+          if (!open && !busy.current) setDeleting(undefined);
         }}
       >
         <DialogContent closeLabel={copy.close}>
@@ -381,8 +414,10 @@ export function SavedPromptsSettings({
             <Button
               type="button"
               variant="ghost"
+              disabled={pending}
               autoFocus
               onClick={() => {
+                if (busy.current) return;
                 setDeleting(undefined);
               }}
             >
@@ -391,15 +426,23 @@ export function SavedPromptsSettings({
             <Button
               type="button"
               variant="destructive"
+              disabled={pending}
               onClick={() => {
-                if (!deleting) return;
-                try {
-                  savedPromptsStore.remove(deleting.id);
-                  setDeleting(undefined);
-                  toast.success(copy.deleted);
-                } catch {
-                  setError("storage");
-                }
+                void (async () => {
+                  if (!deleting || busy.current) return;
+                  try {
+                    busy.current = true;
+                    setPending(true);
+                    await removeSharedPrompt(deleting.id);
+                    setDeleting(undefined);
+                    toast.success(copy.deleted);
+                  } catch {
+                    setError("storage");
+                  } finally {
+                    busy.current = false;
+                    setPending(false);
+                  }
+                })();
               }}
             >
               {copy.confirmDelete}

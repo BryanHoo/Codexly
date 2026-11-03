@@ -1,0 +1,42 @@
+import { expect, it, vi } from "vitest";
+import { render } from "vitest-browser-react";
+import type { SavedPromptsRequest, SharedSavedPrompt } from "@codexly/protocol";
+import { SavedPromptsSettings } from "@codexly/ui/core/saved-prompts-settings";
+import { configureSavedPrompts } from "@codexly/ui/core/saved-prompts-store";
+import { SAVED_PROMPTS_STORAGE_KEY } from "@codexly/frontend-core/saved-prompts";
+import "../../../shared/styles/globals.css";
+
+it("迁移失败保留本地副本，重试后共用远端数据并在重新聚焦时刷新", async () => {
+  const legacy = { id: "legacy", name: "旧提示词", content: "旧正文" };
+  localStorage.setItem(SAVED_PROMPTS_STORAGE_KEY, JSON.stringify({ version: 1, prompts: [legacy] }));
+  let prompts: SharedSavedPrompt[] = [];
+  let offline = true;
+  const request = vi.fn(async (input: SavedPromptsRequest) => {
+    if (offline) throw new Error("offline");
+    if (input.action === "import") prompts = [...input.prompts];
+    if (input.action === "save") prompts = [...prompts.filter((p) => p.id !== input.prompt.id), input.prompt];
+    return prompts;
+  });
+  configureSavedPrompts(request);
+  const screen = await render(<SavedPromptsSettings language="zh-CN" />);
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("提示词同步失败");
+  expect(localStorage.getItem(SAVED_PROMPTS_STORAGE_KEY)).not.toBeNull();
+  await expect.element(screen.getByText("旧提示词", { exact: true })).toBeVisible();
+  offline = false;
+  await screen.getByRole("button", { name: "重试", exact: true }).click();
+  await expect.element(screen.getByText("旧提示词", { exact: true })).toBeVisible();
+  expect(localStorage.getItem(SAVED_PROMPTS_STORAGE_KEY)).toBeNull();
+  prompts = [{ ...legacy, name: "另一端修改", content: "共享正文" }];
+  window.dispatchEvent(new Event("focus"));
+  await expect.element(screen.getByText("另一端修改", { exact: true })).toBeVisible();
+  await screen.getByRole("button", { name: "编辑另一端修改" }).click();
+  await screen.getByRole("textbox", { name: "提示词内容", exact: true }).fill("当前端修改");
+  offline = true;
+  await screen.getByRole("button", { name: "保存", exact: true }).click();
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("未能保存提示词");
+  await expect.element(screen.getByRole("textbox", { name: "提示词内容", exact: true })).toHaveValue("当前端修改");
+  offline = false;
+  await screen.getByRole("button", { name: "保存", exact: true }).click();
+  await expect.element(screen.getByText("当前端修改", { exact: true })).toBeVisible();
+  expect(prompts[0]?.content).toBe("当前端修改");
+});

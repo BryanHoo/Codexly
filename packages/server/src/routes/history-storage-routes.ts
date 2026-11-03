@@ -1,3 +1,4 @@
+import { registerSavedPromptsRoutes } from "./saved-prompts-routes.js";
 import type { LocalCatalogStore } from "@codexly/core";
 import { registerTokenUsageRoutes } from "./token-usage-routes.js";
 import { AgentMutationErrorSchema, HistoryCompressionResultSchema } from "@codexly/protocol";
@@ -9,6 +10,7 @@ export const registerHistoryStorageRoutes =
   (store?: LocalCatalogStore): FastifyPluginCallback<ServerRouteContext> =>
   (app, context, done) => {
     registerTokenUsageRoutes(app, store);
+    registerSavedPromptsRoutes(app, store);
     app.post<{ Body: Record<string, never>; Headers: { "idempotency-key": string } }>(
       "/v1/history/compress",
       {

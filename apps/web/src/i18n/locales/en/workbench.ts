@@ -291,7 +291,7 @@ export const workbench = {
     previewMarkdown: "Preview Markdown",
     remove: "Remove project",
     removeDescription:
-      "Remove {{name}}, its task records and all saved prompts bound to this project on this device? Files on disk will be retained.",
+      "Remove {{name}}, its task records and all saved prompts bound to this project? Files on disk will be retained.",
     rename: "Rename project",
     renameDescription: "This changes only the sidebar display name, not the folder name on disk.",
     showDiff: "View Diff",

@@ -1,0 +1,8 @@
+{
+  "schema": "CREATE TABLE IF NOT EXISTS saved_prompts (id TEXT PRIMARY KEY, name TEXT NOT NULL, content TEXT NOT NULL, project_id TEXT, name_key TEXT NOT NULL); CREATE INDEX IF NOT EXISTS saved_prompts_scope ON saved_prompts(project_id,name_key); CREATE TABLE IF NOT EXISTS saved_prompt_imports (id TEXT PRIMARY KEY); CREATE TRIGGER IF NOT EXISTS saved_prompts_remove_project AFTER DELETE ON managed_projects BEGIN DELETE FROM saved_prompts WHERE project_id=OLD.id; END;",
+  "list": "SELECT json_patch(json_object('id',id,'name',name,'content',content), CASE WHEN project_id IS NULL THEN '{}' ELSE json_object('projectId',project_id) END) FROM saved_prompts ORDER BY rowid",
+  "duplicate": "SELECT 1 FROM saved_prompts WHERE id != json_extract(?1,'$.id') AND project_id IS json_extract(?1,'$.projectId') AND name_key=json_extract(?1,'$.nameKey') AND NOT EXISTS (SELECT 1 FROM saved_prompts WHERE id=json_extract(?1,'$.id') AND project_id IS json_extract(?1,'$.projectId') AND name_key=json_extract(?1,'$.nameKey')) LIMIT 1",
+  "save": "INSERT INTO saved_prompts (id,name,content,project_id,name_key) VALUES (json_extract(?1,'$.id'),json_extract(?1,'$.name'),json_extract(?1,'$.content'),json_extract(?1,'$.projectId'),json_extract(?1,'$.nameKey')) ON CONFLICT(id) DO UPDATE SET name=excluded.name,content=excluded.content,project_id=excluded.project_id,name_key=excluded.name_key",
+  "receipt": "INSERT OR IGNORE INTO saved_prompt_imports VALUES (json_extract(?1,'$.id'))",
+  "remove": "DELETE FROM saved_prompts WHERE id=json_extract(?1,'$.id')"
+}

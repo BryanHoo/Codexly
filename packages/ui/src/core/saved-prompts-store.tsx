@@ -1,3 +1,6 @@
+import { createSavedPromptsSync } from "@codexly/frontend-core/saved-prompts-sync";
+import type { SavedPromptsRequest, SharedSavedPrompt } from "@codexly/protocol";
+import { validateSavedPrompt, type SavedPromptDraft } from "@codexly/frontend-core/saved-prompts";
 import { useSyncExternalStore } from "react";
 import {
   createSavedPromptStore,
@@ -12,12 +15,99 @@ import {
 } from "@codexly/frontend-core/prompt-suggestions";
 import type { AgentSkill } from "@codexly/protocol";
 
+let remote: ReturnType<typeof createSavedPromptsSync> | undefined;
+let memory: string | null = null;
+let syncStatus: "ready" | "loading" | "error" = "ready";
+const statusListeners = new Set<() => void>();
+const setSyncStatus = (status: typeof syncStatus) => {
+  if (syncStatus === status) return;
+  syncStatus = status;
+  for (const listener of statusListeners) listener();
+};
+export function useSavedPromptsStatus() {
+  return useSyncExternalStore(
+    (listener) => {
+      statusListeners.add(listener);
+      return () => {
+        statusListeners.delete(listener);
+      };
+    },
+    () => syncStatus,
+    () => syncStatus,
+  );
+}
 export const savedPromptsStore = createSavedPromptStore({
-  getItem: (key) => (typeof window === "undefined" ? null : window.localStorage.getItem(key)),
+  getItem: (key) =>
+    remote ? memory : typeof window === "undefined" ? null : window.localStorage.getItem(key),
   setItem: (key, value) => {
-    window.localStorage.setItem(key, value);
+    if (remote) memory = value;
+    else window.localStorage.setItem(key, value);
   },
 });
+/** 平台仅注入传输，管理页与输入框共享唯一快照和迁移流程。 */
+export function configureSavedPrompts(
+  request: (input: SavedPromptsRequest) => Promise<SharedSavedPrompt[]>,
+) {
+  if (typeof window === "undefined") return;
+  // 浏览器禁用本地存储时仍可直接使用共享存储；旧数据保持原处，不伪造迁移成功。
+  let storage: Storage | undefined;
+  try {
+    storage = window.localStorage;
+  } catch {
+    /* 远端持久化不依赖浏览器存储权限。 */
+  }
+  const legacyStore = storage ? createSavedPromptStore(storage) : undefined;
+  remote = createSavedPromptsSync({
+    request,
+    readLegacy: () => {
+      legacyStore?.refresh();
+      return legacyStore?.getSnapshot() ?? [];
+    },
+    clearLegacy: () => {
+      try {
+        storage?.removeItem(SAVED_PROMPTS_STORAGE_KEY);
+      } catch {
+        /* 导入回执已落盘，保留副本也不会重复覆盖。 */
+      }
+    },
+    publish: (prompts) => {
+      memory = JSON.stringify({ version: 1, prompts });
+      savedPromptsStore.refresh();
+    },
+  });
+  // 首次联网前仍展示旧提示词；共享存储成功返回后才接管可见快照。
+  memory = JSON.stringify({ version: 1, prompts: legacyStore?.getSnapshot() ?? [] });
+  setSyncStatus("loading");
+  savedPromptsStore.refresh();
+}
+export async function saveSharedPrompt(draft: SavedPromptDraft, id?: string) {
+  const invalid = validateSavedPrompt(draft);
+  if (invalid) throw new Error(invalid);
+  if (!remote) return savedPromptsStore.save(draft, id);
+  const prompt = { ...draft, name: draft.name.trim(), id: id ?? crypto.randomUUID() };
+  await remote.run({ action: "save", prompt });
+  setSyncStatus("ready");
+  return prompt;
+}
+export async function removeSharedPrompt(id: string) {
+  if (!remote) {
+    savedPromptsStore.remove(id);
+    return;
+  }
+  await remote.run({ action: "remove", id });
+  setSyncStatus("ready");
+}
+export const refreshSavedPrompts = () => {
+  if (document.visibilityState === "hidden") return;
+  void remote?.refresh().then(
+    () => {
+      setSyncStatus("ready");
+    },
+    () => {
+      setSyncStatus("error");
+    },
+  );
+};
 let subscriberCount = 0;
 const onStorage = (event: StorageEvent) => {
   if (event.key !== SAVED_PROMPTS_STORAGE_KEY && event.key !== null) return;
@@ -32,6 +122,9 @@ export const subscribeSavedPrompts = (listener: () => void) => {
   // 分屏聊天共用一个系统监听；无订阅者时释放，不增加后台轮询。
   if (subscriberCount++ === 0) {
     window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refreshSavedPrompts);
+    document.addEventListener("visibilitychange", refreshSavedPrompts);
+    refreshSavedPrompts();
     try {
       savedPromptsStore.refresh();
     } catch {
@@ -40,7 +133,11 @@ export const subscribeSavedPrompts = (listener: () => void) => {
   }
   return () => {
     unsubscribe();
-    if (--subscriberCount === 0) window.removeEventListener("storage", onStorage);
+    if (--subscriberCount === 0) {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refreshSavedPrompts);
+      document.removeEventListener("visibilitychange", refreshSavedPrompts);
+    }
   };
 };
 

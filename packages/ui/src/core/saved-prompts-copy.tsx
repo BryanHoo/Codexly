@@ -3,8 +3,11 @@ export function savedPromptsCopy(language: string) {
   return language.startsWith("zh")
     ? {
         title: "常用提示词",
+        loading: "正在同步提示词…",
+        loadError: "提示词同步失败，已有本地数据仍会保留，请重试。",
+        retry: "重试",
         description: "把常用指令存为提示词，在输入框输入 / 或 #，按标题匹配并插入。",
-        local: "仅保存在此设备",
+        local: "与同一电脑上的 Web 和桌面端共用",
         scope: "可用范围",
         global: "全局",
         all: "全部范围",
@@ -33,7 +36,7 @@ export function savedPromptsCopy(language: string) {
         save: "保存",
         cancel: "取消",
         close: "关闭",
-        saved: "已保存到此设备",
+        saved: "已保存提示词",
         deleted: "已删除提示词",
         deleteTitle: "删除这条提示词？",
         deleteDescription: "删除后将无法再从提示词列表选择，已插入的内容不受影响。",
@@ -47,14 +50,17 @@ export function savedPromptsCopy(language: string) {
           content: "请输入提示词内容（最多 20000 个字符）",
           duplicate: "此标题已被使用，请换一个（同一范围内不能重复）",
           project: "请选择可用的项目，或改为全局。",
-          storage: "未能保存到此设备，请检查本地存储空间或浏览器权限后重试。",
+          storage: "未能保存提示词，请检查连接和存储权限后重试。",
         },
       }
     : {
         title: "Saved prompts",
+        loading: "Syncing prompts…",
+        loadError: "Could not sync prompts. Existing local data is preserved. Try again.",
+        retry: "Retry",
         description:
           "Save instructions you use often, then type / or # in the composer to find them by title.",
-        local: "Stored on this device",
+        local: "Shared by Web and desktop on the same computer",
         scope: "Available in",
         global: "Global",
         all: "All scopes",
@@ -85,7 +91,7 @@ export function savedPromptsCopy(language: string) {
         save: "Save",
         cancel: "Cancel",
         close: "Close",
-        saved: "Saved to this device",
+        saved: "Prompt saved",
         deleted: "Prompt deleted",
         deleteTitle: "Delete this prompt?",
         deleteDescription:
@@ -101,7 +107,7 @@ export function savedPromptsCopy(language: string) {
           duplicate: "This title is already used in this scope. Choose another one.",
           project: "Choose an available project or use Global.",
           storage:
-            "Could not save to this device. Check local storage space or browser permissions and try again.",
+            "Could not save the prompt. Check the connection and storage permissions, then try again.",
         },
       };
 }

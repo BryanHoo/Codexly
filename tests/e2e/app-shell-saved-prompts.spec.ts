@@ -27,6 +27,13 @@ for (const width of [1280, 390]) {
     page.on("request", (request) => {
       if (request.method() === "POST" && request.url().endsWith("/submissions")) submissions++;
     });
+    // 模拟两端共用的服务列表，验证旧浏览器存储经实际应用装配迁移后仍可插入。
+    const shared: unknown[] = [];
+    await page.route("**/v1/saved-prompts", async (route) => {
+      const input = route.request().postDataJSON() as { action: string; prompts?: unknown[] };
+      if (input.action === "import") shared.push(...(input.prompts ?? []));
+      await route.fulfill({ json: shared });
+    });
     await page.goto("/p/codexly/t/task-1");
     const prompt = page.getByRole("textbox", { name: "任务输入" });
     for (const trigger of ["/", "#"]) {
@@ -45,5 +52,7 @@ for (const width of [1280, 390]) {
     await expect(page.getByRole("option")).toHaveCount(0);
     await expect(prompt).toHaveAttribute("data-serialized-value", "#legacy-shortcut");
     expect(submissions).toBe(0);
+    expect(shared).toHaveLength(2);
+    expect(await page.evaluate(() => localStorage.getItem("codexly.saved-prompts.v1"))).toBeNull();
   });
 }

@@ -1,3 +1,4 @@
+import { createSavedPromptOperations } from "./saved-prompts-worker.js";
 import { createTokenUsageOperations } from "./token-usage-worker.js";
 import { createHash } from "node:crypto";
 import schema from "../../protocol/src/local-catalog-schema.json" with { type: "json" };
@@ -91,6 +92,7 @@ export function createLocalCatalogOperations(db) {
   };
   const operations = {
     ...createTokenUsageOperations(db),
+    ...createSavedPromptOperations(db),
     "project.list": listProjects,
     "project.read": ({ id }) => readProject(id),
     "project.put": putProject,

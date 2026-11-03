@@ -494,3 +494,5 @@ export { AgentThreadConfigurationSchema } from "./agent-attachments.js";
 export * from "./task-activity.js";
 export * from "./token-usage.js";
 export { AgentThreadMemorySchema, type AgentThreadMemory } from "./thread-memory.js";
+
+export * from "./saved-prompts.js";

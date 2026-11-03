@@ -67,6 +67,11 @@
 
 ## 常用提示词契约
 
+- Web、移动浏览器和桌面共用服务宿主用户的 `~/.codexly/state.sqlite3`；共享 SQL 在 `packages/protocol/src/saved-prompts-sql.json`，Node 通过 SQLite Worker、桌面通过 Tauri 原生目录命令执行，不启动引擎，不让桌面绕行 HTTP。
+- 两端装配统一的 `saved-prompts-sync.ts` 协调器，按单条提示词保存或删除，禁止以旧列表覆盖另一端数据。首次按 ID 分批迁移旧 localStorage；成功导入后才清理源数据，失败可重试且保留可见快照。持久导入回执独立于记录保留，避免重试复活已删除提示词。
+- 多分屏共用一份快照和一组前台监听；首个订阅、窗口聚焦及恢复可见时刷新，无后台轮询。迟到读取与保存串行，失败保留当前快照和编辑草稿；项目删除由数据库触发器清理该项目的提示词。
+- 同步回归入口：Server `saved-prompts.test.ts`、Client `http-client-saved-prompts.test.ts`、Frontend Core `saved-prompts-sync.test.ts`、Rust `local_catalog::saved_prompts::tests`、桌面双浏览器 `saved-prompts-sync.browser.test.tsx`，Web 三浏览器 `app-shell-saved-prompts.spec.ts`。
+
 - 标题（`name`）是唯一搜索依据；`/` 保留命令与 Skills，`#` 仅列出当前项目可用的自定义提示词。两端复用 [触发解析](../../../../packages/frontend-core/src/prompt-trigger.ts) 与 [提示词存储](../../../../packages/frontend-core/src/saved-prompts.ts)，标题支持内部空格。
 - 同范围标题去除首尾空白后按大小写不敏感规则去重；项目同名标题覆盖全局标题，其他项目不可见。旧存储的 `shortcut` 不再参与匹配，旧版同名记录按 ID 全部保留，允许在原范围内编辑正文；写入仅保留当前字段。
 - 选择仅替换光标前的触发片段，保留前后文本、文件和 Skill 引用及编辑器焦点，不自动提交。读取与索引复用快照，候选上限仍为 12。

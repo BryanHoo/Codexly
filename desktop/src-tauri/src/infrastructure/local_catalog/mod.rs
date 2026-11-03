@@ -9,6 +9,7 @@ mod operations;
 #[cfg(test)]
 mod preview_tests;
 mod previews;
+mod saved_prompts;
 mod token_usage;
 
 #[derive(Clone)]
@@ -100,6 +101,7 @@ impl LocalCatalog {
             ))
             .map_err(|_| CatalogError::InvalidMessage)?;
             token_usage::initialize(&db)?;
+            saved_prompts::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
                 .map_err(db_error)?;
@@ -306,6 +308,8 @@ pub mod sidebar;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CatalogError {
+    #[error("duplicate")]
+    DuplicatePrompt,
     #[error("task execution binding is immutable")]
     ImmutableBinding,
     #[error("stop the running task before removing it")]

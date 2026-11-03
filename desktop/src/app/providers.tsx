@@ -1,3 +1,4 @@
+import { initializeSavedPrompts } from "../platform/tauri/saved-prompts.js";
 import { installCatalogFocusRefresh, isCatalogListQuery } from "@codexly/frontend-core/catalog-focus-refresh";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useEffect } from "react";
@@ -38,6 +39,8 @@ export function createAppQueryClient() {
 }
 
 const queryClient = createAppQueryClient();
+// 主窗口 Provider 独占装配，避免独立任务窗口加载提示词同步模块。
+initializeSavedPrompts();
 
 type AppProvidersProps = Readonly<{
   children: ReactNode;

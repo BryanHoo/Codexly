@@ -1,4 +1,9 @@
 import {
+  SavedPromptsSchema,
+  type SavedPromptsRequest,
+  type SharedSavedPrompt,
+} from "@codexly/protocol";
+import {
   DiagnosticsResponseSchema,
   SaveDiagnosticsResponseSchema,
   type DiagnosticsResponse,
@@ -34,6 +39,14 @@ export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
 
 export class CodexlyClient extends AsyncQuestionHttpClient {
+  public syncSavedPrompts(input: SavedPromptsRequest): Promise<SharedSavedPrompt[]> {
+    return this.request("/v1/saved-prompts", SavedPromptsSchema, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+      body: JSON.stringify(input),
+    });
+  }
+
   public saveDiagnostics(input: SaveDiagnosticsRequest): Promise<SaveDiagnosticsResponse> {
     return this.request(
       "/v1/diagnostics/codex",

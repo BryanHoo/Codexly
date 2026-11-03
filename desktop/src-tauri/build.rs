@@ -88,6 +88,7 @@ fn main() {
         "get_temporary_workspace_settings",
         "choose_temporary_workspace_root",
         "get_global_instructions",
+        "sync_saved_prompts",
         "save_global_instructions",
         "get_memory_settings",
         "update_memory_settings",

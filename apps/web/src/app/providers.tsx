@@ -1,3 +1,4 @@
+import { configureSavedPrompts } from "@codexly/ui/core/saved-prompts-store";
 import {
   installCatalogFocusRefresh,
   isCatalogListQuery,
@@ -47,6 +48,7 @@ export function createAppQueryClient() {
 }
 
 const queryClient = createAppQueryClient();
+configureSavedPrompts((input) => codexlyClient.syncSavedPrompts(input));
 
 export function navigateToTaskFromNotification(projectId: string, taskId: string): void {
   // 分屏优先更新聚焦窗口，避免路由变化重置整个工作区。

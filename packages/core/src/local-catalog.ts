@@ -1,4 +1,6 @@
 import type {
+  SavedPromptsRequest,
+  SharedSavedPrompt,
   TokenUsageSample,
   CodexTokenUsageSample,
   TokenUsageQuery,
@@ -39,6 +41,7 @@ export interface LocalTaskQuery {
 }
 
 export interface CatalogOperations {
+  "prompts.sync": [SavedPromptsRequest, SharedSavedPrompt[]];
   "usage.record": [TokenUsageSample, undefined];
   "usage.codex": [CodexTokenUsageSample, undefined];
   "usage.query": [TokenUsageQuery, TokenUsageResponse];

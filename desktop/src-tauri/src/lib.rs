@@ -253,6 +253,7 @@ pub fn run() {
             get_global_settings,
             get_token_usage,
             application::personalization_commands::get_global_instructions,
+            application::saved_prompts_commands::sync_saved_prompts,
             application::personalization_commands::save_global_instructions,
             application::personalization_commands::get_memory_settings,
             application::personalization_commands::update_memory_settings,
