@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import {
+  TEMPORARY_TASK_SCOPE_ID,
   AddProjectResponseSchema,
   AddProjectRequestSchema,
   AgentProjectDefaultsResponseSchema,
@@ -128,8 +129,11 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
       },
     },
     async (request, reply) => {
-      const project = await projectRepository.read(request.params.projectId);
-      if (project === undefined) {
+      // 聊天没有项目登记；能力探测只读宿主应用，避免为标题栏创建聊天运行时。
+      if (
+        request.params.projectId !== TEMPORARY_TASK_SCOPE_ID &&
+        (await projectRepository.read(request.params.projectId)) === undefined
+      ) {
         return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
       }
       return projectOpenService.getCapabilities();
@@ -140,7 +144,7 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
     Body: OpenProjectRequest;
     Headers: { "idempotency-key": string };
     Params: { projectId: string };
-    Querystring: ProjectRootQuery;
+    Querystring: Partial<ProjectRootQuery>;
   }>(
     "/v1/projects/:projectId/open",
     {
@@ -148,7 +152,8 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
         body: OpenProjectRequestSchema,
         headers: IdempotencyHeadersSchema,
         params: ProjectParamsSchema,
-        querystring: ProjectRootQuerySchema,
+        // 聊天由服务端解析工作目录，普通项目仍在处理器中要求显式选择根。
+        querystring: { ...ProjectRootQuerySchema, required: [] },
         response: {
           200: OpenProjectResponseSchema,
           400: AgentMutationErrorSchema,
@@ -167,11 +172,23 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
         async () => {
           let rootPath: string;
           try {
-            rootPath = await resolveProjectRoot(
-              projectRepository,
-              request.params.projectId,
-              request.query.rootPath,
-            );
+            // 聊天没有已登记项目根，目录由服务端独立作用域确定，不能信任客户端 rootPath。
+            if (request.params.projectId === TEMPORARY_TASK_SCOPE_ID) {
+              const temporary = await getProjectContext(request.params.projectId);
+              if (temporary === undefined) {
+                throw new ProjectRootScopeError("PROJECT_NOT_FOUND", "Project not found");
+              }
+              rootPath = temporary.scope.rootPath;
+            } else {
+              if (request.query.rootPath === undefined) {
+                throw new ProjectRootScopeError("PROJECT_ROOT_INVALID", "Project root is required");
+              }
+              rootPath = await resolveProjectRoot(
+                projectRepository,
+                request.params.projectId,
+                request.query.rootPath,
+              );
+            }
           } catch (error) {
             if (error instanceof ProjectRootScopeError) {
               throw new MutationHttpError(

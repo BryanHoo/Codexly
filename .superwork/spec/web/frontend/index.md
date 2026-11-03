@@ -39,3 +39,8 @@ Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要�
 - 复用 Client 准备接口和受控下载地址，ZIP 正文由浏览器直接下载，不读入 Blob；不把宿主路径暴露给浏览器。旧运行时或原生故障保留应用诊断，并明确标注原生不可用。
 - 异常监听复用 `packages/frontend-core/src/application-diagnostics.ts`；Web 只保留当前页面最近 100 条脱敏异常，单条错误消息/堆栈分别限制为 512/2048 字符，不读取应用 context、页面 URL 或浏览器存储。桌面继续通过原生适配器录制与导出。
 - 验证入口：`pnpm exec playwright test tests/e2e/app-shell-diagnostics.spec.ts`，覆盖 Chromium / Firefox / WebKit 的宽窄屏下载，以及版本失败、导出失败重试和执行互斥。
+
+## 聊天快捷打开
+
+- 聊天与项目共用标题栏的宿主应用快捷打开菜单，窄窗口保留图标入口；无宿主能力的 LAN 模式继续隐藏。聊天必须启用现有能力查询，优先打开草稿选定目录或任务实际工作目录，缺省由服务端独立作用域解析。
+- 回归入口：`workbench-shell-header.test.tsx`、桌面跨端 `tests/browser/chat-quick-open.browser.test.tsx`（Chromium / WebKit、360px / 1440px、默认应用和菜单选择）。

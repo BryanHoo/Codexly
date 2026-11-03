@@ -131,11 +131,11 @@ export function WorkbenchShellHeader({
           />
           <ProjectQuickOpenMenu
             apps={projectOpenCapabilitiesQuery.data?.apps ?? []}
-            className="hidden min-workbench:flex"
+            className="flex"
             {...(globalSettings === undefined
               ? {}
               : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
-            hidden={temporary}
+            hidden={false}
             isDetecting={projectOpenCapabilitiesQuery.isPending}
             isPending={projectPathOpenMutation.isPending}
             onSelect={(appId) => {

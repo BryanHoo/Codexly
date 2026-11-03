@@ -27,3 +27,8 @@
 - HTML 等无内容哈希的入口使用 `Cache-Control: no-store`，并在静态交付前忽略旧浏览器携带的 `If-None-Match` / `If-Modified-Since`。npm tarball 会固定文件时间，两个版本等长的入口可能产生相同弱 ETag，不能据此返回 304；普通、Brotli、gzip 和 SPA 深链均遵循此规则。
 - `assets/` 内容哈希资源保留长期 immutable 缓存及条件请求。缺失资源返回禁止缓存的 JSON 404，不把旧 JS/CSS 请求回退成 HTML；SPA 回退仅接受页面导航，保留带点号的项目和任务深链。
 - 回归入口：[server-delivery.test.ts](../../../../packages/server/src/server-delivery.test.ts) 以旧版校验头、相同文件时间与等长新入口复现升级，`app-events.test.ts` 验证预压缩交付和内容哈希资源缓存。
+
+## 聊天宿主应用快捷打开
+
+- 公开聊天路由 `/v1/temporary/open-capabilities` 与 `/v1/temporary/open` 共用项目宿主应用服务。聊天不要求项目根查询参数，基准目录由服务端聊天作用域确定，不能用客户端 `rootPath` 替换；普通项目仍要求显式有效项目根。能力探测不得创建聊天运行时或订阅引擎事件。保留宿主能力访问限制、幂等和错误映射。
+- 回归入口：`app-chat-quick-open.test.ts` 覆盖公开路由、目录解析、幂等与未知项目拒绝；`app-runtime.test.ts` 和 `app-security.test.ts` 覆盖项目和访问边界。

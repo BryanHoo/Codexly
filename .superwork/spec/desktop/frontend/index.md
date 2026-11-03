@@ -37,3 +37,8 @@
 - `src/shared/components/agent/subagent.browser.test.tsx` 覆盖 Chromium / WebKit、宽窄屏、高度、输出增长、上滚暂停/恢复、卸载及焦点；同时运行 `task-timeline-operation-groups.browser.test.tsx` 检查普通工具/终端详情兼容性。
 - 右栏内嵌/独立子代理均复用同一弹窗和结构化执行窗口；独立子线程通过原生运行时和单条 Item Store 更新，保留历史入口，不使用另一套完整聊天时间线。初始任务只显示一次，只有用户任务的摘要仍可加载更早过程。
 - `src/features/workbench/components/subagent-output-dialog.browser.test.tsx` 以真实桌面 Store 验证两种来源增量输出、跟随/暂停/恢复及关闭焦点；右栏打开按钮先显式聚焦，保证 WebKit 关闭后返回正确入口。
+
+## 聊天快捷打开
+
+- 聊天与项目共用标题栏快捷打开菜单，窄窗口保留入口，工具视图隐藏。已有聊天沿用 `createProjectOpenRequest` 传递任务身份，由原生接口解析 cwd；新聊天尚未分配任务目录时显示禁用入口。
+- 回归入口：`workbench-shell-header.test.ts`、`workbench-panel-layout.test.ts` 和 `tests/browser/chat-quick-open.browser.test.tsx`（双浏览器、宽窄窗口、默认应用与菜单选择）。

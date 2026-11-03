@@ -128,16 +128,17 @@ export function WorkbenchShellHeader({
             }}
           />
         )}
-        {resolveQuickOpenVisibility(utilityView, temporary) ? (
+        {resolveQuickOpenVisibility(utilityView) ? (
           <ProjectQuickOpenMenu
             apps={projectOpenCapabilitiesQuery.data?.apps ?? []}
-            className="hidden min-workbench:flex"
+            className="flex"
             {...(globalSettings === undefined
               ? {}
               : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
             hidden={false}
             isDetecting={projectOpenCapabilitiesQuery.isPending}
-            isPending={projectPathOpenMutation.isPending}
+            // 新聊天尚未分配任务工作目录时保留入口，待任务建立后启用。
+            isPending={projectPathOpenMutation.isPending || (temporary && taskId === undefined)}
             onSelect={(appId) => {
               projectPathOpenMutation.reset();
               void projectPathOpenLockRef.current

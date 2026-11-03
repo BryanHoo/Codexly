@@ -23,8 +23,9 @@ export function resolveInspectorVisibility(board: boolean, inspectorOpen: boolea
   return !board && inspectorOpen;
 }
 
-export function resolveQuickOpenVisibility(board: boolean, temporary: boolean): boolean {
-  return !board && !temporary;
+export function resolveQuickOpenVisibility(board: boolean): boolean {
+  // 聊天已有任务 cwd / 独立工作目录，和项目任务共用快捷打开。
+  return !board;
 }
 
 export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "", inspectorInitiallyOpen = true, sidebarInitiallyOpen = true }: Readonly<{

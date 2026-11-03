@@ -15,8 +15,7 @@ describe("resolveInspectorVisibility", () => {
 
 describe("resolveQuickOpenVisibility", () => {
   it("进入任务看板时隐藏快捷打开", () => {
-    expect(resolveQuickOpenVisibility(true, false)).toBe(false);
-    expect(resolveQuickOpenVisibility(false, true)).toBe(false);
-    expect(resolveQuickOpenVisibility(false, false)).toBe(true);
+    expect(resolveQuickOpenVisibility(true)).toBe(false);
+    expect(resolveQuickOpenVisibility(false)).toBe(true);
   });
 });

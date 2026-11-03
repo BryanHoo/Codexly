@@ -198,14 +198,16 @@ export function useWorkbenchShellRuntime({
     ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
   });
   const projectOpenCapabilitiesQuery = useQuery(
-    projectOpenCapabilitiesQueryOptions(projectId, client, !temporary),
+    // 聊天同样支持打开宿主工作目录，沿用按作用域缓存的应用探测。
+    projectOpenCapabilitiesQueryOptions(projectId, client),
   );
   const projectPathOpenMutation = useMutation({
     // 外部应用已经提供明确的成功反馈，仅保留失败 toast。
     meta: { actionNotification: { successMessage: false } },
     mutationFn: ({
       appId,
-      path,
+      // 已有聊天优先打开它的实际工作目录，新聊天回退到服务端独立目录。
+      path = temporary ? (draftWorkspace.path ?? reportedWorkspacePath) : undefined,
     }: Readonly<{ appId: ProjectOpenAppId; path: string | undefined }>) =>
       openProjectPath(client, {
         isLanAccess: access.status?.mode === "lan",

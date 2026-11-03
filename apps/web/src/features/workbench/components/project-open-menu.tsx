@@ -66,7 +66,7 @@ export function ProjectQuickOpenMenu({
 }: ProjectQuickOpenMenuProps) {
   const { t } = useTranslation("workbench");
   const directoryApps = getProjectOpenAppsForTarget(apps, "directory");
-  // 临时任务和无宿主应用能力的 LAN 模式均不渲染快捷打开入口。
+  // 无宿主应用能力的 LAN 模式不渲染快捷入口，聊天与项目使用同一能力判断。
   if (hidden || (!isDetecting && directoryApps.length === 0)) {
     return null;
   }

@@ -49,7 +49,7 @@ describe("getProjectTargetAbsolutePath", () => {
 });
 
 describe("ProjectQuickOpenMenu", () => {
-  it("隐藏临时任务的顶部快捷打开", () => {
+  it("显式隐藏顶部快捷打开", () => {
     const markup = renderToStaticMarkup(
       <ProjectQuickOpenMenu
         apps={[{ id: "finder", kind: "file-manager", name: "Finder" }]}
