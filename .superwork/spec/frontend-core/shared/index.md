@@ -119,3 +119,9 @@
 - 回归入口：`packages/frontend-core/src/message-edit-draft.test.ts`、`desktop/tests/browser/message-edit.browser.test.tsx`；浏览器套件驱动两端真实时间线与输入框，覆盖 Chromium / WebKit、360px / 960px、回填、焦点、修改后新输入提交、原消息不变、只读和分屏隔离。
 
 - Web 完整发送回归：`tests/e2e/app-shell-message-edit.spec.ts` 在 Chromium / Firefox / WebKit 验证宽窄屏点击、真实提交请求、新条目追加及旧消息和回复保留。
+
+## Git 提交草稿清理
+
+- Web 与桌面共用 `use-git-commit-draft.tsx` 和 `git-commit-workspace.tsx`。本地提交成功后同步清空内存引用与持久草稿中的提交信息、生成撤销内容及本次文件选择，再更新 React 状态；不能仅依赖下一次渲染或 250ms 防抖保存。
+- 提交响应晚于面板卸载时仍必须清理原仓库、工作树和分支的草稿，避免重新打开恢复已提交信息。请求失败保留草稿；普通关闭、刷新与重新打开继续保留未提交信息。
+- 回归入口：`desktop/src/features/workbench/components/commit-draft-cleanup.browser.test.tsx` 驱动两端真实面板，在 Chromium / WebKit 覆盖面板存活、等待中关闭及请求失败；`commit-selection.browser.test.tsx` 保护普通关闭恢复与刷新选择。

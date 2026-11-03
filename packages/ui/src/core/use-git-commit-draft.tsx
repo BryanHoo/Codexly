@@ -66,5 +66,15 @@ export function useGitCommitDraft(
   const update = (transform: (draft: CommitDraft) => CommitDraft) => {
     setState((current) => ({ ...current, draft: transform(current.draft) }));
   };
-  return [state.draft, update] as const;
+  const clear = () => {
+    const draft = {
+      ...createCommitDraft(latest.current.snapshot, []),
+      knownPaths: latest.current.knownPaths,
+    };
+    // 提交响应可能晚于面板卸载：先同步更新引用并落盘，不能依赖下一次 React 渲染清理。
+    latest.current = draft;
+    save();
+    setState((current) => ({ ...current, draft }));
+  };
+  return [state.draft, update, clear] as const;
 }

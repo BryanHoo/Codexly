@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { List, ListTree, LoaderCircle } from "lucide-react";
 import { useSelectedEngines } from "./engine-selection.js";
 import {
-  createCommitDraft,
   applyGeneratedCommitMessage,
   type CommitFileEntry,
 } from "@codexly/frontend-core/git-commit-draft";
@@ -105,7 +104,12 @@ export function GitCommitWorkspace({
 }: GitCommitWorkspaceProps) {
   const entries = useMemo(() => collectCommitFileEntries(gitStatus), [gitStatus]);
   const selectedEngines = useSelectedEngines();
-  const [draft, update] = useGitCommitDraft(draftScope, gitStatus.snapshot, entries, complete);
+  const [draft, update, clearDraft] = useGitCommitDraft(
+    draftScope,
+    gitStatus.snapshot,
+    entries,
+    complete,
+  );
   const [search, setSearch] = useState("");
   const [operationError, setOperationError] = useState<{
     message: string;
@@ -207,10 +211,7 @@ export function GitCommitWorkspace({
       generation.current++;
       setGenerating(false);
       // 只有提交完成才清理已用草稿；新出现的变更需要用户重新选择。
-      update((current) => ({
-        ...createCommitDraft(current.snapshot, []),
-        knownPaths: current.knownPaths,
-      }));
+      clearDraft();
     }, "commit");
   if (gitStatus.repositoryMode !== "root") return null;
   return (
