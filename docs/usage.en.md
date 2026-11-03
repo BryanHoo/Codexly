@@ -22,6 +22,10 @@ Read notifications and resolved requests remove their corresponding system alert
 
 Choose a model and the permission and reasoning options offered by that engine. Attach files or images, reference project files with `@`, and Skills with `$`. Existing tasks keep their original engine.
 
+After entering text, select **Optimize prompt with AI** beside Send to rewrite it into the composer without sending. Choose an engine, model, and optional rewriting instructions in the auxiliary generation settings; leave instructions empty to use the built-in rules. Optimization uses that configuration independently of the current conversation engine. Review the result before sending. Failure preserves your text, and late results cannot overwrite a draft edited during generation or another task's draft.
+
+Open the menu beside Send to save the text as a project todo or a saved prompt without sending a message. Saved prompts default to the current project in project conversations and to global scope in ordinary chat; you can select any project instead. Todos use the current project.
+
 Save a title and instructions in **Settings → Saved prompts**, choosing global or project scope. Type `/` or `#` in chat to select a prompt by title: it inserts at the cursor, preserves existing text, and does not send automatically. Project prompts override global prompts with the same title. Prompts are stored with shared host data and work across Web, mobile browsers, and desktop on the same host. Existing local prompts migrate automatically; refocusing a window refreshes changes made in another client. When space is limited, composer options such as model selection move into a menu.
 
 Follow streaming replies, commands, tools, plans, subagents, and file changes. Respond to approvals and questions in the task. Steer running work or queue follow-ups; queued messages can be reordered, withdrawn for editing, or cancelled before execution. Claude foreground interruption and background-task stopping are separate controls.
@@ -75,6 +79,8 @@ Review changes, select files, and commit locally or commit and push. Push existi
 The toolbar supports remote setup, branch publication, fetch, and fast-forward-only pull. Commit drafts are scoped to the device, project, worktree, and branch. Git uses the host computer's identity and credentials, including from mobile.
 
 Choose or create a worktree from the branch menu beneath the composer, then send the first message there. Existing conversations retain their original directory. Dependencies and ignored environment files are not copied automatically. Resolve merge conflicts in an external Git tool. See the bilingual [Git guide](git-workflow.md).
+
+Ordinary chat and project conversations share the header's host-application menu for opening the working directory. Chat prefers the directory selected in the draft or the task's actual directory. The entry appears only when host applications are available and is hidden for remote LAN access.
 
 ## Scheduled work
 

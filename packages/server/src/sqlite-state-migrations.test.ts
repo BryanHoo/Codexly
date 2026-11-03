@@ -21,7 +21,8 @@ describe("SQLite state migrations", () => {
       foreignKeys: true,
       integrityCheck: "ok",
       journalMode: "wal",
-      migrationVersion: 34,
+      // 提示词优化配置新增第 35 次迁移，诊断必须确认已完整应用当前结构。
+      migrationVersion: 35,
       synchronous: "normal",
       writable: true,
     });

@@ -26,6 +26,8 @@ User messages can be edited into the current composer and sent as new messages, 
 
 Sending focuses the new question and preserves your position while reading. Enable **Sticky messages** and **Message navigation anchors** independently in **Settings → General → Editor**; both default to off. Preview cited web sources and follow or pause output in subagent details. Consecutive commands, tools, and image-view operations share a five-row summary window with complete output in separate detail dialogs. Completed turns summarize file changes after the reply.
 
+Optimize a draft with AI using auxiliary generation settings, then review the result before sending. The Send menu saves project todos or prompts without sending. Ordinary chat can also open its working directory in a host application from the header. Archive, restore, and permanent deletion synchronize with the underlying agent session; generated text from interrupted replies survives task switches and restarts.
+
 Toggle **Show status bar icon** in **Settings → General** to show or hide the system tray icon immediately. The choice persists after restart. Hiding it keeps the app running and preserves the behavior of minimizing to the tray when the window closes.
 
 Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).

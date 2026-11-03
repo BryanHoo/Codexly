@@ -70,6 +70,9 @@ export async function handleAppShellCoreRoute(
     body = { authenticated: true, mode: "local", version: 1 };
   } else if (url.pathname === "/v1/health") {
     body = { status: "ok", version: 1 };
+  } else if (url.pathname === "/v1/saved-prompts") {
+    // 全局提示词同步在页面启动与聚焦时读取；默认空列表，迁移和保存场景自行覆盖。
+    body = [];
   } else if (url.pathname === "/v1/tasks/activity") {
     body = { data: [] };
   } else if (url.pathname === "/v1/scheduled-tasks" && route.request().method() === "GET") {

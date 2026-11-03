@@ -88,8 +88,9 @@ test("opens the project from the center toolbar quick action", async ({ page }) 
   await expect(page.locator('[data-toast][data-type="success"]')).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(quickOpenButton).toBeHidden();
-  await expect(quickOpenMenuButton).toBeHidden();
+  // 窄屏保留图标快捷入口，继续检查整体页面无横向溢出。
+  await expect(quickOpenButton).toBeVisible();
+  await expect(quickOpenMenuButton).toBeVisible();
   const viewportMetrics = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: window.innerWidth,

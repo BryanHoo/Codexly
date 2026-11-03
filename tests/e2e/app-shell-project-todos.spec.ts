@@ -42,7 +42,9 @@ test("restores server todos after reload and in an independent browser context",
   await page.goto("/p/codexly");
   const text = `持久待办 ${String(Date.now())}`;
   await page.getByRole("textbox", { name: "任务输入" }).fill(text);
-  await page.getByRole("button", { name: "保存为待办", exact: true }).click();
+  // 待办保存已收进发送菜单，保持真实用户路径并继续验证跨浏览器持久化。
+  await page.getByRole("button", { name: "更多发送操作", exact: true }).click();
+  await page.getByRole("menuitem", { name: "保存为待办", exact: true }).click();
   await expect(page.getByRole("button", { name: "待办 1" })).toBeVisible();
   await page.evaluate(() => {
     localStorage.clear();

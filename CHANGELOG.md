@@ -4,14 +4,21 @@
 
 ## [Unreleased]
 
-### 移除
+## [0.49.0] - 2026-11-03
 
-- 移除 Web、移动浏览器与桌面设置中的用量统计及后台采集、查询模块。
-- 移除桌面任务小窗及其菜单、原生窗口、权限和事件投影。
+### 新增
+
+- 输入框支持 AI 优化提示词并回填草稿，可配置辅助生成引擎、模型与改写规则；发送菜单可将正文保存为项目待办或常用提示词。
+- 普通聊天支持从标题栏用宿主应用快捷打开工作目录，沿用项目会话的应用选择菜单。
 
 ### 修复
 
-- 常用提示词改为 Web、移动浏览器与同机桌面端共用，自动迁移已有本地提示词；同步失败保留数据与编辑草稿，重新聚焦时刷新其他端的修改。
+- 常用提示词在 Web、移动浏览器与同机桌面端共用，自动迁移已有数据；同步失败保留数据与编辑草稿，重新聚焦时刷新其他端的修改。
+- 归档、恢复与永久删除同步到底层智能体会话；中断回合已生成的正文在切换任务或重启后仍可恢复，并修复异步回答重复及提交成功后草稿未清理的问题。
+
+### 移除
+
+- 移除用量统计及其后台采集、查询模块，以及桌面任务小窗与相关入口。
 
 ## [0.48.0] - 2026-11-02
 
@@ -998,7 +1005,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.49.0...HEAD
+[0.49.0]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/BryanHoo/Codexly/compare/v0.47.1...v0.48.0
 [0.47.1]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.1
 [0.47.0]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.0
