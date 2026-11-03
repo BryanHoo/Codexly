@@ -8,15 +8,15 @@ test("keeps mobile split submit accessible and sidebar actions compact @cross-br
   await page.goto("/p/codexly/t/task-1");
   const submit = page.getByRole("button", { name: "提交", exact: true });
   const box = await submit.boundingBox();
-  expect(box).not.toBeNull();
+  if (!box) throw new Error("Missing mobile submit bounds");
   // 分体发送区保留文字与独立菜单入口，在小屏中可见且不越界。
-  expect(box!.width).toBeGreaterThan(box!.height);
+  expect(box.width).toBeGreaterThan(box.height);
   const actions = page.getByRole("group", { name: "发送操作", exact: true });
   await expect(actions.getByRole("button", { name: "更多发送操作" })).toBeVisible();
   const actionsBox = await actions.boundingBox();
-  expect(actionsBox).not.toBeNull();
-  expect(actionsBox!.x).toBeGreaterThanOrEqual(0);
-  expect(actionsBox!.x + actionsBox!.width).toBeLessThanOrEqual(320);
+  if (!actionsBox) throw new Error("Missing mobile submit action bounds");
+  expect(actionsBox.x).toBeGreaterThanOrEqual(0);
+  expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(320);
   await page.getByRole("button", { name: "展开项目侧栏" }).tap();
   const create = page.getByRole("button", { name: "在 Codexly 中新建任务", exact: true });
   await expect(create).toHaveCSS("opacity", "1");

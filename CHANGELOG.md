@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [0.49.0] - 2026-11-03
+## [0.49.1] - 2026-11-03
 
 ### 新增
 
@@ -19,6 +19,12 @@
 ### 移除
 
 - 移除用量统计及其后台采集、查询模块，以及桌面任务小窗与相关入口。
+
+## [0.49.0] - 2026-11-03
+
+### 发布说明
+
+- 此版本未公开发布，相关更新已合并至 `0.49.1`。
 
 ## [0.48.0] - 2026-11-02
 
@@ -1005,7 +1011,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.49.1...HEAD
+[0.49.1]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.1
 [0.49.0]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/BryanHoo/Codexly/compare/v0.47.1...v0.48.0
 [0.47.1]: https://github.com/BryanHoo/Codexly/compare/v0.46.1...v0.47.1

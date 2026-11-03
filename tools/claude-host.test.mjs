@@ -353,9 +353,10 @@ test(
       );
       assert.equal(tasks.get("task").title, "编写验证文件");
       assert.ok(titleCalls > 0);
-      assert.ok(discoveryCalls > 0, "原生网关会话必须覆盖延迟任务工具发现");
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
+      // 标题与主回合并行；等主回合到达审批后，才能断言它已完成前置工具发现。
+      assert.ok(discoveryCalls > 0, "原生网关会话必须覆盖延迟任务工具发现");
       // 真实分发宿主在同一原生回合内接收引导；排队项仍支持读取、排序和取消。
       const emptyInput = { text: "", images: [], files: [], skills: [], textAttachments: [] };
       const queuedA = await host.request(
