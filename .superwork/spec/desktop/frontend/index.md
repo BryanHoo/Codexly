@@ -48,3 +48,10 @@
 - 两端消息正文统一注册 `@codexly/ui/agent/deferred-mermaid`，只在渲染图表时加载引擎，共用在途加载并允许加载失败后重试；不得退回普通代码块。
 - 回归覆盖静态正文、流式快照、未闭合围栏及回合结束，使用截图中的中文标签和分支流程图验证实际 SVG。入口为 `desktop/src/shared/components/agent/message-response-mermaid.test.ts` 与 `desktop/tests/browser/mermaid.browser.test.tsx`（Chromium / WebKit，包含 Web 调用者）。
 - Mermaid 的 `@mermaid-js/parser` 含不可继续按模块拆分的单个核心模块，现代 / Legacy 构建约 662 KB；桌面异步块上限为 675,000 字节。首屏、工作台、Markdown、高亮及编辑器场景预算保持原值，图表引擎不得进入静态依赖闭包。
+
+## 中栏附件拖放
+
+- Web 与桌面复用 `packages/ui/src/agent/prompt-input-drop.ts`，按最近的 `data-split-pane` 接收文件；独立编辑器只接收表单范围。文件不能广播到其他分屏，普通文本拖放保持默认编辑行为，禁用输入不接收文件。
+- 桌面通过 `platform/tauri/attachment-drop.ts` 共用单个原生拖放订阅，将物理像素换算为 CSS 像素后命中目标；调用既有 `importHostAttachment` 流式导入路径，禁止在前端读取完整文件再上传。拖动过程中不读文件、不发请求、不更新 React 状态；离开或卸载清理提示和监听。
+- 多文件顺序导入，共用输入区的类型、数量与体积校验；会话作用域改变、禁用或卸载后，迟到结果不得写入新草稿。订阅尚未完成时卸载，也必须在注册完成后释放。收起的分屏在接收文件时展开。
+- 回归入口：`desktop/tests/browser/attachment-drop.browser.test.tsx`（Chromium/WebKit，分屏、禁用、容量、迟到结果与异步清理）、`desktop/src/platform/tauri/attachment-drop.test.ts`（单例订阅、高 DPI、Windows 路径与注册失败恢复）及 `tests/e2e/app-shell-attachment-drop.spec.ts`（三浏览器，390px/1280px）。系统文件管理器的实际原生拖放仍需在 macOS、Windows、Ubuntu 真机核验。

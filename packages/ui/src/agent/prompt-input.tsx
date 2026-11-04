@@ -1,3 +1,5 @@
+import { useRevealSplitComposer } from "../core/split-composer.js";
+import { usePromptInputDrop, type NativeAttachmentDrop } from "./prompt-input-drop.js";
 import { InputGroup } from "../core/input-group.js";
 import {
   useCallback,
@@ -26,6 +28,8 @@ type PromptInputProps = Omit<FormHTMLAttributes<HTMLFormElement>, "onError" | "o
   disabled?: boolean;
   fileAccept?: string;
   globalDrop?: boolean;
+  nativeDrop?: NativeAttachmentDrop | undefined;
+  onDropError?: (error: Error) => void;
   imageAccept?: string;
   maxFileTotalSize?: number;
   maxFileSize?: number;
@@ -63,7 +67,7 @@ export function createPastedTextFile(
   return undefined;
 }
 
-function acceptsFile(file: File, accept: string | undefined): boolean {
+function acceptsFile(file: { name: string; type: string }, accept: string | undefined): boolean {
   if (accept === undefined || accept.trim() === "") {
     return true;
   }
@@ -90,6 +94,8 @@ export function PromptInput({
   fileAccept,
   globalDrop = false,
   imageAccept,
+  nativeDrop,
+  onDropError,
   largePasteCharacterThreshold = Number.POSITIVE_INFINITY,
   maxFileTotalSize = Number.POSITIVE_INFINITY,
   maxFileSize = Number.POSITIVE_INFINITY,
@@ -108,6 +114,8 @@ export function PromptInput({
   ...props
 }: PromptInputProps) {
   const { t } = useAgentTranslation();
+  const formRef = useRef<HTMLFormElement>(null);
+  const reveal = useRevealSplitComposer();
   const [internalFiles, setInternalFiles] = useState<PromptInputAttachment[]>([]);
   const files = attachments ?? internalFiles;
   const filesRef = useRef(files);
@@ -121,7 +129,9 @@ export function PromptInput({
   const updateFiles = useCallback(
     (update: (current: readonly PromptInputAttachment[]) => readonly PromptInputAttachment[]) => {
       if (attachments !== undefined) {
-        onAttachmentsChange?.(update(attachments));
+        const next = update(filesRef.current);
+        filesRef.current = next;
+        onAttachmentsChange?.(next);
         return;
       }
       setInternalFiles((current) => [...update(current)]);
@@ -130,7 +140,7 @@ export function PromptInput({
   );
 
   const addFiles = useCallback(
-    (incoming: readonly File[], allowGeneratedText = false) => {
+    (incoming: readonly (File | PromptInputAttachment)[], allowGeneratedText = false) => {
       updateFiles((current) => {
         if (disabled) {
           return current;
@@ -147,12 +157,17 @@ export function PromptInput({
         );
 
         // 逐个校验后再占用容量，避免一个非法文件挤掉后续合法文件。
-        for (const file of incoming) {
-          const kind = allowGeneratedText
-            ? "text"
-            : acceptsFile(file, imageAccept)
-              ? "image"
-              : "file";
+        for (const candidate of incoming) {
+          const native = "source" in candidate ? candidate : undefined;
+          if (native !== undefined && current.some((item) => item.id === native.id)) continue;
+          const file =
+            native === undefined
+              ? (candidate as File)
+              : { name: native.name, type: native.mediaType, size: native.size };
+          const kind =
+            native?.kind ??
+            (allowGeneratedText ? "text" : acceptsFile(file, imageAccept) ? "image" : "file");
+          /* 原生导入与浏览器文件共用同一容量和类型校验。 */
           const acceptedByType =
             kind === "text" ||
             (kind === "image" ? acceptsFile(file, imageAccept) : acceptsFile(file, fileAccept));
@@ -198,17 +213,19 @@ export function PromptInput({
             });
             continue;
           }
-          accepted.push({
-            ...(kind === "image" ? { detail: "auto" as const } : {}),
-            file,
-            id: createUuid(),
-            kind,
-            mediaType: file.type,
-            name: file.name,
-            previewUrl: URL.createObjectURL(file),
-            size: file.size,
-            source: "browser",
-          });
+          accepted.push(
+            native ?? {
+              ...(kind === "image" ? { detail: "auto" as const } : {}),
+              file: candidate as File,
+              id: createUuid(),
+              kind,
+              mediaType: file.type,
+              name: file.name,
+              previewUrl: URL.createObjectURL(candidate as File),
+              size: file.size,
+              source: "browser",
+            },
+          );
           if (kind === "image") {
             imageCount += 1;
             imageBytes += file.size;
@@ -289,28 +306,16 @@ export function PromptInput({
     }
   }, [attachments, internalFiles, onAttachmentsChange]);
 
-  useEffect(() => {
-    if (!globalDrop || disabled) {
-      return undefined;
-    }
-    const prevent = (event: DragEvent) => {
-      if (event.dataTransfer?.types.includes("Files") === true) {
-        event.preventDefault();
-      }
-    };
-    const drop = (event: DragEvent) => {
-      if (event.dataTransfer?.files.length) {
-        event.preventDefault();
-        addFiles([...event.dataTransfer.files]);
-      }
-    };
-    document.addEventListener("dragover", prevent);
-    document.addEventListener("drop", drop);
-    return () => {
-      document.removeEventListener("dragover", prevent);
-      document.removeEventListener("drop", drop);
-    };
-  }, [addFiles, disabled, globalDrop]);
+  usePromptInputDrop({
+    formRef,
+    enabled: globalDrop,
+    disabled,
+    resetKey,
+    nativeDrop,
+    addFiles,
+    onError: onDropError,
+    reveal,
+  });
 
   const context = useMemo<PromptInputAttachmentsContextValue>(
     () => ({
@@ -336,7 +341,8 @@ export function PromptInput({
     <PromptInputAttachmentsContext.Provider value={context}>
       <form
         {...props}
-        className={`overflow-visible rounded-surface border border-transparent bg-raised shadow-floating transition-[border-color,box-shadow] focus-within:border-brand focus-within:shadow-focus ${className}`}
+        ref={formRef}
+        className={`overflow-visible rounded-surface border border-transparent bg-raised shadow-floating transition-[border-color,box-shadow] data-[drag-active=true]:border-brand focus-within:border-brand focus-within:shadow-focus ${className}`}
         data-prompt-input=""
         onPasteCapture={(event) => {
           onPasteCapture?.(event);
@@ -407,3 +413,5 @@ export function PromptInput({
 
 export * from "./prompt-input-context.js";
 export * from "./prompt-input-controls.js";
+
+export type { NativeAttachmentDrop, NativeAttachmentDropEvent } from "./prompt-input-drop.js";

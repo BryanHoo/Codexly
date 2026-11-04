@@ -1,6 +1,7 @@
+import { createNativeAttachmentDrop } from "../../../platform/tauri/attachment-drop.js";
 import { createComposerDraftActions, createComposerOptimizationButton } from "./workbench-composer-followup.js";
 import type { AgentTaskSettings } from "@/protocol/index.js";
-import { useEffect, useImperativeHandle, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import { useProjectDrafts, useProjectDraftStore } from "../project-draft-context.js";
@@ -346,8 +347,10 @@ export function WorkbenchComposerBase({
     });
   };
   const submitAction = resolveComposerSubmitAction(state, hasComposerInput, followUpBehavior, canSteer);
+  const nativeDrop = useMemo(() => createNativeAttachmentDrop(client, projectId), [client, projectId]);
   const composerView = (
     <WorkbenchComposerView
+      nativeDrop={nativeDrop}
       promptOptimization={createComposerOptimizationButton(session, client, projectId, skills, i18n.language)}
       engineControls={engineControls}
       activeCommandIndex={activeCommandIndex}
@@ -410,9 +413,7 @@ export function WorkbenchComposerBase({
           setEditingProjectDraft({ draftId, projectId });
         }
       }}
-      onProjectDraftSave={() => {
-        void projectDraftActions.save();
-      }}
+      onProjectDraftSave={() => void projectDraftActions.save()}
       onAttachmentsChange={projectDraftActions.changeAttachments}
       onBranchCreate={branchMutation.createBranch}
       onBranchChange={branchMutation.switchBranch}
@@ -490,9 +491,7 @@ export function WorkbenchComposerBase({
           handleAttachmentsChange([...attachments, attachment]);
           setAttachmentPickerKind(undefined);
         }}
-        onClose={() => {
-          setAttachmentPickerKind(undefined);
-        }}
+        onClose={() => setAttachmentPickerKind(undefined)}
         projectId={projectId}
       />
     </>

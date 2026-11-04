@@ -28,6 +28,7 @@ import type { ComposerMode } from "./workbench-composer-contracts.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
+  nativeDrop?: import("@codexly/ui/agent/prompt-input").NativeAttachmentDrop;
   engineControls?: ReactNode;
   promptOptimization?: ReactNode;
   writeAccess?: import("../../conversation/runtime/use-task-runtime.js").TaskRuntimeView["writeAccess"];

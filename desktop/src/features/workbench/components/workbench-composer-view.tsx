@@ -337,6 +337,9 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
             disabled={props.attachmentsDisabled}
             fileAccept={AGENT_FILE_ACCEPT}
             globalDrop
+            nativeDrop={props.nativeDrop}
+            resetKey={props.composerScope}
+            onDropError={props.onViewError}
             imageAccept={AGENT_IMAGE_ACCEPT}
             largePasteCharacterThreshold={LARGE_PASTE_CHARACTER_THRESHOLD}
             maxFileSize={MAX_AGENT_FILE_BYTES}
