@@ -42,3 +42,9 @@
 
 - 聊天与项目共用标题栏快捷打开菜单，窄窗口保留入口，工具视图隐藏。已有聊天沿用 `createProjectOpenRequest` 传递任务身份，由原生接口解析 cwd；新聊天尚未分配任务目录时显示禁用入口。
 - 回归入口：`workbench-shell-header.test.ts`、`workbench-panel-layout.test.ts` 和 `tests/browser/chat-quick-open.browser.test.tsx`（双浏览器、宽窄窗口、默认应用与菜单选择）。
+
+## Mermaid 图表
+
+- 两端消息正文统一注册 `@codexly/ui/agent/deferred-mermaid`，只在渲染图表时加载引擎，共用在途加载并允许加载失败后重试；不得退回普通代码块。
+- 回归覆盖静态正文、流式快照、未闭合围栏及回合结束，使用截图中的中文标签和分支流程图验证实际 SVG。入口为 `desktop/src/shared/components/agent/message-response-mermaid.test.ts` 与 `desktop/tests/browser/mermaid.browser.test.tsx`（Chromium / WebKit，包含 Web 调用者）。
+- Mermaid 的 `@mermaid-js/parser` 含不可继续按模块拆分的单个核心模块，现代 / Legacy 构建约 662 KB；桌面异步块上限为 675,000 字节。首屏、工作台、Markdown、高亮及编辑器场景预算保持原值，图表引擎不得进入静态依赖闭包。

@@ -1,3 +1,4 @@
+import { deferredMermaid as mermaid } from "@codexly/ui/agent/deferred-mermaid";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { assistantDirectiveRemarkPlugin } from "@codexly/frontend-core/assistant-directive-remark";
 import { renderAssistantDirectiveLink } from "@codexly/ui/core/message-assistant-directive";
@@ -120,9 +121,12 @@ const PROMPT_FILE_REFERENCE_PATTERN =
   /(^|\s)@(?<path>[^\s,!?;:，。！？；：、()[\]{}"'`]+)(?=$|\s|[,!?;:，。！？；：、()[\]{}"'`])/gu;
 const MESSAGE_RESPONSE_CONTROLS = {
   code: { copy: true, download: false },
-  mermaid: false,
+  mermaid: true,
   table: false,
 } as const;
+
+// 与 Web 共用懒加载图表插件，仅在出现 Mermaid 时加载渲染引擎。
+const MESSAGE_RESPONSE_PLUGINS = { mermaid } as const;
 
 function decodeMarkdownFileReference(href: string): string {
   try {
@@ -445,6 +449,7 @@ function MessageResponseContent({
         BlockComponent={InteractiveMessageBlock}
         components={markdownComponents}
         {...(parseMarkdownIntoBlocksFn === undefined ? {} : { parseMarkdownIntoBlocksFn })}
+        plugins={MESSAGE_RESPONSE_PLUGINS}
         remarkPlugins={resolvedRemarkPlugins}
       >
         {parsedResponse.markdown}

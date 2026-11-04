@@ -1,5 +1,5 @@
 {
-  "asyncChunkBytes": 525000,
+  "asyncChunkBytes": 675000,
   "initialLoadBytes": 475000,
   "scenarioLoadBytes": {
     "cppHighlight": 2900000,
