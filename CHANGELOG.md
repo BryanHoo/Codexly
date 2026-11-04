@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-11-04
+
+### 新增
+
+- 支持将文件与图片拖入目标任务分屏作为附件，各分屏独立接收；桌面端支持从系统文件管理器拖入。
+- 桌面端支持按需渲染 Mermaid 图表，改善流程图等内容的阅读体验。
+
+### 优化
+
+- 聊天与文档标签切换时保留阅读位置，并用品牌色突出可发送状态；内置提示词改写规则进一步保留原意与约束。
+
+### 修复
+
+- 修复移动端发送菜单按钮触控高度不足、文档分屏菜单触发范围过大，以及桌面项目窗口关闭后无法正常销毁的问题。
+
 ## [0.49.1] - 2026-11-03
 
 ### 新增
@@ -1011,7 +1026,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.49.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/BryanHoo/Codexly/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.1
 [0.49.0]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/BryanHoo/Codexly/compare/v0.47.1...v0.48.0

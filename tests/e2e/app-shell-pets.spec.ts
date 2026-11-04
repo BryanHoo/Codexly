@@ -63,7 +63,11 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
     .poll(() => petRequests.some((request) => request.startsWith("GET /v1/pets/assets/")))
     .toBe(true);
 
-  // 保存成功通知可能暂时覆盖右下角宠物；原始鼠标事件前先等待真实命中目标可交互。
+  // 保存通知会异步出现并覆盖右下角；先关闭真实通知，再测量坐标，避免命中检查后被迟到通知遮挡。
+  const savedToast = page.getByRole("dialog", { exact: true, name: "已保存" });
+  await expect(savedToast).toBeVisible();
+  await savedToast.locator('[data-slot="toast-close"]').click();
+  await expect(savedToast).toHaveCount(0);
   await pet.click({ trial: true });
   const before = await pet.boundingBox();
   if (before === null) throw new Error("宠物缺少拖动边界");

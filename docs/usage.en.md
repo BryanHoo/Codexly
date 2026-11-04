@@ -46,6 +46,8 @@ Use the edit button beside a user message to replace the current task’s text d
 
 The context panel shows an available Codex session memory summary. Select Refresh to update it. The section stays hidden when no summary or supported interface is available; a failed refresh preserves existing content for retry. This is separate from the global memory toggle and reset in Settings.
 
+In a computer browser or desktop, drop files or images onto the center area of the intended task pane to attach them there. Other panes are unaffected, and nothing is sent automatically. Desktop accepts files from the system file manager; browsers use files from the current device. On mobile, use the attachment picker or supported paste actions. If import fails, check the reported file type or size before retrying.
+
 ## Panes and mobile
 
 Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Both clients use `Alt+Shift+Arrow` (Option on macOS). Open **Help → Keyboard shortcuts** for available actions on your platform.
@@ -65,6 +67,8 @@ Choose **New file** or **New folder** from the project root or folder menu, ente
 Drag document tabs to reorder them. Right-click a tab or open the tab actions menu to pin, move, or bulk-close tabs; the menu also works on mobile. Standard bulk-close actions preserve pinned tabs. Closing unsaved files offers Save, Don’t save, or Cancel together for all affected files, including background tabs. Failed saves keep tabs and drafts open. Chat stays first and cannot be closed.
 
 Use the file toolbar to compare with chat side by side or above, drag the divider to resize, and click the selected comparison button again to focus on the document. The tab bar is hidden when only chat is open. Switching tasks within the same project returns to chat while preserving file tabs, pins, and unsaved drafts without saving. Switching to another project closes that pane’s file tabs after one confirmation for unsaved changes; cancelling or a failed save keeps the original task open. Each task pane owns its tabs. Mobile uses a single tab group and closes overlay sidebars when opening a file.
+
+Switching between chat and document tabs preserves their reading positions within the current workspace; this does not promise scroll restoration after refresh or restart. Desktop can render Mermaid code blocks as diagrams on demand.
 
 On a phone or another LAN device, download files that cannot be previewed and open them with an app on that device. Choosing the system default from the file tree, chat file links, or search results first shows a download prompt; transfer starts when you select Download. Local Web access and desktop can still open files with applications on the host.
 

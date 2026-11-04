@@ -43,6 +43,8 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 - **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits.
 - **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
 
+Drop files and images onto a task pane to attach them to that pane independently. Switching between chat and document tabs preserves reading positions. Desktop also renders Mermaid diagrams on demand.
+
 Each engine retains its own models, permissions, and extension capabilities. Claude supports history recovery, live steering, forks, and compaction. Codex-specific sandbox and Review features do not map to Claude permission modes. Available actions follow the selected engine; see [agent setup](docs/getting-started.en.md).
 
 ## Quick start

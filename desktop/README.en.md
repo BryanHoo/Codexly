@@ -32,6 +32,8 @@ Toggle **Show status bar icon** in **Settings → General** to show or hide the 
 
 Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
 
+Drop files or images from your system file manager onto the intended task pane. Attachments belong to that pane and are not sent automatically. Switching between chat and document tabs preserves reading positions. Mermaid diagrams render on demand, without loading diagram support for ordinary conversations.
+
 Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Tasks visible in foreground panes automatically mark their notifications as read; background tasks keep unread alerts. Reorder, pin, or bulk-close center file tabs and compare files with chat horizontally or vertically. Settings includes global or project saved prompts, inserted by title with `/` or `#`; saved prompts are shared with Web and mobile browsers on the same host, with automatic migration and refresh when a window regains focus.
 
 Create files and folders in the project tree. The text editor provides search and replace, manual saving, unsaved markers, and disk conflict comparison. Closing files or switching projects offers Save, Don’t save, or Cancel. Switching tasks in the same project returns to chat while keeping tabs and drafts. See the [workspace guide](../docs/usage.en.md#files-and-previews).
