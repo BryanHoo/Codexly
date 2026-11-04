@@ -1,5 +1,8 @@
 export function isSplitBlankPoint(target: EventTarget | null, x: number, y: number): boolean {
   if (!(target instanceof Element)) return false;
+  // 文档工作区只允许聊天内容触发分屏菜单；图片、PDF、代码等标签及对照文档保留原生右键。
+  if (target.closest("[data-document-workspace]") && !target.closest(".document-workspace-chat"))
+    return false;
   if (
     target.closest(
       'a, button, input, textarea, select, label, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="menu"], .xterm, img, video, audio, canvas, pre, code',
