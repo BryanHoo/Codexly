@@ -134,7 +134,12 @@ void test("window entry points retain their required app and plugin permissions"
         assert.ok(enabled.has(permission), permission);
       }
     }
-    if (capability.identifier === "project-file") assert.ok(enabled.has("core:window:allow-close"));
+    if (capability.identifier === "project-file") {
+      // Tauri 的关闭监听会先拦截原生关闭，再在草稿保护放行后调用 destroy。
+      for (const permission of ["core:window:allow-close", "core:window:allow-destroy"]) {
+        assert.ok(enabled.has(permission), `project-file: ${permission} denied after close guard accepts`);
+      }
+    }
   }
 });
 

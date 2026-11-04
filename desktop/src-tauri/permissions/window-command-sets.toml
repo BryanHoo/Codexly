@@ -177,6 +177,8 @@ permissions = [
   "allow-get-project-pdf-file",
   "allow-open-project",
   "core:window:allow-close",
+  # 关闭监听放行后由 Tauri 调用 destroy，缺少此权限会让原生关闭和预览关闭按钮均失效。
+  "core:window:allow-destroy",
   "core:event:allow-listen",
   "core:event:allow-unlisten",
 ]
