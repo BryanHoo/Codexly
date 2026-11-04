@@ -151,7 +151,15 @@ export function ConversationItems<T>({
     };
   }, [followAction, pauseAction, layoutActions]);
   const submissionSignal = useContext(SubmissionSignalContext);
+  const previousSubmission = useRef<{ value: number | undefined } | null>(null);
   useLayoutEffect(() => {
+    // 返回聊天只恢复阅读位置；只有首次挂载或新的提交信号才重新启用底部跟随。
+    if (
+      previousSubmission.current?.value === submissionSignal &&
+      previousSubmission.current !== null
+    )
+      return;
+    previousSubmission.current = { value: submissionSignal };
     layoutActions.current.follow();
   }, [submissionSignal, layoutActions]);
   const [scrollbarWidth, setScrollbarWidth] = useState(0);

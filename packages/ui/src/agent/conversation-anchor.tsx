@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { useMessageScroller } from "../core/message-scroller.js";
 
 type LayoutActions = Readonly<{ pause: () => void; follow: () => void }>;
@@ -7,13 +7,21 @@ const idle = () => undefined;
 /** 官方命令负责滚动；此适配在绘制前补齐布局，避免 WebKit 锚点缺失和 RO 延迟一帧造成跳动。 */
 export function useConversationLayout(contentRef: RefObject<HTMLDivElement | null>) {
   const actions = useRef<LayoutActions>({ pause: idle, follow: idle });
-  const { scrollToEnd } = useMessageScroller();
+  // Activity 隐藏会清理并重建 effect，但仍保留 ref；阅读状态必须跨这次重建保存。
+  const reading = useRef<{
+    following: boolean;
+    anchor: { node: HTMLElement; top: number } | null;
+    top: number;
+  }>({ following: true, anchor: null, top: 0 });
+  const restoreAction = useRef<() => void>(idle);
+  const { scrollToEnd, scrollToMessage } = useMessageScroller();
   useLayoutEffect(() => {
     const content = contentRef.current;
     const viewport = content?.closest<HTMLDivElement>('[data-slot="message-scroller-viewport"]');
     if (!content || !viewport) return;
-    let following = true;
-    let anchor: { node: HTMLElement; top: number } | null = null;
+    let following = reading.current.following;
+    let anchor = reading.current.anchor;
+    let top = reading.current.top;
     let frame = 0;
     let restoring = false;
     const capture = () => {
@@ -55,6 +63,7 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       });
     };
     const onScroll = () => {
+      if (viewport.clientHeight > 0) top = viewport.scrollTop;
       if (restoring) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(capture);
@@ -88,7 +97,22 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
     resize.observe(viewport);
     const mutations = new MutationObserver(syncLayout);
     mutations.observe(content, { childList: true, subtree: true });
+    restoreAction.current = () => {
+      if (following) return;
+      // 官方 Provider 的布局 effect 也会恢复状态，需在它完成后再同步阅读锚点。
+      const messageId = anchor?.node.dataset["messageId"];
+      if (messageId !== undefined)
+        scrollToMessage(messageId, { behavior: "instant", align: "start", scrollMargin: 0 });
+      viewport.scrollTop = top;
+      syncLayout();
+    };
     return () => {
+      // 在仍有布局时补齐最后一次滚动；隐藏后的零尺寸不能覆盖用户位置。
+      if (viewport.clientHeight > 0) {
+        capture();
+        top = viewport.scrollTop;
+      }
+      reading.current = { following, anchor, top };
       cancelAnimationFrame(frame);
       resize.disconnect();
       mutations.disconnect();
@@ -98,7 +122,11 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       viewport.removeEventListener("keydown", onKeyDown);
       viewport.removeEventListener("pointerdown", onPointerDown);
       actions.current = { pause: idle, follow: idle };
+      restoreAction.current = idle;
     };
-  }, [contentRef, scrollToEnd]);
+  }, [contentRef, scrollToEnd, scrollToMessage]);
+  useEffect(() => {
+    restoreAction.current();
+  }, [contentRef, scrollToEnd, scrollToMessage]);
   return actions;
 }

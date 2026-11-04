@@ -17,6 +17,7 @@ import { MessageSquare } from "lucide-react";
 import type { WorkspaceDocument } from "@codexly/frontend-core/document-workspace";
 import type { useDocumentWorkspace } from "./use-document-workspace.js";
 import { DocumentWorkspaceResizer } from "./document-workspace-resizer.js";
+import { useDocumentScroll } from "./use-document-scroll.js";
 import {
   DocumentNavigationContext,
   DocumentEditorContext,
@@ -93,6 +94,13 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
   const tabsRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const selected = workspace.documents.find((document) => document.id === workspace.activeId);
+  const documentRef = useRef<HTMLDivElement>(null);
+  useDocumentScroll(
+    documentRef,
+    enabled ? selected?.id : undefined,
+    workspace.documents,
+    workspace.editors,
+  );
   const direction = !mobile && selected !== undefined ? workspace.direction : null;
   const chatVisible = selected === undefined || direction !== null;
   if (!enabled) return children;
@@ -163,6 +171,7 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
         {selected === undefined ? null : (
           <div
             className="document-workspace-document"
+            ref={documentRef}
             role="tabpanel"
             id={`${id}-document`}
             aria-labelledby={`${id}-tab-${String(workspace.documents.indexOf(selected) + 1)}`}
