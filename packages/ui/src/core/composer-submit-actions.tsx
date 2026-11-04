@@ -53,12 +53,12 @@ export function ComposerSubmitActions({
   return (
     <>
       <div
-        className="flex h-6 shrink-0 items-center rounded-control border border-separator bg-control-hover/40 text-muted-foreground transition-colors duration-150 hover:bg-control-hover motion-reduce:transition-none data-[has-input=true]:border-transparent data-[has-input=true]:bg-foreground/85 data-[has-input=true]:text-raised data-[has-input=true]:hover:bg-foreground/75"
+        className="flex h-6 shrink-0 items-center rounded-control border border-separator bg-control-hover/40 text-muted-foreground transition-colors duration-150 hover:bg-control-hover motion-reduce:transition-none data-[has-input=true]:border-brand/15 data-[has-input=true]:bg-brand/10 data-[has-input=true]:text-brand-strong data-[has-input=true]:hover:bg-brand/15"
         data-has-input={hasInput && !disabled}
         role="group"
         aria-label={zh ? "发送操作" : "Send actions"}
       >
-        {/* 有输入时以柔和的反色主色强调；悬停任意半区统一减淡底色，文字与箭头保持一致的对比度。 */}
+        {/* 有输入时用淡蓝底、轻边框和深蓝文字呼应主色；两半区统一悬停加深，并随共享令牌适配明暗主题。 */}
         {children}
         <span aria-hidden="true" className="h-2.5 w-px bg-current opacity-20" />
         <DropdownMenu>
