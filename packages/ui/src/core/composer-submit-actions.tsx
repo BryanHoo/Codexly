@@ -16,15 +16,16 @@ export const ComposerPromptProjectsContext = createContext<readonly PromptProjec
   undefined,
 );
 
-/** 发送区加宽并以左右留白差将文字视觉右移 2px，平衡右侧更窄的下拉区。 */
+/** 紧凑发送区继承整组配色，使用共享的小圆角与较少的横向留白。 */
 export const composerSubmitButtonClassName =
-  "flex h-full w-auto shrink-0 items-center justify-center gap-0 rounded-l-pill rounded-r-none bg-transparent pl-3.5 pr-2.5 text-label font-normal leading-4 text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground hover:shadow-none active:brightness-100 disabled:bg-transparent disabled:text-muted-foreground [&>span]:items-center [&>span]:justify-center [&>span]:leading-4 [&>span]:animate-none";
+  "flex h-full w-auto shrink-0 items-center justify-center gap-0 rounded-l-control rounded-r-none bg-transparent pl-2.5 pr-2 text-label font-medium leading-4 text-inherit shadow-none hover:bg-transparent hover:text-inherit hover:shadow-none active:brightness-100 disabled:bg-transparent disabled:text-inherit [&>span]:items-center [&>span]:justify-center [&>span]:leading-4 [&>span]:animate-none";
 
 /** 两端共享分体按钮；菜单动作不改变发送模式，也不会提交外层输入表单。 */
 export function ComposerSubmitActions({
   children,
   language,
   content,
+  hasInput = Boolean(content.trim()),
   project,
   disabled,
   todoDisabled,
@@ -34,6 +35,7 @@ export function ComposerSubmitActions({
   children: ReactNode;
   language: string;
   content: string;
+  hasInput?: boolean;
   project?: PromptProject | undefined;
   disabled: boolean;
   todoDisabled: boolean;
@@ -51,13 +53,14 @@ export function ComposerSubmitActions({
   return (
     <>
       <div
-        className="flex h-7 shrink-0 items-center rounded-pill border border-separator bg-control-hover/40"
+        className="flex h-6 shrink-0 items-center rounded-control border border-separator bg-control-hover/40 text-muted-foreground transition-colors duration-150 hover:bg-control-hover motion-reduce:transition-none data-[has-input=true]:border-transparent data-[has-input=true]:bg-foreground/85 data-[has-input=true]:text-raised data-[has-input=true]:hover:bg-foreground/75"
+        data-has-input={hasInput && !disabled}
         role="group"
         aria-label={zh ? "发送操作" : "Send actions"}
       >
-        {/* 悬停仅加深文字和箭头，保持底色与常规字重，避免重复的胶囊视觉。 */}
+        {/* 有输入时以柔和的反色主色强调；悬停任意半区统一减淡底色，文字与箭头保持一致的对比度。 */}
         {children}
-        <span aria-hidden="true" className="h-2.5 w-px bg-separator-strong/60" />
+        <span aria-hidden="true" className="h-2.5 w-px bg-current opacity-20" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -65,7 +68,7 @@ export function ComposerSubmitActions({
               variant="ghost"
               disabled={disabled}
               aria-label={zh ? "更多发送操作" : "More send actions"}
-              className="flex h-full w-5 items-center justify-center rounded-l-none rounded-r-pill px-0 text-muted-foreground/80 shadow-none hover:bg-transparent hover:text-foreground hover:shadow-none active:brightness-100 data-[state=open]:text-foreground"
+              className="flex h-full w-4.5 items-center justify-center rounded-l-none rounded-r-control px-0 text-inherit shadow-none hover:bg-transparent hover:text-inherit hover:shadow-none active:brightness-100 data-[state=open]:bg-current/10 data-[state=open]:text-inherit"
             >
               <ChevronDown aria-hidden="true" className="size-2.5" strokeWidth={1.75} />
             </Button>

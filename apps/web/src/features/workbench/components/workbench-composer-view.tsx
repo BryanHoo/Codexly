@@ -433,6 +433,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                     }
                     language={i18n.language}
                     content={serializePromptSkillContent(props.promptContent)}
+                    hasInput={props.hasComposerInput}
                     disabled={props.draftInputDisabled || props.isSubmitting}
                     todoDisabled={!props.hasComposerInput || props.isSubmitting}
                     todoLabel={t(
