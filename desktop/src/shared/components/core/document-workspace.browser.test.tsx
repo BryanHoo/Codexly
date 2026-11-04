@@ -35,7 +35,7 @@ describe("双端共用中栏标签与聊天对照", () => {
       expect(footer.textContent).toContain("分支、项目路径、上下文");
       flushSync(() => { void state!.open({ id: "a.ts" }); });
       // 外置 Portal 不在 Activity 的 DOM 隐藏边界内，必须单独跟随聊天可见性。
-      await expect.poll(() => footer.querySelector("button")).toBeNull();
+      await expect.poll(() => footer.querySelector("button"), { timeout: 5_000 }).toBeNull();
       flushSync(() => { void state!.select(null); });
       await expect.poll(() => footer.textContent).toContain("分支、项目路径、上下文");
       expect(host.querySelector("textarea")).toBe(editor);

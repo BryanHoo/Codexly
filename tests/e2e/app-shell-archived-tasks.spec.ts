@@ -118,7 +118,6 @@ for (const width of [1280, 375]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 });
-    await page.clock.setFixedTime(new Date("2026-10-24T12:00:00Z"));
     const tasks = [
       { id: "old", title: "很早的归档", updatedAt: "2026-01-01T00:00:00Z" },
       { id: "boundary", title: "边界日期的归档", updatedAt: "2026-07-24T00:00:00Z" },
@@ -147,6 +146,8 @@ for (const width of [1280, 375]) {
       await route.fulfill({ json: { deletedCount: matching.length, failedCount: 0 } });
     });
     await page.goto("/p/codexly/t/task-1");
+    await expect(page.getByRole("region", { name: "消息编辑器" })).toBeVisible();
+    await page.clock.setFixedTime(new Date("2026-10-24T12:00:00Z"));
     if (width < 640) await page.getByRole("button", { name: "展开项目侧栏" }).click();
     await page.getByRole("button", { name: "打开 Codexly 的项目操作菜单" }).click();
     await page.getByRole("menuitem", { name: "已归档" }).click();
@@ -164,8 +165,11 @@ for (const width of [1280, 375]) {
 
     await range.click();
     await page.getByRole("option", { name: "3 个月前", exact: true }).click();
+    // 等 Select 关闭并恢复焦点，再输入；WebKit 中迟到的焦点恢复会吞掉 fill 的输入。
+    await expect(range).toBeFocused();
     // 搜索只显示近期任务，批量日期清理仍应在全部归档中选择旧任务。
     await dialog.getByRole("textbox", { name: "搜索已归档任务" }).fill("近期");
+    await expect(dialog.getByRole("textbox", { name: "搜索已归档任务" })).toHaveValue("近期");
     await expect(dialog.getByText("很早的归档", { exact: true })).not.toBeVisible();
     await dialog.getByRole("button", { name: "按日期删除" }).click();
     confirmation = page.getByRole("dialog", { name: "按日期永久删除已归档任务" });

@@ -24,6 +24,8 @@ describe.each([
       .poll(
         () =>
           screen.container.querySelector('[data-streamdown="mermaid-block"] svg[id]')?.textContent,
+        // 首张图表需要异步加载并初始化 Mermaid，不能套用默认 1 秒轮询窗口。
+        { timeout: 10_000 },
       )
       .toContain("统一页面文档");
     expect(screen.container.querySelector('[data-language="mermaid"]')).toBeNull();

@@ -36,6 +36,7 @@ for (const { reduced, width, theme } of [
       },
     ];
     let sequence = 0;
+    let completedAt: string | null = null;
     await page.route(taskSnapshotRoute("task-1"), async (route) => {
       await route.fulfill({
         json: {
@@ -43,12 +44,12 @@ for (const { reduced, width, theme } of [
           snapshot: {
             ...taskSnapshot,
             title: "检查工作区与测试",
-            status: "running",
+            status: completedAt === null ? "running" : "idle",
             turns: [
               {
                 id: "trace-turn",
-                status: "running",
-                completedAt: null,
+                status: completedAt === null ? "running" : "completed",
+                completedAt,
                 error: null,
                 startedAt: timestamp,
                 items,
@@ -307,6 +308,8 @@ for (const { reduced, width, theme } of [
         .locator('[data-slot="message-scroller-viewport"]')
         .evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
     ).toBe(true);
+    // 恢复请求必须拿到与最后事件相同的权威状态，不能用新 checkpoint 配旧的 running 回合。
+    completedAt = new Date().toISOString();
     sequence += 1;
     await page.evaluate(
       (event) =>
@@ -325,7 +328,7 @@ for (const { reduced, width, theme } of [
             id: "trace-turn",
             status: "completed",
             startedAt: timestamp,
-            completedAt: new Date().toISOString(),
+            completedAt,
             error: null,
             items,
           },

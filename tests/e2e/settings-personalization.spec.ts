@@ -62,9 +62,11 @@ test("搜索设置、保存个性化，并在删除记忆前确认 @smoke", asyn
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const settings = page.getByRole("region", { name: "全局设置" });
+  await expect(settings.getByRole("button", { name: "返回应用", exact: true })).toBeFocused();
   await expect(page.getByRole("main", { name: "任务时间线" })).toBeHidden();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("searchbox", { name: "搜索设置" }).fill("AGENTS.md");
+  await expect(page.getByRole("searchbox", { name: "搜索设置" })).toHaveValue("AGENTS.md");
   await settings
     .getByRole("group", { name: "Codex", exact: true })
     .getByRole("button", { name: "个性化", exact: true })
@@ -75,7 +77,8 @@ test("搜索设置、保存个性化，并在删除记忆前确认 @smoke", asyn
   await settings.getByRole("textbox", { name: "全局指令" }).fill("# 新说明\n保留格式。\n");
   await expect.poll(() => content).toBe("# 新说明\n保留格式。\n");
   await expect(page.locator("[data-toast]")).toHaveCount(0);
-  await settings.getByRole("textbox", { name: "全局指令" }).blur();
+  // 通过真实点击离开编辑器，保持页面焦点，避免 WebKit 的 blur 暂停通知计时。
+  await settings.getByRole("heading", { name: "个性化", exact: true }).click();
   const savedToast = page.locator('[data-toast][data-type="success"]');
   await expect(savedToast).toHaveText("已保存");
   await expect(savedToast).toHaveCount(0, { timeout: 3000 });

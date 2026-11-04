@@ -53,7 +53,7 @@ export function ComposerSubmitActions({
   return (
     <>
       <div
-        className="flex h-6 shrink-0 items-center rounded-control border border-separator bg-control-hover/40 text-muted-foreground transition-colors duration-150 hover:bg-control-hover motion-reduce:transition-none data-[has-input=true]:border-brand/15 data-[has-input=true]:bg-brand/10 data-[has-input=true]:text-brand-strong data-[has-input=true]:hover:bg-brand/15"
+        className="flex h-6.5 shrink-0 items-center rounded-control border border-separator bg-control-hover/40 text-muted-foreground transition-colors duration-150 hover:bg-control-hover motion-reduce:transition-none data-[has-input=true]:border-brand/15 data-[has-input=true]:bg-brand/10 data-[has-input=true]:text-brand-strong data-[has-input=true]:hover:bg-brand/15"
         data-has-input={hasInput && !disabled}
         role="group"
         aria-label={zh ? "发送操作" : "Send actions"}

@@ -31,7 +31,11 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
     page.getByRole("button", { name: "添加图片或文件" }),
     page.getByRole("button", { name: "提交", exact: true }),
   ];
-  const touchControls = [...touchButtons, ...composerControls.slice(1, 4)];
+  const touchControls = [
+    ...touchButtons,
+    ...composerControls.slice(1, 4),
+    page.getByRole("button", { name: "更多发送操作", exact: true }),
+  ];
 
   // 最窄支持宽度必须同时保证页面边界、Composer 内部布局和触控尺寸。
   const composerMetrics = await composerFooter.evaluate((element) => ({

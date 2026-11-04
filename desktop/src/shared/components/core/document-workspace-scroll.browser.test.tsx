@@ -24,7 +24,8 @@ async function fixture() {
   flushSync(() => {
     for (let index = 0; index < 12; index += 1) void workspace.open({ id: `document-${String(index)}.tsx` });
   });
-  await expect.poll(() => host.querySelectorAll('[role="tab"]').length).toBe(13);
+  // 首次打开文档会懒加载标签栏，先等待模块就绪再验证布局与滚动。
+  await expect.poll(() => host.querySelectorAll('[role="tab"]').length, { timeout: 5_000 }).toBe(13);
   const list = host.querySelector<HTMLDivElement>('[role="tablist"]')!;
   const centerError = () => {
     const tab = list.querySelector('[aria-selected="true"]')!.parentElement!.getBoundingClientRect();
