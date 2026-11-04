@@ -109,6 +109,7 @@ export function CodeBlockContent({
   tokenizeCode,
   legacyTheme = false,
   showLineNumbers = false,
+  style,
   ...props
 }: CodeBlockContentProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -134,11 +135,16 @@ export function CodeBlockContent({
   }, [highlightedLine, layout.lineCount, onHighlightedLineUnavailable, virtualizer]);
 
   return (
-    <div className={`relative min-h-0 overflow-auto ${className}`} ref={scrollRef} {...props}>
+    <div
+      className={`relative min-h-0 min-w-0 overflow-auto ${className}`}
+      ref={scrollRef}
+      // 虚拟行可宽于 pre；背景跟随滚动视口，避免横向滚动后露出外层底色。
+      style={{ backgroundColor: "var(--file-background, transparent)", ...style }}
+      {...props}
+    >
       <pre
         className="relative m-0 min-w-full bg-transparent font-mono text-body-small leading-6 text-foreground"
         style={{
-          backgroundColor: "var(--file-background, transparent)",
           color: "var(--file-foreground, inherit)",
           height: virtualizer.getTotalSize() + CODE_LINE_HEIGHT_PX,
         }}
