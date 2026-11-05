@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-11-05
+
+### 新增
+
+- 默认在流式回复中独立展示每个文件的差异卡片，回合结束后收入执行过程；可在设置中关闭。
+- 分屏快捷键更新为 `⌘/Ctrl+Shift+7/8/9/0`，分别向左、上、下、右分屏，帮助弹窗同步显示按键与生效场景。
+
+### 优化
+
+- 输入框随内容增高至当前视口高度的一半，空白草稿隐藏提示词优化入口，仅有一个可用引擎时简化选择。
+
+### 修复
+
+- 永久删除任务时明确提示同步清理原始会话，删除后在原分屏打开新聊天并保留其他分屏。
+- 修复迟到的异步回答事件导致消息重复，以及桌面端未跟踪文件未按真实路径展示的问题。
+
 ## [0.50.0] - 2026-11-04
 
 ### 新增
@@ -1026,7 +1042,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.50.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.51.0...HEAD
+[0.51.0]: https://github.com/BryanHoo/Codexly/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/BryanHoo/Codexly/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.1
 [0.49.0]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.0

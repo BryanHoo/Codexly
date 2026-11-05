@@ -24,9 +24,11 @@ Desktop shares conversations, approvals, queues, files, Git, extensions, and sch
 
 User messages can be edited into the current composer and sent as new messages, preserving the original history. The context panel displays available Codex session memory summaries and supports manual refresh. The interface uses system fonts; elapsed-time refresh pauses in the background and recalibrates on return.
 
-Sending focuses the new question and preserves your position while reading. Enable **Sticky messages** and **Message navigation anchors** independently in **Settings → General → Editor**; both default to off. Preview cited web sources and follow or pause output in subagent details. Consecutive commands, tools, and image-view operations share a five-row summary window with complete output in separate detail dialogs. Completed turns summarize file changes after the reply.
+Sending focuses the new question and preserves your position while reading. Enable **Sticky messages** and **Message navigation anchors** independently in **Settings → General → Editor**; both default to off. Preview cited web sources and follow or pause output in subagent details. Consecutive commands, tools, and image-view operations share a five-row summary window with complete output in separate detail dialogs.
 
-Optimize a draft with AI using auxiliary generation settings, then review the result before sending. The Send menu saves project todos or prompts without sending. Ordinary chat can also open its working directory in a host application from the header. Archive, restore, and permanent deletion synchronize with the underlying agent session; generated text from interrupted replies survives task switches and restarts.
+File diffs expand as individual cards during streaming and move into execution history when the turn ends. Disable **Settings → General → Editor → Show file diffs separately** to restore the end-of-turn summary.
+
+Optimize a nonempty text draft with AI using auxiliary generation settings, then review the result before sending. The Send menu saves project todos or prompts without sending. Ordinary chat can also open its working directory in a host application from the header. Archive, restore, and permanent deletion synchronize with the underlying agent session; generated text from interrupted replies survives task switches and restarts.
 
 Toggle **Show status bar icon** in **Settings → General** to show or hide the system tray icon immediately. The choice persists after restart. Hiding it keeps the app running and preserves the behavior of minimizing to the tray when the window closes.
 
@@ -40,7 +42,7 @@ Create files and folders in the project tree. The text editor provides search an
 
 Marking notifications as read or resolving their requests removes the corresponding system alerts. Reading a notification does not approve an action or answer a question.
 
-Use `Alt+Shift+Arrow` to split tasks and **Help → Keyboard shortcuts** to view available shortcuts. Export a diagnostic ZIP from **Settings → About** when troubleshooting.
+Use `⌘/Ctrl+Shift+7/8/9/0` (left, up, down, right) to split tasks and **Help → Keyboard shortcuts** to view available shortcuts. Export a diagnostic ZIP from **Settings → About** when troubleshooting.
 
 The extension center manages local Skills, MCP, and official plugins for Codex or Claude, with search, filters, and global or project scope. Available operations follow each engine's capabilities. Start a new conversation after configuration changes for complete loading.
 

@@ -10,7 +10,7 @@ Open a sidebar task’s **More actions → Export conversation** to save JSON wi
 
 Add a disk folder as a project, or create a temporary task without project context. Git tools require a repository at the project root; ordinary subdirectories do not borrow a parent repository.
 
-Pin, archive, restore, or permanently delete tasks. Sidebar shortcuts help you move between projects and show unread completions, pending approvals, and running tasks. Use the task board to review work centrally. Search can find projects, tasks, messages, and files; some entry points depend on the enabled engine.
+Pin, archive, restore, or permanently delete tasks. Permanent deletion also removes the underlying agent session history. Deleting the current task opens a new chat in the same pane and preserves other panes. Sidebar shortcuts help you move between projects and show unread completions, pending approvals, and running tasks. Use the task board to review work centrally. Search can find projects, tasks, messages, and files; some entry points depend on the enabled engine.
 
 In the archive list, choose all archived tasks, tasks last updated more than 1, 3, 6, or 12 months ago, or tasks updated before a custom date. The cutoff uses midnight in your device's local calendar and excludes the cutoff date itself; the confirmation shows the exact date. Cleanup covers all archived tasks regardless of the current search. Check the scope and export conversations as needed before permanent deletion.
 
@@ -22,7 +22,7 @@ Read notifications and resolved requests remove their corresponding system alert
 
 Choose a model and the permission and reasoning options offered by that engine. Attach files or images, reference project files with `@`, and Skills with `$`. Existing tasks keep their original engine.
 
-After entering text, select **Optimize prompt with AI** beside Send to rewrite it into the composer without sending. Choose an engine, model, and optional rewriting instructions in the auxiliary generation settings; leave instructions empty to use the built-in rules. Optimization uses that configuration independently of the current conversation engine. Review the result before sending. Failure preserves your text, and late results cannot overwrite a draft edited during generation or another task's draft.
+The composer grows with its content up to half the current viewport height. After entering nonempty text, select **Optimize prompt with AI** beside Send to rewrite it into the composer without sending. Choose an engine, model, and optional rewriting instructions in the auxiliary generation settings; leave instructions empty to use the built-in rules. Optimization uses that configuration independently of the current conversation engine. Review the result before sending. Failure preserves your text, and late results cannot overwrite a draft edited during generation or another task's draft.
 
 Open the menu beside Send to save the text as a project todo or a saved prompt without sending a message. Saved prompts default to the current project in project conversations and to global scope in ordinary chat; you can select any project instead. Todos use the current project.
 
@@ -38,7 +38,7 @@ Web citations in replies display their source domain. Hover, click, or focus to 
 
 Open subagent details to inspect the initial task, replies, and execution history in an independently scrollable dialog. New output follows to the bottom by default. Scroll up or select text to pause, and return to the bottom to resume. Load earlier process records when needed.
 
-Consecutive commands, tools, image-view operations, and wait activities share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. Completed turns summarize file changes after the reply.
+Consecutive commands, tools, image-view operations, and wait activities share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. File diffs expand as individual cards during streaming and move into execution history when the turn ends. Disable **Settings → General → Editor → Show file diffs separately** to restore the end-of-turn summary.
 
 Recent history loads first. Load older turns from the top, and expand execution groups for their details. Claude supports forks from completed replies and context compaction through the command menu. Commands and capabilities follow the selected engine.
 
@@ -50,7 +50,7 @@ In a computer browser or desktop, drop files or images onto the center area of t
 
 ## Panes and mobile
 
-Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Both clients use `Alt+Shift+Arrow` (Option on macOS). Open **Help → Keyboard shortcuts** for available actions on your platform.
+Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Both clients use `⌘/Ctrl+Shift+7/8/9/0` for left, up, down, and right. Open **Help → Keyboard shortcuts** for available actions on your platform.
 
 New panes share the available space equally according to the pane count. Drag dividers to resize them. Drafts and queues are independent; files, Git, and the desktop terminal follow the focused task. Navigation from notifications, search, or the task board preserves the layout.
 

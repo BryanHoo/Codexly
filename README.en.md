@@ -33,7 +33,7 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 
 - **Work with Codex or Claude**: configure either independently, or configure both and choose an engine for each new task. Existing tasks keep their engine.
 - **Follow execution**: see streaming replies, commands, tools, plans, and file changes. Respond to approvals and questions above the composer, steer running work, or queue follow-up messages persistently.
-- **Refine and reuse prompts**: optimize a draft with AI, save project todos or prompts from the Send menu, and share prompts across desktop, Web, and mobile browsers on the same host.
+- **Refine and reuse prompts**: optimize a nonempty text draft with AI, save project todos or prompts from the Send menu, and share prompts across desktop, Web, and mobile browsers on the same host.
 - **Reuse earlier questions**: edit a user message into the current composer and send it as a new message. View available Codex session memory summaries in the context panel.
 - **Read long conversations**: sending focuses the new question, scrolling preserves your reading position, and optional sticky messages and navigation anchors help you revisit content. Preview cited sources and open operation or subagent details on demand.
 - **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, clean up archived tasks by date, and export complete conversations as JSON. Handle alerts or clear read notifications in the notification center. Open the task board, extensions, and schedules from the sidebar.
@@ -46,6 +46,8 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 Drop files and images onto a task pane to attach them to that pane independently. Switching between chat and document tabs preserves reading positions. Desktop also renders Mermaid diagrams on demand.
 
 Each engine retains its own models, permissions, and extension capabilities. Claude supports history recovery, live steering, forks, and compaction. Codex-specific sandbox and Review features do not map to Claude permission modes. Available actions follow the selected engine; see [agent setup](docs/getting-started.en.md).
+
+File diffs expand as individual cards during streaming and move into execution history when the turn ends. Disable **Settings → General → Editor → Show file diffs separately** to restore the end-of-turn summary.
 
 ## Quick start
 
