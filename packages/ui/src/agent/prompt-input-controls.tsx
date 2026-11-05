@@ -139,9 +139,10 @@ export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTe
     { className = "", name = "message", onKeyDown, rows = 2, ...props },
     forwardedRef,
   ) {
+    // 随内容自然增高，最多占动态视口的一半；超出后由输入框内部滚动。
     return (
       <InputGroupTextarea
-        className={`max-h-40 min-h-12 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-sm leading-5 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground/60 disabled:cursor-not-allowed ${className}`}
+        className={`max-h-[50dvh] min-h-12 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-sm leading-5 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground/60 disabled:cursor-not-allowed ${className}`}
         name={name}
         onKeyDown={(event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
           onKeyDown?.(event);

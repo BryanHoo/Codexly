@@ -45,7 +45,8 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
 
     const resize = (input: HTMLTextAreaElement) => {
       input.style.height = "auto";
-      input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
+      // 仅测量内容高度，上限交给共享 CSS，让窗口缩放时仍遵循半屏限制。
+      input.style.height = `${input.scrollHeight}px`;
     };
     const getContent = () => {
       const input = inputRef.current;
