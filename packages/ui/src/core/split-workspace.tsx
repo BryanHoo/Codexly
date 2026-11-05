@@ -171,9 +171,9 @@ export function SplitWorkspaceProvider({
     });
   }, []);
   const dismiss = useCallback(
-    (pane: SplitPaneIdentity) => {
+    (pane: SplitPaneIdentity, behavior: "close" | "new-chat" = "close") => {
       if (!enabled || !isSplitWorkspaceDetached(selectionRef.current)) return false;
-      setSelection((latest) => dismissSplitTask(latest, pane, createSplitDraft));
+      setSelection((latest) => dismissSplitTask(latest, pane, createSplitDraft, behavior));
       return true;
     },
     [enabled],

@@ -21,6 +21,39 @@ const selection: SplitWorkspaceSelection = {
 const draft = { projectId: "project", draftId: "empty" };
 
 describe("路由与删除更新分屏选择", () => {
+  it.each([2, 4])("永久删除保留 %s 个窗口的位置、比例和活动焦点", (count) => {
+    const layout = createSplitLayout(panes.slice(0, count).map(splitPaneKey));
+    if (layout === undefined) throw new Error("测试布局不存在");
+    const current = {
+      ...selection,
+      panes: panes.slice(0, count),
+      layout: resizeSplitLayout(layout, "", 0.35),
+    };
+    for (const removed of current.panes) {
+      const createDraft = vi.fn((projectId: string) => ({ projectId, draftId: "new-chat" }));
+      const next = dismissSplitTask(current, removed, createDraft, "new-chat");
+      const replacement = { projectId: removed.projectId, draftId: "new-chat" };
+      expect(next.panes).toEqual(
+        current.panes.map((pane) => (pane === removed ? replacement : pane)),
+      );
+      expect(createDraft).toHaveBeenCalledExactlyOnceWith(removed.projectId);
+      expect(next.activeKey).toBe(
+        current.activeKey === splitPaneKey(removed) ? splitPaneKey(replacement) : current.activeKey,
+      );
+      expect(next.routeKey).toBe(current.routeKey);
+      expect(next.routePaneKey).toBe(current.routePaneKey);
+      if (!current.layout || !next.layout) throw new Error("删除丢失分屏布局");
+      const before = getSplitLayoutCells(current.layout);
+      const after = getSplitLayoutCells(next.layout);
+      for (const pane of current.panes)
+        expect(after.get(splitPaneKey(pane === removed ? replacement : pane))).toEqual(
+          before.get(splitPaneKey(pane)),
+        );
+      // 同一个删除回执重放不能清空已切换的新聊天。
+      expect(dismissSplitTask(next, removed, createDraft, "new-chat")).toBe(next);
+    }
+  });
+
   it("直接任务路由保留窗口数、相邻身份与分割比例", () => {
     const target = { projectId: "temporary", taskId: "search-result" };
     const next = syncSplitTaskRoute(selection, target, "next", true);

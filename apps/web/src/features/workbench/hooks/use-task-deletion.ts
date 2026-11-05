@@ -50,8 +50,11 @@ export function useTaskDeletion({
         forgetTask(task.projectId, task.id);
         removeRetainedTaskRuntime(task.projectId, task.id);
 
-        // 删除成功后仅移除对应分屏；工作区未接管时保留普通单窗口导航。
-        const handled = workspace?.dismiss({ projectId: task.projectId, taskId: task.id });
+        // 删除成功后在原分屏打开同项目的独立新聊天；普通单窗口继续走项目路由。
+        const handled = workspace?.dismiss(
+          { projectId: task.projectId, taskId: task.id },
+          "new-chat",
+        );
         if (!handled && task.projectId === activeProjectId && task.id === activeTaskId) {
           await (task.projectId === TEMPORARY_TASK_SCOPE_ID
             ? navigate({ to: "/temporary" })

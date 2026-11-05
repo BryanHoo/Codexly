@@ -58,10 +58,24 @@ export function dismissSplitTask(
   selection: SplitWorkspaceSelection,
   pane: SplitPaneIdentity,
   createDraft: (projectId: string) => SplitPaneIdentity,
+  behavior: "close" | "new-chat" = "close",
 ): SplitWorkspaceSelection {
   const key = splitPaneKey(pane);
   // 删除/归档按最新任务身份处理，迟到结果不能关闭等待期间切换出来的新聊天。
   if (!selection.panes.some((item) => splitPaneKey(item) === key)) return selection;
+  if (behavior === "new-chat") {
+    // 永久删除只替换任务身份：独立草稿沿用所属项目，邻窗、焦点和手动比例保持不变。
+    const draft = createDraft(pane.projectId);
+    const draftKey = splitPaneKey(draft);
+    return {
+      ...selection,
+      panes: selection.panes.map((item) => (splitPaneKey(item) === key ? draft : item)),
+      activeKey: selection.activeKey === key ? draftKey : selection.activeKey,
+      layout: remapSplitLayout(selection.layout, (layoutKey) =>
+        layoutKey === key ? draftKey : layoutKey,
+      ),
+    };
+  }
   const panes =
     selection.panes.length === 1
       ? [createDraft(pane.projectId)]

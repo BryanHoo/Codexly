@@ -41,6 +41,28 @@ export function measureSplitWorkspaceNavigation(desktop: boolean) {
         </SplitWorkspaceProvider>,
       ),
     );
+  const verifyDeletedTaskReplacement = (deleted: SplitPaneIdentity) => {
+    const before = workspace!;
+    const index = before.panes.findIndex((pane) => splitPaneKey(pane) === splitPaneKey(deleted));
+    const editors = [...host.querySelectorAll("textarea")];
+    let handled = false;
+    flushSync(() => { handled = workspace!.dismiss(deleted, "new-chat"); });
+    const next = workspace!;
+    const draft = next.panes[index];
+    if (!handled || next.panes.length !== before.panes.length || draft?.projectId !== deleted.projectId || !draft.draftId)
+      throw new Error("删除任务未在原分屏打开同项目新聊天");
+    const expectedActive = before.activeKey === splitPaneKey(deleted) ? splitPaneKey(draft) : before.activeKey;
+    if (next.activeKey !== expectedActive) throw new Error("删除任务改变了其他分屏的焦点");
+    // 真正挂载共享 Provider：邻窗输入框及其未发送草稿必须原样保留。
+    editors.forEach((editor, position) => {
+      if (position !== index && host.querySelectorAll("textarea")[position] !== editor)
+        throw new Error("删除任务重新挂载了相邻分屏");
+    });
+    // 恢复夹具任务，继续验证归档原有的窗口收敛路径。
+    flushSync(() => workspace!.replace(draft, deleted));
+    const active = before.panes.find((pane) => splitPaneKey(pane) === before.activeKey);
+    if (active) flushSync(() => workspace!.focus(active));
+  };
   try {
     render(panes[0]!, "original");
     for (const pane of panes.slice(1)) flushSync(() => workspace!.add(pane));
@@ -67,7 +89,9 @@ export function measureSplitWorkspaceNavigation(desktop: boolean) {
     const duplicate = { handled, count: workspace!.panes.length, activeKey: workspace!.activeKey,
       restoredToActive: document.activeElement?.getAttribute("data-split-pane") === workspace!.activeKey,
     };
-    // 删除最初 URL 的任务及当前活动任务，分别验证非活动、活动窗口收敛。
+    verifyDeletedTaskReplacement(panes[0]!);
+    verifyDeletedTaskReplacement(panes[3]!);
+    // 归档最初 URL 的任务及当前活动任务，分别验证非活动、活动窗口收敛。
     let removed = false;
     flushSync(() => {
       removed = workspace!.dismiss(panes[0]!);
@@ -79,6 +103,8 @@ export function measureSplitWorkspaceNavigation(desktop: boolean) {
     };
     flushSync(() => workspace!.dismiss(panes[3]!));
     const activeRemoval = { count: workspace!.panes.length, activeKey: workspace!.activeKey };
+    verifyDeletedTaskReplacement(target);
+    verifyDeletedTaskReplacement(panes[2]!);
     const remainingEditor = host.querySelectorAll("textarea")[1];
     flushSync(() => workspace!.dismiss(target));
     const single = {

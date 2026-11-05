@@ -13,6 +13,9 @@
 @source "../../../../packages/ui/src";
 @source not "../../**/*.test.*";
 @source not "../../../../packages/ui/src/**/*.test.*";
+/* Mermaid 的工具栏和缩放控件来自依赖包；必须扫描其类名，避免生产界面丢失定位与间距。 */
+@source "../../../node_modules/streamdown/dist/*.js";
+@source "../../../node_modules/@streamdown/mermaid/dist/*.js";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
 

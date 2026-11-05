@@ -81,6 +81,70 @@
   margin-block: 1.75em;
   border-color: var(--ui-color-separator);
 }
+
+/* 图表直接嵌入聊天；操作层脱离文档流，不再靠负外边距抵消高度。
+   两端共用紧凑标题行，画布不叠加第二层卡片边框。 */
+[data-streamdown="mermaid-block"] {
+  position: relative;
+  gap: 0.5rem;
+  min-width: 0;
+  border: 1px solid var(--ui-color-separator);
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-raised);
+  padding: 0.5rem;
+}
+[data-streamdown="mermaid-block"] > :first-child {
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  padding-inline: 0.25rem 6.5rem;
+  color: var(--ui-color-text-muted);
+}
+[data-streamdown="mermaid-block"] > :has([data-streamdown="mermaid-block-actions"]) {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
+  height: 2rem;
+  margin: 0;
+}
+[data-streamdown="mermaid-block-actions"] {
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  gap: 0.25rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  backdrop-filter: none;
+}
+[data-streamdown="mermaid-block-actions"] button {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius-control);
+  padding: 0;
+  color: var(--ui-color-text-muted);
+}
+[data-streamdown="mermaid-block-actions"] button:hover {
+  background: var(--ui-color-control-hover);
+  color: var(--ui-color-text);
+}
+[data-streamdown="mermaid-block"] > :last-child {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+}
+/* 显式给图像容器可用宽度，避免 flex 中百分比 SVG 回落到默认 300px 而缩成缩略图。
+   仅作用于聊天画布，全屏仍沿用上游自己的尺寸与缩放策略。 */
+[data-streamdown="mermaid-block"] [role="img"] {
+  width: 100%;
+  min-width: 0;
+}
+[data-streamdown="mermaid-block"] [role="img"] > svg {
+  height: auto;
+}
 /* 首尾不积累空白，流式预览也遵循相同边界。 */
 .markdown-typography > :first-child {
   margin-block-start: 0;

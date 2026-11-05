@@ -45,6 +45,8 @@
 
 ## Mermaid 图表
 
+- 桌面与 Web 均须通过 Tailwind `@source` 扫描 `streamdown/dist/*.js` 和 `@streamdown/mermaid/dist/*.js`，避免依赖中的工具栏定位、缩放控件与间距丢失。聊天图表复用 `streaming-markdown.css` 的紧凑同排工具栏及画布宽度规则，不能让百分比 SVG 在 flex 容器中回落为默认 300px 缩略图。浏览器回归须导入真实全局样式，并验证宽窄窗口、图表尺寸、工具栏居中、缩放重置和全屏退出。
+
 - 两端消息正文统一注册 `@codexly/ui/agent/deferred-mermaid`，只在渲染图表时加载引擎，共用在途加载并允许加载失败后重试；不得退回普通代码块。
 - 回归覆盖静态正文、流式快照、未闭合围栏及回合结束，使用截图中的中文标签和分支流程图验证实际 SVG。入口为 `desktop/src/shared/components/agent/message-response-mermaid.test.ts` 与 `desktop/tests/browser/mermaid.browser.test.tsx`（Chromium / WebKit，包含 Web 调用者）。
 - Mermaid 的 `@mermaid-js/parser` 含不可继续按模块拆分的单个核心模块，现代 / Legacy 构建约 662 KB；桌面异步块上限为 675,000 字节。首屏、工作台、Markdown、高亮及编辑器场景预算保持原值，图表引擎不得进入静态依赖闭包。

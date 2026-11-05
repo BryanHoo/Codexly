@@ -6,6 +6,8 @@
 
 ## 契约与检查项
 
+- [ ] Web 与桌面永久删除已打开的任务时，通过共享 `dismiss(pane, "new-chat")` 原位替换为所属项目的独立草稿，保持窗口数量、位置、手动比例、邻窗草稿及非目标窗口焦点；迟到或重复回执不得覆盖已切换的内容。归档仍使用默认移除窗口行为。回归入口为 `packages/frontend-core/src/split-workspace-selection.test.ts` 与桌面 `split-workspace-navigation.browser.test.tsx`（两端模式、Chromium / WebKit、两屏 / 四屏及活动 / 非活动窗口）。
+
 - [ ] 回合耗时展示共用 UI 的 `useTurnProcessingTime`：页面隐藏立即停止秒级刷新，恢复按当前绝对时间校准；终态与卸载释放订阅，分屏共用单一定时器。回归入口为 `packages/ui/src/agent/turn-processing-clock.test.ts`。
 
 - [ ] 经 `@codexly/client` 访问 HTTP / WebSocket；不得直接导入 Server、Core 或 Provider。
