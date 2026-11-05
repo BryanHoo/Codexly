@@ -211,6 +211,40 @@ export function taskIdentityContract(createStore: (initial: Response) => Contrac
       }
     },
   );
+  test.each(["item.started", "item.completed", "turn.completed"] as const)(
+    "%s 使用已知旧别名返回时不能在助手回复后追加第二条回答",
+    (type) => {
+      const answer = {
+        ...message("native-answer", "范围\n整个项目", ["persisted-answer"]),
+        role: "user" as const,
+      };
+      const tail = message("tail", "继续执行");
+      const store = createStore(response([answer, tail]));
+      const late = { ...answer, id: "persisted-answer", identityAliases: [] };
+      for (let sequence = 1; sequence <= 3; sequence++) {
+        store.getState().applyEvents([
+          type === "turn.completed"
+            ? {
+                ...envelope(sequence),
+                type,
+                payload: {
+                  turn: { ...fixtureTurn(response([late, tail])), status: "completed" },
+                },
+              }
+            : { ...completed(late, sequence), type },
+        ]);
+        const snapshot = store.getState().reconstructSnapshot();
+        expect(snapshot?.turns[0]?.items).toHaveLength(2);
+        expect(snapshot?.turns[0]?.items[1]?.id).toBe("tail");
+        if (type !== "turn.completed") {
+          const authoritative = createStore(
+            response([{ ...late, identityAliases: ["native-answer"] }, tail], "session", sequence),
+          );
+          expect(store.getState().retainedBytes).toBe(authoritative.getState().retainedBytes);
+        }
+      }
+    },
+  );
   test("别名接管释放旧正文的内存预算", () => {
     const canonical = message("canonical", "完成", ["old"]);
     const store = createStore(response([message("old", "长正文".repeat(10_000)), message("tail")]));

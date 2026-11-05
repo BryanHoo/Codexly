@@ -31,6 +31,7 @@ export type TaskEventMetadata = Pick<
 /** 只声明 reducer 实际读写的 Store 端口，Zustand、IPC 和网络由平台持有。 */
 export interface TaskEventItemStore<Item, Reasoning> {
   read(): Item;
+  peek(): Item;
   replace(item: Item): void;
   appendDelta(event: TaskDeltaEvent<Reasoning>): boolean;
 }

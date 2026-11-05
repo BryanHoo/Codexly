@@ -8,22 +8,24 @@ interface IdentityItem {
   identityAliases?: readonly string[];
 }
 
-/** 同一实体的正文由新事件更新，已确认的身份关系不能因事件省略别名而丢失。 */
-export function retainMessageAliases<Item extends IdentityItem>(
-  current: Item | undefined,
+/** 只读取条目元数据查找已知身份，不展开历史正文；完整消息事件才调用此路径。 */
+export function findMessageAliasKeys<Item extends IdentityItem>(
+  state: {
+    itemKeysByTurnId: Readonly<Record<string, readonly string[]>>;
+    itemStoresByKey: { get(key: string): { peek(): Item } | undefined };
+  },
+  turnId: string,
   incoming: Item,
-): Item {
-  if (
-    current?.type !== "message" ||
-    incoming.type !== "message" ||
-    current.id !== incoming.id ||
-    !current.identityAliases?.length
-  )
-    return incoming;
-  const aliases = new Set(incoming.identityAliases);
-  for (const alias of current.identityAliases) aliases.add(alias);
-  aliases.delete(incoming.id);
-  return { ...incoming, identityAliases: [...aliases] };
+): string[] {
+  if (incoming.type !== "message") return [];
+  const identities = [incoming.id, ...(incoming.identityAliases ?? [])];
+  return (state.itemKeysByTurnId[turnId] ?? []).filter((key) => {
+    const current = state.itemStoresByKey.get(key)?.peek();
+    return (
+      current?.type === "message" &&
+      identities.some((id) => current.id === id || current.identityAliases?.includes(id))
+    );
+  });
 }
 
 export function resolveMessageAliases<Item extends IdentityItem>(
@@ -67,10 +69,10 @@ export function applyMessageAliases(
   return [...new Set(keys.map((key) => (aliases.has(key) ? canonicalKey : key)))];
 }
 
-export function retainSnapshotTurnItems<Item extends IdentityItem>(
+/** 快照及终态批次共同继承已确认的双向身份关系。 */
+export function inheritMessageAliases<Item extends IdentityItem>(
   current: readonly Item[],
   incoming: readonly Item[],
-  turnId: string,
 ): Item[] {
   // 身份关联属于整个会话，后续摘要省略别名不能撤销它。先索引已有关系，
   // 让原生历史与持久回答交替返回各自 ID 时仍能原位接管，不依赖正文猜测。
@@ -80,7 +82,7 @@ export function retainSnapshotTurnItems<Item extends IdentityItem>(
     currentByIdentity.set(item.id, item);
     for (const alias of item.identityAliases ?? []) currentByIdentity.set(alias, item);
   }
-  const normalized = incoming.map((item) => {
+  return incoming.map((item) => {
     if (item.type !== "message") return item;
     const identities = [item.id, ...(item.identityAliases ?? [])];
     const aliases = new Set(item.identityAliases);
@@ -93,6 +95,14 @@ export function retainSnapshotTurnItems<Item extends IdentityItem>(
     aliases.delete(item.id);
     return aliases.size === 0 ? item : { ...item, identityAliases: [...aliases] };
   });
+}
+
+export function retainSnapshotTurnItems<Item extends IdentityItem>(
+  current: readonly Item[],
+  incoming: readonly Item[],
+  turnId: string,
+): Item[] {
+  const normalized = inheritMessageAliases(current, incoming);
   const incomingById = new Map(normalized.map((item) => [item.id, item]));
   const retained = resolveMessageAliases(current, normalized, turnId).map((item) => {
     const authoritative = incomingById.get(item.id);

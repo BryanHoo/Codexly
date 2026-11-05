@@ -1,8 +1,9 @@
 import type { TaskEventModel } from "@codexly/protocol";
 import {
   applyMessageAliases,
+  findMessageAliasKeys,
+  inheritMessageAliases,
   resolveMessageAliases,
-  retainMessageAliases,
 } from "./message-identity.js";
 import { createTaskItemKey, retainPendingRequest } from "./task-state.js";
 import { retainTurnItemTimings, recordToolItemTiming } from "./task-event-timing.js";
@@ -83,11 +84,8 @@ export function createTaskEventReducer<
       const item = state.itemStoresByKey.get(key)?.read();
       return item === undefined ? [] : [item];
     });
-    const currentById = new Map(currentItems.map((item) => [item.id, item]));
     // 终态摘要可能省略服务端补充的别名，先保留身份再执行原位归并。
-    terminalItems = terminalItems.map((item) =>
-      retainMessageAliases(currentById.get(item.id), item),
-    );
+    terminalItems = inheritMessageAliases(currentItems, terminalItems);
     const normalizedCurrentItems = resolveMessageAliases(currentItems, terminalItems, turnId);
     const currentItemIds = new Set(normalizedCurrentItems.map((item) => item.id));
     const terminalItemsById = new Map(terminalItems.map((item) => [item.id, item]));
@@ -320,10 +318,12 @@ export function createTaskEventReducer<
         }
         const itemKey = createTaskItemKey(event.turnId, event.itemId);
         const currentItemStore = state.itemStoresByKey.get(itemKey);
-        const item = retainMessageAliases(
-          event.payload.item.type === "message" ? currentItemStore?.read() : undefined,
-          event.payload.item,
+        // 迟到事件可能以旧别名作为主 ID；先继承所有已确认身份，再原位替换。
+        const knownItems = findMessageAliasKeys(state, event.turnId, event.payload.item).flatMap(
+          (key) => state.itemStoresByKey.get(key)?.peek() ?? [],
         );
+        const item =
+          inheritMessageAliases(knownItems, [event.payload.item])[0] ?? event.payload.item;
         const currentItemIds = applyMessageAliases(state, event.turnId, item);
         const itemAlreadyExists = currentItemIds.includes(itemKey);
         const submittedUserItemId = `submitted-user-${event.turnId}`;

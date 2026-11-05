@@ -1,3 +1,4 @@
+import { findMessageAliasKeys } from "@codexly/frontend-core/message-identity";
 import {
   createInterruptedReplyRecovery,
   browserInterruptedReplyStorage,
@@ -354,6 +355,8 @@ function getEventItemKeys(state: TaskStoreState, event: AgentEvent): readonly st
   }
   const itemKeys = [createTaskItemKey(event.turnId, event.itemId)];
   if (event.type === "item.started" || event.type === "item.completed") {
+    // 旧别名事件也会删除当前规范实体，内存预算必须同时追踪被接管的键。
+    itemKeys.push(...findMessageAliasKeys(state, event.turnId, event.payload.item));
     if (event.payload.item.type === "message") {
       for (const alias of event.payload.item.identityAliases ?? []) {
         itemKeys.push(createTaskItemKey(event.turnId, alias));
