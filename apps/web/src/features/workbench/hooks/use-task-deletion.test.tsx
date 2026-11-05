@@ -60,10 +60,14 @@ describe("删除任务时保留分屏工作区", () => {
     mocks.unsubscribeTask.mockResolvedValue(undefined);
   });
 
-  it.each(["deleted", "other"])("删除 %s 路由下的分屏任务只关闭对应窗口", async (active) => {
+  it.each(["deleted", "other"])("删除 %s 路由下的分屏任务在原窗口打开新聊天", async (active) => {
     mocks.dismiss.mockReturnValue(true);
     await confirm(active);
-    expect(mocks.dismiss).toHaveBeenCalledWith({ projectId: task.projectId, taskId: task.id });
+    // 永久删除保留分屏位置，显式使用同项目的新聊天接管被删除任务。
+    expect(mocks.dismiss).toHaveBeenCalledWith(
+      { projectId: task.projectId, taskId: task.id },
+      "new-chat",
+    );
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.removeRuntime).toHaveBeenCalledWith(task.projectId, task.id);
     expect(mocks.unsubscribeTask).toHaveBeenCalledWith(task.projectId, task.id);

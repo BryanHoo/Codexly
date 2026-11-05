@@ -37,17 +37,19 @@ for (const platform of ["desktop", "web"] as const) {
         const workspace = sections.find((section) => section.textContent?.includes(labels.sections.workspace))!;
         const generalBox = sections[0]!.getBoundingClientRect();
         const workspaceBox = workspace.getBoundingClientRect();
-        if (width > 720) {
-          expect(box.width).toBeGreaterThan(780);
-          expect(Math.abs(generalBox.top - workspaceBox.top)).toBeLessThan(1);
-          expect(workspaceBox.left).toBeGreaterThan(generalBox.right);
-          expect(scroll.scrollHeight).toBeLessThanOrEqual(scroll.clientHeight);
-        } else {
-          expect(workspaceBox.top).toBeGreaterThan(generalBox.bottom);
-          expect(scroll.scrollHeight).toBeGreaterThan(scroll.clientHeight);
-          scroll.scrollTop = scroll.scrollHeight;
-          expect(screen.getByRole("button", { name: labels.close, exact: true }).element().getBoundingClientRect().top).toBeGreaterThanOrEqual(box.top);
-        }
+        // 所有宽度都执行同一组断言，参数只决定预期布局，避免分支跳过检查。
+        expect({
+          wideDialog: box.width > 780,
+          sameRow: Math.abs(generalBox.top - workspaceBox.top) < 1,
+          nextColumn: workspaceBox.left > generalBox.right,
+          nextRow: workspaceBox.top > generalBox.bottom,
+          scrolls: scroll.scrollHeight > scroll.clientHeight,
+        }).toEqual(width > 720
+          ? { wideDialog: true, sameRow: true, nextColumn: true, nextRow: false, scrolls: false }
+          : { wideDialog: false, sameRow: false, nextColumn: false, nextRow: true, scrolls: true });
+        // 两种布局都尝试滚到底部，关闭按钮始终留在标题区域。
+        scroll.scrollTop = scroll.scrollHeight;
+        expect(screen.getByRole("button", { name: labels.close, exact: true }).element().getBoundingClientRect().top).toBeGreaterThanOrEqual(box.top);
         await screen.getByRole("button", { name: labels.close, exact: true }).click();
         await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
       });
