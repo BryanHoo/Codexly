@@ -9,7 +9,7 @@ test("Web 帮助展示当前平台可用快捷键并支持关闭 @cross-browser"
   await expect(dialog.getByText("全局搜索", { exact: true })).toBeVisible();
   const splitRight = dialog.getByRole("listitem").filter({ hasText: "向右分屏" });
   const mac = await page.evaluate(() => /mac/i.test(navigator.platform));
-  await expect(splitRight).toContainText(mac ? "⌥Shift→" : "AltShift→");
+  await expect(splitRight).toContainText(mac ? "⌘Shift0" : "CtrlShift0");
   // Web 未注册桌面全局命令，不能将浏览器的原生快捷键误报为应用功能。
   await expect(dialog.getByText("新建任务", { exact: true })).toHaveCount(0);
   await expect(dialog.getByText("显示或隐藏终端", { exact: true })).toHaveCount(0);
@@ -36,6 +36,6 @@ test("分屏采用简短按键并保留旧 Chrome 标签页组合 @cross-browser
     return event.defaultPrevented;
   }, mac);
   expect(oldPrevented).toBe(false);
-  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await page.keyboard.press("ControlOrMeta+Shift+0");
   await expect(page.locator("[data-document-workspace]")).toHaveCount(2);
 });

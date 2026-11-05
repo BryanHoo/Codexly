@@ -157,10 +157,10 @@ export function getSplitLayoutDividers(layout: SplitLayout): readonly SplitLayou
 
 // 匹配和帮助面板共用方向映射，修改按键时避免显示内容与实际行为脱节。
 export const SPLIT_SHORTCUTS = [
-  { direction: "up", key: "ArrowUp", label: "↑" },
-  { direction: "down", key: "ArrowDown", label: "↓" },
-  { direction: "left", key: "ArrowLeft", label: "←" },
-  { direction: "right", key: "ArrowRight", label: "→" },
+  { direction: "up", key: "Digit8", label: "8" },
+  { direction: "down", key: "Digit9", label: "9" },
+  { direction: "left", key: "Digit7", label: "7" },
+  { direction: "right", key: "Digit0", label: "0" },
 ] as const;
 
 export function getSplitShortcutDisplayKeys(
@@ -169,7 +169,7 @@ export function getSplitShortcutDisplayKeys(
 ): readonly string[] {
   const shortcut = SPLIT_SHORTCUTS.find((candidate) => candidate.direction === direction);
   if (shortcut === undefined) return [];
-  return [mac ? "⌥" : "Alt", "Shift", shortcut.label];
+  return [mac ? "⌘" : "Ctrl", "Shift", shortcut.label];
 }
 
 export function getSplitShortcutDirection(
@@ -179,22 +179,23 @@ export function getSplitShortcutDirection(
     | "ctrlKey"
     | "metaKey"
     | "shiftKey"
+    | "code"
     | "key"
     | "defaultPrevented"
     | "isComposing"
     | "repeat"
   >,
+  mac: boolean,
 ): SplitDirection | undefined {
   if (
     event.defaultPrevented ||
     event.isComposing ||
     event.repeat ||
-    !event.altKey ||
+    event.altKey ||
     !event.shiftKey ||
-    event.ctrlKey ||
-    event.metaKey
+    (mac ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey)
   )
     return undefined;
-  // 两端和所有系统共用组合，保留浏览器的 Cmd/Ctrl+Alt+方向键及 Alt+D 默认行为。
-  return SPLIT_SHORTCUTS.find((shortcut) => shortcut.key === event.key)?.direction;
+  // Shift 会改变数字键的 key 值；使用物理键码统一各键盘布局，并避开系统截图及方向键编辑组合。
+  return SPLIT_SHORTCUTS.find((shortcut) => shortcut.key === event.code)?.direction;
 }

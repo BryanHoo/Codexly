@@ -118,7 +118,7 @@ for (const width of [1280, 390]) {
       await viewport.evaluate((node) => node.scrollWidth - node.clientWidth),
     ).toBeLessThanOrEqual(1);
     if (width > 760) {
-      await page.keyboard.press("Alt+Shift+ArrowRight");
+      await page.keyboard.press("ControlOrMeta+Shift+0");
       const pane = page.locator("[data-split-pane]").filter({ has: viewport });
       await expect(pane.getByRole("button", { name: "展开输入框", exact: true })).toBeVisible();
       await pane.getByRole("button", { name: "回到底部", exact: true }).click();

@@ -65,3 +65,9 @@
 ## 桌面辅助窗口边界
 
 - 任务小窗已移除；不再创建任务窗口、保留专有订阅或投影消息。独立文件窗口和桌宠继续沿用各自懒加载入口与最小 ACL。窗口权限变更运行 `desktop/scripts/tauri-acl.test.mjs` 核对注册、调用与授权一致。
+
+## 快捷键帮助与分屏
+
+- 2026-11-05 按用户要求，分屏使用一次按下、最多两个修饰键的 `Cmd/Ctrl+Shift+7/8/9/0`，分别向左、上、下、右分屏；替代旧 UI 索引和使用文档中的 Alt+Shift+方向键约定。匹配和展示共用 `frontend-core/split-layout.ts`，以物理数字键码避免 Shift 符号差异，不抢占方向键编辑、标签移动及浏览器组合。
+- 两端共用快捷键弹窗，宽屏双栏分组、窄屏单栏；视口限制高度，正文独立滚动，标题和关闭入口固定可见。仅列出平台实际支持的命令，作用范围在分组说明中展示。
+- 验证入口为 `desktop/tests/browser/keyboard-shortcuts.browser.test.tsx`（Chromium / WebKit、中英文、明暗主题、360px / 1024px）和 Web `app-shell-keyboard-shortcuts.spec.ts`。

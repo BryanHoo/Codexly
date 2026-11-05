@@ -114,38 +114,44 @@ describe("方向分屏布局", () => {
 
 describe("分屏快捷键", () => {
   const event = {
-    altKey: true,
+    altKey: false,
     ctrlKey: false,
-    metaKey: false,
+    metaKey: true,
     shiftKey: true,
-    key: "ArrowLeft",
+    key: ")",
+    code: "Digit0",
     defaultPrevented: false,
     isComposing: false,
     repeat: false,
   };
   it.each([
-    ["ArrowUp", "up"],
-    ["ArrowDown", "down"],
-    ["ArrowLeft", "left"],
-    ["ArrowRight", "right"],
-  ])("所有系统均使用 Alt+Shift+方向键 %s", (key, direction) => {
-    expect(getSplitShortcutDirection({ ...event, key })).toBe(direction);
+    ["Digit8", "up"],
+    ["Digit9", "down"],
+    ["Digit7", "left"],
+    ["Digit0", "right"],
+  ])("一次组合按键分屏 %s", (code, direction) => {
+    expect(getSplitShortcutDirection({ ...event, code }, true)).toBe(direction);
+    expect(
+      getSplitShortcutDirection({ ...event, code, ctrlKey: true, metaKey: false }, false),
+    ).toBe(direction);
   });
-  it("Mac 和其它系统均展示 Shift 与方向键", () => {
-    expect(getSplitShortcutDisplayKeys("right", true)).toEqual(["⌥", "Shift", "→"]);
-    expect(getSplitShortcutDisplayKeys("right", false)).toEqual(["Alt", "Shift", "→"]);
+  it("物理键码不受 Shift 输出符号影响", () => {
+    expect(getSplitShortcutDirection({ ...event, key: "=" }, true)).toBe("right");
+  });
+  it("展示一次按下的两个修饰键组合", () => {
+    expect(getSplitShortcutDisplayKeys("right", true)).toEqual(["⌘", "Shift", "0"]);
+    expect(getSplitShortcutDisplayKeys("right", false)).toEqual(["Ctrl", "Shift", "0"]);
   });
   it.each([
-    { altKey: false },
+    { altKey: true },
     { shiftKey: false },
+    { metaKey: false },
+    { ctrlKey: true },
     { repeat: true },
     { isComposing: true },
     { defaultPrevented: true },
-    { metaKey: true },
-    { ctrlKey: true },
-    { key: "d" },
-    { key: "ArrowLeft", metaKey: true, shiftKey: false },
-  ])("忽略不匹配、输入法及旧 Chrome 冲突组合 %o", (override) => {
-    expect(getSplitShortcutDirection({ ...event, ...override })).toBeUndefined();
+    { code: "ArrowLeft", key: "ArrowLeft" },
+  ])("保留编辑、浏览器组合，忽略不匹配及输入法事件 %o", (override) => {
+    expect(getSplitShortcutDirection({ ...event, ...override }, true)).toBeUndefined();
   });
 });
