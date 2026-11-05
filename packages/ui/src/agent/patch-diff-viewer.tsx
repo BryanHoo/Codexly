@@ -21,6 +21,11 @@ const diffOptions = {
   themeType: "system",
   unsafeCSS: `
     pre { font-family: var(--ui-font-family-mono); font-size: var(--ui-font-size-body-small); }
+    /* 由行内卡片注入紧凑尺寸，Shadow DOM 内覆盖分隔行；独立预览保留默认密度。 */
+    [data-separator="line-info-basic"] {
+      height: var(--codexly-diff-separator-height, 32px);
+      font-size: var(--codexly-diff-separator-font-size, inherit);
+    }
   `,
 } satisfies NonNullable<FileDiffProps<undefined>["options"]>;
 

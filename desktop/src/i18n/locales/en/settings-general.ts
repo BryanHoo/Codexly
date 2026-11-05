@@ -1,4 +1,6 @@
 export const generalSettings = {
+  independentFileDiffs: "Show file diffs separately",
+  independentFileDiffsDescription: "Show each file diff in streaming replies outside tool and command groups. After the turn completes, view diffs by expanding the execution process.",
   stickyPrompt: "Sticky messages",
   stickyPromptDescription: "Show the current user message summary at the top while scrolling. Click to view the original message.",
   messageNavigation: "Message navigation anchors",

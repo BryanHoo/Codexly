@@ -85,6 +85,9 @@ export function GeneralSettingsPanel({
           <SettingsField label={t("general.messageNavigation")} description={t("general.messageNavigationDescription")}>
             <ConversationDisplaySwitch store={conversationDisplayPreferences} preference="navigation" label={t("general.messageNavigation")} />
           </SettingsField>
+          <SettingsField label={t("general.independentFileDiffs")} description={t("general.independentFileDiffsDescription")}>
+            <ConversationDisplaySwitch store={conversationDisplayPreferences} preference="independentFileDiffs" label={t("general.independentFileDiffs")} />
+          </SettingsField>
           <SettingsField label={t("fields.followUpMessages")} description={t("general.followUpDescription")}>
             <div className="grid w-40 grid-cols-2 rounded-control bg-control p-0.5" role="group" aria-label={t("fields.followUpMessages")}>
               {(["queue", "steer"] as const).map((value) => (

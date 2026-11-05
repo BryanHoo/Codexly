@@ -231,6 +231,9 @@ export const conversation = {
     orchestrating: "正在协调子代理",
   },
   timeline: {
+    fileDiffStatus: {pending: "等待修改", running: "正在修改", completed: "已应用", failed: "修改失败", declined: "已拒绝", interrupted: "已中断"},
+    fileDiffOpen: "打开文件差异",
+    fileDiffLoading: "正在加载差异…",
     editMessage: "编辑为新消息",
     reasoning: "推理摘要",
     approvalReview: {

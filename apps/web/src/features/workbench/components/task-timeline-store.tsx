@@ -1,3 +1,5 @@
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { StorePendingRequestList } from "./task-timeline-pending-requests.js";
 export { StorePendingRequestList } from "./task-timeline-pending-requests.js";
 import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
@@ -78,6 +80,10 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   );
   const itemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
   const turn = useMemo(() => mergeTimelineTurns(sourceTurns), [sourceTurns]);
+  const independentFileDiffs = useConversationDisplayPreference(
+    conversationDisplayPreferences,
+    "independentFileDiffs",
+  );
   const [processExpanded, setProcessExpanded] = useState(false);
   if (turn === undefined) return null;
   const itemStoresByKey = store.getState().itemStoresByKey;
@@ -94,6 +100,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
         keys.flatMap((key) => itemStoresByKey.get(key)?.peek() ?? []),
         source.status,
         hasNextSubmission || index < sourceTurns.length - 1,
+        independentFileDiffs,
       ),
     );
     for (const key of keys) {

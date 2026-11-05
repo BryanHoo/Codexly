@@ -1,3 +1,11 @@
+import type { AgentItem, AgentTurn } from "@/protocol/index.js";
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
+import { Task, TaskContent, TaskItem, TaskTrigger } from "../../../shared/components/agent/task.js";
+import { isVisibleProjectPath } from "@codexly/frontend-core/project-file-visibility";
+import type { ReactNode } from "react";
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
+import { lazy, Suspense, memo } from "react";
 import { ChangedFilesCard as SharedChangedFilesCard } from "@codexly/ui/agent/changed-files-card";
 import { FileChange } from "@codexly/ui/agent/file-change";
 
@@ -77,4 +85,80 @@ export function ChangedFilesCard({
       })}
     />
   );
+}
+
+// 独立展示关闭时不加载卡片模块，避免把新增 UI 计入工作区和编辑器的静态依赖。
+const FileDiffCard = lazy(() => import("@codexly/ui/agent/file-diff-card").then(module => ({ default: module.FileDiffCard })));
+const InlinePatchPreview = lazy(() => import("../../diff/patch-diff-viewer.js"));
+
+const TimelineFileDiff = memo(function TimelineFileDiff({ change, status, onOpen }: Readonly<{
+  change: AgentFileChange;
+  status: string;
+  onOpen: (change: AgentFileChange) => void;
+}>) {
+  const stats = getFileChangeStats(change);
+  const unavailable = i18n.t("diff.previewUnavailable", { ns: "workbench" });
+  return <Suspense fallback={null}><FileDiffCard path={change.path} additions={stats.additions} removals={stats.removals}
+    status={status} statusLabel={i18n.t(`timeline.fileDiffStatus.${status}`, { ns: "conversation" })}
+    openLabel={i18n.t("timeline.fileDiffOpen", { ns: "conversation" })}
+    onOpen={() => { onOpen(change); }}>
+    <Suspense fallback={<div className="min-h-12 px-3 py-2 text-body-small text-muted-foreground" role="status">{i18n.t("timeline.fileDiffLoading", { ns: "conversation" })}</div>}>
+      {change.diff.trim() ? <InlinePatchPreview change={change} /> : <div className="px-3 py-2 text-body-small text-muted-foreground">{unavailable}</div>}
+    </Suspense>
+  </FileDiffCard></Suspense>;
+});
+
+export function TimelineFileChangePresentation({ item, turnStatus, onOpen, children }: Readonly<{
+  item: { status: string; changes: readonly AgentFileChange[] };
+  turnStatus: string;
+  onOpen: (change: AgentFileChange) => void;
+  children: ReactNode;
+}>) {
+  const independent = useConversationDisplayPreference(conversationDisplayPreferences, "independentFileDiffs");
+  if (!independent) return children;
+  // 中断时没有完成事件的文件修改不能继续标为运行；已应用修改仍保留真实状态。
+  const status = turnStatus !== "running" && (item.status === "pending" || item.status === "running") ? "interrupted" : item.status;
+  return <div className="min-w-0 space-y-2" data-independent-file-diffs="">
+    {item.changes.length === 0 ? <div className="text-body-small text-muted-foreground" role="status">{i18n.t(`timeline.fileDiffStatus.${status}`, { ns: "conversation" })}</div> : null}
+    {item.changes.filter(change => isVisibleProjectPath(change.path)).map(change => <TimelineFileDiff key={change.path} change={change} status={status} onOpen={onOpen} />)}
+  </div>;
+}
+
+export function LegacyTimelineFileChange({ item, onOpenFileDiff, turnStatus }: Readonly<{
+  item: Extract<AgentItem, { type: "file_change" }>;
+  onOpenFileDiff: (change: AgentFileChange) => void;
+  turnStatus: AgentTurn["status"];
+}>) {
+
+      if (item.status === "completed") {
+        // 回合运行期间展示可打开的修改；终态文件汇总由回复末尾统一呈现。
+        return turnStatus === "running" ? (
+          <div className="space-y-1">
+            {item.changes.map((change) => (
+              <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
+            ))}
+          </div>
+        ) : null;
+      }
+      if (item.status !== "pending" && item.status !== "running") return null;
+      return (
+        <Task collapsible={item.changes.length > 0} status="in_progress">
+          <TaskTrigger
+            title={i18n.t("timeline.editingFiles", {
+              count: item.changes.length,
+              ns: "conversation",
+            })}
+          />
+          {item.changes.length === 0 ? null : (
+            <TaskContent>
+              {item.changes.map((change) => (
+                <TaskItem className="break-all font-mono" key={change.path}>
+                  {formatDisplayPath(change.path)}
+                </TaskItem>
+              ))}
+            </TaskContent>
+          )}
+        </Task>
+      );
+
 }

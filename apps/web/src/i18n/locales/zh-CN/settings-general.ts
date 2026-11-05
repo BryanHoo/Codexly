@@ -1,4 +1,7 @@
 export const generalSettings = {
+  independentFileDiffs: "独立显示文件差异",
+  independentFileDiffsDescription:
+    "在流式回复中展开显示每个文件的具体修改，独立于工具和命令折叠；回合完成后收入执行过程。",
   stickyPrompt: "消息吸顶",
   stickyPromptDescription: "滚动阅读时，在顶部显示当前用户消息的摘要，点击可回看原文。",
   messageNavigation: "消息目录锚点",

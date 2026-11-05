@@ -154,6 +154,16 @@ export function GeneralSettingsPanel({
             />
           </SettingsField>
           <SettingsField
+            label={t("general.independentFileDiffs")}
+            description={t("general.independentFileDiffsDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="independentFileDiffs"
+              label={t("general.independentFileDiffs")}
+            />
+          </SettingsField>
+          <SettingsField
             label={t("fields.followUpMessages")}
             description={t("general.followUpDescription")}
           >

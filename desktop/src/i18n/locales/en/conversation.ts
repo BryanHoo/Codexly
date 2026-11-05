@@ -231,6 +231,9 @@ export const conversation = {
     orchestrating: "Coordinating subagents",
   },
   timeline: {
+    fileDiffStatus: {pending: "Pending", running: "Editing", completed: "Applied", failed: "Failed", declined: "Declined", interrupted: "Interrupted"},
+    fileDiffOpen: "Open file diff",
+    fileDiffLoading: "Loading diff…",
     editMessage: "Edit as new message",
     reasoning: "Reasoning summary",
     approvalReview: {

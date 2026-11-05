@@ -16,12 +16,13 @@ export function filterRenderableTimelineItemKeys(
   itemKeys: readonly string[],
   itemStoresByKey: ReadonlyMap<string, TaskItemStore>,
   turnStatus = "running",
+  independentFileDiffs = false,
 ): string[] {
   return itemKeys.filter((itemKey) => {
     const itemStore = itemStoresByKey.get(itemKey);
     const baseItem = itemStore?.peek();
     if (baseItem?.type === "file_change")
-      return isInlineFileChangeVisible(baseItem.status, turnStatus);
+      return independentFileDiffs || isInlineFileChangeVisible(baseItem.status, turnStatus);
     if (itemStore?.peek().type !== "reasoning") {
       return true;
     }
@@ -32,6 +33,7 @@ export function filterRenderableTimelineItemKeys(
 export function groupConsecutiveTimelineOperations(
   itemKeys: readonly string[],
   getItem: (itemKey: string) => AgentItem | undefined,
+  independentFileDiffs = false,
 ): TimelineOperationGroup[] {
   const groups: TimelineOperationGroup[] = [];
   let operationKeys: string[] = [];
@@ -52,7 +54,11 @@ export function groupConsecutiveTimelineOperations(
   };
 
   for (const itemKey of itemKeys) {
-    if (isTimelineOperation(getItem(itemKey))) {
+    // 独立差异作为分组边界，保持原始事件顺序且不进入工具折叠。
+    if (
+      isTimelineOperation(getItem(itemKey)) &&
+      !(independentFileDiffs && getItem(itemKey)?.type === "file_change")
+    ) {
       operationKeys.push(itemKey);
       continue;
     }

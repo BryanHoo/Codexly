@@ -1,3 +1,5 @@
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { Message } from "../../../shared/components/agent/message.js";
@@ -50,6 +52,7 @@ export function StoredAssistantGroup({
   taskId: string;
   turn: NormalizedAgentTurn;
 }>) {
+  const independentFileDiffs = useConversationDisplayPreference(conversationDisplayPreferences, "independentFileDiffs");
   // 完成态聚合只在 Turn 终态或 Item 顺序变化时执行，不参与文本 Delta。
   const itemStoresByKey = store.getState().itemStoresByKey;
   const assistantTextParts: string[] = [];
@@ -111,7 +114,7 @@ export function StoredAssistantGroup({
           ) : null}
         </div>
       ) : null}
-      {turn.status !== "running" && responseFileChanges.length > 0 ? (
+      {!independentFileDiffs && turn.status !== "running" && responseFileChanges.length > 0 ? (
         <ChangedFilesCard
           changes={responseFileChanges}
           onOpenFileDiff={onOpenFileDiff}

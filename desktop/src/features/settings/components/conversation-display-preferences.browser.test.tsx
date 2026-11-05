@@ -1,3 +1,4 @@
+import { createConversationDisplayPreferenceStore } from "@codexly/frontend-core/conversation-display-preferences";
 import "../../../shared/styles/globals.css";
 import { useRef } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -11,6 +12,7 @@ import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { TaskTimelineNavigation } from "../../workbench/components/task-timeline-navigation.js";
 
 beforeEach(() => {
+  conversationDisplayPreferences.set("independentFileDiffs", true);
   conversationDisplayPreferences.set("stickyPrompt", false);
   conversationDisplayPreferences.set("navigation", false);
 });
@@ -51,7 +53,20 @@ it("默认关闭，独立切换后立即更新已挂载会话，并写入桌面�
   await stickySwitch.click();
   await expect.poll(sticky).toBeNull();
   expect(navigation()).not.toBeNull();
-  expect(JSON.parse(appPreferenceStorage.getItem("codeagent:conversation-display:v1")!)).toEqual({ stickyPrompt: false, navigation: true });
+  expect(JSON.parse(appPreferenceStorage.getItem("codeagent:conversation-display:v1")!)).toEqual({ stickyPrompt: false, navigation: true, independentFileDiffs: true });
   await navigationSwitch.click();
   await expect.poll(navigation).toBeNull();
+});
+
+it("新安装的差异开关默认开启，手动关闭后重新读取仍保持关闭", async () => {
+  let value: string | null = null;
+  const storage = { getItem: () => value, setItem: (_key: string, next: string) => { value = next; } };
+  const store = createConversationDisplayPreferenceStore(storage, "test:diff-default");
+  const screen = await render(<ConversationDisplaySwitch store={store} preference="independentFileDiffs" label="独立显示文件差异" />);
+  const toggle = screen.getByRole("switch", { name: "独立显示文件差异", exact: true });
+  await expect.element(toggle).toHaveAttribute("aria-checked", "true");
+  await toggle.click();
+  await expect.element(toggle).toHaveAttribute("aria-checked", "false");
+  expect(createConversationDisplayPreferenceStore(storage, "test:diff-default").getSnapshot().independentFileDiffs).toBe(false);
+  await screen.unmount();
 });

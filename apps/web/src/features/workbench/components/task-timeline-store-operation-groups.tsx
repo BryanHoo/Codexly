@@ -1,3 +1,5 @@
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { AgentEntry } from "@codexly/ui/agent/motion";
 import { OperationGroupViewport } from "@codexly/ui/agent/operation-group";
 import { i18n } from "../../../i18n/i18n.js";
@@ -38,6 +40,10 @@ export function StoredAssistantTimelineItems({
   taskId: string;
   turnStatus: NormalizedAgentTurn["status"];
 }>) {
+  const independentFileDiffs = useConversationDisplayPreference(
+    conversationDisplayPreferences,
+    "independentFileDiffs",
+  );
   const itemStoresByKey = store.getState().itemStoresByKey;
   const reasoningItemStores = useMemo(
     () =>
@@ -80,9 +86,12 @@ export function StoredAssistantTimelineItems({
     itemKeys,
     itemStoresByKey,
     turnStatus,
+    independentFileDiffs,
   );
-  const visibleGroups = groupConsecutiveTimelineOperations(renderableItemKeys, (itemKey) =>
-    itemStoresByKey.get(itemKey)?.peek(),
+  const visibleGroups = groupConsecutiveTimelineOperations(
+    renderableItemKeys,
+    (itemKey) => itemStoresByKey.get(itemKey)?.peek(),
+    independentFileDiffs,
   );
 
   return visibleGroups.map((group) => {

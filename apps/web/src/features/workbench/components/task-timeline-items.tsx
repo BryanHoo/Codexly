@@ -56,7 +56,10 @@ import { SkillToken } from "./skill-token.js";
 import { parseSubagentOperation } from "./subagent.js";
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
 import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
-import { FileChangeButton } from "./task-timeline-file-changes.js";
+import {
+  TimelineFileChangePresentation,
+  LegacyTimelineFileChange,
+} from "./task-timeline-file-changes.js";
 import {
   ApprovalReviewItem,
   getCommandLabel,
@@ -284,35 +287,14 @@ export function TimelineItemContent({
       );
     }
     case "file_change": {
-      if (item.status === "completed") {
-        // 回合运行期间展示可打开的修改；终态文件汇总由回复末尾统一呈现。
-        return turnStatus === "running" ? (
-          <div className="space-y-1">
-            {item.changes.map((change) => (
-              <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
-            ))}
-          </div>
-        ) : null;
-      }
-      if (item.status !== "pending" && item.status !== "running") return null;
       return (
-        <Task collapsible={item.changes.length > 0} status="in_progress">
-          <TaskTrigger
-            title={i18n.t("timeline.editingFiles", {
-              count: item.changes.length,
-              ns: "conversation",
-            })}
+        <TimelineFileChangePresentation item={item} onOpen={onOpenFileDiff} turnStatus={turnStatus}>
+          <LegacyTimelineFileChange
+            item={item}
+            onOpenFileDiff={onOpenFileDiff}
+            turnStatus={turnStatus}
           />
-          {item.changes.length === 0 ? null : (
-            <TaskContent>
-              {item.changes.map((change) => (
-                <TaskItem className="break-all font-mono" key={change.path}>
-                  {formatDisplayPath(change.path)}
-                </TaskItem>
-              ))}
-            </TaskContent>
-          )}
-        </Task>
+        </TimelineFileChangePresentation>
       );
     }
     case "tool": {

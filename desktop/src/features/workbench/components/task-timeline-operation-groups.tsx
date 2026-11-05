@@ -16,11 +16,12 @@ export function filterRenderableTimelineItemKeys(
   itemKeys: readonly string[],
   itemStoresByKey: ReadonlyMap<string, TaskItemStore>,
   turnStatus = "running",
+  independentFileDiffs = false,
 ): string[] {
   return itemKeys.filter((itemKey) => {
     const itemStore = itemStoresByKey.get(itemKey);
     const baseItem = itemStore?.peek();
-    if (baseItem?.type === "file_change") return isInlineFileChangeVisible(baseItem.status, turnStatus);
+    if (baseItem?.type === "file_change") return independentFileDiffs || isInlineFileChangeVisible(baseItem.status, turnStatus);
     if (itemStore?.peek().type !== "reasoning") return true;
     // 仅物化推理摘要以读取尚未写回基础 Item 的增量，不读取消息正文或命令输出。
     const item = itemStore.read();
@@ -31,6 +32,7 @@ export function filterRenderableTimelineItemKeys(
 export function groupConsecutiveTimelineOperations(
   itemKeys: readonly string[],
   getItem: (itemKey: string) => AgentItem | undefined,
+  independentFileDiffs = false,
 ): TimelineOperationGroup[] {
   const groups: TimelineOperationGroup[] = [];
   let operationKeys: string[] = [];
@@ -52,7 +54,8 @@ export function groupConsecutiveTimelineOperations(
 
   for (const itemKey of itemKeys) {
     const item = getItem(itemKey);
-    if (isTimelineOperation(item)) {
+    // 独立文件差异分隔操作组，不随工具和命令一起折叠。
+    if (isTimelineOperation(item) && !(independentFileDiffs && item?.type === "file_change")) {
       operationKeys.push(itemKey);
       continue;
     }
