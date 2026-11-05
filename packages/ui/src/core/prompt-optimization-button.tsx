@@ -66,6 +66,8 @@ export function PromptOptimizationButton(
       if (mounted.current) setPending(false);
     }
   };
+  // 空正文（含纯空白或仅附件）不展示优化入口；保留上方 Hook，以免清空时破坏异步草稿归属检查。
+  if (!props.text.trim()) return null;
   return (
     <Tooltip>
       <TooltipTrigger asChild>

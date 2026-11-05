@@ -24,20 +24,24 @@ describe("执行引擎选择器", () => {
     }
   });
 
-  it("双引擎已配置时显示选择器，已有会话仍锁定选择", () => {
+  it.each([false, true])("双引擎仅在未固定会话引擎时显示，已固定：%s", (locked) => {
     const markup = renderToStaticMarkup(
       <AgentEngineSelector
         codexAvailable
         claudeAvailable
         value="claude"
-        locked
+        locked={locked}
         label="执行引擎"
         onChange={vi.fn()}
       />,
     );
+    if (locked) {
+      expect(markup).toBe("");
+      return;
+    }
     expect(markup).toContain('aria-label="执行引擎"');
     expect(markup).toContain("Claude");
     expect(markup).not.toContain("Claude Agent");
-    expect(markup).toContain('disabled=""');
+    expect(markup).not.toContain('disabled=""');
   });
 });

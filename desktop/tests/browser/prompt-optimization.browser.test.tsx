@@ -41,7 +41,9 @@ it("失败保留原文并允许重试，空输入不可优化", async () => {
   await expect.poll(() => onError.mock.calls.length).toBe(1);
   await expect.element(screen.getByRole("textbox")).toHaveValue("修复登录");
   await screen.getByRole("textbox").fill("  ");
-  await expect.element(screen.getByRole("button", { name: "AI 优化提示词" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "AI 优化提示词" })).not.toBeInTheDocument();
+  await screen.getByRole("textbox").fill("补充排查步骤");
+  await expect.element(screen.getByRole("button", { name: "AI 优化提示词" })).toBeEnabled();
 });
 
 it("辅助生成设置提供可留空的输入优化提示词", async () => {

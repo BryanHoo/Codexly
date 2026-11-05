@@ -136,16 +136,18 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         (props.submitAction === "interrupt" &&
           (!props.canInterrupt || props.activeTurnId === undefined))
       }
-      className={props.captureMode ? "size-8 shrink-0" : composerSubmitButtonClassName}
+      className={
+        props.captureMode || props.submitAction === "interrupt"
+          ? "size-8 shrink-0"
+          : composerSubmitButtonClassName
+      }
       onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
       status={props.state === "running" && props.hasComposerInput ? "idle" : props.state}
       type={props.submitAction === "interrupt" ? "button" : "submit"}
     >
       {props.captureMode ? (
         <ComposerCaptureSubmitIcon />
-      ) : props.submitAction === "interrupt" ? (
-        t("composer.stop")
-      ) : (
+      ) : props.submitAction === "interrupt" ? undefined : (
         sendLabel
       )}
     </PromptInputSubmit>
@@ -422,7 +424,8 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
             <>
               {props.promptOptimization}
               {props.captureSubmitVisible ? (
-                props.captureMode ? (
+                // 停止操作独立展示，复用底层方形图标，不挂载发送菜单及分隔线。
+                props.captureMode || props.submitAction === "interrupt" ? (
                   submitButton
                 ) : (
                   <ComposerSubmitActions

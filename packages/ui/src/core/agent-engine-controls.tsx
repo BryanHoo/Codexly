@@ -13,12 +13,12 @@ export function AgentEngineSelector(
     onChange: (engine: AgentEngine) => void;
   }>,
 ) {
-  // 只有两个引擎都已配置才有切换的必要，历史会话也遵守相同的显示规则。
-  if (!props.codexAvailable || !props.claudeAvailable) return null;
+  // 已有聊天的引擎不可切换，直接隐藏入口；只有双引擎可用的新聊天需要选择器。
+  if (props.locked || !props.codexAvailable || !props.claudeAvailable) return null;
   return (
     <CompactSelector
       label={props.label}
-      disabled={props.locked || props.disabled === true}
+      disabled={props.disabled === true}
       value={props.value}
       onValueChange={props.onChange}
       options={[
