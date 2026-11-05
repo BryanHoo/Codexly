@@ -71,7 +71,7 @@ async fn git_read_should_use_literal_history_paths() {
 }
 
 #[tokio::test]
-async fn git_read_should_detect_changes_inside_collapsed_directories() {
+async fn git_read_should_detect_changes_inside_untracked_directories() {
     let repo = Repository::new();
     fs::create_dir(repo.0.join("new")).unwrap();
     fs::write(repo.0.join("new/file.txt"), "one").unwrap();
@@ -79,7 +79,7 @@ async fn git_read_should_detect_changes_inside_collapsed_directories() {
     fs::write(repo.0.join("new/file.txt"), "two").unwrap();
     let second = get_git_status(&repo.0, None, false).await.unwrap();
     assert_ne!(first.snapshot, second.snapshot);
-    assert_eq!(second.unstaged[0].path, "new/");
+    assert_eq!(second.unstaged[0].path, "new/file.txt");
 }
 
 #[tokio::test]
@@ -182,7 +182,7 @@ async fn git_read_should_preserve_literal_backslashes_in_untracked_patch_paths()
 
 #[tokio::test]
 #[ignore = "release-only Git read performance baseline"]
-async fn performance_baseline_git_read_collapsed_directory() {
+async fn performance_baseline_git_read_untracked_directory() {
     let repo = Repository::new();
     fs::create_dir(repo.0.join("generated")).unwrap();
     for index in 0..2000 {
@@ -201,14 +201,14 @@ async fn performance_baseline_git_read_collapsed_directory() {
         let next = get_git_status(&repo.0, None, false).await.unwrap();
         times.push(started.elapsed().as_secs_f64() * 1000.0);
         assert_eq!(next.snapshot, first.snapshot);
-        assert_eq!(next.unstaged.len(), 1);
+        assert_eq!(next.unstaged.len(), 2000);
         assert!(next.unstaged[0].diff.is_empty());
     }
     times.sort_by(f64::total_cmp);
     println!(
         "PERFORMANCE_BASELINE {}",
         serde_json::json!({
-            "benchmark": "git_read_collapsed_directory", "files": 2000, "coldMs": cold_ms,
+            "benchmark": "git_read_untracked_directory", "files": 2000, "coldMs": cold_ms,
             "warmP50Ms": times[5], "warmP95Ms": times[9], "ipcBytes": serde_json::to_vec(&first).unwrap().len(),
         })
     );

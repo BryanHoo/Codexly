@@ -62,7 +62,7 @@ fn git(root: &Path, args: &[&str]) -> String {
 }
 
 #[tokio::test]
-async fn commit_context_should_expand_selected_untracked_directories() {
+async fn commit_context_should_include_selected_untracked_nested_files() {
     let repo = Repository::new();
     fs::create_dir_all(repo.0.join("新增目录/nested")).unwrap();
     fs::write(repo.0.join("新增目录/nested/new.txt"), "selected content\n").unwrap();
@@ -74,13 +74,17 @@ async fn commit_context_should_expand_selected_untracked_directories() {
         status
             .unstaged
             .iter()
-            .any(|change| change.path == "新增目录/")
+            .any(|change| change.path == "新增目录/nested/new.txt")
     );
 
-    let context =
-        super::prepare_commit_message(&repo.0, None, &["新增目录/".to_owned()], &status.snapshot)
-            .await
-            .unwrap();
+    let context = super::prepare_commit_message(
+        &repo.0,
+        None,
+        &["新增目录/nested/new.txt".to_owned()],
+        &status.snapshot,
+    )
+    .await
+    .unwrap();
 
     assert!(context.changes.contains("新增目录/nested/new.txt"));
     assert!(context.changes.contains("selected content"));
@@ -89,7 +93,7 @@ async fn commit_context_should_expand_selected_untracked_directories() {
 }
 
 #[tokio::test]
-async fn commit_context_should_bound_untracked_directory_content() {
+async fn commit_context_should_bound_selected_untracked_file_content() {
     let repo = Repository::new();
     fs::create_dir(repo.0.join("new[1]")).unwrap();
     fs::write(repo.0.join("new[1]/large.txt"), "x".repeat(600 * 1024)).unwrap();
@@ -97,10 +101,14 @@ async fn commit_context_should_bound_untracked_directory_content() {
     fs::create_dir(repo.0.join("new1")).unwrap();
     fs::write(repo.0.join("new1/other.txt"), "wildcard content").unwrap();
     let status = get_git_status(&repo.0, None, false).await.unwrap();
-    let context =
-        super::prepare_commit_message(&repo.0, None, &["new[1]/".to_owned()], &status.snapshot)
-            .await
-            .unwrap();
+    let context = super::prepare_commit_message(
+        &repo.0,
+        None,
+        &["new[1]/large.txt".to_owned(), "new[1]/later.txt".to_owned()],
+        &status.snapshot,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(context.changes.len(), 512 * 1024);
     assert!(context.changes.contains("new[1]/large.txt"));

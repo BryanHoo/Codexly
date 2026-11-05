@@ -17,6 +17,33 @@ fn git(root: &Path, args: &[&str]) {
 }
 
 #[tokio::test]
+async fn status_stats_should_resolve_untracked_hidden_directory_to_real_files() {
+    let repo = Repository::new();
+    let path = ".opencode/skills/ld-lowcode-form/SKILL.md";
+    fs::create_dir_all(repo.0.join(".opencode/skills/ld-lowcode-form")).unwrap();
+    fs::write(repo.0.join(path), "one\ntwo\nthree").unwrap();
+    fs::write(repo.0.join(".opencode/.gitignore"), "ignored.txt\n").unwrap();
+    fs::write(repo.0.join(".opencode/ignored.txt"), "ignored\n").unwrap();
+
+    // 统计必须绑定真实文件，目录展开后才能逐级下沉，并为文件预览提供精确路径。
+    let page = get_git_status_page(&repo.0, None, None).await.unwrap();
+    let change = page.unstaged.iter().find(|change| change.path == path);
+    assert!(
+        change.is_some(),
+        "expected real file path, got {:?}",
+        page.unstaged
+    );
+    assert_eq!(change.unwrap().stats.additions, 3);
+    assert_eq!(page.unstaged.len(), 2);
+    assert!(page.unstaged.iter().all(|change| change.diff.is_empty()));
+    let preview = super::get_git_file_status(&repo.0, None, path, false)
+        .await
+        .unwrap();
+    assert_eq!(preview.unstaged[0].path, path);
+    assert!(preview.unstaged[0].diff.contains("+three"));
+}
+
+#[tokio::test]
 async fn status_stats_should_cover_both_sides_and_untracked_directory_without_diffs() {
     let repo = Repository::new();
     fs::write(repo.0.join("old.txt"), "staged\nextra\n").unwrap();
@@ -55,7 +82,9 @@ async fn status_stats_should_cover_both_sides_and_untracked_directory_without_di
             removals: 1
         }
     );
-    assert_eq!(changes["new/"].additions, 3);
+    assert_eq!(changes["new/.gitignore"].additions, 1);
+    assert_eq!(changes["new/nested/text.txt"].additions, 2);
+    assert!(!changes.contains_key("new/ignored.txt"));
     assert_eq!(changes["binary.bin"].additions, 0);
     assert_eq!(changes["empty.txt"].additions, 0);
     assert!(

@@ -4,7 +4,7 @@ use super::git_tests::{create_repository, run};
 use std::fs;
 
 #[tokio::test]
-async fn git_status_should_collapse_untracked_directories() {
+async fn git_status_should_list_real_files_in_untracked_directories() {
     let root = create_repository("codeagent-git-many-untracked");
     let generated = root.join("generated");
     fs::create_dir(&generated).unwrap();
@@ -19,8 +19,11 @@ async fn git_status_should_collapse_untracked_directories() {
 
     let status = super::get_git_status(&root, None, false).await.unwrap();
 
-    assert_eq!(status.unstaged.len(), 1);
-    assert_eq!(status.unstaged[0].path, "generated/");
+    assert_eq!(status.unstaged.len(), 3);
+    for (index, change) in status.unstaged.iter().enumerate() {
+        assert_eq!(change.path, format!("generated/artifact-{index}.txt"));
+        assert!(change.diff.is_empty());
+    }
     fs::remove_dir_all(root).unwrap();
 }
 

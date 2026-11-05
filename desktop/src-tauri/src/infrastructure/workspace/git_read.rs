@@ -73,13 +73,15 @@ async fn read_status(
         });
     };
     // v2 分支头同时提供 HEAD 与分支名，消除额外进程与两次查询之间的身份漂移。
+    // 必须保留未跟踪文件的完整路径；normal 会把整个目录合并，导致文件树展开后
+    // 统计仍停留在父目录，且无法按真实文件选择提交。传输体积由状态分页限制。
     let status_args = [
         "status",
         "--porcelain=v2",
         "--branch",
         "--no-ahead-behind",
         "-z",
-        "--untracked-files=normal",
+        "--untracked-files=all",
         "--ignore-submodules=none",
     ];
     let ((mut status, status_hash), branches) = tokio::try_join!(
