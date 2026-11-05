@@ -57,7 +57,10 @@ export function TaskDeleteConfirmationDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle id="task-delete-confirmation-title">{title}</DialogTitle>
+          {/* 标题预留与固定关闭按钮相同的行高，让文字与图标中心对齐，说明正文从下一行开始。 */}
+          <DialogTitle className="flex min-h-8 items-center" id="task-delete-confirmation-title">
+            {title}
+          </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>

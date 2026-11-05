@@ -1,4 +1,4 @@
-// 两端共用归档清理文案，确保日期语义、永久删除说明及快捷范围一致。
+// 两端共用归档清理文案，确保日期语义、永久删除说明及快捷范围一致；永久删除也会清理引擎原始会话。
 export const archivedTasksChinese = {
   deleteRange: "选择归档删除范围",
   rangeAll: "全部已归档",
@@ -12,17 +12,18 @@ export const archivedTasksChinese = {
   deleteBeforeHint: "按最后更新时间删除所选日期之前的全部归档任务，不受搜索影响。",
   deleteBeforeTitle: "按日期永久删除已归档任务",
   deleteBeforeDescription:
-    "“{{project}}”中最后更新时间早于 {{date}}（不含当天）的全部已归档任务将从 Codexly 永久删除，无法恢复。此操作不受当前搜索和分页影响。AI 引擎保存的原始会话历史会保留。",
+    "“{{project}}”中最后更新时间早于 {{date}}（不含当天）的全部已归档任务将从 Codexly 永久删除，同时删除 AI 引擎保存的原始会话记录，无法恢复。此操作不受当前搜索和分页影响。",
   confirmDelete: "永久删除",
   confirmDeleteAll: "全部永久删除",
   delete: "永久删除",
   deleteAll: "全部删除",
   deleteAllDescription:
-    "“{{project}}”中的全部已归档任务将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
+    "“{{project}}”中的全部已归档任务将从 Codexly 永久删除，同时删除 AI 引擎保存的原始会话记录，无法恢复。",
   deleteAllTitle: "永久删除全部已归档任务",
   deleteAllPartialFailure:
     "已删除 {{deletedCount}} 个任务，{{failedCount}} 个任务未能删除，请刷新后重试。",
-  deleteDescription: "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
+  deleteDescription:
+    "“{{task}}”将从 Codexly 永久删除，同时删除 AI 引擎保存的原始会话记录，无法恢复。",
   deleteTask: "永久删除任务 {{task}}",
   deleteTitle: "永久删除任务",
   empty: "没有已归档任务",
@@ -52,18 +53,18 @@ export const archivedTasksEnglish = {
     "Delete all archived tasks last updated before the selected date, regardless of search.",
   deleteBeforeTitle: "Permanently delete archived tasks by date",
   deleteBeforeDescription:
-    "All archived tasks in “{{project}}” last updated before {{date}} (excluding that day) will be permanently deleted from Codexly and cannot be restored. This applies across all search results and pages. Original session history stored by the AI engine will be kept.",
+    "All archived tasks in “{{project}}” last updated before {{date}} (excluding that day) will be permanently deleted from Codexly, including the original session records stored by the AI engine. This cannot be undone and applies across all search results and pages.",
   confirmDelete: "Delete permanently",
   confirmDeleteAll: "Delete all permanently",
   delete: "Delete permanently",
   deleteAll: "Delete all",
   deleteAllDescription:
-    'All archived tasks in "{{project}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
+    'All archived tasks in "{{project}}" will be permanently deleted from Codexly, including the original session records stored by the AI engine. This cannot be undone.',
   deleteAllTitle: "Permanently delete all archived tasks",
   deleteAllPartialFailure:
     "Deleted {{deletedCount}} tasks; {{failedCount}} could not be deleted. Refresh and retry.",
   deleteDescription:
-    '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
+    '"{{task}}" will be permanently deleted from Codexly, including the original session records stored by the AI engine. This cannot be undone.',
   deleteTask: "Permanently delete task {{task}}",
   deleteTitle: "Permanently delete task",
   empty: "No archived tasks",

@@ -65,7 +65,8 @@ describe("TaskActionMenu", () => {
     expect(markup).toContain("永久删除任务");
     expect(markup).toContain("结构化历史");
     expect(markup).toContain("无法恢复");
-    expect(markup).toContain("AI 引擎保存的原始会话历史会保留");
+    expect(markup).toContain("同时删除 AI 引擎保存的原始会话记录");
+    expect(markup).not.toContain("会保留");
     expect(markup).toContain("取消");
   });
 });

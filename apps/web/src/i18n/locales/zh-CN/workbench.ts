@@ -396,8 +396,7 @@ export const workbench = {
     conversationExportFailed: "对话记录导出失败，请重试。",
     conversationExportTooLarge: "对话记录超过 64 MiB，无法导出。",
     deletePermanently: "永久删除",
-    deleteTaskDescription:
-      "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
+    deleteTaskDescription: archivedTasksChinese.deleteDescription,
     deleteTaskTitle: "永久删除任务",
     errorAddProject: "无法添加项目",
     errorArchiveTask: "无法归档任务",

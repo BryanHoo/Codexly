@@ -44,7 +44,9 @@ export function TaskDeleteConfirmationDialog({
       }}
       open
     >
-      <DialogContent closeLabel={t("actions.close")} closeDisabled={isPending}
+      <DialogContent
+        closeLabel={t("actions.close")}
+        closeDisabled={isPending}
         className="max-w-96 p-4"
         onEscapeKeyDown={(event) => {
           if (isPending) event.preventDefault();
@@ -54,7 +56,8 @@ export function TaskDeleteConfirmationDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          {/* 标题预留与固定关闭按钮相同的行高，让文字与图标中心对齐，说明正文从下一行开始。 */}
+          <DialogTitle className="flex min-h-8 items-center">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>

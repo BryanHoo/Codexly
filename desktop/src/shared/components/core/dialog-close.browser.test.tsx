@@ -5,6 +5,8 @@ import { render } from "vitest-browser-react";
 import { Button } from "./button.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./dialog.js";
 import { TaskRenameDialog } from "../../../features/workbench/components/task-rename-dialog.js";
+import { TaskDeleteDialog } from "../../../features/workbench/components/task-delete-dialog.js";
+import { TaskDeleteDialog as WebTaskDeleteDialog } from "../../../../../apps/web/src/features/workbench/components/task-delete-dialog.js";
 import { i18n } from "../../../i18n/i18n.js";
 import "../../styles/globals.css";
 
@@ -13,6 +15,44 @@ afterEach(async () => {
 });
 
 for (const width of [375, 960]) {
+  for (const [platform, DeleteDialog] of [
+    ["desktop", TaskDeleteDialog],
+    ["web", WebTaskDeleteDialog],
+  ] as const) {
+    test(`删除弹窗标题与关闭图标垂直居中对齐，${platform} ${width}`, async () => {
+      await page.viewport(width, 800);
+      const screen = await render(
+        <DeleteDialog
+          isPending={false}
+          onClose={vi.fn()}
+          onDelete={vi.fn()}
+          task={{
+            id: "delete-test",
+            projectId: "project",
+            title: "拉取并合并 dev 最新代码",
+            pinned: false,
+            updatedAt: "2026-11-05T00:00:00Z",
+          }}
+        />,
+      );
+      await expect
+        .poll(() => getComputedStyle(screen.getByRole("dialog").element()).opacity)
+        .toBe("1");
+      const title = screen.getByRole("heading").element();
+      const textRange = document.createRange();
+      textRange.selectNodeContents(title);
+      const textBox = textRange.getBoundingClientRect();
+      const iconBox = screen
+        .getByRole("dialog")
+        .element()
+        .querySelector('[data-slot="dialog-close"] svg')!
+        .getBoundingClientRect();
+      // 直接核对文字行盒与关闭图标的中心，不能只验证按钮是否为正方形。
+      expect(
+        Math.abs(textBox.top + textBox.height / 2 - iconBox.top - iconBox.height / 2),
+      ).toBeLessThanOrEqual(1);
+    });
+  }
   test(`重命名弹窗使用独立方形关闭按钮，窗口宽度 ${width}`, async () => {
     await page.viewport(width, 800);
     await i18n.changeLanguage("zh-CN");

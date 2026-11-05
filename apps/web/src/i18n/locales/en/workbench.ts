@@ -401,8 +401,7 @@ export const workbench = {
     conversationExportFailed: "Failed to export conversation. Please try again.",
     conversationExportTooLarge: "The conversation exceeds the 64 MiB export limit.",
     deletePermanently: "Delete permanently",
-    deleteTaskDescription:
-      '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
+    deleteTaskDescription: archivedTasksEnglish.deleteDescription,
     deleteTaskTitle: "Permanently delete task",
     errorAddProject: "Unable to add project",
     errorArchiveTask: "Unable to archive task",
