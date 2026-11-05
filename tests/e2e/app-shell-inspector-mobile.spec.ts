@@ -1,3 +1,4 @@
+import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import { expect, test } from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
@@ -128,6 +129,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
 });
 
 test("keeps the mobile Diff preview and review dialog inside the viewport", async ({ page }) => {
+  await useGroupedFileChanges(page);
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/p/codexly/t/task-1");
 

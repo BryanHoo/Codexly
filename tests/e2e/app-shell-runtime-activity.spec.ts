@@ -1,3 +1,4 @@
+import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import {
   taskSnapshotRoute,
   expect,
@@ -10,6 +11,7 @@ import {
 test.describe.configure({ mode: "serial" });
 
 test("opens a completed file change diff while the turn is still running", async ({ page }) => {
+  await useGroupedFileChanges(page);
   const liveChange = {
     diff: "@@ -1 +1 @@\n-export const live = false;\n+export const live = true;",
     kind: "update" as const,

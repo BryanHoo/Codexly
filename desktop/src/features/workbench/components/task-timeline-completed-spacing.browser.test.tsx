@@ -1,12 +1,16 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 import { i18n } from "../../../i18n/i18n.js";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { createTaskStore } from "../../conversation/runtime/task-store.js";
 import { TaskStoreTimeline } from "./task-timeline-store.js";
 import "../../../shared/styles/globals.css";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
+
+afterEach(() => { conversationDisplayPreferences.set("independentFileDiffs", true); });
 
 it.each([false, true])("完成回合不累积空条目间距（由运行态完成：%s）", async (live) => {
+  conversationDisplayPreferences.set("independentFileDiffs", false);
   await i18n.changeLanguage("zh-CN");
   const store = createTaskStore({ projectId: "project", taskId: "task" }, {
     checkpoint: { sequence: 0, sessionId: "session" },

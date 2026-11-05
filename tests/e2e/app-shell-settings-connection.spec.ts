@@ -1,3 +1,4 @@
+import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import { expect, mockAppShellApi, parseRequestRecord, test } from "./fixtures/app-shell.js";
 import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
 
@@ -144,6 +145,7 @@ test("defaults appearance to automatic and follows the system color scheme", asy
 });
 
 test("applies and restores a custom workbench background", async ({ page }) => {
+  await useGroupedFileChanges(page);
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });

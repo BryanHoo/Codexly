@@ -1,3 +1,4 @@
+import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
   enableLanAccess,
@@ -50,6 +51,7 @@ test("downloads a generated file outside the project from a temporary task", asy
 test("creates and restores a temporary task without exposing its internal project", async ({
   page,
 }) => {
+  await useGroupedFileChanges(page);
   // 显式安装，避免多文件 worker 的模块加载顺序影响该独立契约场景。
   await mockAppShellApi(page);
   const requestedPaths: string[] = [];

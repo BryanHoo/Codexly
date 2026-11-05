@@ -1,3 +1,4 @@
+import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import {
   taskSnapshotRoute,
   expect,
@@ -13,6 +14,7 @@ test.describe.configure({ mode: "serial" });
 test("opens project review while showing Git stats in the Inspector project tree", async ({
   page,
 }) => {
+  await useGroupedFileChanges(page);
   const consoleErrors: string[] = [];
   const failedResources: string[] = [];
   const reviewListChange = {

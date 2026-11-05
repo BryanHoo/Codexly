@@ -1,3 +1,4 @@
+import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import {
   taskSnapshotRoute,
   enableLanAccess,
@@ -65,6 +66,7 @@ test("downloads a streaming Markdown file reference from the same context menu",
 });
 
 test("downloads a completed streaming file change from its LAN context menu", async ({ page }) => {
+  await useGroupedFileChanges(page);
   const historicalTurn = taskSnapshot.turns[0];
   if (historicalTurn === undefined) {
     throw new Error("Expected the task fixture to contain a turn");
