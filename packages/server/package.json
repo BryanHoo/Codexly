@@ -27,7 +27,8 @@
     "safe-stable-stringify": "catalog:",
     "simple-git": "catalog:",
     "ws": "catalog:",
-    "yazl": "catalog:"
+    "yazl": "catalog:",
+    "@codexly/provider-claude": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "catalog:",

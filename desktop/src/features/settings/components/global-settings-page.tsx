@@ -1,3 +1,4 @@
+import { NetworkProxySettingsField } from "./settings-section-loaders.js";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
@@ -174,7 +175,7 @@ export function GlobalSettingsPage({
         onUpdate={onUpdate}
       /> : null}
 
-      {activeSection === "prompts" ? <SavedPromptsSettings language={language} projects={projectData?.projects} projectsUnavailable={!projectData || projectData.isPending || !!projectData.error} /> : isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
+      {activeSection === "network" ? <NetworkProxySettingsField /> : activeSection === "prompts" ? <SavedPromptsSettings language={language} projects={projectData?.projects} projectsUnavailable={!projectData || projectData.isPending || !!projectData.error} /> : isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
         <section id="settings-panel-provider">
           <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
           <ProviderConnectionPanel autoSave />

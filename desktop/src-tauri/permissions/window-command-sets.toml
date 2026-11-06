@@ -4,6 +4,9 @@
 identifier = "main-window-commands"
 description = "Allows the main window to call the application commands used by the workbench."
 permissions = [
+  "allow-read-network-proxy",
+  "allow-save-network-proxy",
+  "allow-test-network-proxy",
   "allow-claude-engine-request",
   "allow-prepare-claude-runtime",
   "allow-get-configured-engines",

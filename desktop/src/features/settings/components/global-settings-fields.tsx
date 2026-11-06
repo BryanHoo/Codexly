@@ -5,6 +5,7 @@ import {
   Sparkles,
   ChevronDown,
   Info,
+  Network,
   PawPrint,
   SlidersHorizontal,
   Settings,
@@ -34,6 +35,7 @@ export const settingsSections: readonly Readonly<{
   { icon: SlidersHorizontal, id: "claude-personalization" },
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
+  { icon: Network, id: "network" },
   { icon: Info, id: "about" },
 ];
 
@@ -93,7 +95,7 @@ export function SettingsField({
   const columns = expandControl
     ? "grid-cols-[auto_minmax(0,1fr)]"
     : description === undefined
-      ? "grid-cols-[minmax(9rem,1fr)_minmax(0,22rem)]"
+      ? "sm:grid-cols-[minmax(9rem,1fr)_minmax(0,22rem)]"
       : "grid-cols-[minmax(0,1fr)_minmax(10rem,16rem)]";
   return (
     <div

@@ -65,6 +65,7 @@ pub(super) fn build_startup_config_command(
     runtime_path: Option<&OsStr>,
 ) -> Command {
     let mut command = background_process_command(program);
+    crate::infrastructure::network_proxy::apply_command(&mut command);
     // 沿用桌面正式握手的历史客户端名 codeagent，保持组织策略请求身份一致。
     command
         .args(APP_SERVER_ARGUMENTS)

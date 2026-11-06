@@ -1,3 +1,4 @@
+import { initializeNetworkProxy } from "./network-proxy.js";
 import { PROMPT_OPTIMIZATION_SYSTEM } from "@codexly/protocol";
 import { ClaudeHostQueue } from "./host-queue.js";
 import { claudeExtensionCommand } from "./extensions-cli.js";
@@ -41,6 +42,13 @@ if (process.argv.includes("--version")) {
     executable = process.argv[3];
   if (!directory || !executable)
     throw new Error("Claude host requires private data and executable paths");
+  const proxySnapshot = process.env["CODEXLY_NETWORK_PROXY_SNAPSHOT"];
+  await initializeNetworkProxy(
+    resolve(directory, "../.."),
+    process.env,
+    proxySnapshot ? JSON.parse(proxySnapshot) : undefined,
+  );
+  delete process.env["CODEXLY_NETWORK_PROXY_SNAPSHOT"];
   // 保留用户 CLAUDE_CONFIG_DIR；SDK 配置、认证和会话历史与本机 CLI 共用。
   const catalogRequests = new Map<number, ReturnType<typeof Promise.withResolvers<unknown>>>();
   const searches = new Map<number, AbortController>();

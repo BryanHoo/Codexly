@@ -107,6 +107,7 @@ export function createDiagnosticLogger(
           censor: "[Redacted]",
           paths: [
             "req.headers.authorization",
+            "req.body.password",
             "req.headers.cookie",
             'req.headers["x-api-key"]',
             'res.headers["set-cookie"]',

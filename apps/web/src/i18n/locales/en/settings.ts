@@ -1,5 +1,6 @@
 export const settings = {
   sectionKeywords: {
+    network: "proxy gateway authentication HTTP HTTPS SOCKS5",
     prompts: "saved prompts titles slash hash commands local storage create edit delete",
     git: "AI generation default agent model Git commit message task title prompt rules",
     "claude-provider": "Claude Anthropic API key API URL endpoint connection available models",
@@ -213,6 +214,7 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
+    network: "Network",
     prompts: "Saved prompts",
     git: "AI generation",
     "claude-provider": "Model service",

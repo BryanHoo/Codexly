@@ -221,6 +221,8 @@ export function GlobalSettingsPage({
               ? {}
               : { updateProgress: props.appUpdateProgress })}
           />
+        ) : activeSection === "network" ? (
+          <NetworkProxySettingsField />
         ) : activeSection === "provider" ? (
           <section>
             <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
@@ -312,3 +314,9 @@ export function GlobalSettingsPage({
     </SettingsPageFrame>
   );
 }
+
+export const NetworkProxySettingsField = lazy(() =>
+  import("./network-proxy-settings.js").then((module) => ({
+    default: module.NetworkProxySettingsField,
+  })),
+);

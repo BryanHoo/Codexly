@@ -93,3 +93,5 @@ pub mod workspace_file_creation_commands;
 pub mod saved_prompts_commands;
 
 pub mod prompt_optimization_commands;
+
+pub mod network_proxy_commands;

@@ -8,5 +8,18 @@
     "tsBuildInfoFile": "../../.cache/types/server.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../protocol" }, { "path": "../core" }, { "path": "../provider-codex" }]
+  "references": [
+    {
+      "path": "../protocol"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../provider-codex"
+    },
+    {
+      "path": "../provider-claude"
+    }
+  ]
 }

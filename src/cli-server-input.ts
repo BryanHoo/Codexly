@@ -21,6 +21,7 @@ import type { CodexlyAccessOptions } from "@codexly/server";
 import type { createAppUpdateService } from "./app-update.js";
 
 export interface CreateServerInput {
+  networkProxyDirectory?: string;
   localCatalogStore?: LocalCatalogStore;
   asyncQuestionRepository: AsyncQuestionRepository;
   projectTodoRepository: ProjectTodoRepository;

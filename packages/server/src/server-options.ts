@@ -56,6 +56,7 @@ import type { ProjectOpenService } from "./project-open.js";
 import type { SkillMarketService } from "./skill-market-service.js";
 
 export interface CreateCodexlyServerOptions {
+  networkProxyDirectory?: string;
   localCatalogStore?: LocalCatalogStore;
   asyncQuestionRepository?: AsyncQuestionRepository;
   projectTodoRepository?: ProjectTodoRepository;

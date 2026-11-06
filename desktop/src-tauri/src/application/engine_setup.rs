@@ -162,6 +162,7 @@ async fn keyring_login_configured(app: &AppHandle, codex: &Path) -> Result<bool,
         .join("codex/bin")
         .join(format!("codex{}", std::env::consts::EXE_SUFFIX));
     let mut command = tokio::process::Command::new(binary);
+    crate::infrastructure::network_proxy::apply_command(&mut command);
     command
         .args(["login", "status"])
         .env("CODEX_HOME", codex)

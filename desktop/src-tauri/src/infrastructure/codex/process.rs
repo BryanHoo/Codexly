@@ -82,9 +82,9 @@ impl CodexProcess {
 
     async fn start_once(app_data: &Path, resources: &Path) -> Result<Self, ProcessError> {
         let (program, version, runtime_path) = find_compatible_codex_binary(resources).await?;
-        let mut child = build_app_server_command(program.as_os_str(), runtime_path.as_deref())
-            .spawn()
-            .map_err(ProcessError::Spawn)?;
+        let mut command = build_app_server_command(program.as_os_str(), runtime_path.as_deref());
+        crate::infrastructure::network_proxy::apply_command(&mut command);
+        let mut child = command.spawn().map_err(ProcessError::Spawn)?;
         // Windows 更新器直接退出进程，跳过 Drop/kill_on_drop；由系统 Job 回收运行时及其后代。
         #[cfg(windows)]
         let process_job = super::process_job::attach(&mut child)

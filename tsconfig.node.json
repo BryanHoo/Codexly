@@ -4,6 +4,7 @@
     "composite": true,
     "noEmit": true,
     "paths": {
+      "@codexly/provider-claude/network-proxy": ["./packages/provider-claude/src/network-proxy.ts"],
       "@codexly/core/app-storage-paths": ["./packages/core/src/app-storage-paths.ts"],
       "@codexly/core": ["./packages/core/src/index.ts"],
       "@codexly/protocol": ["./packages/protocol/src/index.ts"],

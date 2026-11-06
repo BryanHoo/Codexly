@@ -10,6 +10,8 @@
 
 - [共享主题与文件配色](theme-design.md)：柔和暗色、GitHub 文件主题与编辑状态验证。
 
+- [应用网络代理](network-proxy.md)：跨端配置、出口、凭据与重启生效。
+
 ## 验证入口
 
 所有命令从仓库根目录运行。包管理器由根 `package.json` 固定为 `pnpm@11.22.0`，工作区由 `pnpm-workspace.yaml` 定义；Bun 只用于编译桌面宿主。

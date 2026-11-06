@@ -36,6 +36,7 @@ export const settingsSections: readonly Readonly<{
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
   { icon: Network, id: "access" },
+  { icon: Network, id: "network" },
   { icon: Info, id: "about" },
 ];
 

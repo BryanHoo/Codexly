@@ -134,6 +134,7 @@ impl ClaudeHost {
         let app_data = crate::infrastructure::app_data::directory(app).map_err(failure)?;
         let catalog = LocalCatalog::at(&app_data)?;
         let mut command = Command::new(host_path);
+        crate::infrastructure::network_proxy::configure_claude_host(&mut command);
         command
             .env("CODEXLY_APPLICATION_GENERATION", "1")
             .arg(app_data.join("engines/claude"))

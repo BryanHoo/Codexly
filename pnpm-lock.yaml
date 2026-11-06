@@ -186,6 +186,9 @@ catalogs:
     prettier:
       specifier: 3.9.6
       version: 3.9.6
+    proxy-chain:
+      specifier: 3.0.1
+      version: 3.0.1
     radix-ui:
       specifier: 1.6.7
       version: 1.6.7
@@ -234,6 +237,9 @@ catalogs:
     typescript:
       specifier: 6.0.3
       version: 6.0.3
+    undici:
+      specifier: 8.12.3
+      version: 8.12.3
     uuid:
       specifier: 14.0.1
       version: 14.0.1
@@ -680,6 +686,12 @@ importers:
       '@sinclair/typebox':
         specifier: 'catalog:'
         version: 0.34.52
+      proxy-chain:
+        specifier: 'catalog:'
+        version: 3.0.1(supports-color@8.1.1)
+      undici:
+        specifier: 'catalog:'
+        version: 8.12.3
 
   packages/provider-codex:
     dependencies:
@@ -707,6 +719,9 @@ importers:
       '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@codexly/provider-claude':
+        specifier: workspace:*
+        version: link:../provider-claude
       '@codexly/provider-codex':
         specifier: workspace:*
         version: link:../provider-codex
@@ -4680,6 +4695,10 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
+  agent-base@9.0.0:
+    resolution: {integrity: sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA==}
+    engines: {node: '>= 20'}
+
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
     peerDependencies:
@@ -7282,6 +7301,10 @@ packages:
     resolution: {integrity: sha512-TmatMXdr2KlRiA2CyDu8GqR8EjahTG3aY3nXjdzFyoZbmB8hrBsTyMezhULIXKnC0jpfjlmiZ3+EaCzoInSu/A==}
     engines: {node: '>= 14'}
 
+  proxy-chain@3.0.1:
+    resolution: {integrity: sha512-ZISgL5pwUBXcijycj9ofC8wbJ9GmSEka71kn4dzjphDxfZcecQ6uvU2NWuyQcGdEf0XfscXWDs3KKgjxeQXTZw==}
+    engines: {node: '>=20.11'}
+
   proxy-from-env@1.1.0:
     resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
 
@@ -7712,6 +7735,10 @@ packages:
     resolution: {integrity: sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ==}
     engines: {node: '>= 18'}
 
+  socks-proxy-agent@10.1.0:
+    resolution: {integrity: sha512-WlMj/67cEJ6MDI1OcsnjuYKDNDoyPCCYZ249kuuXPiMDw9F8PXkVaQ7YWu3siTydfQ/4BEZcvGzu+aYvz7dDCQ==}
+    engines: {node: '>= 20'}
+
   socks-proxy-agent@8.0.5:
     resolution: {integrity: sha512-HehCEsotFqbPW9sJ8WVYB6UbmIMv7kUUORIF2Nncq4VQvBfNBLibW9YZR5dlYCSUhwcD628pRllm7n+E+YTzJw==}
     engines: {node: '>= 14'}
@@ -8047,6 +8074,10 @@ packages:
   undici@7.29.1:
     resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
     engines: {node: '>=20.18.1'}
+
+  undici@8.12.3:
+    resolution: {integrity: sha512-+fdndUTwBP86cVjihTp21hZHo7d6oj1c/47XPA3lL8mM0XHs+C4EkcjmgRsFnFk2f/UONGDy9ItBItmXsLOQHw==}
+    engines: {node: '>=22.19.0'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
     resolution: {integrity: sha512-dA8WbNeb2a6oQzAQ55YlT5vQAWGV9WXOsi3SskE3bcCdM0P4SDd+24zS/OCacdRq5BkdsRj9q3Pg6YyQoxIGqg==}
@@ -12409,6 +12440,8 @@ snapshots:
 
   agent-base@7.1.4: {}
 
+  agent-base@9.0.0: {}
+
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
       ajv: 8.20.0
@@ -15447,6 +15480,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  proxy-chain@3.0.1(supports-color@8.1.1):
+    dependencies:
+      socks: 2.8.10
+      socks-proxy-agent: 10.1.0(supports-color@8.1.1)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   proxy-from-env@1.1.0: {}
 
   pump@3.0.4:
@@ -16006,6 +16047,14 @@ snapshots:
 
   smol-toml@1.9.0: {}
 
+  socks-proxy-agent@10.1.0(supports-color@8.1.1):
+    dependencies:
+      agent-base: 9.0.0
+      debug: 4.4.3(supports-color@8.1.1)
+      socks: 2.8.10
+    transitivePeerDependencies:
+      - supports-color
+
   socks-proxy-agent@8.0.5(supports-color@8.1.1):
     dependencies:
       agent-base: 7.1.4
@@ -16360,6 +16409,8 @@ snapshots:
   undici@6.28.1: {}
 
   undici@7.29.1: {}
+
+  undici@8.12.3: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 

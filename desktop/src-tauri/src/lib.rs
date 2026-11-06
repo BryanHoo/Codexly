@@ -144,6 +144,9 @@ pub fn run() {
             tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
                 infrastructure::app_data::initialize(&storage_app)
             }))??;
+            infrastructure::network_proxy::initialize(&infrastructure::app_data::directory(
+                app.handle(),
+            )?)?;
             diagnostics::initialize(app.handle())?;
             application::notification_delivery::initialize(app.handle());
             setup_tray(app.handle())?;
@@ -179,6 +182,9 @@ pub fn run() {
             },
         )
         .invoke_handler(tauri::generate_handler![
+            application::network_proxy_commands::read_network_proxy,
+            application::network_proxy_commands::save_network_proxy,
+            application::network_proxy_commands::test_network_proxy,
             application::notification_commands::dismiss_task_notifications,
             enable_autostart,
             get_tray_icon_visible,

@@ -1,3 +1,4 @@
+import { initializeNetworkProxy } from "@codexly/provider-claude/network-proxy";
 import { runDoctor, type CliDoctorDependencies } from "./cli-doctor.js";
 import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
 import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";
@@ -152,231 +153,240 @@ export async function runStart(
   output: TerminalOutput,
   managed?: Pick<ManagedStartContext, "options" | "environment" | "background" | "onReady">,
 ): Promise<number> {
-  const environment = managed?.environment ?? process.env;
-  // 托管实例只使用已保存的参数，避免登录环境里的 CODEXLY_* 改变服务行为。
-  const options = managed?.options ?? parseStartOptions(args, environment);
-  if (options.sessionTtl !== undefined && options.lan !== true) {
-    throw new Error("--session-ttl 只能与 --lan 一起使用");
-  }
-  if (options.lanPassword !== undefined && options.lan !== true) {
-    throw new Error("--lan-password 只能与 --lan 一起使用");
-  }
-  if (options.lanPassword !== undefined) {
-    validateLanPassword(options.lanPassword);
-  }
-  const allowedHosts = options.allowedHosts?.map(normalizeAllowedHost);
-  const port = options.port ?? 3210;
-  const sessionTtlMs = options.sessionTtl ? parseSessionTtl(options.sessionTtl) : undefined;
-  const access =
-    options.lan !== true
-      ? undefined
-      : {
-          pairingCode: options.lanPassword ?? dependencies.generateLanPairingCode(),
-          ...(sessionTtlMs === undefined ? {} : { sessionTtlMs }),
-        };
-
-  if (!managed?.background && process.env[STARTUP_UPDATE_APPLIED_ENV] !== "1") {
-    const update = await dependencies.checkAppUpdate();
-    if (update.status === "check-failed") {
-      output.warning("无法检查 Codexly 更新，将继续启动当前版本。");
-    } else if (update.status === "available" && update.latestVersion !== null) {
-      const shouldUpdate = await dependencies.confirmAppUpdate(
-        dependencies.appVersion,
-        update.latestVersion,
-      );
-      if (shouldUpdate) {
-        output.info(`正在更新 Codexly 到 ${update.latestVersion}...`);
-        await dependencies.installAppUpdate(update.latestVersion, (progress) => {
-          output.info(formatTerminalAppUpdateProgress(progress));
-        });
-        output.success(`Codexly 已更新到 ${update.latestVersion}，正在重新启动。`);
-        return dependencies.restartAfterUpdate(["start", ...args]);
-      }
-      output.info("已跳过更新，继续启动当前版本。");
-    }
-  }
-
-  const ownedShutdown = signal ? null : createProcessShutdownSignal();
-  const shutdownSignal = signal ?? ownedShutdown?.signal;
-  if (!shutdownSignal) {
-    throw new Error("Shutdown signal is unavailable");
-  }
-
-  let runtime: ReturnType<typeof createLazyCodexRuntime> | undefined;
-  let server: CliManagedServer | undefined;
-  let stateRepository: CliManagedStateRepository | undefined;
-
+  const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
+  const networkProxy = await initializeNetworkProxy(
+    applicationDirectory,
+    managed?.environment ?? process.env,
+  );
+  const environment = networkProxy.env;
   try {
-    const codexHome = resolveCodexHome(options);
-    const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
-    // 启动位置不参与内部运行：多个 Web 实例共用应用数据目录，由端口和业务事务处理并发。
-    const runtimeCwd = homedir();
-    const env = {
-      ...environment,
-      ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
-    };
-    stateRepository = await dependencies.createStateRepository(
-      join(applicationDirectory, "state.sqlite3"),
-      codexHome,
-    );
-    const startupStateRepository = stateRepository;
-    const startRuntime = () => {
-      const initialize = () =>
-        dependencies.startCodexAppServer({
-          appVersion: dependencies.appVersion,
-          cwd: runtimeCwd,
-          env,
-          ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
-        });
-      // 上游首次创建 SQLite 状态也存在竞争；只串行化握手，运行期间不持有目录锁。
-      return startupStateRepository.withScheduledTaskLock === undefined
-        ? initialize()
-        : startupStateRepository.withScheduledTaskLock(initialize);
-    };
-    runtime = createLazyCodexRuntime(startRuntime, (client) =>
-      importLocalCatalog(client, startupStateRepository),
-    );
-    const catalogClient = await prepareLocalCatalog(runtime.client, stateRepository);
-    const projectRepository = dependencies.createProjectRepository({
-      client: catalogClient,
-      projection: stateRepository,
-    });
-    const projectSourceMigration = await stateRepository.readProjectSourceMigration();
-    if (!projectSourceMigration.completed) {
-      await projectRepository.migrateLegacyProjects({
-        recoverUnassigned: projectSourceMigration.recoverUnassigned,
-      });
+    // 托管实例只使用已保存的参数，避免登录环境里的 CODEXLY_* 改变服务行为。
+    const options = managed?.options ?? parseStartOptions(args, environment);
+    if (options.sessionTtl !== undefined && options.lan !== true) {
+      throw new Error("--session-ttl 只能与 --lan 一起使用");
     }
-    await projectRepository.synchronize();
-    if (!projectSourceMigration.completed) {
-      await stateRepository.completeProjectSourceMigration();
+    if (options.lanPassword !== undefined && options.lan !== true) {
+      throw new Error("--lan-password 只能与 --lan 一起使用");
     }
-    const codexProvider = await dependencies.createRuntimeProvider({
-      ...(dependencies.appDataDirectory === undefined
-        ? {}
-        : { appDataDirectory: applicationDirectory }),
-      codexHome,
-      client: catalogClient,
-      modelCatalogRuntimeFactory: startRuntime,
-      // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
-      readTaskTitleModel: async () =>
-        (await startupStateRepository.readGlobalSettings())?.defaultModel ??
-        DEFAULT_GENERATION_MODEL,
-    });
-    const provider = enableClaudeRuntime(
-      codexProvider,
-      stateRepository,
-      codexHome,
-      applicationDirectory,
-    );
-    const petProvider = dependencies.createPetProvider({ codexHome });
-    const appUpdateService = createAppUpdateService({
-      appVersion: dependencies.appVersion,
-      // 启动时只读一次小型清单，后续关于页请求复用当前进程实际使用的版本。
-      claudeVersion: await readClaudeCodeVersion(),
-      get codexVersion() {
-        // 冷启动时沿用桌面端的支持版本回退，避免空字符串导致整个版本响应校验失败。
-        const version = runtime?.version ?? SUPPORTED_CODEX_VERSION;
-        return version === "" ? SUPPORTED_CODEX_VERSION : version;
-      },
-    });
-    server = await dependencies.createServer({
-      // 托管运行复用已有日志目的地，HTTP 与 Provider 诊断也进入脱敏且有上限的后台日志。
-      ...(managed?.background ? { logDestination: { write: output.plain } } : {}),
-      ...(access === undefined ? {} : { access }),
-      ...(allowedHosts === undefined ? {} : { allowedHosts }),
-      projectRepository,
-      providerConnectionRepository: stateRepository,
-      provider,
-      preloadModelCatalog: false,
-      petProvider,
-      installAppUpdate: appUpdateService.install,
-      readAppInfo: appUpdateService.read,
-      readAppUpdateProgress: appUpdateService.readProgress,
-      queueRepository: stateRepository,
-      scheduledTaskAttachmentRepository: stateRepository,
-      scheduledTaskRepository: stateRepository,
-      submissionRepository: stateRepository,
-      asyncQuestionRepository: stateRepository,
-      projectTodoRepository: stateRepository,
-      settingsRepository: stateRepository,
-      localCatalogStore: stateRepository as CliManagedStateRepository & LocalCatalogStore,
-      staticRoot: dependencies.webRoot,
-      // 显式工作区仍控制临时任务边界；未配置时使用稳定的用户目录，不继承终端目录。
-      standaloneCwd: options.workspaceRoots?.[0] ?? runtimeCwd,
-      ...(options.workspaceRoots === undefined ? {} : { workspaceRoots: options.workspaceRoots }),
-    });
-    const host = options.lan === true ? "0.0.0.0" : "127.0.0.1";
-    const activePort = await listenOnAvailablePort(server, host, port);
-    if (activePort !== port) {
-      output.warning(`端口 ${String(port)} 已被占用，已自动切换到端口 ${String(activePort)}。`);
+    if (options.lanPassword !== undefined) {
+      validateLanPassword(options.lanPassword);
     }
-    await managed?.onReady({ host, port: activePort });
-    output.success("Codexly 已启动");
+    const allowedHosts = options.allowedHosts?.map(normalizeAllowedHost);
+    const port = options.port ?? 3210;
+    const sessionTtlMs = options.sessionTtl ? parseSessionTtl(options.sessionTtl) : undefined;
+    const access =
+      options.lan !== true
+        ? undefined
+        : {
+            pairingCode: options.lanPassword ?? dependencies.generateLanPairingCode(),
+            ...(sessionTtlMs === undefined ? {} : { sessionTtlMs }),
+          };
 
-    if (access !== undefined) {
-      const urls = dependencies.listLanAccessUrls(activePort);
-      output.warning("局域网模式使用未加密的 HTTP，请仅在可信网络中使用。");
-      if (urls.length === 0) {
-        output.warning("未找到可用的局域网 IPv4 地址，服务仍在运行。");
-      } else {
-        output.info(`局域网访问地址:\n${urls.map((url) => `  ${url}`).join("\n")}`);
-      }
-      if (options.lanPassword === undefined) {
-        output.info(`配对码: ${access.pairingCode}`);
-      } else {
-        output.info("已使用自定义访问密码（不会在终端回显）。");
-      }
-      output.info(
-        options.sessionTtl === undefined
-          ? "会话有效期: 永不过期（仅当前进程）"
-          : `会话有效期: ${options.sessionTtl}（固定期限，不自动续期）`,
-      );
-      output.info(
-        options.lanPassword === undefined
-          ? "重启 Codexly 后，当前配对码和所有局域网会话将失效。"
-          : "重启 Codexly 后，所有局域网会话将失效；固定访问密码保持有效。",
-      );
-    } else {
-      output.info(`访问地址: http://127.0.0.1:${String(activePort)}`);
-    }
-
-    if (!managed?.background && options.lan !== true && options.noOpen !== true) {
-      try {
-        await dependencies.openBrowser(`http://127.0.0.1:${String(activePort)}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        output.warning(`无法自动打开浏览器，请手动访问上述地址。原因: ${message}`);
+    if (!managed?.background && process.env[STARTUP_UPDATE_APPLIED_ENV] !== "1") {
+      const update = await dependencies.checkAppUpdate();
+      if (update.status === "check-failed") {
+        output.warning("无法检查 Codexly 更新，将继续启动当前版本。");
+      } else if (update.status === "available" && update.latestVersion !== null) {
+        const shouldUpdate = await dependencies.confirmAppUpdate(
+          dependencies.appVersion,
+          update.latestVersion,
+        );
+        if (shouldUpdate) {
+          output.info(`正在更新 Codexly 到 ${update.latestVersion}...`);
+          await dependencies.installAppUpdate(update.latestVersion, (progress) => {
+            output.info(formatTerminalAppUpdateProgress(progress));
+          });
+          output.success(`Codexly 已更新到 ${update.latestVersion}，正在重新启动。`);
+          return await dependencies.restartAfterUpdate(["start", ...args]);
+        }
+        output.info("已跳过更新，继续启动当前版本。");
       }
     }
 
-    // 同时观察退出信号和子进程，避免 App Server 崩溃后 CLI 继续空等。
-    const outcome = await Promise.race([
-      runtime.waitForExit().then((exit) => ({ exit, type: "process-exit" as const })),
-      waitForAbort(shutdownSignal).then(() => ({ type: "shutdown" as const })),
-    ]);
-    if (outcome.type === "process-exit") {
-      const reason = outcome.exit.signal
-        ? `信号 ${outcome.exit.signal}`
-        : `退出码 ${String(outcome.exit.code)}`;
-      throw new Error(`Codex App Server 在 Codexly 关闭前意外退出，${reason}`);
+    const ownedShutdown = signal ? null : createProcessShutdownSignal();
+    const shutdownSignal = signal ?? ownedShutdown?.signal;
+    if (!shutdownSignal) {
+      throw new Error("Shutdown signal is unavailable");
     }
-    return 0;
-  } finally {
-    // 每层 finally 都保证后续资源被回收，避免单个关闭错误遗留长驻进程。
+
+    let runtime: ReturnType<typeof createLazyCodexRuntime> | undefined;
+    let server: CliManagedServer | undefined;
+    let stateRepository: CliManagedStateRepository | undefined;
+
     try {
-      await server?.close();
+      const codexHome = resolveCodexHome(options);
+      // 启动位置不参与内部运行：多个 Web 实例共用应用数据目录，由端口和业务事务处理并发。
+      const runtimeCwd = homedir();
+      const env = {
+        ...environment,
+        ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
+      };
+      stateRepository = await dependencies.createStateRepository(
+        join(applicationDirectory, "state.sqlite3"),
+        codexHome,
+      );
+      const startupStateRepository = stateRepository;
+      const startRuntime = () => {
+        const initialize = () =>
+          dependencies.startCodexAppServer({
+            appVersion: dependencies.appVersion,
+            cwd: runtimeCwd,
+            env,
+            ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
+          });
+        // 上游首次创建 SQLite 状态也存在竞争；只串行化握手，运行期间不持有目录锁。
+        return startupStateRepository.withScheduledTaskLock === undefined
+          ? initialize()
+          : startupStateRepository.withScheduledTaskLock(initialize);
+      };
+      runtime = createLazyCodexRuntime(startRuntime, (client) =>
+        importLocalCatalog(client, startupStateRepository),
+      );
+      const catalogClient = await prepareLocalCatalog(runtime.client, stateRepository);
+      const projectRepository = dependencies.createProjectRepository({
+        client: catalogClient,
+        projection: stateRepository,
+      });
+      const projectSourceMigration = await stateRepository.readProjectSourceMigration();
+      if (!projectSourceMigration.completed) {
+        await projectRepository.migrateLegacyProjects({
+          recoverUnassigned: projectSourceMigration.recoverUnassigned,
+        });
+      }
+      await projectRepository.synchronize();
+      if (!projectSourceMigration.completed) {
+        await stateRepository.completeProjectSourceMigration();
+      }
+      const codexProvider = await dependencies.createRuntimeProvider({
+        ...(dependencies.appDataDirectory === undefined
+          ? {}
+          : { appDataDirectory: applicationDirectory }),
+        codexHome,
+        client: catalogClient,
+        modelCatalogRuntimeFactory: startRuntime,
+        // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
+        readTaskTitleModel: async () =>
+          (await startupStateRepository.readGlobalSettings())?.defaultModel ??
+          DEFAULT_GENERATION_MODEL,
+      });
+      const provider = enableClaudeRuntime(
+        codexProvider,
+        stateRepository,
+        codexHome,
+        applicationDirectory,
+      );
+      const petProvider = dependencies.createPetProvider({ codexHome });
+      const appUpdateService = createAppUpdateService({
+        appVersion: dependencies.appVersion,
+        // 启动时只读一次小型清单，后续关于页请求复用当前进程实际使用的版本。
+        claudeVersion: await readClaudeCodeVersion(),
+        get codexVersion() {
+          // 冷启动时沿用桌面端的支持版本回退，避免空字符串导致整个版本响应校验失败。
+          const version = runtime?.version ?? SUPPORTED_CODEX_VERSION;
+          return version === "" ? SUPPORTED_CODEX_VERSION : version;
+        },
+      });
+      server = await dependencies.createServer({
+        networkProxyDirectory: applicationDirectory,
+        // 托管运行复用已有日志目的地，HTTP 与 Provider 诊断也进入脱敏且有上限的后台日志。
+        ...(managed?.background ? { logDestination: { write: output.plain } } : {}),
+        ...(access === undefined ? {} : { access }),
+        ...(allowedHosts === undefined ? {} : { allowedHosts }),
+        projectRepository,
+        providerConnectionRepository: stateRepository,
+        provider,
+        preloadModelCatalog: false,
+        petProvider,
+        installAppUpdate: appUpdateService.install,
+        readAppInfo: appUpdateService.read,
+        readAppUpdateProgress: appUpdateService.readProgress,
+        queueRepository: stateRepository,
+        scheduledTaskAttachmentRepository: stateRepository,
+        scheduledTaskRepository: stateRepository,
+        submissionRepository: stateRepository,
+        asyncQuestionRepository: stateRepository,
+        projectTodoRepository: stateRepository,
+        settingsRepository: stateRepository,
+        localCatalogStore: stateRepository as CliManagedStateRepository & LocalCatalogStore,
+        staticRoot: dependencies.webRoot,
+        // 显式工作区仍控制临时任务边界；未配置时使用稳定的用户目录，不继承终端目录。
+        standaloneCwd: options.workspaceRoots?.[0] ?? runtimeCwd,
+        ...(options.workspaceRoots === undefined ? {} : { workspaceRoots: options.workspaceRoots }),
+      });
+      const host = options.lan === true ? "0.0.0.0" : "127.0.0.1";
+      const activePort = await listenOnAvailablePort(server, host, port);
+      if (activePort !== port) {
+        output.warning(`端口 ${String(port)} 已被占用，已自动切换到端口 ${String(activePort)}。`);
+      }
+      await managed?.onReady({ host, port: activePort });
+      output.success("Codexly 已启动");
+
+      if (access !== undefined) {
+        const urls = dependencies.listLanAccessUrls(activePort);
+        output.warning("局域网模式使用未加密的 HTTP，请仅在可信网络中使用。");
+        if (urls.length === 0) {
+          output.warning("未找到可用的局域网 IPv4 地址，服务仍在运行。");
+        } else {
+          output.info(`局域网访问地址:\n${urls.map((url) => `  ${url}`).join("\n")}`);
+        }
+        if (options.lanPassword === undefined) {
+          output.info(`配对码: ${access.pairingCode}`);
+        } else {
+          output.info("已使用自定义访问密码（不会在终端回显）。");
+        }
+        output.info(
+          options.sessionTtl === undefined
+            ? "会话有效期: 永不过期（仅当前进程）"
+            : `会话有效期: ${options.sessionTtl}（固定期限，不自动续期）`,
+        );
+        output.info(
+          options.lanPassword === undefined
+            ? "重启 Codexly 后，当前配对码和所有局域网会话将失效。"
+            : "重启 Codexly 后，所有局域网会话将失效；固定访问密码保持有效。",
+        );
+      } else {
+        output.info(`访问地址: http://127.0.0.1:${String(activePort)}`);
+      }
+
+      if (!managed?.background && options.lan !== true && options.noOpen !== true) {
+        try {
+          await dependencies.openBrowser(`http://127.0.0.1:${String(activePort)}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          output.warning(`无法自动打开浏览器，请手动访问上述地址。原因: ${message}`);
+        }
+      }
+
+      // 同时观察退出信号和子进程，避免 App Server 崩溃后 CLI 继续空等。
+      const outcome = await Promise.race([
+        runtime.waitForExit().then((exit) => ({ exit, type: "process-exit" as const })),
+        waitForAbort(shutdownSignal).then(() => ({ type: "shutdown" as const })),
+      ]);
+      if (outcome.type === "process-exit") {
+        const reason = outcome.exit.signal
+          ? `信号 ${outcome.exit.signal}`
+          : `退出码 ${String(outcome.exit.code)}`;
+        throw new Error(`Codex App Server 在 Codexly 关闭前意外退出，${reason}`);
+      }
+      return 0;
     } finally {
+      // 每层 finally 都保证后续资源被回收，避免单个关闭错误遗留长驻进程。
       try {
-        await runtime?.close();
+        await server?.close();
       } finally {
         try {
-          await stateRepository?.close();
+          await runtime?.close();
         } finally {
-          ownedShutdown?.cleanup();
+          try {
+            await stateRepository?.close();
+          } finally {
+            ownedShutdown?.cleanup();
+          }
         }
       }
     }
+  } finally {
+    await networkProxy.close();
   }
 }
 
@@ -423,7 +433,14 @@ export async function runCli(
       return 0;
     }
     if (command === "doctor") {
-      return await runDoctor(args, dependencies, output);
+      const proxy = await initializeNetworkProxy(
+        dependencies.appDataDirectory ?? appStorageDirectory(),
+      );
+      try {
+        return await runDoctor(args, dependencies, output);
+      } finally {
+        await proxy.close();
+      }
     }
     if (command === "start") {
       return await runStart(args, dependencies, options.signal, output);

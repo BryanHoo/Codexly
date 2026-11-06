@@ -35,6 +35,7 @@ export default defineConfig({
       "@codexly/core/persistent-task-queue": "./packages/core/src/persistent-task-queue.ts",
       "@codexly/core": "./packages/core/src/index.ts",
       "@codexly/protocol": "./packages/protocol/src/index.ts",
+      "@codexly/provider-claude/network-proxy": "./packages/provider-claude/src/network-proxy.ts",
       "@codexly/provider-claude": "./packages/provider-claude/src/index.ts",
       "@codexly/provider-codex": "./packages/provider-codex/src/index.ts",
       "@codexly/server": "./packages/server/src/index.ts",

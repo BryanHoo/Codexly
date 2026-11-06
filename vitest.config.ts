@@ -3,6 +3,9 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export const vitestAliases = {
+  "@codexly/provider-claude/network-proxy": fileURLToPath(
+    new URL("./packages/provider-claude/src/network-proxy.ts", import.meta.url),
+  ),
   "@codexly/core/app-storage-paths": fileURLToPath(
     new URL("./packages/core/src/app-storage-paths.ts", import.meta.url),
   ),

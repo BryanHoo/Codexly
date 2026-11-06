@@ -12,3 +12,5 @@ export const PersonalizationSettingsPanel = lazy(() => import("./personalization
 export const ClaudeSettingsPanel = lazy(() => import("./claude-settings-panel.js").then((module) => ({ default: module.ClaudeSettingsPanel })));
 
 export const SavedPromptsSettings = lazy(() => import("@codexly/ui/core/saved-prompts-settings").then((module) => ({ default: module.SavedPromptsSettings })));
+
+export const NetworkProxySettingsField = lazy(() => import("./network-proxy-settings.js").then(module => ({default: module.NetworkProxySettingsField})));

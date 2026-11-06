@@ -204,6 +204,7 @@ pub(super) fn configured_command(
     read_only: bool,
 ) -> Result<Command, WorkspaceError> {
     let mut command = Command::new(git_binary_path()?);
+    crate::infrastructure::network_proxy::apply_command(&mut command);
     // 隔离宿主遗留的仓库定位变量，防止读取或写入被重定向到另一仓库。
     for variable in [
         "GIT_DIR",

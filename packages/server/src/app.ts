@@ -1,3 +1,4 @@
+import { registerNetworkProxyRoutes } from "./network-proxy-routes.js";
 import { registerPromptOptimizationRoutes } from "./routes/prompt-optimization-routes.js";
 import {
   DiagnosticLogBuffer,
@@ -193,8 +194,7 @@ export async function createCodexlyServer(
           projectRuntimeIdleReaper.touch(projectId);
           return concurrentContext;
         }
-        // 已激活 Runtime 的身份由创建时校验；仅缓存未命中时访问持久层。
-        const resolved = await resolveTaskScope(projectId, options);
+        const resolved = await resolveTaskScope(projectId, options); // 仅缓存未命中时重新校验身份。
         if (resolved === undefined) {
           return undefined;
         }
@@ -473,6 +473,7 @@ export async function createCodexlyServer(
     ...(accessService === undefined ? {} : { service: accessService }),
   });
   registerDiagnosticRoutes(app, diagnosticLogs);
+  registerNetworkProxyRoutes(app, options.networkProxyDirectory);
   registerCodexDiagnosticRoutes(app, options.provider);
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerPromptOptimizationRoutes, routeContext);

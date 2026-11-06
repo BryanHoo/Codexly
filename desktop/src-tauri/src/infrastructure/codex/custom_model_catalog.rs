@@ -26,7 +26,7 @@ pub(super) async fn discover(
     let headers = model_headers(provider, codex_home).await?;
     let client = CLIENT
         .get_or_init(|| {
-            Client::builder()
+            crate::infrastructure::network_proxy::client_builder()
                 .timeout(Duration::from_secs(10))
                 .redirect(Policy::none())
                 .build()

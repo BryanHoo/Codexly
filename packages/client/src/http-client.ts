@@ -1,3 +1,9 @@
+import {
+  NetworkProxyStatusSchema,
+  type NetworkProxySettings,
+  type NetworkProxyStatus,
+} from "@codexly/protocol";
+import { Type } from "@sinclair/typebox";
 import { OptimizePromptResponseSchema } from "@codexly/protocol";
 import {
   SavedPromptsSchema,
@@ -40,6 +46,24 @@ export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
 
 export class CodexlyClient extends AsyncQuestionHttpClient {
+  public readNetworkProxy(): Promise<NetworkProxyStatus> {
+    return this.request("/v1/network-proxy", NetworkProxyStatusSchema);
+  }
+  public saveNetworkProxy(settings: NetworkProxySettings): Promise<NetworkProxyStatus> {
+    return this.request("/v1/network-proxy", NetworkProxyStatusSchema, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+  }
+  public testNetworkProxy(settings: NetworkProxySettings): Promise<{ ok: boolean }> {
+    return this.request("/v1/network-proxy/test", Type.Object({ ok: Type.Boolean() }), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+  }
+
   public optimizePrompt(projectId: string, text: string): Promise<{ text: string }> {
     return this.request(
       `/v1/projects/${encodeURIComponent(projectId)}/prompt-optimization`,

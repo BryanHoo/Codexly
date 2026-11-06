@@ -116,7 +116,7 @@ fn http_client() -> Result<&'static Client, AppError> {
     if let Some(client) = HTTP_CLIENT.get() {
         return Ok(client);
     }
-    let client = Client::builder()
+    let client = crate::infrastructure::network_proxy::client_builder()
         .redirect(Policy::none())
         .timeout(Duration::from_secs(15))
         .user_agent(crate::HTTP_USER_AGENT)

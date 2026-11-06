@@ -8,12 +8,18 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./network-proxy": {
+      "types": "./src/network-proxy.ts",
+      "default": "./src/network-proxy.ts"
     }
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
-    "@sinclair/typebox": "catalog:"
+    "@sinclair/typebox": "catalog:",
+    "proxy-chain": "catalog:",
+    "undici": "catalog:"
   }
 }

@@ -44,3 +44,5 @@ mod scheduled_tasks_tests;
 pub mod terminal;
 
 pub mod local_catalog;
+
+pub mod network_proxy;

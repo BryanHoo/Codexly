@@ -5,7 +5,8 @@
     "emitDeclarationOnly": true,
     "outDir": "../../.cache/types/protocol",
     "rootDir": "src",
-    "tsBuildInfoFile": "../../.cache/types/protocol.tsbuildinfo"
+    "tsBuildInfoFile": "../../.cache/types/protocol.tsbuildinfo",
+    "lib": ["ES2024", "DOM"]
   },
   "include": ["src/**/*.ts", "src/**/*.json"]
 }
