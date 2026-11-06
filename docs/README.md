@@ -20,6 +20,7 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 - [聊天与文件工作区](document-workspace.md)：中栏标签、聊天对照、移动视图与设计依据。
 - [文本编辑](text-file-editing.md)：手动保存、查找替换、未保存草稿、磁盘冲突与跨系统文件访问。
 - [全局搜索](global-search.md)：项目、任务、消息与文件搜索。
+- [网络代理](network-proxy.md)：系统、直连和自定义 HTTP/HTTPS/SOCKS5 代理，跨端共用与重启生效。
 - [常见问题](faq.md)：本地数据、跨端使用、连接失败与更新。
 
 ## 智能体与数据参考

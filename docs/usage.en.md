@@ -76,15 +76,23 @@ Edit text in source mode; switch Markdown to source first. UTF-8 files up to 2 M
 
 Failed saves keep your draft and offer retry. When the disk file changes, compare it with your draft and choose to continue editing, use the disk version, or save your draft. The latter two require confirmation, and another disk change after comparison still prevents overwriting. Pasting text preserves the file’s original LF or CRLF line endings. Drafts are held in memory and may not survive refreshes, forced exits, or crashes. Confirm save status before leaving.
 
+Relative links in file previews resolve from the current file’s directory, including parent paths, encoded paths, and line references. Supported files open in the workspace; other formats use the existing host application or remote download flow. In-page anchors stay within the current file panel, and navigation preserves unsaved-change confirmation.
+
 ## Git and worktrees
 
 Review changes, select files, and commit locally or commit and push. Push existing commits independently. A failed push preserves the local commit; resolve the connection or authentication problem and retry pushing.
+
+Choose **Open remote repository** from the project quick-open, root context menu, or root actions menu. The entry appears only for Git project roots and is disabled without a browsable remote. Web opens a new tab; desktop uses the system browser.
 
 The toolbar supports remote setup, branch publication, fetch, and fast-forward-only pull. Commit drafts are scoped to the device, project, worktree, and branch. Git uses the host computer's identity and credentials, including from mobile.
 
 Choose or create a worktree from the branch menu beneath the composer, then send the first message there. Existing conversations retain their original directory. Dependencies and ignored environment files are not copied automatically. Resolve merge conflicts in an external Git tool. See the bilingual [Git guide](git-workflow.md).
 
 Ordinary chat and project conversations share the header's host-application menu for opening the working directory. Chat prefers the directory selected in the draft or the task's actual directory. The entry appears only when host applications are available and is hidden for remote LAN access.
+
+## Network proxy
+
+In **Settings → Application → Network**, choose system, direct, or custom HTTP/HTTPS/SOCKS5 proxy mode. Test the current draft before saving if needed, then restart the desktop app or Web server; refreshing a browser does not apply saved settings. Web and mobile configure the server’s outbound connections. See [Network proxy (中文)](network-proxy.md).
 
 ## Scheduled work
 

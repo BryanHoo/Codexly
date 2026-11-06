@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-11-06
+
+### 新增
+
+- 支持跟随系统、直接连接或自定义 HTTP/HTTPS/SOCKS5 网络代理，配置在同机各端共用，保存后重启应用或 Web 服务生效。
+- 项目快捷打开与根目录菜单支持打开远程仓库，自动转换 Git 远端地址并在浏览器中访问。
+- 文件预览支持按当前文件目录打开相对链接，便于连续阅读项目文档与 Skills 引用。
+
+### 优化
+
+- 优化桌面端大型仓库的 Git 状态统计，减少处理开销。
+
+### 修复
+
+- 修复阅读文件差异时带动外层对话滚动、返回聊天后未恢复输出跟随，以及流式预览拆分未完成段落和丢失补丁空白的问题。
+
 ## [0.51.0] - 2026-11-05
 
 ### 新增
@@ -1042,7 +1058,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.51.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.52.0...HEAD
+[0.52.0]: https://github.com/BryanHoo/Codexly/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/BryanHoo/Codexly/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/BryanHoo/Codexly/compare/v0.49.1...v0.50.0
 [0.49.1]: https://github.com/BryanHoo/Codexly/compare/v0.48.0...v0.49.1

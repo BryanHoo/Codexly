@@ -65,3 +65,7 @@
 `desktop/src/shared/components/core/resizable-handle.browser.test.tsx` 覆盖 Chromium / WebKit 的按帧预览、取消恢复、多指针隔离、末次坐标、键盘边界和草稿节点身份。Web 的文档工作区 E2E 使用真实鼠标捕获验证拖动、Escape 与等分复位。
 
 分屏快捷键在 Web 和桌面端统一为 `Alt + Shift + 方向键`（macOS 的 Alt 为 Option），方向键决定新窗格的位置。旧的 `Cmd/Ctrl + Alt + 方向键` 保留给浏览器；可在左下角“帮助 → 键盘快捷键”查看当前平台支持的操作。
+
+## 文件预览内的链接
+
+相对链接以当前文件所在目录解析，例如 `SKILL.md` 中的 `references/guide.md` 打开同目录下的引用文件，`../README.md` 返回父目录文件。工作区、侧栏和独立文件窗口沿用同一导航规则；受支持的文件在内部预览，其他格式使用默认应用或远程下载入口。页内锚点只作用于当前文件面板，文件切换继续执行未保存内容确认。
