@@ -257,7 +257,8 @@
   width: 100%;
   max-width: 100%;
   margin: 0 0 0.5rem;
-  padding: 0.125rem 0 0.5rem;
+  /* 上下对称留白，让图标、文字和箭头相对整栏居中，并保持原有总内边距。 */
+  padding: 0.3125rem 0;
   border-bottom: 1px solid var(--ui-color-separator);
   border-radius: 0;
   color: var(--ui-color-text-muted);
