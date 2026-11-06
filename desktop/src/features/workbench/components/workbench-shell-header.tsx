@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import { useContext, useId } from "react";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
 import { SplitLayoutMenu } from "@codexly/ui/core/split-layout-menu";
@@ -37,6 +38,8 @@ export function WorkbenchShellHeader({
   const id = useId();
   const {
     globalSettings,
+    gitStatusQuery,
+    selectedRootPath,
     inspectorOpen,
     navigate,
     projectOpenCapabilitiesQuery,
@@ -130,6 +133,7 @@ export function WorkbenchShellHeader({
         )}
         {resolveQuickOpenVisibility(utilityView) ? (
           <ProjectQuickOpenMenu
+            remote={!temporary && selectedRootPath && isRootGitProject(gitStatusQuery.data) ? { projectId, rootPath: selectedRootPath } : undefined}
             apps={projectOpenCapabilitiesQuery.data?.apps ?? []}
             className="flex"
             {...(globalSettings === undefined

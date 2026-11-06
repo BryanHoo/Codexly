@@ -1,3 +1,7 @@
+import {
+  ProjectRemoteRepositoryMenuItem,
+  type RemoteRepositoryTarget,
+} from "./project-remote-repository-menu-item.js";
 import { getProjectFileCreationMessages } from "@codexly/ui/core/project-file-creation-labels";
 import {
   ProjectFileCreationMenuItems,
@@ -32,6 +36,7 @@ import {
 } from "./project-open-menu-model.js";
 
 type ProjectOpenDropdownMenuProps = Readonly<{
+  remote?: RemoteRepositoryTarget | undefined;
   apps: readonly ProjectOpenApp[];
   download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
@@ -48,6 +53,7 @@ type ProjectOpenDropdownMenuProps = Readonly<{
 
 export function ProjectOpenDropdownMenu({
   apps,
+  remote,
   download,
   isPending,
   onOpen,
@@ -88,6 +94,7 @@ export function ProjectOpenDropdownMenu({
       </Tooltip>
       <ProjectOpenDropdownMenuItems
         apps={apps}
+        remote={remote}
         {...(download === undefined ? {} : { download })}
         isPending={isPending}
         {...(onCreateFile === undefined || onCreateDirectory === undefined
@@ -107,6 +114,7 @@ type ProjectOpenDropdownMenuItemsProps = Omit<ProjectOpenDropdownMenuProps, "onO
 
 export function ProjectOpenDropdownMenuItems({
   apps,
+  remote,
   download,
   isPending,
   onCreateFile,
@@ -196,6 +204,7 @@ export function ProjectOpenDropdownMenuItems({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       )}
+      {remote && <ProjectRemoteRepositoryMenuItem target={remote} variant="dropdown" />}
       {target.type === "file" && onOpenInNewWindow !== undefined ? (
         <DropdownMenuItem onSelect={onOpenInNewWindow}>
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />

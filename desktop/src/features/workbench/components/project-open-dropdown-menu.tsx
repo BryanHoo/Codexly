@@ -1,3 +1,4 @@
+import { ProjectRemoteRepositoryMenuItem, type RemoteRepositoryTarget } from "./project-remote-repository-menu-item.js";
 import { getProjectFileCreationMessages } from "@codexly/ui/core/project-file-creation-labels";
 import { ProjectFileCreationMenuItems, useProjectFileCreationMenuFocus } from "@codexly/ui/core/project-file-creation-menu";
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@/protocol/index.js";
@@ -29,6 +30,7 @@ import {
 } from "./project-open-menu-model.js";
 
 type ProjectOpenDropdownMenuProps = Readonly<{
+  remote?: RemoteRepositoryTarget | undefined;
   apps: readonly ProjectOpenApp[];
   isPending: boolean;
   onOpen: () => void;
@@ -44,6 +46,7 @@ type ProjectOpenDropdownMenuProps = Readonly<{
 
 export function ProjectOpenDropdownMenu({
   apps,
+  remote,
   isPending,
   onOpen,
   onCreateFile,
@@ -83,6 +86,7 @@ export function ProjectOpenDropdownMenu({
       </Tooltip>
       <ProjectOpenDropdownMenuItems
         apps={apps}
+        remote={remote}
         isPending={isPending}
         {...(onCreateFile === undefined || onCreateDirectory === undefined ? {} : { onCreateFile, onCreateDirectory })}
         onReference={onReference}
@@ -99,6 +103,7 @@ type ProjectOpenDropdownMenuItemsProps = Omit<ProjectOpenDropdownMenuProps, "onO
 
 export function ProjectOpenDropdownMenuItems({
   apps,
+  remote,
   isPending,
   onCreateFile,
   onCreateDirectory,
@@ -169,6 +174,7 @@ export function ProjectOpenDropdownMenuItems({
           })}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
+      {remote && (<ProjectRemoteRepositoryMenuItem target={remote} variant="dropdown" />)}
       {target.type === "file" && onOpenInNewWindow !== undefined ? (
         <DropdownMenuItem onSelect={onOpenInNewWindow}>
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />

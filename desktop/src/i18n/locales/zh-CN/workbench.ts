@@ -158,6 +158,7 @@ export const workbench = {
     followUpPlaceholder: "输入后续要求",
   },
   openMenu: {
+    openRemoteRepository: "打开远程仓库",
     choose: "选择打开方式",
     copyAbsolutePath: "复制绝对路径",
     copyName: "复制名称",

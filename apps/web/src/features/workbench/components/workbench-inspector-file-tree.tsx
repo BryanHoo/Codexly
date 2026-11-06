@@ -20,6 +20,7 @@ export function ProjectFileTreeRootActions({
   onReferenceProjectPath,
   onRefreshProject,
   projectName,
+  projectId,
   projectOpenApps,
   projectOpenPending,
   projectPath,
@@ -32,6 +33,7 @@ export function ProjectFileTreeRootActions({
   onReferenceProjectPath: (entry: ProjectFileSearchEntry) => void;
   onRefreshProject: () => unknown;
   projectName: string;
+  projectId?: string;
   projectOpenApps: readonly ProjectOpenApp[];
   projectOpenPending: boolean;
   projectPath: string;
@@ -81,6 +83,7 @@ export function ProjectFileTreeRootActions({
         <TooltipContent side="left">{refreshLabel}</TooltipContent>
       </Tooltip>
       <ProjectOpenDropdownMenu
+        remote={projectId ? { projectId, rootPath: projectPath } : undefined}
         apps={projectOpenApps}
         isPending={projectOpenPending}
         onCreateFile={onCreateFile}

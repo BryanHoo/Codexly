@@ -1,3 +1,7 @@
+import {
+  ProjectRemoteRepositoryMenuItem,
+  type RemoteRepositoryTarget,
+} from "./project-remote-repository-menu-item.js";
 import { getProjectFileCreationMessages } from "@codexly/ui/core/project-file-creation-labels";
 import {
   ProjectFileCreationMenuItems,
@@ -46,6 +50,7 @@ export {
 } from "./project-open-menu-model.js";
 
 type ProjectQuickOpenMenuProps = Readonly<{
+  remote?: RemoteRepositoryTarget | undefined;
   apps: readonly ProjectOpenApp[];
   className?: string;
   defaultOpenAppId?: ProjectOpenAppId | null;
@@ -57,6 +62,7 @@ type ProjectQuickOpenMenuProps = Readonly<{
 
 export function ProjectQuickOpenMenu({
   apps,
+  remote,
   className = "",
   defaultOpenAppId,
   hidden = false,
@@ -66,8 +72,8 @@ export function ProjectQuickOpenMenu({
 }: ProjectQuickOpenMenuProps) {
   const { t } = useTranslation("workbench");
   const directoryApps = getProjectOpenAppsForTarget(apps, "directory");
-  // 无宿主应用能力的 LAN 模式不渲染快捷入口，聊天与项目使用同一能力判断。
-  if (hidden || (!isDetecting && directoryApps.length === 0)) {
+  // LAN 没有宿主应用时仍允许浏览远程仓库；聊天继续沿用宿主能力判断。
+  if (hidden || (!isDetecting && directoryApps.length === 0 && !remote)) {
     return null;
   }
   // 全局默认值不可用时回退到首个宿主应用，确保快捷入口仍可直接执行。
@@ -105,7 +111,7 @@ export function ProjectQuickOpenMenu({
           <Button
             aria-label={t("openMenu.choose")}
             className="rounded-l-none"
-            disabled={directoryApps.length === 0 || isPending}
+            disabled={(directoryApps.length === 0 && !remote) || isPending}
             size="icon-toolbar"
             type="button"
             variant="outline"
@@ -115,6 +121,7 @@ export function ProjectQuickOpenMenu({
         </DropdownMenuTrigger>
       </ButtonGroup>
       <DropdownMenuContent align="end" aria-label={t("openMenu.choose")} className="w-52">
+        {remote && <ProjectRemoteRepositoryMenuItem target={remote} variant="dropdown" />}
         {directoryApps.map((app) => {
           const Icon = projectOpenAppKindIcons[app.kind];
           return (
@@ -137,6 +144,7 @@ export function ProjectQuickOpenMenu({
 }
 
 type ProjectOpenContextMenuItemsProps = Readonly<{
+  remote?: RemoteRepositoryTarget | undefined;
   apps: readonly ProjectOpenApp[];
   ariaLabel?: string;
   download?: Readonly<{ name: string; url: string }>;
@@ -153,6 +161,7 @@ type ProjectOpenContextMenuItemsProps = Readonly<{
 
 export function ProjectOpenContextMenuItems({
   apps,
+  remote,
   ariaLabel,
   download,
   isPending,
@@ -239,6 +248,7 @@ export function ProjectOpenContextMenuItems({
           </ContextMenuSubContent>
         </ContextMenuSub>
       )}
+      {remote && <ProjectRemoteRepositoryMenuItem target={remote} variant="context" />}
       {target.type === "file" && onOpenInNewWindow !== undefined ? (
         <ContextMenuItem onSelect={onOpenInNewWindow}>
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />
@@ -275,6 +285,7 @@ export function ProjectOpenContextMenuItems({
 }
 
 type ProjectOpenContextMenuProps = Readonly<{
+  remote?: RemoteRepositoryTarget | undefined;
   apps: readonly ProjectOpenApp[];
   children: ReactElement;
   download?: Readonly<{ name: string; url: string }>;
@@ -292,6 +303,7 @@ type ProjectOpenContextMenuProps = Readonly<{
 
 export function ProjectOpenContextMenu({
   apps,
+  remote,
   children,
   download,
   isPending,
@@ -326,6 +338,7 @@ export function ProjectOpenContextMenu({
       </ContextMenuTrigger>
       <ProjectOpenContextMenuItems
         apps={apps}
+        remote={remote}
         ariaLabel={t("openMenu.targetLabel", { path: target.path })}
         {...(download === undefined ? {} : { download })}
         isPending={isPending}

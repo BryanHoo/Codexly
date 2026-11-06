@@ -167,6 +167,7 @@ export const workbench = {
     followUpPlaceholder: "Enter follow-up instructions",
   },
   openMenu: {
+    openRemoteRepository: "Open remote repository",
     choose: "Choose how to open",
     copyAbsolutePath: "Copy absolute path",
     copyName: "Copy name",

@@ -64,3 +64,9 @@
 - 文件卡片复用共享 UI 的 AI Elements Collapsible/Button 组合，默认展开且可单独折叠；按需加载各端补丁预览，折叠卸载重型正文。状态必须区分等待、运行、已应用、失败、拒绝和中断，不能将未完成修改标为已应用。
 - 卡片内未修改行分隔高度 20px，正文顶部不保留额外留白；完整差异预览维持默认密度。差异正文最大高度 160px，超出后内部滚动，文件名与状态栏保持可见，不随补丁行数无限撑高对话；窄屏优先保留文件名，目录作为次级文字截断，增删统计保留。卡片使用工作台已定义的表面、圆角与分隔线令牌，样式随卡片按需加载，补丁继承应用显式明暗主题。
 - 回归入口：`desktop/tests/browser/streaming-file-diff.browser.test.tsx` 同时验证两端 Chromium/WebKit、360px/1280px、开关、真实文件事件更新、完成保留、折叠、打开差异及大补丁高度与滚动。
+
+## 打开远程仓库
+
+- 项目中栏顶部快捷打开、根目录右键和根目录三点菜单提供“打开远程仓库”；仅根目录自身为 Git 仓库时显示，普通文件、子目录和仅包含子仓库的目录不显示。未配置可浏览远端时禁用。
+- 菜单展开后才复用本地 Git inspect 与查询缓存，不触发 fetch/push 或额外轮询；优先当前远端、其次 origin、最后首个远端。两端共用地址转换和菜单组件，HTTP(S) 保留网页端口，SSH/SCP/git 地址转换为 HTTPS 并去除传输端口及认证信息；本地路径不可作为网页打开。
+- Web 使用新标签链接以保留浏览器用户激活，桌面通过原生 opener 打开系统浏览器。回归入口为 `packages/frontend-core/src/git-repository-url.test.ts` 与 `desktop/tests/browser/project-remote-repository.browser.test.tsx`（两端三类菜单、Chromium / WebKit、非 Git 隐藏及无远端禁用）。

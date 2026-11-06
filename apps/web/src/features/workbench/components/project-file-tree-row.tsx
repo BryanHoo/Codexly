@@ -220,6 +220,7 @@ export const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
       ) : null}
       {data.kind === "root" ? (
         <ProjectFileTreeRootActions
+          projectId={projectId}
           onCreateFile={creation.openCreateFile}
           onCreateDirectory={creation.openCreateDirectory}
           onMenuOpen={() => {
@@ -261,6 +262,7 @@ export const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
       row
     ) : (
       <ProjectOpenContextMenu
+        remote={data.kind === "root" ? { projectId, rootPath: projectPath } : undefined}
         {...createActions}
         apps={projectOpenApps}
         {...(download === undefined ? {} : { download })}
