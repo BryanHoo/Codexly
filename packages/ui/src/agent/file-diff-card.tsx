@@ -66,7 +66,23 @@ export const FileDiffCard = memo(function FileDiffCard({
       </CollapsibleTrigger>
       <CollapsibleContent>
         {/* 限制正文而非整卡高度，长补丁内部滚动，标题和状态入口始终可见。 */}
-        <div className="agent-file-diff-content" data-file-diff-content="">
+        <div
+          className="agent-file-diff-content"
+          data-file-diff-content=""
+          // CSS 只阻止实际滚动穿透；还需隔离 React 事件，避免上游滚动器解除跟随。
+          onWheel={(event) => {
+            event.stopPropagation();
+          }}
+          onTouchMove={(event) => {
+            event.stopPropagation();
+          }}
+          onKeyDown={(event) => {
+            if (
+              ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)
+            )
+              event.stopPropagation();
+          }}
+        >
           {children}
         </div>
       </CollapsibleContent>

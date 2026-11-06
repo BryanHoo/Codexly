@@ -72,6 +72,17 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       following = false;
       anchor = null;
     };
+    const onReadingIntent = (event: Event) => {
+      // 原生监听先于 React 冒泡执行；diff 内部阅读不能暂停外层会话跟随。
+      // 使用 composedPath 兼容补丁渲染器的 Shadow DOM，不额外测量布局。
+      if (
+        event
+          .composedPath()
+          .some((node) => node instanceof Element && node.hasAttribute("data-file-diff-content"))
+      )
+        return;
+      pause();
+    };
     const follow = () => {
       following = true;
       anchor = null;
@@ -83,12 +94,12 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key))
-        pause();
+        onReadingIntent(event);
     };
     actions.current = { pause, follow };
     viewport.addEventListener("scroll", onScroll, { passive: true });
-    viewport.addEventListener("wheel", pause, { passive: true });
-    viewport.addEventListener("touchmove", pause, { passive: true });
+    viewport.addEventListener("wheel", onReadingIntent, { passive: true });
+    viewport.addEventListener("touchmove", onReadingIntent, { passive: true });
     viewport.addEventListener("keydown", onKeyDown);
     viewport.addEventListener("pointerdown", onPointerDown);
     const resize = new ResizeObserver(syncLayout);
@@ -117,8 +128,8 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       resize.disconnect();
       mutations.disconnect();
       viewport.removeEventListener("scroll", onScroll);
-      viewport.removeEventListener("wheel", pause);
-      viewport.removeEventListener("touchmove", pause);
+      viewport.removeEventListener("wheel", onReadingIntent);
+      viewport.removeEventListener("touchmove", onReadingIntent);
       viewport.removeEventListener("keydown", onKeyDown);
       viewport.removeEventListener("pointerdown", onPointerDown);
       actions.current = { pause: idle, follow: idle };
