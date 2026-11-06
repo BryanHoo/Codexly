@@ -35,8 +35,50 @@ impl Repository {
 
 impl Drop for Repository {
     fn drop(&mut self) {
-        fs::remove_dir_all(&self.0).unwrap();
+        for attempt in 0..=20 {
+            match fs::remove_dir_all(&self.0) {
+                Ok(()) => return,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
+                // kill_on_drop 发出终止后，Windows 仍可能短暂保留 Git 的文件句柄。
+                Err(error)
+                    if cfg!(windows)
+                        && matches!(error.raw_os_error(), Some(5 | 32 | 145))
+                        && attempt < 20 =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                Err(error) => {
+                    // 保留最初的失败，禁止清理阶段的第二次 panic 直接中止整个套件。
+                    assert!(
+                        std::thread::panicking(),
+                        "repository cleanup failed: {error}"
+                    );
+                    return;
+                }
+            }
+        }
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn repository_fixture_waits_for_windows_file_handles_to_close() {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    let repo = Repository::new();
+    let root = repo.0.clone();
+    let handle = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(root.join("old.txt"))
+        .unwrap();
+    let release = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        drop(handle);
+    });
+    drop(repo);
+    release.join().unwrap();
+    assert!(!root.exists());
 }
 
 #[cfg(windows)]

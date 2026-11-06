@@ -36,11 +36,12 @@ describe.each([["桌面", DesktopWorkspace], ["Web", WebWorkspace]] as const)("%
     const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     function Harness() {
       const workspace = useDocumentWorkspace<InspectorDocument>("project");
+      const { open } = workspace;
       const openProjectFile = (path: string) => {
         opened(path);
-        workspace.open({ id: `source:${path}`, kind: "source", reference: { path, lineNumber: null } });
+        void open({ id: `source:${path}`, kind: "source", reference: { path, lineNumber: null } });
       };
-      useLayoutEffect(() => { workspace.open({ id: `source:${skillPath}`, kind: "source", reference: { path: skillPath, lineNumber: null } }); }, []);
+      useLayoutEffect(() => { void open({ id: `source:${skillPath}`, kind: "source", reference: { path: skillPath, lineNumber: null } }); }, [open]);
       const context = { client, documentWorkspace: workspace, selectedRootPath: root, openProjectFile, removeInspectorDocument: workspace.close, openFileDiff: vi.fn() } as unknown as Parameters<typeof Workspace>[0]["context"];
       return <Workspace context={context} enabled projectId="project"><p>聊天正文</p></Workspace>;
     }

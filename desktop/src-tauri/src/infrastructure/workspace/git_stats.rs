@@ -14,10 +14,17 @@ pub(super) async fn read_stats(
     staged: &mut [GitChange],
     unstaged: &mut [GitChange],
 ) -> Result<FileChangeStats, WorkspaceError> {
-    tokio::try_join!(
-        read_side(repo, staged, true),
-        read_side(repo, unstaged, false)
-    )?;
+    // Windows 大清单并发读取同一 index/blob 会放大磁盘争用，甚至让两路都超时。
+    // 小清单与其他平台仍并行；大清单顺序读取，保留每个 Git 命令的原有超时预算。
+    if cfg!(windows) && staged.len().saturating_add(unstaged.len()) > 20_000 {
+        read_side(repo, staged, true).await?;
+        read_side(repo, unstaged, false).await?;
+    } else {
+        tokio::try_join!(
+            read_side(repo, staged, true),
+            read_side(repo, unstaged, false)
+        )?;
+    }
     Ok(staged.iter().chain(unstaged.iter()).fold(
         FileChangeStats::default(),
         |mut total, change| {

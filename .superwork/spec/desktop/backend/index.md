@@ -10,6 +10,7 @@
 - [ ] 同机应用数据位于 `~/.codexly`，遵循共享 Protocol 的目录 Schema、迁移和用量 SQL；参照 [本地目录与任务](../../../../docs/local-catalog.md)。
 - [ ] Codex 与 Claude 保持独立配置、身份和能力；Claude 使用共享 TypeScript 适配器的 stdio 宿主。资源布局见 [运行时分发](../../../../desktop/docs/provider-runtime-management.md)。
 - [ ] 文件、进程、终端与生命周期操作保持有界，取消和退出释放资源；遵守 Cargo 的 `unsafe_code = "forbid"` 与平台条件编译。
+- [ ] Windows 超过 20,000 条暂存与未暂存变更时，Git 行数统计按两侧顺序读取，避免同一 index/blob 的并发磁盘争用；保留每个命令 30 秒超时，小清单与其他平台仍并行。用 `performance_baseline_large_git_status_pages` 的 10k/50k/100k 清单验证，不能通过放宽超时掩盖回归。
 - [ ] 内置 Codex 的版本探测为首次系统校验预留最多 15 秒，不能按暖启动速度误报运行时损坏；正常输出立即返回，超时终止子进程并保持输出大小限制。`runtime_manager_tests::bundled_runtime_should_allow_slow_first_launch` 覆盖慢启动，版本探测进程测试继续覆盖超时回收。
 - [ ] Codex 同一任务的完整退订检查、线程恢复和回合启动必须串行，包括设置 Goal 触发的启动；不能用较早读取的 idle 状态退订已开始输出的新回合。不同任务继续并行，锁记录随操作结束回收。回归入口为 `conversation_subscription_tests.rs`。
 - [ ] 执行 `pnpm --dir desktop check:rust`：格式检查、Clippy、全特性测试及 Release 性能基线；平台专属功能在 macOS / Windows / Ubuntu 对应环境验证。
