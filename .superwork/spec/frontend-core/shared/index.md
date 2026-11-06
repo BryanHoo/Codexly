@@ -13,6 +13,9 @@
 
 ## 契约与检查项
 
+- Unified Diff 的尾部空格、空白上下文行与换行属于补丁内容，不得使用 `trimEnd()` 清理；文件头补齐后须保持 hunk 行数可解析。Web 回归入口为 `features/diff/file-change.test.ts`。
+- 流式 Markdown 的延迟预览只能独立保留已结束的段落，不能把“我”等未结束前缀渲染成额外段落。共享 `streaming-prefix.test.ts` 与跨端 `desktop/tests/browser/stream-prefix.browser.test.tsx` 覆盖长段落追加、最终解析和权威正文替换。
+
 - [ ] 不导入具体 Web / 桌面应用、Client、Core、Provider、Server 或根 CLI，传输与原生副作用由平台适配器承接。
 - [ ] 文档、分屏、草稿与任务选择保持两端一致；修改共享规则时检查全部消费者。
 - [ ] 文本编辑遵循 [文本编辑契约](../../../../docs/text-file-editing.md)：粘贴内容须在进入文本树前统一为文件的 LF / CRLF，不能仅依赖 `lineSeparator`；保存失败后保留草稿，明确二次确认放弃才解除该草稿的关闭保护。共享 `text-editor-recovery.browser.test.tsx` 覆盖两种换行方向与确认恢复。

@@ -74,20 +74,21 @@ function getPatchFileHeaders(change: AgentFileChange): Readonly<{
 }
 
 export function normalizeFileChangePatch(change: AgentFileChange): string {
-  const trimmedDiff = change.diff.trimEnd();
+  // 补丁末尾的空格也可能是一整行上下文；原样保留，避免破坏 hunk 行数。
+  const diff = change.diff;
   const { additionPath, deletionPath } = getPatchFileHeaders(change);
   const fileHeaders = `--- ${deletionPath}\n+++ ${additionPath}`;
 
-  const hasFileHeaders = /^---\s/m.test(trimmedDiff) && /^\+\+\+\s/m.test(trimmedDiff);
+  const hasFileHeaders = /^---\s/m.test(diff) && /^\+\+\+\s/m.test(diff);
   if (hasFileHeaders) {
-    return trimmedDiff;
+    return diff;
   }
 
-  if (/^@@\s/m.test(trimmedDiff)) {
-    return `${fileHeaders}\n${trimmedDiff}`;
+  if (/^@@\s/m.test(diff)) {
+    return `${fileHeaders}\n${diff}`;
   }
 
-  const bodyLines = trimmedDiff.length === 0 ? [] : trimmedDiff.split("\n");
+  const bodyLines = diff.length === 0 ? [] : diff.split("\n");
   let additions = 0;
   let removals = 0;
   let contextLines = 0;

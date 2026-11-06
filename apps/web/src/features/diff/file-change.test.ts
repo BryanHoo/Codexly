@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parsePatchFiles } from "@pierre/diffs";
 
 import {
   countFileChangeLines,
@@ -7,6 +8,14 @@ import {
 } from "./file-change.js";
 
 describe("file change view model", () => {
+  it.each([false, true])("保留尾部空白上下文，确保补丁可解析（已有文件头：%s）", (headers) => {
+    const body = "@@ -71,2 +71,3 @@\n \n+added\n /**\n@@ -75,2 +76,2 @@\n-old\n+new  \n \n";
+    const diff = (headers ? "--- a/a.ts\n+++ b/a.ts\n" : "") + body;
+    const patch = normalizeFileChangePatch({ path: "a.ts", kind: "update", diff });
+    const file = parsePatchFiles(patch, undefined, true)[0]?.files[0];
+    expect(file?.hunks).toHaveLength(2);
+    expect(patch.endsWith(body)).toBe(true);
+  });
   it("counts patch body lines without counting file headers", () => {
     expect(
       countFileChangeLines({

@@ -38,6 +38,8 @@ export function deferMarkdownBlock(
     previous !== undefined &&
     previous.kind !== "deferred" &&
     previous.content.length <= 8_192 &&
+    // 延迟预览以块级容器展示；只有完整段落才能独立保留，不能把首字拆成一段。
+    /\r?\n\r?\n$/u.test(previous.source) &&
     replaceFrom >= previous.source.length
       ? previous
       : undefined;
