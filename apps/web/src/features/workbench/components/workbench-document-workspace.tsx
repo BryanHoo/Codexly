@@ -9,7 +9,14 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 
 export function WorkbenchDocumentWorkspace({
   children,
-  context,
+  context: {
+    client,
+    documentWorkspace,
+    selectedRootPath,
+    removeInspectorDocument,
+    openFileDiff,
+    openProjectFile,
+  },
   projectId,
   enabled,
 }: Readonly<{
@@ -20,25 +27,24 @@ export function WorkbenchDocumentWorkspace({
 }>) {
   const { t, i18n } = useTranslation("workbench");
   const router = useRouter({ warn: false });
-  useDocumentWorkspaceNavigation(context.documentWorkspace, router.history, projectId);
+  useDocumentWorkspaceNavigation(documentWorkspace, router.history, projectId);
   return (
     <DocumentWorkspace
-      workspace={context.documentWorkspace}
+      workspace={documentWorkspace}
       locale={i18n.language}
       enabled={enabled}
       describe={(document) => describeWorkbenchDocument(document, t("diff.reviewTitle"))}
       renderDocument={(document) => (
         <WorkbenchInspectorDocument
-          client={context.client}
+          client={client}
           document={document}
           projectId={projectId}
-          {...(context.selectedRootPath === undefined
-            ? {}
-            : { rootPath: context.selectedRootPath })}
+          rootPath={selectedRootPath}
           onClose={() => {
-            void context.removeInspectorDocument(document.id);
+            void removeInspectorDocument(document.id);
           }}
-          onOpenDiff={context.openFileDiff}
+          onOpenDiff={openFileDiff}
+          onOpenProjectFile={openProjectFile}
         />
       )}
     >

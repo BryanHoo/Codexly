@@ -29,7 +29,7 @@ function ReviewDocument({
   onClose,
 }: Readonly<{
   document: Extract<InspectorDocument, { kind: "review" }>;
-  loadDiff?: (change: AgentFileChange) => Promise<AgentFileChange>;
+  loadDiff?: ((change: AgentFileChange) => Promise<AgentFileChange>) | undefined;
   onClose: () => void;
 }>) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -62,17 +62,19 @@ function SourceDocument({
   document,
   loadDiff,
   onOpenDiff,
+  onOpenProjectFile,
   projectId,
   rootPath,
   taskId,
 }: Readonly<{
   client: NativeWorkbenchClient;
   document: Extract<InspectorDocument, { kind: "source" | "image" | "pdf" }>;
-  loadDiff?: (change: AgentFileChange) => Promise<AgentFileChange>;
+  loadDiff?: ((change: AgentFileChange) => Promise<AgentFileChange>) | undefined;
   onOpenDiff: (change: AgentFileChange) => void;
+  onOpenProjectFile?: ((path: string) => void) | undefined;
   projectId: string;
-  rootPath?: string;
-  taskId?: string;
+  rootPath?: string | undefined;
+  taskId?: string | undefined;
 }>) {
   const { t } = useTranslation("workbench");
   const [pending, setPending] = useState(false);
@@ -86,11 +88,7 @@ function SourceDocument({
           setPending(true);
           void loadDiff(change)
             .then(onOpenDiff)
-            .catch((error: unknown) =>
-              notifyActionError(
-                error instanceof Error ? error : new Error("Git diff is unavailable"),
-              ),
-            )
+            .catch(notifyActionError)
             .finally(() => setPending(false));
         }}
         size="icon-sm"
@@ -109,45 +107,37 @@ function SourceDocument({
     <Suspense fallback={null}>
       <LazyProjectSourcePanel
         client={client}
+        onOpenProjectFile={onOpenProjectFile}
         headerActions={headerActions}
         previewKind={document.kind}
         projectId={document.projectId ?? projectId}
         reference={document.reference}
-        {...((document.rootPath ?? rootPath) === undefined
-          ? {}
-          : { rootPath: document.rootPath ?? rootPath })}
-        {...(taskId === undefined || document.projectId !== undefined ? {} : { taskId })}
+        rootPath={rootPath}
+        taskId={document.projectId === undefined ? taskId : undefined}
       />
     </Suspense>
   );
 }
 
-export function WorkbenchInspectorDocument({
-  client,
-  document,
-  loadDiff,
-  onClose,
-  onOpenDiff,
-  projectId,
-  rootPath: selectedRootPath,
-  taskId,
-}: Readonly<{
+export function WorkbenchInspectorDocument(props: Readonly<{
   client: NativeWorkbenchClient;
   document: InspectorDocument;
-  loadDiff?: (change: AgentFileChange) => Promise<AgentFileChange>;
+  loadDiff?: ((change: AgentFileChange) => Promise<AgentFileChange>) | undefined;
   onClose: () => void;
   onOpenDiff: (change: AgentFileChange) => void;
+  onOpenProjectFile?: ((path: string) => void) | undefined;
   projectId: string;
-  rootPath?: string;
-  taskId?: string;
+  rootPath?: string | undefined;
+  taskId?: string | undefined;
 }>) {
+  const { client, document, loadDiff, onClose, projectId, rootPath: selectedRootPath } = props;
   const rootPath = document.rootPath ?? selectedRootPath;
   if (document.kind === "diff") return <FileDiffPanel change={document.change} />;
   if (document.kind === "review")
     return (
       <ReviewDocument
         document={document}
-        {...(loadDiff === undefined ? {} : { loadDiff })}
+        loadDiff={loadDiff}
         onClose={onClose}
       />
     );
@@ -165,14 +155,6 @@ export function WorkbenchInspectorDocument({
       </Suspense>
     );
   return (
-    <SourceDocument
-      client={client}
-      document={document}
-      {...(loadDiff === undefined ? {} : { loadDiff })}
-      onOpenDiff={onOpenDiff}
-      projectId={projectId}
-      {...(rootPath === undefined ? {} : { rootPath })}
-      {...(taskId === undefined ? {} : { taskId })}
-    />
+    <SourceDocument {...props} document={document} rootPath={rootPath} />
   );
 }

@@ -1,3 +1,5 @@
+import { projectDocumentLinkRemarkPlugin } from "@codexly/frontend-core/project-document-link";
+import { ProjectDocumentLinksContext, useProjectDocumentLink } from "@codexly/ui/core/project-document-links";
 import { deferredMermaid as mermaid } from "@codexly/ui/agent/deferred-mermaid";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { assistantDirectiveRemarkPlugin } from "@codexly/frontend-core/assistant-directive-remark";
@@ -252,7 +254,9 @@ function MarkdownLink({
   // Streamdown 注入的语法树节点不能透传给原生元素。
   void node;
   const onOpenFileReference = useContext(MessageFileReferenceContext);
+  const documentLink = useProjectDocumentLink(href, children, { ...props, className: `font-medium text-brand underline underline-offset-2 ${className}`, onClick });
   const { t } = useTranslation("workbench");
+  if (documentLink !== null) return documentLink;
   const directiveLink = renderAssistantDirectiveLink(href, children,
     (key) => t(`assistantDirectives.${key}`, { ns: "common" }), openMarkdownLink);
   if (directiveLink !== null) return directiveLink;
@@ -412,6 +416,7 @@ function MessageResponseContent({
   textSource,
   ...props
 }: MessageResponseProps) {
+  const documentLinks = useContext(ProjectDocumentLinksContext);
   const responseProcessor = useMemo(() => new IncrementalMessageResponseProcessor(), []);
   const parsedResponse = responseProcessor.process(textSource ?? children ?? "");
   const streaming = props.mode !== "static" && props.isAnimating !== false;
@@ -427,12 +432,13 @@ function MessageResponseContent({
       // Streamdown 收到自定义插件后不再注入默认 GFM；必须显式保留表格等标准扩展。
       ...Object.values(defaultRemarkPlugins),
       assistantDirectiveRemarkPlugin,
+      ...(documentLinks ? [projectDocumentLinkRemarkPlugin] : []),
       unparsedStrongRemarkPlugin,
       rawMarkupRemarkPlugin,
       ...(promptFileReferences ? [promptFileReferenceRemarkPlugin] : []),
       ...(remarkPlugins ?? []),
     ],
-    [promptFileReferences, remarkPlugins],
+    [documentLinks, promptFileReferences, remarkPlugins],
   );
 
   return (

@@ -40,21 +40,18 @@ function ReviewDocument({
   );
 }
 
-export function WorkbenchInspectorDocument({
-  client,
-  document,
-  onClose,
-  onOpenDiff,
-  projectId,
-  rootPath: selectedRootPath,
-}: Readonly<{
-  client: CodexlyWorkbenchClient;
-  document: InspectorDocument;
-  onClose: () => void;
-  onOpenDiff: (change: AgentFileChange) => void;
-  projectId: string;
-  rootPath?: string;
-}>) {
+export function WorkbenchInspectorDocument(
+  props: Readonly<{
+    client: CodexlyWorkbenchClient;
+    document: InspectorDocument;
+    onClose: () => void;
+    onOpenDiff: (change: AgentFileChange) => void;
+    onOpenProjectFile?: ((path: string) => void) | undefined;
+    projectId: string;
+    rootPath?: string | undefined;
+  }>,
+) {
+  const { client, document, onClose, onOpenDiff, projectId, rootPath: selectedRootPath } = props;
   const rootPath = document.rootPath ?? selectedRootPath;
   if (document.kind === "diff") return <FileDiffPanel change={document.change} />;
   if (document.kind === "review") return <ReviewDocument document={document} onClose={onClose} />;
@@ -75,20 +72,18 @@ export function WorkbenchInspectorDocument({
   return (
     <Suspense fallback={null}>
       <LazyProjectSourcePanel
-        client={client}
-        {...(change === undefined
-          ? {}
-          : {
-              onOpenDiff: () => {
+        {...props}
+        onOpenDiff={
+          change === undefined
+            ? undefined
+            : () => {
                 onOpenDiff(change);
-              },
-            })}
+              }
+        }
         previewKind={document.kind}
         projectId={document.projectId ?? projectId}
         reference={document.reference}
-        {...((document.rootPath ?? rootPath) === undefined
-          ? {}
-          : { rootPath: document.rootPath ?? rootPath })}
+        rootPath={rootPath}
       />
     </Suspense>
   );

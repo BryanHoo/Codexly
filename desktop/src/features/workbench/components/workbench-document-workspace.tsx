@@ -21,10 +21,11 @@ export function WorkbenchDocumentWorkspace({ children, context, projectId, taskI
     describe={(document) => describeWorkbenchDocument(document, t("diff.reviewTitle"))}
     renderDocument={(document) => <WorkbenchInspectorDocument
       client={context.client} document={document} projectId={projectId}
-      {...(context.selectedRootPath === undefined ? {} : { rootPath: context.selectedRootPath })}
+      rootPath={context.selectedRootPath}
       {...(taskId === undefined ? {} : { taskId })}
       loadDiff={context.loadProjectFileDiff}
       onClose={() => { void context.removeInspectorDocument(document.id); }} onOpenDiff={context.openFileDiff}
+      onOpenProjectFile={context.openProjectFile}
     />}>
     {children}
   </DocumentWorkspace>;

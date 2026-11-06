@@ -43,3 +43,11 @@
 - 新步骤入场由会话内稳定 itemKey 去重，跳过初始历史、token 更新及折叠重开；身份集合有界、切换任务释放。仅使用 CSS/原生 Web Animations，不为动效延迟事件提交或逐帧更新 React；遵循 `prefers-reduced-motion`。
 - Trace 折叠交给 Radix Presence 完成退出过渡后卸载，不能在外层直接条件移除详情；操作组聚合前后保留稳定折叠节点。思考摘要随流式状态展开/收起，用户手动选择优先。回归入口为桌面 `trace-entry.browser.test.tsx`、`trace-polish.browser.test.tsx` 和 Web `app-shell-trace-motion.spec.ts`。
 - 命令、工具和文件操作从首条起使用共享 `agent/operation-group.tsx` 的 Trace 折叠容器，展开窗口最多五条摘要行（28px 行高、4px 间隔），此高度只限制摘要列表，命令、工具及思考详情使用按需挂载的独立 Dialog Portal，文件 Diff 沿用已有独立入口，不受列表高度和中栏宽度限制。详情弹层固定标题，参数、终端日志和结果共享一个正文纵向滚动区，不能保留嵌套的日志高度上限；只有用户点击才打开，流式状态不自动弹出。查看详情视为手动展开组，后续助手正文不能卸载正在阅读的详情，关闭后恢复焦点并卸载重型内容。少量新增步骤使用原生平滑滚动，初始历史、批量追加及输出增量即时跟随，减少动态效果时禁用平滑滚动；不新增逐帧 React 状态。用户滚动、触控或打开详情时暂停内部跟随，由用户自行滚动，不显示回到底部按钮，手动滚到底部后恢复跟随；内部滚动意图不传播给外层会话滚动器。后续正文默认收起操作组，手动选择优先。单独的思考摘要继续使用原有入口。回归入口为桌面 `task-timeline-operation-groups.browser.test.tsx` 与 Web `app-shell-trace-motion.spec.ts`，覆盖窄屏、Chromium / Firefox / WebKit、外层高度和滚动位置稳定、手动折叠与减少动态效果。
+
+## 文件预览内的链接
+
+- Web、移动浏览器及桌面文件预览中的相对链接以当前文件所在目录为基准，不能以网页地址或项目根目录替代；宿主路径语义复用 `frontend-core/host-path`，POSIX 文件名中的反斜杠保持原样。
+- 文件链接在 Markdown URL 清洗前保留原始目标，避免 `../` 提前消解或 `file:` 被移除；两端共享解析与链接交互，项目支持的格式走内部文件入口，其余走既有宿主默认应用入口。远程浏览器使用受控下载，不尝试启动远端桌面应用。
+- 工作台与独立文件窗口均接入导航，文件切换保留现有未保存确认；页内锚点只在当前文件面板查找，不跳到其他分屏。
+- 回归入口为 `packages/frontend-core/src/project-document-link.test.ts` 和 `desktop/tests/browser/project-document-links.browser.test.tsx`，覆盖两端 Markdown 实际解析、Chromium/WebKit、宽窄视口、父目录、编码路径与宿主路径差异。
+- 文件导航必须覆盖中间文档标签页（`workbench-document-workspace`）、侧栏和独立窗口，不能只验证 Markdown 组件；`project-document-workspace-links.browser.test.tsx` 从真实工作区渲染 SKILL.md 的 `references/*.md` 链接，断言目标正文、返回原文及原生打开调用。

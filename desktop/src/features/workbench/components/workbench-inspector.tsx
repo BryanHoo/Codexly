@@ -289,6 +289,7 @@ export function WorkbenchInspector({
               <WorkbenchInspectorDocument
                 client={gitClient ?? nativeClient}
                 document={selectedDocument}
+                onOpenProjectFile={onOpenProjectFile}
                 {...(loadProjectFileDiff === undefined ? {} : { loadDiff: loadProjectFileDiff })}
                 onClose={() => {
                   onCloseDocument(selectedDocument.id);

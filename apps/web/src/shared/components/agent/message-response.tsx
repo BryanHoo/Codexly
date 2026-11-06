@@ -1,3 +1,8 @@
+import { projectDocumentLinkRemarkPlugin } from "@codexly/frontend-core/project-document-link";
+import {
+  ProjectDocumentLinksContext,
+  useProjectDocumentLink,
+} from "@codexly/ui/core/project-document-links";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { assistantDirectiveRemarkPlugin } from "@codexly/frontend-core/assistant-directive-remark";
 import { renderAssistantDirectiveLink } from "@codexly/ui/core/message-assistant-directive";
@@ -29,7 +34,6 @@ import {
   type BlockProps,
   type Components,
 } from "streamdown";
-
 import { Button } from "../core/button.js";
 import {
   ContextMenu,
@@ -48,17 +52,14 @@ import {
   UNC_FILE_REFERENCE_PREFIX,
 } from "./message-response-processing.js";
 import { promptReferenceTokenClassName } from "./prompt-reference-token.js";
-
 type MarkdownLinkProps = ComponentProps<"a"> & {
   node?: unknown;
 };
-
 type FileReferenceMetadata = Readonly<{
   lineNumber: string | null;
   path: string;
   prompt: boolean;
 }>;
-
 interface MarkdownNode {
   children?: MarkdownNode[];
   lang?: string;
@@ -66,7 +67,6 @@ interface MarkdownNode {
   url?: string;
   value?: string;
 }
-
 const MessageFileReferenceContext = createContext<
   ((reference: MessageFileReference, mode?: MessageFileReferenceOpenMode) => void) | null
 >(null);
@@ -77,7 +77,6 @@ const STREAMING_ANIMATION = {
   sep: "word",
   stagger: 12,
 } as const;
-
 function FileReferenceContextMenu({
   children,
   onOpen,
@@ -132,7 +131,6 @@ function FileReferenceContextMenu({
     </ContextMenu>
   );
 }
-
 // Agent 输出使用“绝对路径:行号”表达文件定位；渲染时拆出行号，避免把路径暴露给用户。
 const LOCAL_FILE_REFERENCE_PATTERN =
   /^(?<path>(?:\/|[a-z]:[\\/]|\\\\).+?\.[a-z0-9]+?)(?::(?<line>\d+)(?::\d+)?)?$/i;
@@ -145,7 +143,6 @@ const MESSAGE_RESPONSE_CONTROLS = {
   table: false,
 } as const;
 const MESSAGE_RESPONSE_PLUGINS = { mermaid } as const;
-
 function decodeMarkdownFileReference(href: string): string {
   try {
     // Markdown href 遵循 URL 编码规则；预览前只解码一次，避免 Client 再次编码百分号。
@@ -154,12 +151,10 @@ function decodeMarkdownFileReference(href: string): string {
     return href;
   }
 }
-
 function getFileReferenceMetadata(href: string | undefined): FileReferenceMetadata | null {
   if (href === undefined) {
     return null;
   }
-
   const decodedHref = decodeMarkdownFileReference(href);
   if (decodedHref.startsWith(PROMPT_FILE_REFERENCE_PREFIX)) {
     return {
@@ -168,7 +163,6 @@ function getFileReferenceMetadata(href: string | undefined): FileReferenceMetada
       prompt: true,
     };
   }
-
   const match = LOCAL_FILE_REFERENCE_PATTERN.exec(decodedHref);
   const matchedGroups = match?.groups;
   if (matchedGroups === undefined) {
@@ -193,7 +187,6 @@ function getFileReferenceMetadata(href: string | undefined): FileReferenceMetada
     prompt: false,
   };
 }
-
 function splitPromptFileReferenceText(value: string): MarkdownNode[] {
   const nodes: MarkdownNode[] = [];
   let cursor = 0;
@@ -218,7 +211,6 @@ function splitPromptFileReferenceText(value: string): MarkdownNode[] {
   }
   return nodes;
 }
-
 function promptFileReferenceRemarkPlugin() {
   return (tree: MarkdownNode) => {
     // 只改写 Markdown 普通文本，已有链接和行内/块级代码由 AST 边界自然隔离。
@@ -237,7 +229,6 @@ function promptFileReferenceRemarkPlugin() {
     transform(tree);
   };
 }
-
 function rawMarkupRemarkPlugin() {
   return (tree: MarkdownNode) => {
     const transform = (node: MarkdownNode, parentType?: string) => {
@@ -258,12 +249,16 @@ function rawMarkupRemarkPlugin() {
     transform(tree);
   };
 }
-
 function MarkdownLink({ children, className = "", href, node, ...props }: MarkdownLinkProps) {
   // Streamdown 注入的语法树节点不能透传给原生元素。
   void node;
   const onOpenFileReference = useContext(MessageFileReferenceContext);
+  const documentLink = useProjectDocumentLink(href, children, {
+    ...props,
+    className: `font-medium text-brand underline underline-offset-2 ${className}`,
+  });
   const { t } = useTranslation("workbench");
+  if (documentLink !== null) return documentLink;
   const directiveLink = renderAssistantDirectiveLink(href, children, (key) =>
     t(`assistantDirectives.${key}`, { ns: "common" }),
   );
@@ -397,7 +392,6 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
   ) => void;
   promptFileReferences?: boolean;
 };
-
 function InteractiveMessageBlock(props: BlockProps) {
   const streamdownContext = useContext(StreamdownContext);
   const interactiveContext = useMemo(
@@ -412,7 +406,6 @@ function InteractiveMessageBlock(props: BlockProps) {
     </StreamdownContext.Provider>
   );
 }
-
 function MessageResponseContent({
   children,
   className = "",
@@ -425,6 +418,7 @@ function MessageResponseContent({
   textSource,
   ...props
 }: MessageResponseProps) {
+  const documentLinks = useContext(ProjectDocumentLinksContext);
   const responseProcessor = useMemo(() => new IncrementalMessageResponseProcessor(), []);
   const parsedResponse = responseProcessor.process(textSource ?? children ?? "");
   const streaming = props.mode !== "static" && props.isAnimating !== false;
@@ -444,11 +438,12 @@ function MessageResponseContent({
       // Streamdown 收到自定义插件后不再注入默认 GFM；必须显式保留表格等标准扩展。
       ...Object.values(defaultRemarkPlugins),
       assistantDirectiveRemarkPlugin,
+      ...(documentLinks ? [projectDocumentLinkRemarkPlugin] : []),
       rawMarkupRemarkPlugin,
       ...(promptFileReferences ? [promptFileReferenceRemarkPlugin] : []),
       ...(remarkPlugins ?? []),
     ],
-    [promptFileReferences, remarkPlugins],
+    [documentLinks, promptFileReferences, remarkPlugins],
   );
 
   return (

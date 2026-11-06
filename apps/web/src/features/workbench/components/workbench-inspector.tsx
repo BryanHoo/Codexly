@@ -286,6 +286,7 @@ export function WorkbenchInspector({
               <WorkbenchInspectorDocument
                 client={gitClient ?? codexlyClient}
                 document={selectedDocument}
+                onOpenProjectFile={onOpenProjectFile}
                 onClose={() => {
                   onCloseDocument(selectedDocument.id);
                 }}

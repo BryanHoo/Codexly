@@ -1,3 +1,6 @@
+import { ProjectDocumentLinksContext } from "@codexly/ui/core/project-document-links";
+import { classifyProjectFileReference } from "@codexly/frontend-core/project-file-reference";
+import { joinHostPath } from "@codexly/frontend-core/host-path";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { useDocumentSaveGuard } from "@codexly/ui/core/document-navigation";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
@@ -53,11 +56,12 @@ type ProjectSourcePanelProps = Readonly<{
   client: NativeSourceFileClient;
   headerActions?: ReactNode;
   onClose?: () => void;
+  onOpenProjectFile?: ((path: string) => void) | undefined;
   previewKind: "image" | "source" | "pdf";
   projectId: string;
   reference: MessageFileReference;
-  rootPath?: string;
-  taskId?: string;
+  rootPath?: string | undefined;
+  taskId?: string | undefined;
 }>;
 
 const SOURCE_LOAD_MORE_THRESHOLD_PX = 400;
@@ -87,6 +91,7 @@ export function ProjectSourcePanel({
   client,
   headerActions,
   onClose,
+  onOpenProjectFile,
   previewKind,
   projectId,
   reference,
@@ -214,6 +219,21 @@ export function ProjectSourcePanel({
   const lastSourcePage = sourcePages?.at(-1);
   const sourcePath = editor.path ?? firstSourcePage?.path ?? reference.path;
   const fileName = getFileName(sourcePath);
+  const runAfterConfirm = editor.runAfterConfirm;
+  const documentLinks = useMemo(() => ({
+    sourcePath: rootPath !== undefined && !/^(?:\/|[a-z]:[\\/])/iu.test(sourcePath)
+      ? joinHostPath(rootPath, sourcePath) : sourcePath,
+    openFile: (target: { path: string; lineNumber: number | null }) => {
+      // 统一复用文件类型分类与宿主打开接口；仅点击后执行，无预读或后台请求。
+      if (classifyProjectFileReference(target.path) === "system") {
+        void client.openProject(projectId, rootPath, { appId: "system-default", path: target.path })
+          .catch((error: unknown) => toast.error(error instanceof Error ? error.message : String(error)));
+      } else if (onOpenProjectFile) {
+        runAfterConfirm(() => { onOpenProjectFile(target.path); });
+      }
+    },
+  }), [sourcePath, rootPath, client, projectId, onOpenProjectFile, runAfterConfirm]);
+
   const imageUrl = imageQuery.data ?? "";
   const sourceLanguage = getCodeLanguage(sourcePath);
   const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
@@ -420,7 +440,9 @@ export function ProjectSourcePanel({
             }
           />
           <div className="file-markdown min-h-0 overflow-auto px-5 py-4 sm:px-8 sm:py-6">
-            <LazyMessageResponse className="mx-auto max-w-4xl">{sourceContent}</LazyMessageResponse>
+            <ProjectDocumentLinksContext.Provider value={documentLinks}>
+              <LazyMessageResponse className="mx-auto max-w-4xl">{sourceContent}</LazyMessageResponse>
+              </ProjectDocumentLinksContext.Provider>
           </div>
         </div>
       ) : (

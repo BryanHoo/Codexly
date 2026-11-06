@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { classifyProjectFileReference } from "@codexly/frontend-core/project-file-reference";
+import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { TauriWorkspaceClient } from "../../../platform/tauri/workspace-client.js";
@@ -12,8 +13,11 @@ const projectFileClient = new TauriWorkspaceClient({
 
 export function ProjectFilePopupPage({
   projectId,
-  search,
+  search: initialSearch,
 }: Readonly<{ projectId: string; search: ProjectFilePopupSearch }>) {
+  const [search, setSearch] = useState(initialSearch);
+  // 命名窗口会被再次打开；路由传入新文件时同步目标，避免继续显示上次内部跳转的文件。
+  useEffect(() => { setSearch(initialSearch); }, [initialSearch]);
   const fileName = search.path.split(/[\\/]/u).at(-1) ?? search.path;
 
   useEffect(() => {
@@ -26,6 +30,10 @@ export function ProjectFilePopupPage({
         client={projectFileClient}
         onClose={() => {
           void getCurrentWindow().close();
+        }}
+        onOpenProjectFile={(path) => {
+          const previewKind = classifyProjectFileReference(path);
+          if (previewKind !== "system") setSearch({ ...search, path, previewKind, lineNumber: null });
         }}
         previewKind={search.previewKind}
         projectId={projectId}
