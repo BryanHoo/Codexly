@@ -7,6 +7,7 @@ mod files;
 mod git_capture;
 mod git_commit_context;
 mod git_diff;
+mod git_discard;
 mod git_history;
 mod git_index_selection;
 mod git_models;
@@ -55,6 +56,7 @@ pub use attachments::{
 pub use file_search::ProjectFileSearch;
 pub use files::{delete_project_file, list_project_files, read_source_file, rename_project_file};
 pub use git_commit_context::prepare_commit_message;
+pub use git_discard::discard_changes;
 pub use git_read::{get_commit_diff, get_commit_files, get_git_file_status, get_git_history};
 pub use git_remote::{RemoteAction, operate_project_remote};
 pub use git_status_page::get_git_status_page;

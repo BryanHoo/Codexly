@@ -1,3 +1,4 @@
+import { registerProjectGitDiscardRoutes } from "./project-git-discard-routes.js";
 import { registerProjectGitPushRoutes } from "./project-git-push-routes.js";
 import { readGenerationDefaults } from "@codexly/core";
 import {
@@ -80,6 +81,8 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
   };
 
   registerProjectGitPushRoutes(app, context, assertGitMutationAvailable);
+
+  registerProjectGitDiscardRoutes(app, context, assertGitMutationAvailable);
 
   app.get<{ Params: { projectId: string }; Querystring: ProjectGitStatusQuery }>(
     "/v1/projects/:projectId/git/status",

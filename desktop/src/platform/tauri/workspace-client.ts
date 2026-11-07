@@ -11,6 +11,7 @@ import type {
 } from "@/platform/native-client-types.js";
 import type {
   AgentAttachmentUploadResponse,
+  DiscardProjectChangesRequest,
   CommitProjectChangesRequest,
   PushProjectCommitsRequest,
   PushProjectCommitsResponse,
@@ -204,6 +205,10 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     // Claude 分支由原生宿主按需启动，不先初始化 Codex。
     if (input.engine === "claude") return this.invokeCommand("generate_commit_message", { input, projectId, rootPath });
     return this.call("generate_commit_message", { input, projectId, rootPath });
+  }
+
+  public async discardProjectChanges(projectId: string, rootPath: string, input: DiscardProjectChangesRequest): Promise<ProjectGitStatus> {
+    return this.call("discard_project_changes", { input, projectId, rootPath });
   }
 
   public async commitProjectChanges(

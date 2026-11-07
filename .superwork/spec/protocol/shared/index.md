@@ -47,3 +47,12 @@
 - HTTP `POST /v1/projects/:projectId/prompt-optimization` 与原生命令 `optimize_prompt` 接收有界正文，返回 `{ text }`；原生通道不绕行 HTTP，Claude 单引擎不启动 Codex。临时会话同样支持。
 - 成功只替换当前未发生编辑的草稿正文并恢复焦点，保留附件；失败保留原文。请求互斥，空输入禁用；会话切换、卸载或编辑后丢弃迟到结果。
 - 配置沿用各端应用偏好持久化，与 Codex 原生配置独立。验证入口：Server `app-prompt-optimization.test.ts`、`sqlite-state-settings.test.ts`，桌面双浏览器 `tests/browser/prompt-optimization.browser.test.tsx` 及 Rust `local_settings`。
+
+## 按文件丢弃 Git 变更
+
+- `DiscardProjectChangesRequest` 固定 `expectedSnapshot`、1–500 个唯一相对 `paths` 及可选 `repository`。Web `POST /v1/projects/:projectId/git/discard` 复用授权根、幂等及 Git 写锁；桌面 `discard_project_changes` 使用本地链路、主窗口 ACL，不启动模型。响应均为更新后的 Git 状态。
+- 丢弃恢复所选文件的暂存区及工作区，并删除所选新增文件；重命名包含源路径。已暂存删除在 index 中没有条目，必须显式从 HEAD 恢复。未选文件及其暂存内容保留。批量路径按字面量处理，NUL stdin 或有界批次传输；子模块交由外部工具，不清理忽略文件或嵌套仓库。
+- 两端共用 Git 工作区的确认流程，弹窗固定路径及快照；取消不写入，过期快照拒绝执行，成功保留提交信息，失败也刷新实际状态。桌面分页不自动扩大选择范围。
+- 回归入口：`packages/server/src/git-discard.test.ts`、`app-git-discard.test.ts`、客户端 `http-client-git.test.ts`、原生 `git_discard.rs` 与 `desktop/tests/browser/git-discard.browser.test.tsx`（两端、Chromium / WebKit）。用户说明见 [Git 工作流](../../../../docs/git-workflow.md)。
+
+- 丢弃入口遵循文件上下文层级：单文件在文件行尾显示恢复图标（悬停/键盘聚焦显示，触屏常显），批量操作收进列表更多菜单，显示所选数量，无选择时禁用。单文件丢弃仅移除该文件的勾选，不清空其他选择，不触发 diff 导航；两类入口共用固定快照确认。

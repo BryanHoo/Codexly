@@ -1,3 +1,4 @@
+import type { DiscardProjectChangesRequest } from "@codexly/protocol";
 import type { GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
 import { useMemo } from "react";
@@ -11,6 +12,7 @@ import { CommitChangesTreeSection } from "./commit-changes-tree.js";
 export { collectCommitFileEntries } from "@codexly/ui/core/git-commit-workspace";
 
 type CommitChangesPanelProps = Readonly<{
+  onDiscard?: ((request: DiscardProjectChangesRequest) => Promise<unknown>) | undefined;
   error?: Error | null; gitStatus: ProjectGitStatus; draftScope?: string;
   isCommitting?: boolean; isPushing?: boolean; isGenerating?: boolean;
   isDiffLoading?: boolean; isLoadingMore?: boolean; onLoadMore?: () => void;
@@ -27,7 +29,7 @@ type CommitChangesPanelProps = Readonly<{
 
 export function CommitChangesPanel(props: CommitChangesPanelProps) {
   const { gitStatus, onOpenFileDiff } = props;
-  const { t } = useTranslation("workbench");
+  const { t, i18n } = useTranslation("workbench");
   const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("changes");
   const changes = useMemo(() => {
     // 暂存条目优先，每个文件仅展示一次，预览与实际提交使用相同版本。
@@ -36,9 +38,9 @@ export function CommitChangesPanel(props: CommitChangesPanelProps) {
     return [...byPath.values()];
   }, [gitStatus]);
   const scope = JSON.stringify([props.draftScope ?? "repository", gitStatus.branch]);
-  return <GitCommitWorkspace key={scope} {...props} draftScope={scope} t={(key, values) => t(key, values ?? {})} viewMode={fileViewMode} onViewModeChange={setFileViewMode} totalChanges={gitStatus.totalChanges} complete={!gitStatus.nextCursor} renderChanges={(selected, onChange, disabled, search) => {
+  return <GitCommitWorkspace key={scope} {...props} language={i18n.resolvedLanguage ?? i18n.language} draftScope={scope} t={(key, values) => t(key, values ?? {})} viewMode={fileViewMode} onViewModeChange={setFileViewMode} totalChanges={gitStatus.totalChanges} complete={!gitStatus.nextCursor} renderChanges={(selected, onChange, disabled, search, onDiscardPaths) => {
     const filtered = search ? changes.filter((change) => change.path.toLowerCase().includes(search.toLowerCase())) : changes;
     if (search && filtered.length === 0) return <p className="p-3 text-caption text-muted-foreground">{t("commit.noMatchingFiles")}</p>;
-    return <CommitChangesTreeSection changes={filtered} statsAvailable={gitStatus.stats !== undefined} label={t("commit.changes")} disabled={disabled} onOpenFileDiff={onOpenFileDiff} onSelectedPathsChange={onChange} selectedPaths={selected} viewMode={fileViewMode} />;
+    return <CommitChangesTreeSection changes={filtered} onDiscardPath={onDiscardPaths ? path => { onDiscardPaths([path]); } : undefined} discardLabel={i18n.language.startsWith("zh") ? "丢弃变更" : "Discard changes"} statsAvailable={gitStatus.stats !== undefined} label={t("commit.changes")} disabled={disabled} onOpenFileDiff={onOpenFileDiff} onSelectedPathsChange={onChange} selectedPaths={selected} viewMode={fileViewMode} />;
   }} />;
 }

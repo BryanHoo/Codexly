@@ -94,6 +94,7 @@ use application::{
         list_project_worktrees, push_project_commits, read_project_source_file,
         rename_project_file, search_project_files, stop_project_file_search, switch_project_branch,
     },
+    workspace_discard_commands::discard_project_changes,
     workspace_file_creation_commands::create_project_file,
 };
 use infrastructure::diagnostics;
@@ -335,6 +336,7 @@ pub fn run() {
             application::worktree_task_commands::start_worktree_task,
             generate_commit_message,
             optimize_prompt,
+            discard_project_changes,
             commit_project_changes,
             push_project_commits,
             upload_attachment,

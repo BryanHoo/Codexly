@@ -48,7 +48,7 @@ const localCommands = new Set([
   "stop_project_file_search", "read_project_source_file", "save_project_text_file",
   "rename_project_file", "delete_project_file", "get_project_git_status", "get_project_git_history",
   "get_project_git_commit_files", "get_project_git_commit_file_diff", "switch_project_branch",
-  "create_project_branch", "list_project_worktrees", "create_task_worktree", "commit_project_changes",
+  "create_project_branch", "list_project_worktrees", "create_task_worktree", "discard_project_changes", "commit_project_changes",
   "push_project_commits", "get_runtime_performance_metrics", "install_app_update",
   "list_workbench_pets", "download_workbench_pet", "start_worktree_task",
 ]);

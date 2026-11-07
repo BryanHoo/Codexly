@@ -1,3 +1,4 @@
+import type { DiscardProjectChangesRequest } from "@codexly/protocol";
 import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
 import {
@@ -88,6 +89,14 @@ export function CommitChangesController({
     ...projectGitRemoteMutationCallbacks(projectId, rootPath, queryClient),
     meta: { actionNotification: false },
   });
+  const discardMutation = useMutation({
+    mutationFn: (request: DiscardProjectChangesRequest) =>
+      client.discardProjectChanges(projectId, rootPath, request),
+    scope: { id: `project-git-mutation:${projectId}:${rootPath}` },
+    meta: { actionNotification: false },
+    // 无论成功或部分失败都刷新同一工作树，文件树、预览和 Git 分页共同失效。
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, rootPath] }),
+  });
   const pushMutation = useMutation(projectPushMutationOptions(projectId, rootPath, client));
   const [pushState, setPushState] = useState<{
     result: PushProjectCommitsResponse;
@@ -175,6 +184,7 @@ export function CommitChangesController({
 
   return (
     <CommitChangesPanel
+      onDiscard={discardMutation.mutateAsync}
       onOpenHistory={onOpenHistory}
       draftScope={JSON.stringify([projectId, rootPath])}
       error={detailsError ?? remoteQuery.error}

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { List, ListTree, LoaderCircle } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { List, ListTree, LoaderCircle, Ellipsis, Undo2 } from "lucide-react";
 import { useSelectedEngines } from "./engine-selection.js";
 import {
   applyGeneratedCommitMessage,
@@ -10,16 +10,29 @@ import { GitRemoteStatus } from "./git-remote-status.js";
 import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import { useGitOperationReceipt } from "./use-git-operation-receipt.js";
 import type {
+  DiscardProjectChangesRequest,
   CommitProjectChangesRequest,
   GenerateCommitMessageRequest,
   PushProjectCommitsResponse,
   PushProjectCommitsRequest,
   ProjectGitStatus,
 } from "@codexly/frontend-core/git-workspace-contract";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "./dropdown-menu.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
 import { Button } from "./button.js";
 import { GitChangesActions } from "./git-changes-actions.js";
 import { GitCommitEditor, type GitWorkspaceTranslate } from "./git-commit-editor.js";
 import { useGitCommitDraft } from "./use-git-commit-draft.js";
+
+// 丢弃弹窗只在用户打开时加载，避免增加工作台及编辑器常驻包体。
+const GitDiscardDialog = lazy(() => import("./git-discard-dialog.js"));
 
 export function collectCommitFileEntries(
   status: Pick<ProjectGitStatus, "staged" | "unstaged">,
@@ -39,6 +52,7 @@ export function collectCommitFileEntries(
 export type GitCommitWorkspaceProps = Readonly<{
   gitStatus: ProjectGitStatus;
   draftScope?: string;
+  language?: string;
   error?: Error | null;
   isCommitting?: boolean;
   isPushing?: boolean;
@@ -48,6 +62,7 @@ export type GitCommitWorkspaceProps = Readonly<{
   complete?: boolean;
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
+  onDiscard?: ((request: DiscardProjectChangesRequest) => Promise<unknown>) | undefined;
   onCommit: (request: CommitProjectChangesRequest) => Promise<void>;
   onPush: () => Promise<void>;
   onGenerateMessage: (request: GenerateCommitMessageRequest) => Promise<string>;
@@ -72,6 +87,7 @@ export type GitCommitWorkspaceProps = Readonly<{
     onChange: (paths: Set<string>) => void,
     disabled: boolean,
     search: string,
+    onDiscardPaths?: (paths: readonly string[]) => void,
   ) => ReactNode;
 }>;
 
@@ -79,6 +95,7 @@ export type GitCommitWorkspaceProps = Readonly<{
 export function GitCommitWorkspace({
   gitStatus,
   draftScope = "repository",
+  language = "zh-CN",
   error = null,
   isCommitting = false,
   isPushing = false,
@@ -88,6 +105,7 @@ export function GitCommitWorkspace({
   complete = true,
   onLoadMore,
   isLoadingMore = false,
+  onDiscard,
   onCommit,
   onPush,
   onGenerateMessage,
@@ -110,6 +128,7 @@ export function GitCommitWorkspace({
     entries,
     complete,
   );
+  const [discardRequest, setDiscardRequest] = useState<DiscardProjectChangesRequest | null>(null);
   const [search, setSearch] = useState("");
   const [operationError, setOperationError] = useState<{
     message: string;
@@ -125,7 +144,7 @@ export function GitCommitWorkspace({
     },
     [],
   );
-  const gitBusy = isCommitting || isPushing;
+  const gitBusy = isCommitting || isPushing || discardRequest !== null;
   const hasChanges = (totalChanges ?? entries.length) > 0;
   const pushError = pushResult?.pushError ?? result?.pushError ?? null;
   const receipt = useGitOperationReceipt(
@@ -244,6 +263,32 @@ export function GitCommitWorkspace({
             }
           : {})}
       />
+      {discardRequest ? (
+        <Suspense fallback={null}>
+          <GitDiscardDialog
+            request={discardRequest}
+            snapshot={gitStatus.snapshot}
+            busy={isCommitting || isPushing}
+            language={language}
+            onCancel={() => {
+              setDiscardRequest(null);
+            }}
+            onConfirm={async () => {
+              if (!onDiscard) return;
+              await onDiscard(discardRequest);
+              // 单文件入口不改动其他文件的勾选；批量操作同样只移除已确认的范围。
+              const removed = new Set(discardRequest.paths);
+              update((current) => ({
+                ...current,
+                selectedPaths: new Set(
+                  [...current.selectedPaths].filter((path) => !removed.has(path)),
+                ),
+              }));
+              setDiscardRequest(null);
+            }}
+          />
+        </Suspense>
+      ) : null}
       {hasChanges ? (
         <>
           <div className="max-h-[25%] shrink-0 space-y-2 overflow-y-auto px-3 py-2">
@@ -269,6 +314,53 @@ export function GitCommitWorkspace({
                   <ListTree className="size-3.5" />
                 )}
               </Button>
+              {onDiscard ? (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          type="button"
+                          disabled={gitBusy}
+                          aria-label={
+                            language.startsWith("zh") ? "更多变更操作" : "More change actions"
+                          }
+                        >
+                          <Ellipsis className="size-3.5" aria-hidden="true" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {language.startsWith("zh") ? "更多变更操作" : "More change actions"}
+                    </TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>
+                      {language.startsWith("zh")
+                        ? `已选择 ${String(draft.selectedPaths.size)} 个文件`
+                        : `${String(draft.selectedPaths.size)} files selected`}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-danger"
+                      disabled={
+                        gitBusy || draft.selectedPaths.size === 0 || draft.selectedPaths.size > 500
+                      }
+                      onSelect={() => {
+                        setDiscardRequest({
+                          paths: [...draft.selectedPaths],
+                          expectedSnapshot: gitStatus.snapshot,
+                        });
+                      }}
+                    >
+                      <Undo2 className="size-3.5" aria-hidden="true" />
+                      {language.startsWith("zh") ? "丢弃所选变更" : "Discard selected changes"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </div>
             <input
               aria-label={t("commit.searchFiles")}
@@ -294,6 +386,12 @@ export function GitCommitWorkspace({
               },
               gitBusy,
               search,
+              onDiscard
+                ? (paths) => {
+                    // 行内入口固定单个路径，不能借用默认全选的提交范围。
+                    setDiscardRequest({ paths: [...paths], expectedSnapshot: gitStatus.snapshot });
+                  }
+                : undefined,
             )}
           </div>
           {!complete ? (
@@ -319,7 +417,7 @@ export function GitCommitWorkspace({
               draft={draft}
               update={update}
               generating={generating || isGenerating}
-              disabled={isCommitting}
+              disabled={gitBusy}
               canGenerate={draft.selectedPaths.size > 0 && !gitBusy}
               onGenerate={() => {
                 void generate();

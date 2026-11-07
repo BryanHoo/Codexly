@@ -493,3 +493,34 @@ describe("CodexlyClient Git routes", () => {
     ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 });
+
+it("sends selected discard paths and snapshot with an idempotency key and validates status", async () => {
+  const status = {
+    baseBranches: [],
+    branches: [],
+    branch: "main",
+    repositoryMode: "root",
+    snapshot: "b".repeat(64),
+    staged: [],
+    unstaged: [],
+  };
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(status));
+  const client = new CodexlyClient({ fetch: fetchMock });
+  const request = { paths: ["a.txt"], expectedSnapshot: "a".repeat(64) };
+  expect(
+    await client.discardProjectChanges("project one", projectRootPath, request, {
+      idempotencyKey: "discard-key",
+    }),
+  ).toEqual(status);
+  expect(fetchMock.mock.calls[0]?.[0]).toBe(
+    "/v1/projects/project%20one/git/discard?rootPath=%2Fworkspace%2FCodexly",
+  );
+  expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify(request));
+  expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("idempotency-key")).toBe(
+    "discard-key",
+  );
+  fetchMock.mockResolvedValueOnce(jsonResponse({}));
+  await expect(client.discardProjectChanges("p", projectRootPath, request)).rejects.toThrow(
+    "protocol schema",
+  );
+});

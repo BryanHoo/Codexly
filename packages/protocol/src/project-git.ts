@@ -256,17 +256,32 @@ export const CreateTaskWorktreeResponseSchema = Type.Object(
 );
 export type CreateTaskWorktreeResponse = Readonly<Static<typeof CreateTaskWorktreeResponseSchema>>;
 
-export const GenerateCommitMessageRequestSchema = Type.Object(
+// 请求 Schema 的声明无副作用，前端仅消费类型时允许构建器移除校验构造。
+export const GenerateCommitMessageRequestSchema = /* @__PURE__ */ Type.Object(
   {
-    engine: Type.Optional(Type.Union([Type.Literal("codex"), Type.Literal("claude")])),
+    engine: /* @__PURE__ */ Type.Optional(
+      /* @__PURE__ */ Type.Union([
+        /* @__PURE__ */ Type.Literal("codex"),
+        /* @__PURE__ */ Type.Literal("claude"),
+      ]),
+    ),
     expectedSnapshot: GitSnapshotSchema,
     paths: SelectedGitPathsSchema,
-    repository: Type.Optional(GitChildRepositorySchema),
+    repository: /* @__PURE__ */ Type.Optional(GitChildRepositorySchema),
   },
   { additionalProperties: false },
 );
 export type GenerateCommitMessageRequest = Readonly<
   Static<typeof GenerateCommitMessageRequestSchema>
+>;
+
+/** 丢弃与生成共用快照和选择校验，但不接受引擎参数。 */
+export const DiscardProjectChangesRequestSchema = /* @__PURE__ */ Type.Omit(
+  GenerateCommitMessageRequestSchema,
+  ["engine"],
+);
+export type DiscardProjectChangesRequest = Readonly<
+  Static<typeof DiscardProjectChangesRequestSchema>
 >;
 
 export const GenerateCommitMessageResponseSchema = Type.Object(
@@ -277,13 +292,16 @@ export type GenerateCommitMessageResponse = Readonly<
   Static<typeof GenerateCommitMessageResponseSchema>
 >;
 
-export const CommitProjectChangesRequestSchema = Type.Object(
+export const CommitProjectChangesRequestSchema = /* @__PURE__ */ Type.Object(
   {
-    action: Type.Union([Type.Literal("commit"), Type.Literal("commit_and_push")]),
+    action: /* @__PURE__ */ Type.Union([
+      /* @__PURE__ */ Type.Literal("commit"),
+      /* @__PURE__ */ Type.Literal("commit_and_push"),
+    ]),
     expectedSnapshot: GitSnapshotSchema,
     message: CommitMessageSchema,
     paths: SelectedGitPathsSchema,
-    repository: Type.Optional(GitChildRepositorySchema),
+    repository: /* @__PURE__ */ Type.Optional(GitChildRepositorySchema),
   },
   { additionalProperties: false },
 );
@@ -292,30 +310,30 @@ export type CommitProjectChangesRequest = Readonly<
 >;
 
 // 独立推送只需要当前仓库快照，不要求选择文件或填写提交信息。
-export const PushProjectCommitsRequestSchema = Type.Object(
+export const PushProjectCommitsRequestSchema = /* @__PURE__ */ Type.Object(
   {
     expectedSnapshot: GitSnapshotSchema,
-    repository: Type.Optional(GitChildRepositorySchema),
-    action: Type.Optional(
-      Type.Union([
-        Type.Literal("inspect"),
-        Type.Literal("push"),
-        Type.Literal("publish"),
-        Type.Literal("fetch"),
-        Type.Literal("integrate"),
-        Type.Literal("configure"),
-        Type.Literal("branch"),
+    repository: /* @__PURE__ */ Type.Optional(GitChildRepositorySchema),
+    action: /* @__PURE__ */ Type.Optional(
+      /* @__PURE__ */ Type.Union([
+        /* @__PURE__ */ Type.Literal("inspect"),
+        /* @__PURE__ */ Type.Literal("push"),
+        /* @__PURE__ */ Type.Literal("publish"),
+        /* @__PURE__ */ Type.Literal("fetch"),
+        /* @__PURE__ */ Type.Literal("integrate"),
+        /* @__PURE__ */ Type.Literal("configure"),
+        /* @__PURE__ */ Type.Literal("branch"),
       ]),
     ),
-    remote: Type.Optional(
+    remote: /* @__PURE__ */ Type.Optional(
       Type.String({ minLength: 1, maxLength: 256, pattern: "^(?!-)[A-Za-z0-9_.-]+$" }),
     ),
-    url: Type.Optional(
+    url: /* @__PURE__ */ Type.Optional(
       Type.String({ minLength: 1, maxLength: 4096, pattern: "^(?!-)[^\\u0000\\r\\n]+$" }),
     ),
-    branchName: Type.Optional(GitBranchNameSchema),
-    expectedHead: Type.Optional(GitCommitShaSchema),
-    expectedBranch: Type.Optional(GitBranchNameSchema),
+    branchName: /* @__PURE__ */ Type.Optional(GitBranchNameSchema),
+    expectedHead: /* @__PURE__ */ Type.Optional(GitCommitShaSchema),
+    expectedBranch: /* @__PURE__ */ Type.Optional(GitBranchNameSchema),
   },
   { additionalProperties: false },
 );

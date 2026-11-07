@@ -20,6 +20,7 @@ export type NativeGitCommitReviewClient = Pick<
 >;
 export type NativeGitMutationClient = Pick<
   NativeClient,
+  | "discardProjectChanges"
   | "commitProjectChanges"
   | "pushProjectCommits"
   | "createProjectBranch"

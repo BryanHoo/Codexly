@@ -1,7 +1,9 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronRight, FileMinus2, FilePenLine, FilePlus2, Folder } from "lucide-react";
+import { ChevronRight, FileMinus2, FilePenLine, FilePlus2, Folder, Undo2 } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Button } from "./button.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
 import { Checkbox } from "./checkbox.js";
 import { cn } from "../lib/utils.js";
 type FileNavigationViewMode = "tree" | "list";
@@ -51,6 +53,8 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
   secondaryChanges = EMPTY as readonly Change[],
   secondaryLabel = "",
   statsAvailable = false,
+  onDiscardPath,
+  discardLabel = "Discard changes",
 }: Readonly<{
   changes: readonly Change[];
   disabled?: boolean;
@@ -62,6 +66,8 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
   secondaryChanges?: readonly Change[];
   secondaryLabel?: string;
   statsAvailable?: boolean;
+  onDiscardPath?: ((path: string) => void) | undefined;
+  discardLabel?: string;
 }>) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusRequest = useRef<number | null>(null);
@@ -248,7 +254,7 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
               tabIndex={0}
               data-row-index={item.index}
               style={style}
-              className="flex cursor-pointer items-center gap-1.5 pr-3 font-mono text-label hover:bg-control-hover focus-visible:shadow-focus"
+              className="group flex cursor-pointer items-center gap-1.5 pr-3 font-mono text-label hover:bg-control-hover focus-visible:shadow-focus"
               onClick={open}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return;
@@ -309,6 +315,27 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
                   <span className="text-diff-removed">-{row.change.stats.removals}</span>
                 </span>
               )}
+              {!folder && onDiscardPath ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      type="button"
+                      disabled={disabled}
+                      aria-label={`${discardLabel}: ${formatDisplayPath(path)}`}
+                      className="size-8 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:text-danger [@media(hover:none)]:opacity-100"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDiscardPath(path);
+                      }}
+                    >
+                      <Undo2 className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{discardLabel}</TooltipContent>
+                </Tooltip>
+              ) : null}
               {!folder && (
                 <span className="text-meta text-muted-foreground">
                   {kind === "create" ? "A" : kind === "delete" ? "D" : "M"}

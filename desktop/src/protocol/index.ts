@@ -496,3 +496,5 @@ export {
 } from "./project.js";
 
 export { PluginReconcileResultSchema, type PluginReconcileResult } from "@codexly/protocol";
+
+export type { DiscardProjectChangesRequest } from "@codexly/protocol";

@@ -124,6 +124,7 @@ export {
   CompactAgentTaskRequestSchema,
   CompactAgentTaskResponseSchema,
   ClearAgentGoalResponseSchema,
+  DiscardProjectChangesRequestSchema,
   CommitProjectChangesRequestSchema,
   CommitProjectChangesResponseSchema,
   CreateProjectBranchRequestSchema,
@@ -439,6 +440,7 @@ export {
   type CompactAgentTaskRequest,
   type CompactAgentTaskResponse,
   type ClearAgentGoalResponse,
+  type DiscardProjectChangesRequest,
   type CommitProjectChangesRequest,
   type CommitProjectChangesResponse,
   type CreateProjectBranchRequest,
@@ -493,8 +495,6 @@ export * from "./claude-extensions.js";
 export { AgentThreadConfigurationSchema } from "./agent-attachments.js";
 export * from "./task-activity.js";
 export { AgentThreadMemorySchema, type AgentThreadMemory } from "./thread-memory.js";
-
 export * from "./saved-prompts.js";
-
 export * from "./prompt-optimization.js";
 export * from "./network-proxy.js";

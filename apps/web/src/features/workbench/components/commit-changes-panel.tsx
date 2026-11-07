@@ -1,3 +1,4 @@
+import type { DiscardProjectChangesRequest } from "@codexly/protocol";
 import type { GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
 import { useMemo } from "react";
@@ -17,6 +18,7 @@ import { CommitChangesTreeSection } from "./commit-changes-tree.js";
 export { collectCommitFileEntries } from "@codexly/ui/core/git-commit-workspace";
 
 type CommitChangesPanelProps = Readonly<{
+  onDiscard?: ((request: DiscardProjectChangesRequest) => Promise<unknown>) | undefined;
   error?: Error | null;
   gitStatus: ProjectGitStatus;
   draftScope?: string;
@@ -41,7 +43,7 @@ type CommitChangesPanelProps = Readonly<{
 
 export function CommitChangesPanel(props: CommitChangesPanelProps) {
   const { gitStatus, onOpenFileDiff } = props;
-  const { t } = useTranslation("workbench");
+  const { t, i18n } = useTranslation("workbench");
   const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("changes");
   const changes = useMemo(() => {
     // 暂存条目优先，每个文件仅展示一次，预览与实际提交使用相同版本。
@@ -55,11 +57,12 @@ export function CommitChangesPanel(props: CommitChangesPanelProps) {
     <GitCommitWorkspace
       key={scope}
       {...props}
+      language={i18n.resolvedLanguage ?? i18n.language}
       draftScope={scope}
       t={(key, values) => t(key, values ?? {})}
       viewMode={fileViewMode}
       onViewModeChange={setFileViewMode}
-      renderChanges={(selected, onChange, disabled, search) => {
+      renderChanges={(selected, onChange, disabled, search, onDiscardPaths) => {
         const filtered = search
           ? changes.filter((change) => change.path.toLowerCase().includes(search.toLowerCase()))
           : changes;
@@ -74,6 +77,14 @@ export function CommitChangesPanel(props: CommitChangesPanelProps) {
           >
             <CommitChangesTreeSection
               changes={filtered}
+              onDiscardPath={
+                onDiscardPaths
+                  ? (path) => {
+                      onDiscardPaths([path]);
+                    }
+                  : undefined
+              }
+              discardLabel={i18n.language.startsWith("zh") ? "丢弃变更" : "Discard changes"}
               label={t("commit.changes")}
               disabled={disabled}
               onOpenFileDiff={onOpenFileDiff}
