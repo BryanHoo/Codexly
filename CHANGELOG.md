@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-11-08
+
+### 新增
+
+- Git 变更列表支持丢弃单个或批量所选文件，确认前展示文件清单，操作后刷新状态并保留其他变更与提交信息草稿。
+
+### 修复
+
+- 修复切换到设置等隐藏工作台的场景下，侧栏通知浮层仍停留在页面上的问题。
+
 ## [0.52.0] - 2026-11-06
 
 ### 新增
@@ -1058,7 +1068,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.52.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.53.0...HEAD
+[0.53.0]: https://github.com/BryanHoo/Codexly/compare/v0.52.0...v0.53.0
 [0.52.0]: https://github.com/BryanHoo/Codexly/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/BryanHoo/Codexly/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/BryanHoo/Codexly/compare/v0.49.1...v0.50.0

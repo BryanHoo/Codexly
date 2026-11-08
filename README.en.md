@@ -40,7 +40,7 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 - **Work in parallel**: open up to four task panes in the desktop app or a computer browser, drag to swap their positions, and keep independent drafts and queues. Mobile uses a single-task view.
 - **Read and edit project files**: create files and folders in the project tree, browse code, Markdown, images, and PDFs, and edit supported text with manual saving, search and replace, and disk conflict comparison. Reorder, pin, or bulk-close document tabs and compare files with chat. Attach files and images or reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
 - **Reuse saved instructions**: save global or project prompts and insert them by title with `/` or `#`.
-- **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits.
+- **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits. Discard changes to one file or a selected batch after confirmation.
 - **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
 
 Drop files and images onto a task pane to attach them to that pane independently. Switching between chat and document tabs preserves reading positions. Desktop also renders Mermaid diagrams on demand.

@@ -84,6 +84,8 @@ Review changes, select files, and commit locally or commit and push. Push existi
 
 Choose **Open remote repository** from the project quick-open, root context menu, or root actions menu. The entry appears only for Git project roots and is disabled without a browsable remote. Web opens a new tab; desktop uses the system browser.
 
+Use the restore icon at the end of a file row to discard that file; touch devices always show the icon. For a batch, select files and choose **Discard selected changes** from the list’s more menu (⋯). Review the fixed file list before confirming. This restores staged and unstaged content and deletes selected new files; it cannot be undone. Other files and the commit draft remain. If the snapshot changes, cancel and review again. See the [Git guide](git-workflow.md).
+
 The toolbar supports remote setup, branch publication, fetch, and fast-forward-only pull. Commit drafts are scoped to the device, project, worktree, and branch. Git uses the host computer's identity and credentials, including from mobile.
 
 Choose or create a worktree from the branch menu beneath the composer, then send the first message there. Existing conversations retain their original directory. Dependencies and ignored environment files are not copied automatically. Resolve merge conflicts in an external Git tool. See the bilingual [Git guide](git-workflow.md).

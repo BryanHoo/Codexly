@@ -32,7 +32,7 @@ Optimize a nonempty text draft with AI using auxiliary generation settings, then
 
 Toggle **Show status bar icon** in **Settings → General** to show or hide the system tray icon immediately. The choice persists after restart. Hiding it keeps the app running and preserves the behavior of minimizing to the tray when the window closes.
 
-Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
+Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. Discard changes to one file or a selected batch after confirmation, keeping other changes and the commit draft. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
 
 Drop files or images from your system file manager onto the intended task pane. Attachments belong to that pane and are not sent automatically. Switching between chat and document tabs preserves reading positions. Mermaid diagrams render on demand, without loading diagram support for ordinary conversations.
 
