@@ -1,5 +1,7 @@
 import "../../../shared/styles/globals.css";
 import { describe, expect, it, vi } from "vitest";
+import { Activity, useState } from "react";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createTaskNotificationStore } from "@codexly/frontend-core/task-notification-store";
 import { SidebarFooter } from "@codexly/ui/core/sidebar-footer";
@@ -77,4 +79,41 @@ describe("轻量通知与独立底栏入口", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await expect.element(screen.getByRole("button", { name: "帮助", exact: true })).toHaveFocus();
   });
+});
+
+
+it.each([360, 1280])("%ipx 工作台进入设置时通知和帮助随 Activity 隐藏，返回后仍可关闭", async (width) => {
+  await page.viewport(width, 800);
+  const store = createTaskNotificationStore();
+  store.recordActivities([{ projectId: "p", taskId: "done", taskName: "已完成任务", status: "completed", requiresApproval: false }]);
+  function Shell() {
+    const [settings, setSettings] = useState(false);
+    return <TooltipProvider>
+      <button onClick={() => setSettings(value => !value)}>切换设置</button>
+      <Activity mode={settings ? "hidden" : "visible"}>
+        <SidebarFooter labels={labels} version="1.0.0" store={store}
+          onSettings={() => setSettings(true)} onAbout={() => setSettings(true)} />
+      </Activity>
+    </TooltipProvider>;
+  }
+  const screen = await render(<Shell />);
+  await screen.getByRole("button", { name: "通知，1 未读", exact: true }).click();
+  await expect.element(screen.getByRole("dialog", { name: "通知", exact: true })).toBeVisible();
+  await screen.getByRole("button", { name: "全部已读", exact: true }).click();
+  await screen.getByRole("tab", { name: "已读 1", exact: true }).click();
+  // 模拟设置快捷键等不经过底栏外部点击的入口，确保隐藏本身能覆盖 Portal。
+  await screen.getByRole("button", { name: "切换设置", exact: true }).click();
+  await expect.poll(() => [...document.querySelectorAll('[role="dialog"]')].some(node => node.getBoundingClientRect().height > 0)).toBe(false);
+  await screen.getByRole("button", { name: "切换设置", exact: true }).click();
+  // Activity 保留打开状态；返回后必须能关闭，再打开后验证底栏导航。
+  await screen.getByRole("button", { name: "关闭通知", exact: true }).click();
+  await screen.getByRole("button", { name: "通知，0 未读", exact: true }).click();
+  await screen.getByRole("button", { name: "关于版本", exact: true }).click();
+  await expect.poll(() => [...document.querySelectorAll('[role="dialog"]')].some(node => node.getBoundingClientRect().height > 0)).toBe(false);
+  await screen.getByRole("button", { name: "切换设置", exact: true }).click();
+  await screen.getByRole("button", { name: "帮助", exact: true }).click();
+  await expect.element(screen.getByRole("link", { name: "使用文档" })).toBeVisible();
+  await screen.getByRole("button", { name: "切换设置", exact: true }).click();
+  await expect.poll(() => [...document.querySelectorAll('[role="dialog"]')].some(node => node.getBoundingClientRect().height > 0)).toBe(false);
+  await page.viewport(1440, 900);
 });

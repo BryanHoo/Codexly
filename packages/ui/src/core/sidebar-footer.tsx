@@ -24,6 +24,7 @@ import {
   type TaskNotificationStore,
 } from "@codexly/frontend-core/task-notification-store";
 import { Button } from "./button.js";
+import { attachFooterPortal } from "./sidebar-footer-portal.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
 
 export type SidebarFooterLabels = Readonly<
@@ -57,6 +58,9 @@ export type SidebarFooterLabels = Readonly<
 // 共享弹层外观不绑定宽度，帮助菜单按文字长度收缩，通知面板单独设置宽度。
 const panelClassName =
   "z-50 flex max-h-[min(22.5rem,var(--radix-popover-content-available-height))] flex-col overflow-hidden border bg-raised text-foreground shadow-floating outline-none";
+
+// 已读与删除操作共用标题栏按钮样式，保持紧凑布局并减少重复样式字面量。
+const notificationActionClassName = "gap-1 rounded-lg px-1.5 text-caption";
 
 function Hint({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
@@ -284,6 +288,7 @@ export function SidebarFooter({
           </Hint>
           <Popover.Portal>
             <Popover.Content
+              ref={attachFooterPortal}
               aria-labelledby={titleId}
               align="start"
               side="top"
@@ -307,7 +312,7 @@ export function SidebarFooter({
                   {unread.length > 0 ? (
                     <Button
                       aria-label={labels.markAllRead}
-                      className="gap-1 rounded-lg px-1.5 text-caption"
+                      className={notificationActionClassName}
                       size="toolbar"
                       variant="ghost"
                       onClick={store.markAllRead}
@@ -320,7 +325,7 @@ export function SidebarFooter({
                   {activeTab === "read" && read.length > 0 ? (
                     <Button
                       aria-label={labels.clearRead}
-                      className="gap-1 rounded-lg px-1.5 text-caption"
+                      className={notificationActionClassName}
                       size="toolbar"
                       variant="ghost"
                       onClick={store.clearRead}
@@ -406,6 +411,7 @@ export function SidebarFooter({
           </Hint>
           <Popover.Portal>
             <Popover.Content
+              ref={attachFooterPortal}
               aria-label={labels.help}
               align="start"
               side="top"
