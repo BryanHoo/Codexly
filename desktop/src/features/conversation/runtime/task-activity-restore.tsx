@@ -1,4 +1,3 @@
-import { getTaskNotificationStore } from "@codexly/frontend-core/task-notification-store";
 import { installTaskActivitySync } from "@codexly/frontend-core/task-activity-sync";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,8 +47,6 @@ export function TaskActivityRestore() {
       read: getTaskActivities,
       capture: () => projectRuntime.getTaskActivity(),
       apply: (tasks, baseline) => {
-        // 复用全局活动结果批量收集通知，避免增加原生 IPC 或逐任务订阅。
-        getTaskNotificationStore().recordActivities(tasks);
         projectRuntime.reconcileTaskActivities(tasks, baseline);
       },
       subscribe: listenTaskActivityChanged,

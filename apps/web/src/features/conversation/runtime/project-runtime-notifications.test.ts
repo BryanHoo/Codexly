@@ -1,105 +1,18 @@
-import * as notifications from "@codexly/frontend-core/task-notification-store";
-import { afterEach, expect, test, vi } from "vitest";
-import { createProjectRuntimeManager } from "./project-runtime.js";
-
 import {
-  createClientHarness,
+  subscribeTaskNotificationsRead,
+  type ReadTask,
+} from "@codexly/frontend-core/task-notification-read";
+import { expect, test, vi } from "vitest";
+import { createProjectRuntimeManager } from "./project-runtime.js";
+import {
   createSnapshotResponse,
   createTurnCompletedEvent,
+  createClientHarness,
 } from "./project-runtime.test-support.js";
 
-afterEach(() => vi.restoreAllMocks());
-
-test("聚焦任务时自动已读全部对应通知，其他项目与任务保持未读", () => {
-  const store = notifications.createTaskNotificationStore();
-  vi.spyOn(notifications, "getTaskNotificationStore").mockReturnValue(store);
-  const task = {
-    projectId: "project-1",
-    taskId: "task-1",
-    taskName: "当前任务",
-    status: "completed" as const,
-    requiresApproval: false,
-  };
-  store.recordActivities([
-    task,
-    { ...task, status: "failed" },
-    { ...task, projectId: "project-2" },
-    { ...task, taskId: "task-2" },
-  ]);
-  const runtime = createProjectRuntimeManager(createClientHarness().client);
-  try {
-    runtime.viewTask("project-1");
-    expect(store.getSnapshot().every((item) => !item.read)).toBe(true);
-    runtime.viewTask("project-1", "task-1");
-    expect(
-      store.getSnapshot().map(({ projectId, taskId, read }) => ({ projectId, taskId, read })),
-    ).toEqual([
-      { projectId: "project-1", taskId: "task-2", read: false },
-      { projectId: "project-2", taskId: "task-1", read: false },
-      { projectId: "project-1", taskId: "task-1", read: true },
-      { projectId: "project-1", taskId: "task-1", read: true },
-    ]);
-  } finally {
-    runtime.dispose();
-  }
-});
-
-test.each([false, true])(
-  "已聚焦任务的迟到活动快照自动已读，切走后新通知保留未读（聚焦发生在读取期间：%s）",
-  (focusDuringRead) => {
-    const store = notifications.createTaskNotificationStore();
-    vi.spyOn(notifications, "getTaskNotificationStore").mockReturnValue(store);
-    const runtime = createProjectRuntimeManager(createClientHarness().client);
-    const task = {
-      projectId: "project-1",
-      taskId: "task-1",
-      taskName: "当前任务",
-      status: "completed" as const,
-      requiresApproval: false,
-    };
-    try {
-      runtime.reconcileTaskActivities([task], runtime.getTaskActivity());
-      const baseline = runtime.getTaskActivity();
-      runtime.viewTask("project-1", "task-1");
-      store.recordActivities([task]);
-      runtime.reconcileTaskActivities(
-        [task],
-        focusDuringRead ? baseline : runtime.getTaskActivity(),
-      );
-      expect(store.getSnapshot()[0]?.read).toBe(true);
-      runtime.viewTask("project-1", "task-2");
-      const next = { ...task, status: "failed" as const };
-      store.recordActivities([next]);
-      runtime.reconcileTaskActivities([next], runtime.getTaskActivity());
-      expect(store.getSnapshot()[0]?.read).toBe(false);
-    } finally {
-      runtime.dispose();
-    }
-  },
-);
-
-test("聚焦中的任务实时通知自动已读，后台任务实时通知保持未读", () => {
-  const store = notifications.createTaskNotificationStore();
-  vi.spyOn(notifications, "getTaskNotificationStore").mockReturnValue(store);
-  const harness = createClientHarness();
-  const runtime = createProjectRuntimeManager(harness.client);
-  try {
-    runtime.observeSnapshot(createSnapshotResponse("task-1"));
-    runtime.viewTask("project-1", "task-1");
-    harness.emit(createTurnCompletedEvent("task-1", 1));
-    expect(store.getSnapshot()).toHaveLength(1);
-    expect(store.getSnapshot()[0]?.read).toBe(true);
-    runtime.viewTask("project-1", "task-2");
-    harness.emit(createTurnCompletedEvent("task-1", 2, "failed"));
-    expect(store.getSnapshot()[0]?.read).toBe(false);
-  } finally {
-    runtime.dispose();
-  }
-});
-
-test("分屏中所有可见任务自动已读，关闭任务后保留新通知未读", () => {
-  const store = notifications.createTaskNotificationStore();
-  vi.spyOn(notifications, "getTaskNotificationStore").mockReturnValue(store);
+test("查看任务只回收对应系统通知，分屏隐藏后新活动不确认", () => {
+  const read = vi.fn<(tasks: readonly ReadTask[]) => void>();
+  const stop = subscribeTaskNotificationsRead(read);
   const runtime = createProjectRuntimeManager(createClientHarness().client);
   const task = {
     projectId: "project-1",
@@ -109,59 +22,94 @@ test("分屏中所有可见任务自动已读，关闭任务后保留新通知�
     requiresApproval: false,
   };
   try {
+    runtime.viewTask("project-1");
+    expect(read).not.toHaveBeenCalled();
     const closeLeft = runtime.observeVisibleTask("project-1", "left");
     const closeRight = runtime.observeVisibleTask("project-1", "right");
-    runtime.viewTask("project-1", "right");
-    const tasks = [task, { ...task, taskId: "right" }, { ...task, taskId: "background" }];
-    store.recordActivities(tasks);
-    runtime.reconcileTaskActivities(tasks, runtime.getTaskActivity());
-    expect(store.getSnapshot().map(({ taskId, read }) => ({ taskId, read }))).toEqual([
-      { taskId: "background", read: false },
-      { taskId: "right", read: true },
-      { taskId: "left", read: true },
-    ]);
+    read.mockClear();
+    runtime.reconcileTaskActivities(
+      [task, { ...task, taskId: "right" }, { ...task, taskId: "background" }],
+      runtime.getTaskActivity(),
+    );
+    const ids = read.mock.calls.flatMap(([tasks]) =>
+      tasks.map((entry: { taskId: string }) => entry.taskId),
+    );
+    expect(ids).toContain("left");
+    expect(ids).toContain("right");
+    expect(ids).not.toContain("background");
     expect(runtime.getTaskActivity().get("project-1\u0000left")?.attention).toBeNull();
-    expect(runtime.getTaskActivity().get("project-1\u0000right")?.attention).toBeNull();
     closeLeft();
     closeRight();
-    const next = { ...task, taskId: "right", status: "failed" as const };
-    store.recordActivities([next]);
-    runtime.reconcileTaskActivities([next], runtime.getTaskActivity());
-    expect(store.getSnapshot()[0]?.read).toBe(false);
+    read.mockClear();
+    runtime.reconcileTaskActivities(
+      [{ ...task, taskId: "right", status: "failed" }],
+      runtime.getTaskActivity(),
+    );
+    expect(read).not.toHaveBeenCalled();
     expect(runtime.getTaskActivity().get("project-1\u0000right")?.attention).toBe("failed");
   } finally {
     runtime.dispose();
+    stop();
   }
 });
 
-test("后台可见任务保留未读，切回前台无需点击或导航即可同步已读", () => {
-  const store = notifications.createTaskNotificationStore();
-  vi.spyOn(notifications, "getTaskNotificationStore").mockReturnValue(store);
-  const target = Object.assign(new EventTarget(), { visibilityState: "hidden" });
-  const windowTarget = new EventTarget();
-  vi.stubGlobal("document", target);
-  vi.stubGlobal("window", windowTarget);
-  const runtime = createProjectRuntimeManager(createClientHarness().client);
-  const task = {
-    projectId: "project-1",
-    taskId: "task-1",
-    taskName: "当前任务",
-    status: "completed" as const,
-    requiresApproval: false,
-  };
+test.each([false, true])(
+  "迟到活动在前台确认，后台恢复前台时回收系统通知（读取中聚焦：%s）",
+  (focusDuringRead) => {
+    const target = Object.assign(new EventTarget(), { visibilityState: "hidden" });
+    vi.stubGlobal("document", target);
+    vi.stubGlobal("window", new EventTarget());
+    const read = vi.fn<(tasks: readonly ReadTask[]) => void>();
+    const stop = subscribeTaskNotificationsRead(read);
+    const runtime = createProjectRuntimeManager(createClientHarness().client);
+    const task = {
+      projectId: "project-1",
+      taskId: "task-1",
+      taskName: "当前任务",
+      status: "completed" as const,
+      requiresApproval: false,
+    };
+    try {
+      const baseline = runtime.getTaskActivity();
+      runtime.observeVisibleTask(task.projectId, task.taskId);
+      runtime.viewTask(task.projectId, task.taskId);
+      runtime.reconcileTaskActivities([task], runtime.getTaskActivity());
+      expect(read).not.toHaveBeenCalled();
+      target.visibilityState = "visible";
+      target.dispatchEvent(new Event("visibilitychange"));
+      expect(read).toHaveBeenCalledWith([{ projectId: task.projectId, taskId: task.taskId }]);
+      read.mockClear();
+      runtime.reconcileTaskActivities(
+        [{ ...task, status: "failed" }],
+        focusDuringRead ? baseline : runtime.getTaskActivity(),
+      );
+      expect(read).toHaveBeenCalled();
+      expect(runtime.getTaskActivity().get("project-1\u0000task-1")?.attention).toBeNull();
+    } finally {
+      runtime.dispose();
+      stop();
+      vi.unstubAllGlobals();
+    }
+  },
+);
+
+test("实时终态回收可见任务的系统通知，后台任务保留提醒", () => {
+  const read = vi.fn<(tasks: readonly ReadTask[]) => void>();
+  const stop = subscribeTaskNotificationsRead(read);
+  const harness = createClientHarness();
+  const runtime = createProjectRuntimeManager(harness.client);
   try {
-    const close = runtime.observeVisibleTask(task.projectId, task.taskId);
-    runtime.viewTask(task.projectId, task.taskId);
-    store.recordActivities([task]);
-    runtime.reconcileTaskActivities([task], runtime.getTaskActivity());
-    expect(store.getSnapshot()[0]?.read).toBe(false);
-    target.visibilityState = "visible";
-    target.dispatchEvent(new Event("visibilitychange"));
-    expect(store.getSnapshot()[0]?.read).toBe(true);
-    expect(runtime.getTaskActivity().get("project-1\u0000task-1")?.attention).toBeNull();
-    close();
+    runtime.observeSnapshot(createSnapshotResponse("task-1"));
+    runtime.viewTask("project-1", "task-1");
+    read.mockClear();
+    harness.emit(createTurnCompletedEvent("task-1", 1));
+    expect(read).toHaveBeenCalledWith([{ projectId: "project-1", taskId: "task-1" }]);
+    runtime.viewTask("project-1", "task-2");
+    read.mockClear();
+    harness.emit(createTurnCompletedEvent("task-1", 2, "failed"));
+    expect(read).not.toHaveBeenCalled();
   } finally {
     runtime.dispose();
-    vi.unstubAllGlobals();
+    stop();
   }
 });

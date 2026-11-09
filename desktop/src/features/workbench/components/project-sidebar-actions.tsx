@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { SidebarFooter } from "@codexly/ui/core/sidebar-footer";
 import { translateSidebarFooterLabels } from "@codexly/frontend-core/sidebar-footer-labels";
 import type { AppInfoResponse, AppUpdateInstallProgress, Project } from "@/protocol/index.js";
@@ -169,9 +170,9 @@ export function SidebarSettingsButton({
   onUpdate,
   onOpen,
   onOpenShortcuts,
-  onTaskNavigate,
+  children,
 }: Readonly<{
-  onTaskNavigate?: (projectId: string, taskId: string) => void;
+  children?: ReactNode;
   appInfo?: AppInfoResponse;
   isUpdatePending?: boolean;
   onUpdate: (
@@ -181,8 +182,7 @@ export function SidebarSettingsButton({
   onOpen: (section: SidebarSettingsSection) => void;
   onOpenShortcuts: () => void;
 }>) {
-  const { t, i18n: translationInstance } = useTranslation("workbench");
-  const locale = translationInstance.resolvedLanguage ?? "zh-CN";
+  const { t } = useTranslation("workbench");
   const { t: settingsT } = useTranslation("settings");
   // 打开时固定本次展示的版本与日志，安装回执刷新缓存不会中断弹窗。
   const [updateInfo, setUpdateInfo] = useState<AppInfoResponse | null>(null);
@@ -192,15 +192,15 @@ export function SidebarSettingsButton({
     <>
       <SidebarFooter
         labels={translateSidebarFooterLabels((key) => t(`sidebarFooter.${key}`, { version: appVersion }))}
-        locale={locale}
         version={appVersion}
         updateAvailable={updateAvailable}
         onSettings={() => { onOpen("appearance"); }}
         onAbout={() => { onOpen("about"); }}
         onUpdate={() => { if (appInfo?.latestVersion) setUpdateInfo(appInfo); }}
-        {...(onTaskNavigate === undefined ? {} : { onTaskNavigate })}
         onShortcuts={onOpenShortcuts}
-      />
+      >
+        {children}
+      </SidebarFooter>
       {updateInfo?.latestVersion ? (
         <Suspense fallback={null}>
           <AppUpdateDialog

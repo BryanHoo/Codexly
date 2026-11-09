@@ -1,18 +1,14 @@
 import { expect, it, vi } from "vitest";
-import { createTaskNotificationStore } from "@codexly/frontend-core/task-notification-store";
+import { markTaskNotificationsRead } from "@codexly/frontend-core/task-notification-read";
 import { installSystemNotificationLifecycle } from "./system-notification-lifecycle.js";
 
-it("批量已读只发送一次撤销请求，退出后释放订阅", async () => {
-  const store = createTaskNotificationStore();
+it("查看任务时撤销对应系统通知，退出后释放订阅", async () => {
   const dismiss = vi.fn().mockResolvedValue(undefined);
-  const stop = installSystemNotificationLifecycle(store, dismiss);
-  store.recordActivities(["a", "b"].map((taskId) => ({ projectId: "project", taskId, taskName: taskId, status: "completed", requiresApproval: false })));
-  store.markAllRead();
-  expect(dismiss).toHaveBeenCalledOnce();
-  expect(dismiss).toHaveBeenCalledWith(expect.arrayContaining([{ projectId: "project", taskId: "a" }, { projectId: "project", taskId: "b" }]));
+  const stop = installSystemNotificationLifecycle(dismiss);
+  markTaskNotificationsRead("project", "a");
+  expect(dismiss).toHaveBeenCalledExactlyOnceWith([{ projectId: "project", taskId: "a" }]);
   stop();
-  store.recordActivities([{ projectId: "project", taskId: "c", taskName: "c", status: "failed", requiresApproval: false }]);
-  store.markAllRead();
+  markTaskNotificationsRead("project", "b");
   await Promise.resolve();
   expect(dismiss).toHaveBeenCalledOnce();
 });

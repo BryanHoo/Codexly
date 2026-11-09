@@ -1,6 +1,6 @@
 import type { AgentEvent, AgentTurn, PendingRequest } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
-import { createTaskNotificationStore } from "@codexly/frontend-core/task-notification-store";
+import { markTaskNotificationsRead } from "@codexly/frontend-core/task-notification-read";
 
 import {
   createBrowserTaskNotifier,
@@ -220,25 +220,14 @@ describe("browser task notifier", () => {
   });
   it("同一任务的新通知替换旧通知，标记已读后关闭系统提醒", () => {
     const harness = createHarness();
-    const store = createTaskNotificationStore();
     const notifier = createBrowserTaskNotifier({
       api: harness.api,
       isPageForeground: () => false,
-      notificationStore: store,
     });
     notifier.notify("project-1", createTurnCompletedEvent("completed"), "任务");
     notifier.notify("project-1", createTurnCompletedEvent("failed"), "任务");
     expect(harness.handle.close).toHaveBeenCalledOnce();
-    store.recordActivities([
-      {
-        projectId: "project-1",
-        taskId: "task-1",
-        taskName: "任务",
-        status: "failed",
-        requiresApproval: false,
-      },
-    ]);
-    store.markAllRead();
+    markTaskNotificationsRead("project-1", "task-1");
     expect(harness.handle.close).toHaveBeenCalledTimes(2);
     notifier.dispose?.();
   });

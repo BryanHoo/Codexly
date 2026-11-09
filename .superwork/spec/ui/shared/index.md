@@ -52,7 +52,10 @@
 - 回归入口为 `packages/frontend-core/src/project-document-link.test.ts` 和 `desktop/tests/browser/project-document-links.browser.test.tsx`，覆盖两端 Markdown 实际解析、Chromium/WebKit、宽窄视口、父目录、编码路径与宿主路径差异。
 - 文件导航必须覆盖中间文档标签页（`workbench-document-workspace`）、侧栏和独立窗口，不能只验证 Markdown 组件；`project-document-workspace-links.browser.test.tsx` 从真实工作区渲染 SKILL.md 的 `references/*.md` 链接，断言目标正文、返回原文及原生打开调用。
 
-## 工作台隐藏时的通知浮层
+## 左栏底部入口与帮助浮层
 
-- 通知与帮助等跨容器 Portal 必须随所属 React Activity 同步隐藏，并在恢复后保留正常关闭和焦点行为；不能仅依赖触发器隐藏或外部点击关闭。布局清理须操作已捕获的宿主节点，不增加轮询或逐帧状态。
-- 回归入口为桌面 `sidebar-notifications.browser.test.tsx`，覆盖共享底栏在 Chromium / WebKit、宽窄窗口中打开通知、切换设置、返回关闭及帮助浮层。
+- 左栏底部不再提供通知入口或通知列表；定时任务、扩展中心按顺序放在设置右侧，复用两端已有路由和项目上下文。正常 Toast、浏览器与原生系统通知继续保留。
+- 定时任务与扩展中心入口共用进入前的任务页面作为返回目标，保留查询参数和锚点；两者之间切换不覆盖来源，再次点击任一已选中入口都直接返回该任务页面。回到另一任务后重新进入时更新来源；扩展中心各分类共用选中态。未记录来源的直接打开回退到当前项目或普通聊天工作台，不能用无条件浏览器后退离开应用。修饰键点击仍沿用链接行为。
+- 切换回归入口为 `desktop/tests/browser/sidebar-page-toggle.browser.test.tsx`，覆盖两端、Chromium/WebKit、宽窄屏、扩展分类、相互切换及浏览器历史。
+- 帮助等跨容器 Portal 必须随所属 React Activity 同步隐藏，并在恢复后保留正常关闭和焦点行为；不能仅依赖触发器隐藏或外部点击关闭。布局清理须操作已捕获的宿主节点，不增加轮询或逐帧状态。
+- 回归入口为桌面 `sidebar-footer.browser.test.tsx`，覆盖共享底栏在 Chromium / WebKit、宽窄窗口中的入口顺序、独立点击、切换设置及帮助浮层隐藏与关闭。

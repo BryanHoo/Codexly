@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   keyboardShortcutChinese,
   keyboardShortcutEnglish,
@@ -203,9 +204,9 @@ export function SidebarSettingsButton({
   updatePercentage,
   connectionState,
   onOpen,
-  onTaskNavigate,
+  children,
 }: Readonly<{
-  onTaskNavigate?: (projectId: string, taskId: string) => void;
+  children?: ReactNode;
   appInfo?: AppInfoResponse;
   isUpdatePending?: boolean;
   onUpdate: (version: string) => Promise<void>;
@@ -230,7 +231,6 @@ export function SidebarSettingsButton({
         labels={translateSidebarFooterLabels((key) =>
           t(`sidebarFooter.${key}`, { version: appVersion }),
         )}
-        locale={locale}
         version={appVersion}
         updateAvailable={updateAvailable}
         onShortcuts={() => {
@@ -246,9 +246,10 @@ export function SidebarSettingsButton({
         onUpdate={() => {
           if (appInfo?.latestVersion) setUpdateInfo(appInfo);
         }}
-        {...(onTaskNavigate === undefined ? {} : { onTaskNavigate })}
         status={t("sidebarFooter.connectionStatus", { status: connectionStatusLabel })}
-      />
+      >
+        {children}
+      </SidebarFooter>
       {shortcutsLoaded ? (
         <Suspense fallback={null}>
           <KeyboardShortcutsDialog

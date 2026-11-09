@@ -1,4 +1,3 @@
-import { getTaskRoute } from "./project-sidebar-task-row.js";
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -358,8 +357,6 @@ export function ProjectSidebar({
         onToggleSidebar={() => onPanelShortcut("sidebar")}
       />
       <ProjectSidebarHeader onClose={onClose} onSearch={() => setSearchState("open")}>
-        <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
-        <SidebarExtensionCenterLink {...(projectId === undefined ? {} : { projectId })} />
       </ProjectSidebarHeader>
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
@@ -473,13 +470,12 @@ export function ProjectSidebar({
           {...(isUpdatePending === undefined ? {} : { isUpdatePending })}
           onUpdate={onUpdate}
           {...(appInfo === undefined ? {} : { appInfo })}
-          onTaskNavigate={(projectId, taskId) => {
-            if (!workspaceActions?.select({ projectId, taskId }))
-              void navigate(getTaskRoute(projectId, taskId));
-          }}
           onOpen={onOpenSettings}
           onOpenShortcuts={() => setShortcutsOpen(true)}
-        />
+        >
+        <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
+        <SidebarExtensionCenterLink {...(projectId === undefined ? {} : { projectId })} />
+        </SidebarSettingsButton>
       </div>
       <KeyboardShortcutsDialog onOpenChange={setShortcutsOpen} open={shortcutsOpen} />
       {searchState !== "idle" ? (

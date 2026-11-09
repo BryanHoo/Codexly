@@ -1,9 +1,6 @@
 import type { AgentEvent } from "@codexly/protocol";
 import { isAsyncQuestionEvent } from "@codexly/frontend-core/async-question-event";
-import {
-  getTaskNotificationStore,
-  type TaskNotificationStore,
-} from "@codexly/frontend-core/task-notification-store";
+import { subscribeTaskNotificationsRead } from "@codexly/frontend-core/task-notification-read";
 
 import { i18n } from "../../i18n/i18n.js";
 import { recordInternalWarning } from "./internal-diagnostics.js";
@@ -35,7 +32,6 @@ type BrowserTaskNotifierOptions = Readonly<{
   isEnabled?: (() => boolean) | undefined;
   isPageForeground?: (() => boolean) | undefined;
   navigateToTask?: ((projectId: string, taskId: string) => void) | undefined;
-  notificationStore?: Pick<TaskNotificationStore, "subscribeRead">;
   preferenceEvents?: EventTarget;
 }>;
 
@@ -150,15 +146,11 @@ class BrowserTaskNotifier implements TaskNotifier {
       options.isPageForeground ??
       (() => globalThis.document.visibilityState === "visible" && globalThis.document.hasFocus());
     this.#navigateToTask = options.navigateToTask ?? (() => undefined);
-    const store =
-      options.notificationStore ??
-      (typeof window === "undefined" ? undefined : getTaskNotificationStore());
-    if (store)
-      this.#disposeListeners.push(
-        store.subscribeRead((tasks) => {
-          for (const task of tasks) this.#close(JSON.stringify([task.projectId, task.taskId]));
-        }),
-      );
+    this.#disposeListeners.push(
+      subscribeTaskNotificationsRead((tasks) => {
+        for (const task of tasks) this.#close(JSON.stringify([task.projectId, task.taskId]));
+      }),
+    );
     const events = options.preferenceEvents ?? (typeof window === "undefined" ? undefined : window);
     if (events) {
       const changed = () => {

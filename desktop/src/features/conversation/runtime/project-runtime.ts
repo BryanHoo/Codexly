@@ -1,5 +1,5 @@
 import { createTaskViewState } from "@codexly/frontend-core/task-view-state";
-import { getTaskNotificationStore, isTaskNotificationEvent } from "@codexly/frontend-core/task-notification-store";
+import { isTaskNotificationReadEvent, markTaskNotificationsRead } from "@codexly/frontend-core/task-notification-read";
 import type {
   AgentTask,
   AgentTaskSnapshotResponse,
@@ -268,8 +268,8 @@ export class ProjectRuntimeManager {
   }
 
   #markTaskRead(projectId: string, taskId: string): void {
-    // 侧栏与消息中心共用确认入口；重复可见且没有新活动时保持无更新。
-    getTaskNotificationStore().markTaskRead(projectId, taskId);
+    // 查看任务时回收对应系统通知，侧栏活动状态仍按原有流程确认。
+    markTaskNotificationsRead(projectId, taskId);
     const attention = getTaskActivity(this.#taskActivity, projectId, taskId).attention;
     if (attention === "completed" || attention === "failed") this.onTaskActivityViewed?.(projectId, taskId);
     this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
@@ -347,13 +347,9 @@ export class ProjectRuntimeManager {
             // 标题由 Provider 在 Turn 结束时生成，后台 Task 也必须通知列表读取最新元数据。
             this.#onTaskMetadataChanged(eventProjectId, event.taskId, "turn_completed");
           }
-          // 当前任务可能被原生端立即确认；直接留存事件，再与全局活动快照去重。
-          if (isTaskNotificationEvent(event)) {
-            getTaskNotificationStore().recordEvent(eventProjectId, event,
-              this.#taskTitles.get(createProjectTaskKey(eventProjectId, event.taskId)) ?? event.taskId);
-            if (this.#isTaskViewed(eventProjectId, event.taskId))
-              getTaskNotificationStore().markTaskRead(eventProjectId, event.taskId);
-          }
+          // 可见任务收到新的提醒事件时立即回收系统通知，不再收集底栏通知历史。
+          if (isTaskNotificationReadEvent(event) && this.#isTaskViewed(eventProjectId, event.taskId))
+            markTaskNotificationsRead(eventProjectId, event.taskId);
           if (event.type !== "task.removed") {
             // 所有 Task 实时事件都推进 Activity 水位，避免流式期间到达的旧 Snapshot 回滚侧栏状态。
             this.#taskActivityCheckpoints.set(createProjectTaskKey(eventProjectId, event.taskId), {

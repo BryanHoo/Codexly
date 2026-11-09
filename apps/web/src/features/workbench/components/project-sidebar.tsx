@@ -1,4 +1,3 @@
-import { getTaskRoute } from "./project-sidebar-task-row.js";
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -352,10 +351,7 @@ export function ProjectSidebar({
         onSearch={() => {
           setSearchState("open");
         }}
-      >
-        <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
-        <SidebarSkillsMarketLink {...(projectId === undefined ? {} : { projectId })} />
-      </ProjectSidebarHeader>
+      ></ProjectSidebarHeader>
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
         <Link className={primaryActionClassName} to="/temporary" onClick={onNewTaskClick}>
@@ -474,13 +470,11 @@ export function ProjectSidebar({
           {...appUpdate}
           {...(appInfo === undefined ? {} : { appInfo })}
           connectionState={connectionState}
-          onTaskNavigate={(projectId, taskId) => {
-            if (!workspaceActions?.select({ projectId, taskId }))
-              void navigate(getTaskRoute(projectId, taskId)).then(closeOnMobile);
-            else closeOnMobile();
-          }}
           onOpen={onOpenSettings}
-        />
+        >
+          <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
+          <SidebarSkillsMarketLink {...(projectId === undefined ? {} : { projectId })} />
+        </SidebarSettingsButton>
       </div>
       {searchState === "idle" ? null : (
         <Suspense fallback={null}>
