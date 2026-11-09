@@ -1,5 +1,10 @@
 mod codex;
+mod emergency;
 mod export;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub(crate) use windows::{observe_webview, observer_entry};
 mod redaction;
 
 use std::{
@@ -122,20 +127,40 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
     builder.build()
 }
 
+/// 在 Windows 创建首个窗口之前准备应急文件和观察进程，覆盖 setup 之前的原生失败。
+#[cfg(windows)]
+pub(crate) fn bootstrap_windows(identifier: &str) {
+    if let Some(base) = std::env::var_os("LOCALAPPDATA") {
+        let directory = PathBuf::from(base).join(identifier).join("logs");
+        if fs::create_dir_all(&directory).is_ok() {
+            emergency::initialize(&directory);
+            windows::start_observer(&directory);
+        }
+    }
+}
+
 pub fn initialize<R: Runtime>(app: &AppHandle<R>) -> Result<(), std::io::Error> {
     let log_dir = app.path().app_log_dir().map_err(std::io::Error::other)?;
     fs::create_dir_all(&log_dir)?;
+    emergency::initialize(&log_dir);
     let marker = marker_path(&log_dir);
     if marker.exists() {
+        let previous = fs::read_to_string(&marker).unwrap_or_default();
         record(
             DiagnosticLevel::Warn,
             "previous_session_unclean",
             None,
-            BTreeMap::new(),
+            BTreeMap::from([(
+                "previousSession".to_owned(),
+                json!(previous.chars().take(64).collect::<String>()),
+            )]),
         );
     }
     fs::write(marker, session().id.as_bytes())?;
     install_panic_hook();
+    #[cfg(windows)]
+    windows::start_observer(&log_dir);
+
     record(
         DiagnosticLevel::Info,
         "app_started",
@@ -146,6 +171,10 @@ pub fn initialize<R: Runtime>(app: &AppHandle<R>) -> Result<(), std::io::Error> 
                 json!(app.package_info().version.to_string()),
             ),
             ("arch".to_owned(), json!(std::env::consts::ARCH)),
+            (
+                "webviewVersion".to_owned(),
+                json!(tauri::webview_version().ok()),
+            ),
             ("os".to_owned(), json!(std::env::consts::OS)),
         ]),
     );
@@ -265,6 +294,19 @@ fn emit(event: DiagnosticEvent) {
     if event.level == DiagnosticLevel::Debug {
         return;
     }
+    if event.level == DiagnosticLevel::Error
+        || matches!(
+            event.event.as_str(),
+            "app_started"
+                | "app_stopped"
+                | "previous_session_unclean"
+                | "task_subscription_retain_started"
+                | "task_subscription_retain_completed"
+                | "task_subscription_release_started"
+        )
+    {
+        emergency::persist(&event);
+    }
     let Ok(serialized) = serde_json::to_string(&event) else {
         return;
     };
@@ -276,12 +318,24 @@ fn emit(event: DiagnosticEvent) {
     }
 }
 
-fn install_panic_hook() {
+pub(crate) fn install_panic_hook() {
     PANIC_HOOK.call_once(|| {
         let previous = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |panic_info| {
-            record_error("rust_panic", panic_info);
-            log::logger().flush();
+            let mut event = rust_event(
+                DiagnosticLevel::Error,
+                "rust_panic",
+                Some(panic_info.to_string()),
+                BTreeMap::new(),
+                session(),
+                &timestamp(),
+            );
+            event.stack = Some(redaction::sanitize_text(
+                &std::backtrace::Backtrace::force_capture().to_string(),
+                8192,
+            ));
+            // 不调用常规 logger 或等待写锁：panic 可能正发生在它们内部。
+            emergency::persist(&event);
             previous(panic_info);
         }));
     });

@@ -9,7 +9,7 @@ use std::{
 use thiserror::Error;
 use tokio::{
     io::{self, AsyncRead, AsyncReadExt},
-    process::{Child, Command},
+    process::Command,
     task::JoinHandle,
     time::timeout,
 };
@@ -55,14 +55,13 @@ pub enum ProcessError {
 }
 
 pub struct CodexProcess {
-    _child: Child,
+    shutdown: Option<tokio::sync::oneshot::Sender<()>>,
+    _process_task: JoinHandle<()>,
     #[cfg(windows)]
     _process_job: windows_process_platform::TerminalJob,
     binary_path: PathBuf,
     connection: Arc<AppServerConnection>,
     codex_home: PathBuf,
-    stderr_task: JoinHandle<()>,
-    stderr_writer_task: JoinHandle<()>,
     version: String,
 }
 
@@ -98,7 +97,7 @@ impl CodexProcess {
         let connection = Arc::new(AppServerConnection::with_image_store(
             stdout, stdin, app_data,
         ));
-        let (stderr_task, stderr_writer_task) =
+        let (mut stderr_task, mut stderr_writer_task) =
             spawn_codex_stderr_tasks(stderr, connection.diagnostic_seq());
         let metadata = match connection.initialize(STARTUP_TIMEOUT).await {
             Ok(metadata) => metadata,
@@ -126,15 +125,34 @@ impl CodexProcess {
             return Err(ProcessError::InvalidMetadata);
         }
 
+        let connection_seq = connection.diagnostic_seq();
+        let (shutdown, shutdown_receiver) = tokio::sync::oneshot::channel();
+        // 等待内核进程事件，不轮询。关闭请求后仍等待并记录最终退出码，避免 EOF 清理抢先丢失证据。
+        let process_task = tokio::spawn(async move {
+            observe_child_exit(child, shutdown_receiver, connection_seq).await;
+            // 后代可能继承管道；保留末尾故障信息，但不让排空任务无限存活。
+            if timeout(Duration::from_secs(2), async {
+                let _ = tokio::join!(&mut stderr_task, &mut stderr_writer_task);
+            })
+            .await
+            .is_err()
+            {
+                stderr_task.abort();
+                stderr_writer_task.abort();
+                crate::infrastructure::diagnostics::record_error(
+                    "codex_stderr_drain_timeout",
+                    "stderr did not close after process exit",
+                );
+            }
+        });
         Ok(Self {
-            _child: child,
+            shutdown: Some(shutdown),
+            _process_task: process_task,
             #[cfg(windows)]
             _process_job: process_job,
             binary_path: program,
             connection,
             codex_home,
-            stderr_task,
-            stderr_writer_task,
             version,
         })
     }
@@ -157,10 +175,54 @@ impl CodexProcess {
     }
 }
 
+async fn observe_child_exit(
+    mut child: tokio::process::Child,
+    mut shutdown_receiver: tokio::sync::oneshot::Receiver<()>,
+    connection_seq: u64,
+) {
+    let (expected, status) = tokio::select! {
+        status = child.wait() => (false, status),
+        _ = &mut shutdown_receiver => {
+            // stdout EOF 清理可能早于 wait 唤醒；先短暂等待原始退出码，避免 kill 覆盖故障原因。
+            match timeout(Duration::from_millis(500), child.wait()).await {
+                Ok(status) => (true, status),
+                Err(_) => { let _ = child.start_kill(); (true, child.wait().await) }
+            }
+        }
+    };
+    let mut context = std::collections::BTreeMap::from([
+        (
+            "connectionSeq".to_owned(),
+            serde_json::json!(connection_seq),
+        ),
+        ("shutdownRequested".to_owned(), serde_json::json!(expected)),
+    ]);
+    if let Ok(status) = &status {
+        context.insert("exitCode".to_owned(), serde_json::json!(status.code()));
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+            context.insert("signal".to_owned(), serde_json::json!(status.signal()));
+        }
+    }
+    crate::infrastructure::diagnostics::record(
+        if expected {
+            crate::infrastructure::diagnostics::DiagnosticLevel::Info
+        } else {
+            crate::infrastructure::diagnostics::DiagnosticLevel::Error
+        },
+        "codex_process_exited",
+        status.err().map(|error| error.to_string()),
+        context,
+    );
+}
+
 impl Drop for CodexProcess {
     fn drop(&mut self) {
-        self.stderr_task.abort();
-        self.stderr_writer_task.abort();
+        if let Some(shutdown) = self.shutdown.take() {
+            let _ = shutdown.send(());
+        }
+        // 后台观察任务负责有界排空 stderr；Drop 不抢先取消，保留最后的故障记录。
     }
 }
 

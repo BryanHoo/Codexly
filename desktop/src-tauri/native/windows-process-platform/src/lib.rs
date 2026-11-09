@@ -1,4 +1,6 @@
 #[cfg(windows)]
+pub mod diagnostics;
+#[cfg(windows)]
 mod notifications;
 #[cfg(windows)]
 mod terminal_job;

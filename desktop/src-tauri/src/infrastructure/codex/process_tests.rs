@@ -218,24 +218,38 @@ async fn bundled_codex_should_complete_real_app_server_lifecycle() {
         crate::application::error::AppError::from(conflict),
         crate::application::error::AppError::CodexThreadBusy
     ));
-    other_process
-        ._child
-        .kill()
-        .await
-        .expect("second client should exit before removing its runtime");
+    let _ = other_process.shutdown.take().unwrap().send(());
+    (&mut other_process._process_task).await.unwrap();
     drop(other_process);
     let deleted = tasks::delete_task(&connection, "temporary".to_owned(), task.task.id)
         .await
         .expect("CodeAgent temporary task should be removable");
     assert_eq!(deleted.status, "deleted");
     // kill_on_drop 只发出终止请求；Windows 删除可执行文件前必须等待进程退出。
-    process
-        ._child
-        .kill()
-        .await
-        .expect("primary client should exit before removing its runtime");
+    let _ = process.shutdown.take().unwrap().send(());
+    (&mut process._process_task).await.unwrap();
     drop(process);
     // The retained connection also owns the local catalog's SQLite file handles.
     drop(connection);
     std::fs::remove_dir_all(app_data).expect("remove the isolated runtime fixture");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unexpected_process_exit_should_preserve_its_original_status() {
+    let capture = crate::infrastructure::diagnostics::test_support::Capture::start();
+    let child = tokio::process::Command::new("sh")
+        .args(["-c", "exit 47"])
+        .spawn()
+        .unwrap();
+    let (_sender, receiver) = tokio::sync::oneshot::channel();
+    super::observe_child_exit(child, receiver, 99).await;
+    let events = capture.take();
+    assert!(
+        events
+            .iter()
+            .any(|event| event["event"] == "codex_process_exited"
+                && event["context"]["exitCode"] == 47
+                && event["context"]["shutdownRequested"] == false)
+    );
 }

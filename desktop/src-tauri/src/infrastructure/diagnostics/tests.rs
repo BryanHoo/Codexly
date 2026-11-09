@@ -1,3 +1,35 @@
+#[test]
+fn crash_artifacts_are_included_in_existing_diagnostic_export() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in [
+        "codeagent-emergency.log",
+        "codeagent-emergency-previous.log",
+        "codeagent-host-0123456789abcdef01234567.log",
+    ] {
+        std::fs::write(dir.path().join(name), b"{}\n").unwrap();
+    }
+    let destination = dir.path().join("diagnostics.zip");
+    super::write_diagnostic_archive(
+        &destination,
+        dir.path(),
+        &serde_json::json!({}),
+        &serde_json::json!({}),
+    )
+    .unwrap();
+    let mut archive = zip::ZipArchive::new(std::fs::File::open(destination).unwrap()).unwrap();
+    assert!(archive.by_name("logs/codeagent-emergency.log").is_ok());
+    assert!(
+        archive
+            .by_name("logs/codeagent-emergency-previous.log")
+            .is_ok()
+    );
+    assert!(
+        archive
+            .by_name("logs/codeagent-host-0123456789abcdef01234567.log")
+            .is_ok()
+    );
+}
+
 use std::{
     collections::BTreeMap,
     fs,
@@ -199,7 +231,7 @@ fn diagnostic_archive_rejects_logs_over_the_export_limit() {
     let log_dir = root.join("logs");
     fs::create_dir_all(&log_dir).unwrap();
     let log = fs::File::create(log_dir.join("codeagent.log")).unwrap();
-    log.set_len(30 * 1024 * 1024 + 1).unwrap();
+    log.set_len(32 * 1024 * 1024 + 1).unwrap();
 
     let error = write_diagnostic_archive(
         &root.join("diagnostics.zip"),

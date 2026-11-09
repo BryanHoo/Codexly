@@ -84,7 +84,18 @@ async fn drain_codex_stderr<R>(
                 }
                 Ok(None) => {}
                 Err(CodexLogParseError::TooLarge) => stats.oversized_lines += 1,
-                Err(_) => stats.invalid_lines += 1,
+                Err(_) => {
+                    stats.invalid_lines += 1;
+                    // panic、运行库错误常为纯文本；每个五秒窗口最多保留两行，防止异常洪泛。
+                    if stats.invalid_lines <= 2 {
+                        diagnostics::record(
+                            DiagnosticLevel::Error,
+                            "codex_stderr_unstructured",
+                            Some(String::from_utf8_lossy(&line).into_owned()),
+                            BTreeMap::from([("connectionSeq".to_owned(), connection_seq.into())]),
+                        );
+                    }
+                }
             },
             Ok(None) => break,
             Err(error) => {
@@ -185,6 +196,32 @@ async fn read_bounded_line<R: AsyncBufRead + Unpin>(
 #[cfg(test)]
 mod tests {
     use super::read_bounded_line;
+
+    #[tokio::test]
+    async fn plain_stderr_should_preserve_redacted_crash_evidence_and_bound_floods() {
+        let capture = crate::infrastructure::diagnostics::test_support::Capture::start();
+        let input = b"thread worker panicked at C:\\private\\file.rs:42\nstack overflow\nsecret=hidden\nmore\n";
+        let (sender, _receiver) = tokio::sync::mpsc::channel(8);
+        super::drain_codex_stderr(
+            &input[..],
+            sender,
+            super::diagnostics::session().clone(),
+            88,
+        )
+        .await;
+        let events = capture.take();
+        let samples: Vec<_> = events
+            .iter()
+            .filter(|event| event["event"] == "codex_stderr_unstructured")
+            .collect();
+        assert!(!samples.is_empty());
+        assert!(samples.len() <= 3);
+        let serialized = serde_json::to_string(&events).unwrap();
+        assert!(serialized.contains("panicked"));
+        assert!(serialized.contains("stack overflow"));
+        assert!(!serialized.contains("private"));
+        assert!(!serialized.contains("hidden"));
+    }
 
     #[tokio::test]
     async fn diagnostic_full_log_queue_counts_dropped_errors() {

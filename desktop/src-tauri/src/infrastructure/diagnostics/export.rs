@@ -8,7 +8,8 @@ use serde_json::Value;
 use thiserror::Error;
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
-const MAX_EXPORTED_LOG_BYTES: u64 = 30 * 1024 * 1024;
+// 为既有 30 MiB 轮转日志预留应急日志和 Windows 退出记录空间。
+const MAX_EXPORTED_LOG_BYTES: u64 = 32 * 1024 * 1024;
 const README: &str = "Codexly diagnostics archive\n\nContains sanitized JSONL logs, runtime metrics, and version metadata.\nReview the archive before sharing it with a developer.\n";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

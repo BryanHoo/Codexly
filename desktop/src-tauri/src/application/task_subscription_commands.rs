@@ -14,6 +14,15 @@ pub async fn retain_task_subscription(
     {
         return Err(AppError::CodexRequestFailed);
     }
+    crate::infrastructure::diagnostics::record(
+        crate::infrastructure::diagnostics::DiagnosticLevel::Info,
+        "task_subscription_retain_started",
+        None,
+        std::collections::BTreeMap::from([
+            ("projectId".into(), serde_json::json!(project_id)),
+            ("taskId".into(), serde_json::json!(task_id)),
+        ]),
+    );
     let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
     state.retain_task_subscription(&task_id).await;
     if task["provider"] == "claude" {
@@ -21,9 +30,22 @@ pub async fn retain_task_subscription(
     }
     let connection = state.codex_connection().await?;
     // 挂载时只恢复线程元数据以确认写入权；历史仍走分页，冲突交给前端只读展示。
-    codex::retain_task_writer(&connection, &project_id, &task_id)
-        .await
-        .map_err(AppError::from)
+    let result = codex::retain_task_writer(&connection, &project_id, &task_id).await;
+    crate::infrastructure::diagnostics::record(
+        if result.is_ok() {
+            crate::infrastructure::diagnostics::DiagnosticLevel::Info
+        } else {
+            crate::infrastructure::diagnostics::DiagnosticLevel::Error
+        },
+        "task_subscription_retain_completed",
+        result.as_ref().err().map(ToString::to_string),
+        std::collections::BTreeMap::from([
+            ("projectId".into(), serde_json::json!(project_id)),
+            ("taskId".into(), serde_json::json!(task_id)),
+            ("success".into(), serde_json::json!(result.is_ok())),
+        ]),
+    );
+    result.map_err(AppError::from)
 }
 
 #[tauri::command(rename_all = "camelCase")]

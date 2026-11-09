@@ -6299,7 +6299,9 @@ dependencies = [
 name = "windows-process-platform"
 version = "0.1.0"
 dependencies = [
+ "webview2-com",
  "windows 0.61.3",
+ "windows-core 0.62.2",
 ]
 
 [[package]]

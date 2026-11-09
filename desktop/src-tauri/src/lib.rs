@@ -101,6 +101,14 @@ use infrastructure::diagnostics;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(windows)]
+    if diagnostics::observer_entry() {
+        return;
+    }
+    diagnostics::install_panic_hook();
+    let context = tauri::generate_context!();
+    #[cfg(windows)]
+    diagnostics::bootstrap_windows(&context.config().identifier);
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
@@ -140,6 +148,7 @@ pub fn run() {
         .manage(MainWindowLifecycle::default())
         .manage(application::terminal_lifecycle::TerminalLifecycle::default())
         .setup(|app| {
+            diagnostics::initialize(app.handle())?;
             // 业务入口开放前在阻塞池执行一次迁移；运行阶段不扫描旧目录、不持有迁移锁。
             let storage_app = app.handle().clone();
             tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
@@ -148,7 +157,6 @@ pub fn run() {
             infrastructure::network_proxy::initialize(&infrastructure::app_data::directory(
                 app.handle(),
             )?)?;
-            diagnostics::initialize(app.handle())?;
             application::notification_delivery::initialize(app.handle());
             setup_tray(app.handle())?;
             if let Some(window) = app.get_webview_window("main") {
@@ -158,8 +166,18 @@ pub fn run() {
                 .start(app.handle().clone());
             Ok(())
         })
-        .on_window_event(handle_window_event)
+        .on_window_event(|window, event| {
+            #[cfg(windows)]
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                windows_process_platform::diagnostics::forget_webview(window.label());
+            }
+            handle_window_event(window, event);
+        })
         .on_page_load(|webview, payload| {
+            #[cfg(windows)]
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                diagnostics::observe_webview(webview);
+            }
             if webview.label() == "main"
                 && matches!(payload.event(), tauri::webview::PageLoadEvent::Started)
             {
@@ -353,7 +371,7 @@ pub fn run() {
             unarchive_task,
             delete_task
         ])
-        .build(tauri::generate_context!());
+        .build(context);
 
     let app = match result {
         Ok(app) => app,
