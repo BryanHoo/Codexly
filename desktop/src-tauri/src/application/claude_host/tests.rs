@@ -9,36 +9,38 @@ use tokio::{
 
 #[tokio::test]
 async fn cancelled_search_should_notify_host_without_closing_conversations() {
-    let (transport, writes) = Transport::new();
-    let (writer, reader) = tokio::io::duplex(1024);
-    let worker = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
-    let pending = Arc::clone(&transport);
-    let request = tokio::spawn(async move {
-        pending
-            .request(
-                "search.occurrences",
-                None,
-                json!({}),
-                Instant::now() + Duration::from_secs(2),
-            )
+    for method in ["search.occurrences", "agent.authenticate"] {
+        let (transport, writes) = Transport::new();
+        let (writer, reader) = tokio::io::duplex(1024);
+        let worker = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
+        let pending = Arc::clone(&transport);
+        let request = tokio::spawn(async move {
+            pending
+                .request(
+                    method,
+                    None,
+                    json!({}),
+                    Instant::now() + Duration::from_secs(2),
+                )
+                .await
+        });
+        let mut lines = BufReader::new(reader).lines();
+        let sent: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        request.abort();
+        let _ = request.await;
+        let cancel = timeout(Duration::from_secs(1), lines.next_line())
             .await
-    });
-    let mut lines = BufReader::new(reader).lines();
-    let sent: serde_json::Value =
-        serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
-    request.abort();
-    let _ = request.await;
-    let cancel = timeout(Duration::from_secs(1), lines.next_line())
-        .await
-        .unwrap()
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&cancel).unwrap()["cancelId"],
-        sent["id"]
-    );
-    assert!(!transport.stopped.is_cancelled());
-    worker.abort();
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&cancel).unwrap()["cancelId"],
+            sent["id"]
+        );
+        assert!(!transport.stopped.is_cancelled());
+        worker.abort();
+    }
 }
 
 fn routes() -> (
@@ -406,4 +408,77 @@ async fn real_slow_catalog_write_should_not_delay_response_delivery() {
     worker.abort();
     reader_task.abort();
     writer_task.abort();
+}
+
+#[test]
+fn acp_launch_should_pass_only_shared_storage_and_bundled_executables() {
+    use std::path::PathBuf;
+    let paths = crate::infrastructure::acp_runtime::AcpRuntimePaths {
+        host: PathBuf::from("/bundle/acp-host"),
+        codex: PathBuf::from("/bundle/codex"),
+        claude: PathBuf::from("/bundle/claude"),
+    };
+    let command = super::HostLaunch::Acp(paths).command(std::path::Path::new("/private/app"));
+    assert_eq!(command.as_std().get_program(), "/bundle/acp-host");
+    let args: Vec<_> = command
+        .as_std()
+        .get_args()
+        .map(|arg| arg.to_string_lossy().to_string())
+        .collect();
+    assert_eq!(
+        args,
+        [
+            std::path::Path::new("/private/app")
+                .join("engines/acp")
+                .to_string_lossy()
+                .into_owned(),
+            String::from("/bundle/codex"),
+            String::from("/bundle/claude")
+        ]
+    );
+}
+
+#[tokio::test]
+async fn acp_auth_timeout_should_cancel_only_its_request() {
+    for method in ["agent.authenticate", "settings.write"] {
+        let (transport, writes) = Transport::new();
+        let (writer, reader) = tokio::io::duplex(4096);
+        let worker = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
+        let mut lines = BufReader::new(reader).lines();
+        let pending = Arc::clone(&transport);
+        let request = tokio::spawn(async move {
+            pending
+                .request(
+                    method,
+                    None,
+                    json!({"engine":"codex","methodId":"oauth"}),
+                    Instant::now() + Duration::from_millis(80),
+                )
+                .await
+        });
+        let frame: serde_json::Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(request.await.unwrap().is_err());
+        assert!(!transport.stopped.is_cancelled());
+        if method == "agent.authenticate" {
+            let cancelled = timeout(Duration::from_secs(1), lines.next_line())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&cancelled).unwrap()["cancelId"],
+                frame["id"]
+            );
+        } else {
+            assert!(
+                timeout(Duration::from_millis(20), lines.next_line())
+                    .await
+                    .is_err()
+            );
+        }
+        transport.fail("test finished");
+        worker.abort();
+        let _ = worker.await;
+    }
 }

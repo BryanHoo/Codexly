@@ -1,5 +1,94 @@
 use super::*;
 
+fn acp_manifest() -> serde_json::Value {
+    serde_json::json!({
+        "schemaVersion": 1,
+        "platform": if cfg!(target_os = "windows") { "win32" } else if cfg!(target_os = "macos") { "darwin" } else { std::env::consts::OS },
+        "arch": if cfg!(target_arch = "x86_64") { "x64" } else { "arm64" },
+        "host": { "path": "acp-host", "protocolVersion": 1 },
+        "engines": {
+            "codex": { "version": "0.166.0", "entrypoint": "codex/bin/codex" },
+            "claude": { "version": "2.1.318", "sdkVersion": "0.3.318", "entrypoint": "claude/claude" }
+        }
+    })
+}
+
+#[tokio::test]
+async fn bundled_claude_version_reads_acp_manifest_without_starting_or_hashing_binaries() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(
+        directory.path().join("manifest.json"),
+        acp_manifest().to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        bundled_claude_version(directory.path()).await.as_deref(),
+        Some("2.1.318")
+    );
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+}
+
+#[tokio::test]
+async fn bundled_claude_version_rejects_invalid_acp_metadata_without_legacy_fallback() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::create_dir(directory.path().join("claude")).unwrap();
+    std::fs::write(
+        directory.path().join("claude/manifest.json"),
+        r#"{"claudeCodeVersion":"2.1.300"}"#,
+    )
+    .unwrap();
+    for (field, value) in [
+        ("/schemaVersion", serde_json::json!(2)),
+        ("/platform", serde_json::json!("unknown")),
+        ("/arch", serde_json::json!("unknown")),
+        ("/host/protocolVersion", serde_json::json!(2)),
+        ("/host/path", serde_json::json!("../host")),
+        (
+            "/engines/codex/entrypoint",
+            serde_json::json!("C:/codex.exe"),
+        ),
+        (
+            "/engines/claude/entrypoint",
+            serde_json::json!("claude\\claude.exe"),
+        ),
+        ("/engines/codex/version", serde_json::json!("latest")),
+        ("/engines/claude/version", serde_json::json!("2.1")),
+        ("/engines/claude/sdkVersion", serde_json::json!("^0.3.318")),
+    ] {
+        let mut manifest = acp_manifest();
+        *manifest.pointer_mut(field).unwrap() = value;
+        std::fs::write(directory.path().join("manifest.json"), manifest.to_string()).unwrap();
+        assert_eq!(
+            bundled_claude_version(directory.path()).await,
+            None,
+            "invalid {field}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn bundled_claude_version_accepts_legacy_root_but_bounds_acp_manifest_reads() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::create_dir(directory.path().join("claude")).unwrap();
+    std::fs::write(
+        directory.path().join("claude/manifest.json"),
+        r#"{"claudeCodeVersion":"2.1.300"}"#,
+    )
+    .unwrap();
+    let path = directory.path().join("manifest.json");
+    std::fs::write(&path, r#"{"schemaVersion":1,"codexVersion":"0.164.0"}"#).unwrap();
+    assert_eq!(
+        bundled_claude_version(directory.path()).await.as_deref(),
+        Some("2.1.300")
+    );
+    std::fs::write(
+        &path,
+        format!("{}{}", acp_manifest(), " ".repeat(128 * 1024)),
+    )
+    .unwrap();
+    assert_eq!(bundled_claude_version(directory.path()).await, None);
+}
+
 #[tokio::test]
 async fn bundled_claude_version_reads_only_the_manifest_without_runtime_binaries() {
     let directory = tempfile::tempdir().unwrap();

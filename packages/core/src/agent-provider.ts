@@ -1,6 +1,9 @@
 import type { AgentThreadMemory } from "@codexly/protocol";
+import type { AcpAgentServices } from "./acp-service.js";
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
+  AcpConfigOption,
+  AcpSessionState,
   AgentGlobalApprovalPolicy,
   AgentGlobalSettings,
   AgentEngine,
@@ -265,6 +268,15 @@ export class PendingRequestResolutionError extends Error {
 
 // Core 只声明 Provider 无关能力，具体 RPC、传输顺序与进程生命周期留在外层。
 export interface AgentProvider {
+  /** ACP 原始会话配置；所有变更仍需由任务所属 agent 校验。 */
+  readSessionConfiguration?(taskId: string): Promise<AcpConfigOption[]>;
+  /** 原始配置与可用命令以同一 ACP 会话为准；加载失败不得返回伪造空状态。 */
+  readSessionState?(taskId: string): Promise<AcpSessionState>;
+  setSessionConfiguration?(
+    taskId: string,
+    configId: string,
+    value: string | boolean,
+  ): Promise<AcpConfigOption[]>;
   /** 仅读取当前会话所选记忆版本，不恢复会话或读取全局记忆文件。 */
   readThreadMemory?(taskId: string): Promise<AgentThreadMemory>;
   /** 切换存活会话权限并等待原生确认；无会话时只更新下次运行的任务状态。 */
@@ -335,6 +347,7 @@ export type AgentModelCatalogFallback =
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  readonly acpAgents?: AcpAgentServices;
   /** 仅保存至宿主提供的全新临时 ZIP 路径，不上传反馈或接受浏览器文件路径。 */
   saveCodexDiagnostics?(savePath: string): Promise<void>;
   readGenerationDefaults?(

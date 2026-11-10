@@ -22,10 +22,10 @@ import type {
   OfficialPluginPage,
 } from "@/protocol/index.js";
 
-import { TauriWorkspaceClient } from "./workspace-client.js";
+import { TauriAcpClient } from "./acp-client.js";
 import type { GlobalInstructions, MemorySettings, MemorySettingsUpdate } from "@/protocol/index.js";
 
-export class TauriCatalogClient extends TauriWorkspaceClient {
+export class TauriCatalogClient extends TauriAcpClient {
   public async readThreadMemory(projectId: string, taskId: string, options: ReadOptions = {}): Promise<AgentThreadMemory> {
     return this.callCancellable("read_thread_memory", { projectId, taskId }, options.signal);
   }

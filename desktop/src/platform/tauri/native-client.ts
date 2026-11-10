@@ -4,6 +4,7 @@ import { invoke, type NativeInvoke } from "./native-invoke.js";
 export type InvokeImplementation = NativeInvoke;
 
 export type TauriClientOptions = Readonly<{
+  connectEvents?: () => Promise<unknown>;
   ensureRuntime?: () => Promise<unknown>;
   invoke?: InvokeImplementation;
   subscribeAgentEvents?: typeof subscribeAgentEvents;
@@ -39,10 +40,11 @@ export function normalizeNativeError(error: unknown): unknown {
 }
 
 // 本地目录及按任务分流的命令只需要事件通道，不能让缺失 Codex 阻断 Claude。
-const engineIndependentCommands = new Set(["list_projects", "add_project", "remove_project", "rename_project", "reorder_projects", "list_tasks", "list_completed_tasks", "read_task", "start_task", "start_turn", "submit_prompt", "interrupt_turn", "stop_task_session", "resolve_pending_request", "get_task_settings", "update_task_settings", "retain_task_subscription", "release_task_subscription", "rename_task", "pin_task", "archive_task", "unarchive_task", "delete_task"]);
+const engineIndependentCommands = new Set(["acp_task_request", "list_projects", "add_project", "remove_project", "rename_project", "reorder_projects", "list_tasks", "list_completed_tasks", "read_task", "start_task", "start_turn", "submit_prompt", "interrupt_turn", "stop_task_session", "resolve_pending_request", "get_task_settings", "update_task_settings", "retain_task_subscription", "release_task_subscription", "rename_task", "pin_task", "archive_task", "unarchive_task", "delete_task"]);
 
 // 文件、Git 与应用工具由 Rust 本地服务执行，不依赖任何模型进程或模型事件订阅。
 const localCommands = new Set([
+  "acp_agent_request", "read_acp_agent", "create_acp_task",
   "list_host_files", "upload_attachment", "import_host_attachment", "cache_project_image",
   "get_project_pdf_file", "open_project", "list_project_files", "search_project_files",
   "stop_project_file_search", "read_project_source_file", "save_project_text_file",
@@ -62,15 +64,18 @@ export class TauriNativeClient {
 
   public constructor(options: TauriClientOptions = {}) {
     this.ensureRuntime = options.ensureRuntime ?? ensureCodexRuntime;
-    this.connectRuntime = options.ensureRuntime ?? connectCodexRuntime;
+    this.connectRuntime = options.connectEvents ?? options.ensureRuntime ?? connectCodexRuntime;
     this.invokeNative = options.invoke ?? invoke;
     this.subscribeNativeEvents = options.subscribeAgentEvents ?? subscribeAgentEvents;
   }
 
-  protected async call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  protected async call<T>(command: string, args?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+    signal?.throwIfAborted();
     if (!localCommands.has(command)) {
       await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
     }
+    // 通道连接期间仍可能取消；只有真正调用原生命令后才进入不可自动重试的提交阶段。
+    signal?.throwIfAborted();
     return this.invokeCommand(command, args);
   }
 

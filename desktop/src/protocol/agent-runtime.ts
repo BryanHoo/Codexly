@@ -1,6 +1,6 @@
 import { Type, type Static, type TSchema } from "@sinclair/typebox";
 
-import { AgentThreadConfigurationSchema } from "@codexly/protocol";
+import { AgentThreadConfigurationSchema, AcpSessionStateSchema } from "@codexly/protocol";
 import { AgentTaskSchema, type AgentTask } from "./agent-attachments.js";
 import { DateTimeSchema, ProjectSchema, type Project } from "./project-files.js";
 import { ActivePendingRequestSchema } from "./pending-request.js";
@@ -45,6 +45,7 @@ export type AgentPlan = Readonly<Static<typeof AgentPlanSchema>>;
 
 export const AgentTaskSnapshotSchema = Type.Object(
   {
+    acpSession: Type.Optional(AcpSessionStateSchema),
     engine: AgentTaskSchema.properties.engine,
     contextUsage: Type.Union([AgentContextUsageSchema, Type.Null()]),
     goal: Type.Union([AgentGoalSchema, Type.Null()]),

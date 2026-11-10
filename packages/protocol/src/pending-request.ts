@@ -255,10 +255,26 @@ export const McpElicitationPendingRequestSchema = Type.Union([
   McpUnsupportedElicitationPendingRequestSchema,
 ]);
 
+const AcpPermissionOptionSchema = Type.Object(
+  {
+    optionId: Type.String({ minLength: 1 }),
+    name: Type.String(),
+    kind: Type.Union([
+      Type.Literal("allow_once"),
+      Type.Literal("allow_always"),
+      Type.Literal("reject_once"),
+      Type.Literal("reject_always"),
+    ]),
+  },
+  { additionalProperties: false },
+);
+
 export const ToolApprovalPendingRequestSchema = Type.Object(
   {
     ...PendingRequestIdentityProperties,
     availableDecisions: Type.Array(PendingApprovalDecisionSchema, { minItems: 1 }),
+    // ACP 原始选项独立保留，不能从旧审批枚举推断永久授权范围。
+    acpOptions: Type.Optional(Type.Array(AcpPermissionOptionSchema, { maxItems: 128 })),
     toolName: Type.String({ minLength: 1 }),
     input: Type.Unknown(),
     reason: Type.Union([Type.String(), Type.Null()]),
@@ -350,7 +366,13 @@ export const ResolvePendingRequestRequestSchema = Type.Union([
   Type.Object(
     {
       ...PendingRequestResolutionIdentityProperties,
-      resolution: ApprovalResolutionSchema,
+      resolution: Type.Object(
+        {
+          decision: PendingApprovalDecisionSchema,
+          optionId: Type.Optional(Type.String({ minLength: 1 })),
+        },
+        { additionalProperties: false },
+      ),
       type: Type.Literal("tool_approval"),
     },
     { additionalProperties: false },

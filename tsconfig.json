@@ -33,6 +33,9 @@
     },
     {
       "path": "./packages/provider-claude"
+    },
+    {
+      "path": "./packages/provider-acp"
     }
   ]
 }

@@ -9,5 +9,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "src/**/*.json"],
-  "references": [{ "path": "../protocol" }, { "path": "../core" }]
+  "references": [{ "path": "../protocol" }, { "path": "../core" }, { "path": "../provider-acp" }]
 }

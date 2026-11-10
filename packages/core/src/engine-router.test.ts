@@ -27,6 +27,14 @@ describe("application task engine routing", () => {
       startTask: vi.fn(() => Promise.resolve({ id: `new-${engine}`, engine })),
       startTurn: vi.fn(() => Promise.resolve({ id: `${engine}-turn` })),
       readTask: vi.fn((id: string) => Promise.resolve({ id, engine })),
+      readSessionConfiguration: vi.fn(() => Promise.resolve([])),
+      readSessionState: vi.fn(() =>
+        Promise.resolve({
+          configOptions: [],
+          availableCommands: [{ name: `${engine}-command`, description: "命令" }],
+        }),
+      ),
+      setSessionConfiguration: vi.fn(() => Promise.resolve([])),
       subscribeEvents: (listener: AgentProviderEventListener) => {
         listeners.set(engine, listener);
         return () => {
@@ -82,6 +90,37 @@ describe("application task engine routing", () => {
     await router.readTask("claude");
     expect(codex.readTask).toHaveBeenCalledWith("codex", undefined);
     expect(claude.readTask).toHaveBeenCalledWith("claude", undefined);
+  });
+
+  it("ACP 会话配置沿任务身份路由，拒绝跨项目访问", async () => {
+    const { router, codex, claude, tasks } = setup();
+    await router.readSessionConfiguration("claude");
+    await router.setSessionConfiguration("claude", "mode", "plan");
+    expect(claude.readSessionConfiguration).toHaveBeenCalledExactlyOnceWith("claude");
+    expect(claude.setSessionConfiguration).toHaveBeenCalledExactlyOnceWith(
+      "claude",
+      "mode",
+      "plan",
+    );
+    expect(codex.readSessionConfiguration).not.toHaveBeenCalled();
+    const task = tasks.get("claude");
+    if (!task) throw new Error("缺少测试任务");
+    tasks.set("claude", { ...task, projectId: "foreign" });
+    await expect(router.readSessionConfiguration("claude")).rejects.toThrow("project");
+    expect(claude.readSessionConfiguration).toHaveBeenCalledOnce();
+  });
+  it("ACP命令与配置状态只读取任务绑定的引擎，跨项目不调用agent", async () => {
+    const { router, codex, claude, tasks } = setup();
+    expect((await router.readSessionState("claude")).availableCommands[0]?.name).toBe(
+      "claude-command",
+    );
+    expect(claude.readSessionState).toHaveBeenCalledExactlyOnceWith("claude");
+    expect(codex.readSessionState).not.toHaveBeenCalled();
+    const task = tasks.get("claude");
+    if (!task) throw new Error("缺少测试任务");
+    tasks.set("claude", { ...task, projectId: "foreign" });
+    await expect(router.readSessionState("claude")).rejects.toThrow("project");
+    expect(claude.readSessionState).toHaveBeenCalledOnce();
   });
 
   it("routes ephemeral generation without a catalog row and hides its events from normal listeners", async () => {

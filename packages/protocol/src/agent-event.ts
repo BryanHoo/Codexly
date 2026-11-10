@@ -1,6 +1,7 @@
 import { Type, type Static, type TProperties, type TSchema } from "@sinclair/typebox";
 
 import { ClaudePermissionModeSchema } from "./agent-engine.js";
+import { AcpSessionUpdatedEventSchema } from "./acp-session.js";
 import { EventCheckpointSchema } from "./event-checkpoint.js";
 export { EventCheckpointSchema, type EventCheckpoint } from "./event-checkpoint.js";
 import {
@@ -187,6 +188,7 @@ export const PendingRequestExpiredEventSchema = createPendingRequestEventSchema(
 );
 
 export const AgentEventSchema = Type.Union([
+  AcpSessionUpdatedEventSchema,
   TurnStartedEventSchema,
   MessageDeltaEventSchema,
   ReasoningDeltaEventSchema,

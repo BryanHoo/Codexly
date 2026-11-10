@@ -9,6 +9,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./task-queue-storage": {
+      "types": "./src/task-queue-storage.ts",
+      "default": "./src/task-queue-storage.ts"
+    },
     "./event-common": {
       "types": "./src/event-common.ts",
       "default": "./src/event-common.ts"

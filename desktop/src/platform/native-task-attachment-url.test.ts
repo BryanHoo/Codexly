@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@tauri-apps/api/core", () => ({
-  convertFileSrc: (path: string, protocol = "asset") => `${protocol}://localhost/${encodeURIComponent(path)}`,
+  convertFileSrc: (path: string, protocol = "asset") =>
+    `${protocol}://localhost/${encodeURIComponent(path)}`,
 }));
 import { buildNativeTaskAttachmentUrl } from "./native-asset-url.js";
 
@@ -13,7 +14,14 @@ describe("native task attachment URL", () => {
     expect(url.searchParams.get("attachmentId")).toBe("history-abc");
   });
   it("preserves native Codex paths and optimistic blob previews", () => {
-    expect(buildNativeTaskAttachmentUrl("p", "t", "/tmp/image.png")).toBe("asset://localhost/%2Ftmp%2Fimage.png");
+    expect(buildNativeTaskAttachmentUrl("p", "t", "/tmp/image.png")).toBe(
+      "asset://localhost/%2Ftmp%2Fimage.png",
+    );
     expect(buildNativeTaskAttachmentUrl("p", "t", "blob:preview")).toBe("blob:preview");
   });
+});
+
+it("ACP 历史附件显式选择 ACP 授权读取，不落入旧宿主", () => {
+  const url = new URL(buildNativeTaskAttachmentUrl("p", "t", "history-a", "acp"));
+  expect(url.searchParams.get("acp")).toBe("1");
 });

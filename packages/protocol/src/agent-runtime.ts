@@ -1,5 +1,6 @@
 import { Type, type Static, type TSchema } from "@sinclair/typebox";
 import { AgentTaskBaseSchema } from "./task-common.js";
+import { AcpSessionStateSchema } from "./acp-session.js";
 
 import {
   AgentTaskSchema,
@@ -51,6 +52,7 @@ export type AgentPlan = Readonly<Static<typeof AgentPlanSchema>>;
 
 export const AgentTaskSnapshotSchema = Type.Object(
   {
+    acpSession: Type.Optional(AcpSessionStateSchema),
     engine: AgentTaskBaseSchema.properties.engine,
     contextUsage: Type.Union([AgentContextUsageSchema, Type.Null()]),
     goal: Type.Union([AgentGoalSchema, Type.Null()]),

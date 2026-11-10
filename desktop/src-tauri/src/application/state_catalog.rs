@@ -11,7 +11,10 @@ impl AppState {
         published: impl FnOnce(),
     ) {
         crate::application::claude_host::normalize_event(&mut event);
-        event["provider"] = json!("claude");
+        // 共享 ACP 宿主已提供任务引擎；仅旧 Claude 宿主缺省帧沿用原来的 Claude 标识。
+        if !matches!(event["provider"].as_str(), Some("codex" | "claude")) {
+            event["provider"] = json!("claude");
+        }
         event["version"] = json!(2);
         event["sequence"] = json!(0);
         event["sessionId"] = json!(crate::infrastructure::codex::runtime_session_id());
@@ -58,6 +61,46 @@ impl AppState {
                     log::debug!("已移除任务的执行订阅未释放: {error}");
                 }
             });
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppState;
+    use serde_json::{Value, json};
+    use std::sync::{Arc, Mutex};
+    use tauri::ipc::{Channel, InvokeResponseBody};
+
+    #[tokio::test]
+    async fn shared_host_events_should_preserve_engine_identity_at_native_delivery() {
+        let state = AppState::default();
+        state.remember_tasks("p", ["t"]).await;
+        let received = Arc::new(Mutex::new(Vec::<Value>::new()));
+        let output = Arc::clone(&received);
+        state
+            .runtime
+            .lock()
+            .await
+            .set_event_channel(Channel::new(move |body| {
+                if let InvokeResponseBody::Json(body) = body {
+                    output
+                        .lock()
+                        .unwrap()
+                        .push(serde_json::from_str(&body).unwrap());
+                }
+                Ok(())
+            }));
+        for engine in [Some("codex"), Some("claude"), None] {
+            let mut event = json!({"type":"acp.session.updated","taskId":"t","payload":{"state":{"configOptions":[],"availableCommands":[]}}});
+            if let Some(engine) = engine {
+                event["provider"] = json!(engine);
+            }
+            state.publish_claude_event(None, event, || {}).await;
+            let messages = received.lock().unwrap();
+            let event = &messages.last().unwrap()["data"]["event"];
+            assert_eq!(event["provider"], engine.unwrap_or("claude"));
+            assert_eq!(event["type"], "acp.session.updated");
         }
     }
 }

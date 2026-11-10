@@ -139,7 +139,7 @@ pub(super) async fn event_loop(
                             .unwrap_or_else(|e| e.into_inner());
                         if active
                             .get(&task)
-                            .is_some_and(|(_, active_turn)| *active_turn == turn)
+                            .is_some_and(|(_, active_turn, _)| *active_turn == turn)
                         {
                             active.remove(&task);
                         }
@@ -163,9 +163,9 @@ pub(super) async fn fail_active_turns(
             .unwrap_or_else(|e| e.into_inner()),
     );
     // 先发布所有失败事实，再尝试持久化；一个慢数据库不能阻止其余会话离开运行态。
-    for (task, (_, turn)) in &active {
+    for (task, (_, turn, engine)) in &active {
         app.state::<AppState>().publish_claude_event(None,
-            json!({"type":"provider.error","taskId":task,"turnId":turn,"payload":{"message":"Claude host connection closed","willRetry":false}}), || {}).await;
+            json!({"type":"provider.error","provider":engine,"taskId":task,"turnId":turn,"payload":{"message":"Agent host connection closed","willRetry":false}}), || {}).await;
     }
     for task in active.keys() {
         let _ = catalog

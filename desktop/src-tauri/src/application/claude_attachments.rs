@@ -47,7 +47,29 @@ pub async fn respond(app: &AppHandle, request: http::Request<Vec<u8>>) -> http::
         }
         let (project, task, attachment) =
             selectors(request.uri()).ok_or(AppError::FilesystemRequestFailed)?;
-        let exported = export(app, &project, &task, &attachment).await?;
+        let query = tauri::Url::parse(&format!(
+            "http://localhost/?{}",
+            request.uri().query().unwrap_or_default()
+        ))
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+        let transport = query
+            .query_pairs()
+            .find(|(key, _)| key == "acp")
+            .map(|(_, value)| value.into_owned());
+        let exported = match transport.as_deref() {
+            Some("1") => {
+                super::acp_task_commands::acp_task_request(
+                    app.clone(),
+                    project,
+                    "attachment.export".into(),
+                    json!({"taskId":task,"attachmentId":attachment}),
+                    None,
+                )
+                .await?
+            }
+            None => export(app, &project, &task, &attachment).await?,
+            _ => return Err(AppError::FilesystemRequestFailed),
+        };
         let path = exported["path"]
             .as_str()
             .ok_or(AppError::FilesystemRequestFailed)?;

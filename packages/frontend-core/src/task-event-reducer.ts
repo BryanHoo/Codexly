@@ -124,6 +124,12 @@ export function createTaskEventReducer<
 
     const checkpoint = { sequence: event.sequence, sessionId: event.sessionId };
     switch (event.type) {
+      case "acp.session.updated":
+        // 设置与命令采用 agent 的完整权威状态，只更新元数据，不读取消息或重建历史。
+        return {
+          checkpoint,
+          snapshotMetadata: { ...snapshotMetadata, acpSession: event.payload.state },
+        };
       case "project.git_metadata_changed":
         return {};
       case "turn.started": {

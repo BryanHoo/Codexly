@@ -1,5 +1,5 @@
 import { Type, type Static, type TObject, type TProperties, type TSchema } from "@sinclair/typebox";
-import { ClaudePermissionModeSchema } from "@codexly/protocol";
+import { ClaudePermissionModeSchema, AcpSessionUpdatedEventSchema } from "@codexly/protocol";
 import {
   AgentEventEnvelopeProperties,
   CommandOutputDeltaEventSchema as SharedCommandOutputDeltaEventSchema,
@@ -217,6 +217,7 @@ export const PendingRequestExpiredEventSchema = createPendingRequestEventSchema(
 );
 
 export const AgentEventSchema = Type.Union([
+  extendSharedEventSchema(AcpSessionUpdatedEventSchema),
   TurnStartedEventSchema,
   MessageDeltaEventSchema,
   ReasoningDeltaEventSchema,

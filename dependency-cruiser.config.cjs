@@ -21,32 +21,36 @@ module.exports = {
       name: "protocol-is-independent",
       severity: "error",
       from: { path: "^packages/protocol/src" },
-      to: { path: "^(packages/(core|provider-codex|provider-claude|server|client)|apps/web|src)" },
+      to: {
+        path: "^(packages/(core|provider-codex|provider-claude|provider-acp|server|client)|apps/web|src)",
+      },
     },
     {
       name: "core-only-depends-on-protocol",
       severity: "error",
       from: { path: "^packages/core/src" },
-      to: { path: "^(packages/(provider-codex|provider-claude|server|client)|apps/web|src)" },
+      to: {
+        path: "^(packages/(provider-codex|provider-claude|provider-acp|server|client)|apps/web|src)",
+      },
     },
     {
       name: "provider-does-not-depend-on-delivery",
       severity: "error",
-      from: { path: "^packages/provider-(codex|claude)/src" },
+      from: { path: "^packages/provider-(codex|claude|acp)/src" },
       to: { path: "^(packages/(server|client)|apps/web|src)" },
     },
     {
       name: "client-is-independent-from-server-runtime",
       severity: "error",
       from: { path: "^packages/client/src" },
-      to: { path: "^packages/(core|provider-codex|provider-claude|server)/src" },
+      to: { path: "^packages/(core|provider-codex|provider-claude|provider-acp|server)/src" },
     },
     {
       name: "frontend-core-is-platform-independent",
       severity: "error",
       from: { path: "^packages/frontend-core/src" },
       to: {
-        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-claude|server))/",
+        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-claude|provider-acp|server))/",
       },
     },
     {
@@ -54,14 +58,14 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/ui/src" },
       to: {
-        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-claude|server))/",
+        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-claude|provider-acp|server))/",
       },
     },
     {
       name: "web-only-uses-client-and-protocol",
       severity: "error",
       from: { path: "^apps/web/src" },
-      to: { path: "^packages/(core|provider-codex|provider-claude|server)/src" },
+      to: { path: "^packages/(core|provider-codex|provider-claude|provider-acp|server)/src" },
     },
   ],
   options: {

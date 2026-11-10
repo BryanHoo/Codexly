@@ -18,8 +18,7 @@
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
-    "@sinclair/typebox": "catalog:",
-    "proxy-chain": "catalog:",
-    "undici": "catalog:"
+    "@codexly/provider-acp": "workspace:*",
+    "@sinclair/typebox": "catalog:"
   }
 }

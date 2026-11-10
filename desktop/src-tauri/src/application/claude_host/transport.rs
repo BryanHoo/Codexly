@@ -16,6 +16,13 @@ use tokio_util::sync::CancellationToken;
 pub(super) const MAX_FRAME: usize = 8 * 1024 * 1024;
 pub(super) const QUEUE_BYTES: usize = 16 * 1024 * 1024;
 pub(super) const LANES: usize = 8;
+/// 仅公布可安全撤销的 ACP 全局操作；配置写入不能据等待取消推断提交失败。
+pub(crate) fn cancellable_acp_request(method: &str) -> bool {
+    matches!(
+        method,
+        "agent.authenticate" | "agent.inspect" | "settings.read" | "providers.list"
+    )
+}
 type Reply = oneshot::Sender<Result<Value, String>>;
 
 pub(super) struct Outbound {
@@ -37,7 +44,7 @@ pub(super) struct Transport {
     writer: mpsc::Sender<Outbound>,
     write_budget: Arc<Semaphore>,
     pub inbound_budget: Arc<Semaphore>,
-    pub active_turns: Mutex<HashMap<String, (String, String)>>,
+    pub active_turns: Mutex<HashMap<String, (String, String, String)>>,
 }
 
 impl Transport {
@@ -129,6 +136,27 @@ impl Transport {
         params: Value,
         deadline: Instant,
     ) -> Result<Value, String> {
+        self.request_policy(method, scope, params, deadline, false)
+            .await
+    }
+    pub async fn request_acp(
+        &self,
+        method: &str,
+        scope: Option<Value>,
+        params: Value,
+        deadline: Instant,
+    ) -> Result<Value, String> {
+        self.request_policy(method, scope, params, deadline, true)
+            .await
+    }
+    async fn request_policy(
+        &self,
+        method: &str,
+        scope: Option<Value>,
+        params: Value,
+        deadline: Instant,
+        acp: bool,
+    ) -> Result<Value, String> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (sender, receiver) = oneshot::channel();
         {
@@ -145,7 +173,13 @@ impl Transport {
         let _registration = Registration {
             transport: self,
             id,
-            cancel_search: method == "search.occurrences",
+            cancel_search: method == "search.occurrences"
+                || cancellable_acp_request(method)
+                || (acp
+                    && matches!(
+                        method,
+                        "task.read" | "session.config.read" | "session.state.read" | "queue.list"
+                    )),
         };
         let operation = async {
             self.write(
@@ -160,7 +194,15 @@ impl Transport {
         match timeout_at(deadline, operation).await {
             Ok(result) => result,
             Err(_) => {
-                self.fail("Claude host request deadline exceeded");
+                if !(acp
+                    || cancellable_acp_request(method)
+                    || matches!(
+                        method,
+                        "settings.write" | "providers.set" | "providers.disable"
+                    ))
+                {
+                    self.fail("Claude host request deadline exceeded");
+                }
                 Err("Claude host request timed out".into())
             }
         }
@@ -196,7 +238,7 @@ impl Drop for Registration<'_> {
             .remove(&self.id)
             .is_some();
         if pending && self.cancel_search && !self.transport.stopped.is_cancelled() {
-            // 只读搜索取消不触碰 SDK 会话。固定小帧尝试进入原有有界队列，不创建后台等待任务。
+            // 搜索和 ACP 服务取消仅定位当前请求；小控制帧进入有界队列，不创建后台等待任务。
             let bytes = format!("{{\"cancelId\":{}}}\n", self.id).into_bytes();
             if let Ok(budget) =
                 Arc::clone(&self.transport.write_budget).try_acquire_many_owned(bytes.len() as u32)
@@ -312,7 +354,14 @@ pub(super) async fn reader_loop<R: AsyncRead + Unpin>(
                         if active.len() >= 512 && !active.contains_key(task) {
                             return Err("Claude host active task capacity exceeded");
                         }
-                        active.insert(task.to_owned(), (project.to_owned(), turn.to_owned()));
+                        let engine = event["provider"]
+                            .as_str()
+                            .filter(|value| matches!(*value, "codex" | "claude"))
+                            .unwrap_or("claude");
+                        active.insert(
+                            task.to_owned(),
+                            (project.to_owned(), turn.to_owned(), engine.to_owned()),
+                        );
                     }
                 }
                 enqueue(&lanes[lane], message, size, &transport)?;

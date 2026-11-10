@@ -62,7 +62,8 @@ export type QueueRuntime = Readonly<{
 
 export type PersistentTaskQueueOptions = Readonly<{
   attachmentStore: QueueAttachmentStore;
-  readTaskSettings: (projectId: string, taskId: string) => Promise<AgentTaskSettings>;
+  startTurn?: (runtime: QueueRuntime, input: AgentProviderTurnInput) => Promise<AgentTurn>;
+  readTaskSettings?: (projectId: string, taskId: string) => Promise<AgentTaskSettings>;
   repository: AgentQueueRepository;
   resolveProviderInput: (
     projectId: string,
@@ -78,6 +79,7 @@ export class PersistentTaskQueue {
   readonly #attachmentStore: QueueAttachmentStore;
   readonly #locks = new Map<string, Promise<void>>();
   readonly #startResults = new Map<string, AgentTurn>();
+  readonly #startTurn: PersistentTaskQueueOptions["startTurn"];
   readonly #readTaskSettings: PersistentTaskQueueOptions["readTaskSettings"];
   readonly #repository: AgentQueueRepository;
   readonly #resolveProviderInput: PersistentTaskQueueOptions["resolveProviderInput"];
@@ -85,6 +87,9 @@ export class PersistentTaskQueue {
   public constructor(options: PersistentTaskQueueOptions) {
     this.#attachmentStore = options.attachmentStore;
     this.#readTaskSettings = options.readTaskSettings;
+    this.#startTurn = options.startTurn;
+    if (!this.#startTurn && !this.#readTaskSettings)
+      throw new Error("Missing queue execution configuration");
     this.#repository = options.repository;
     this.#resolveProviderInput = options.resolveProviderInput;
   }
@@ -172,7 +177,7 @@ export class PersistentTaskQueue {
     expectedTurnId?: string,
   ): Promise<AgentTurn> {
     const turn = await this.#withTaskLock(runtime, () =>
-      this.#startUnlocked(runtime, queuedSubmissionId, true, expectedTurnId),
+      this.#startUnlocked(runtime, queuedSubmissionId, !this.#startTurn, expectedTurnId),
     );
     if (turn === undefined) {
       throw new TaskQueueItemNotFoundError();
@@ -289,7 +294,9 @@ export class PersistentTaskQueue {
       runtime.provider,
       runtime.taskId,
     );
-    const settings = await this.#readTaskSettings(runtime.projectId, runtime.taskId);
+    const settings = this.#startTurn
+      ? undefined
+      : await this.#readTaskSettings?.(runtime.projectId, runtime.taskId);
     // 结果缓存只覆盖持久化故障窗口；达到上限时暂停新启动，避免持续故障耗尽内存。
     if (this.#startResults.size >= 1_000) throw new TaskQueueBlockedError();
     if (!(await this.#repository.setQueueExecution(selected, { state: "starting" }))) {
@@ -315,7 +322,19 @@ export class PersistentTaskQueue {
       }
       turn = running;
     } else {
-      turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);
+      try {
+        if (this.#startTurn) turn = await this.#startTurn(runtime, providerInput);
+        else if (settings)
+          turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);
+        else throw new Error("Missing queue execution configuration");
+      } catch (error) {
+        if (error instanceof AgentTurnNotSubmittedError) {
+          if (!(await this.#repository.setQueueExecution(selected, null)))
+            throw new TaskQueueBlockedError();
+          this.#publishChanged(runtime);
+        }
+        throw error;
+      }
     }
     this.#startResults.set(selected.id, turn);
     return this.#finishStart(runtime, selected, turn);

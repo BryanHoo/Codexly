@@ -1,0 +1,27 @@
+{
+  "name": "@codexly/provider-acp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./network-proxy": {
+      "types": "./src/network-proxy.ts",
+      "default": "./src/network-proxy.ts"
+    }
+  },
+  "dependencies": {
+    "@sinclair/typebox": "catalog:",
+    "@agentclientprotocol/sdk": "catalog:",
+    "@codexly/core": "workspace:*",
+    "@codexly/protocol": "workspace:*",
+    "@agentclientprotocol/codex-acp": "catalog:",
+    "@agentclientprotocol/claude-agent-acp": "catalog:",
+    "proxy-chain": "catalog:",
+    "undici": "catalog:"
+  }
+}

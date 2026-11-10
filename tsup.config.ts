@@ -25,6 +25,8 @@ export default defineConfig({
     };
     options.alias = {
       ...options.alias,
+      "@codexly/provider-acp/network-proxy": "./packages/provider-acp/src/network-proxy.ts",
+      "@codexly/protocol/task-queue-storage": "./packages/protocol/src/task-queue-storage.ts",
       "@codexly/core/persistent-historical-attachment-store":
         "./packages/core/src/persistent-historical-attachment-store.ts",
       "@codexly/core/historical-attachment-worker-pool":
@@ -32,6 +34,8 @@ export default defineConfig({
       "@codexly/core/historical-attachment-files":
         "./packages/core/src/historical-attachment-files.ts",
       "@codexly/core/app-storage-paths": "./packages/core/src/app-storage-paths.ts",
+      "@codexly/core/file-task-queue": "./packages/core/src/file-task-queue.ts",
+      "@codexly/core/task-attachments": "./packages/core/src/task-attachments.ts",
       "@codexly/core/persistent-task-queue": "./packages/core/src/persistent-task-queue.ts",
       "@codexly/core": "./packages/core/src/index.ts",
       "@codexly/protocol": "./packages/protocol/src/index.ts",

@@ -8,7 +8,7 @@ import {
 import { resolveGlobalSettings } from "./global-settings-reader.js";
 import { LocalFileSearchService } from "./local-file-search.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
-import { registerEngineRoutes } from "./routes/engine-routes.js";
+import { registerAgentServiceRoutes } from "./routes/agent-service-routes.js";
 import { WorkbenchChanges } from "./workbench-changes.js";
 import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
 import type {
@@ -477,7 +477,7 @@ export async function createCodexlyServer(
   registerCodexDiagnosticRoutes(app, options.provider);
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerPromptOptimizationRoutes, routeContext);
-  await app.register(registerEngineRoutes, routeContext);
+  await registerAgentServiceRoutes(app, routeContext, options.acpAgents);
   await app.register(registerPersonalizationRoutes, routeContext);
   await app.register(registerHistoryStorageRoutes(options.localCatalogStore), routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);

@@ -16,6 +16,9 @@ allowBuilds:
   geckodriver: false
 
 catalog:
+  "@agentclientprotocol/sdk": 2.4.0
+  "@agentclientprotocol/codex-acp": 2.6.0
+  "@agentclientprotocol/claude-agent-acp": 0.101.0
   "@shadcn/react": 0.3.1
   bun: 1.4.2
   "@anthropic-ai/claude-agent-sdk": 0.3.316
@@ -109,6 +112,8 @@ linkWorkspacePackages: false
 # 显式设置最小发布时间，启用严格年龄校验，避免回退到新发布版本。
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
+  # 已核对官方 v2.6.0 正式 Release 与 npm 元数据，固定匹配 ACP SDK 2.4。
+  - "@agentclientprotocol/codex-acp@2.6.0"
   # 已核对正式 release 和官方包完整性；只豁免本次固定版本。
   - "@openai/codex@0.166.0"
   - "@openai/codex@0.166.0-darwin-x64"

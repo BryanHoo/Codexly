@@ -201,6 +201,10 @@ pub fn run() {
             },
         )
         .invoke_handler(tauri::generate_handler![
+            application::acp_commands::read_acp_agent,
+            application::acp_commands::acp_agent_request,
+            application::acp_task_commands::acp_task_request,
+            application::acp_task_commands::create_acp_task,
             application::network_proxy_commands::read_network_proxy,
             application::network_proxy_commands::save_network_proxy,
             application::network_proxy_commands::test_network_proxy,

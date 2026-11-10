@@ -3,6 +3,18 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export const vitestAliases = {
+  "@codexly/provider-acp/network-proxy": fileURLToPath(
+    new URL("./packages/provider-acp/src/network-proxy.ts", import.meta.url),
+  ),
+  "@codexly/protocol/task-queue-storage": fileURLToPath(
+    new URL("./packages/protocol/src/task-queue-storage.ts", import.meta.url),
+  ),
+  "@codexly/core/file-task-queue": fileURLToPath(
+    new URL("./packages/core/src/file-task-queue.ts", import.meta.url),
+  ),
+  "@codexly/core/task-attachments": fileURLToPath(
+    new URL("./packages/core/src/task-attachments.ts", import.meta.url),
+  ),
   "@codexly/provider-claude/network-proxy": fileURLToPath(
     new URL("./packages/provider-claude/src/network-proxy.ts", import.meta.url),
   ),

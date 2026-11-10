@@ -3,29 +3,23 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use super::*;
 
-struct Fixture(PathBuf);
+struct Fixture {
+    path: PathBuf,
+    _directory: tempfile::TempDir,
+}
 
 impl Fixture {
     fn new() -> Self {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("workspace-symlink-{}-{unique}", std::process::id()));
-        fs::create_dir_all(&path).unwrap();
-        Self(fs::canonicalize(path).unwrap())
-    }
-}
-
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        fs::remove_dir_all(&self.0).unwrap();
+        // 原子分配隔离目录；并行测试不能依赖系统时钟精度保证唯一性。
+        let directory = tempfile::tempdir().unwrap();
+        Self {
+            path: fs::canonicalize(directory.path()).unwrap(),
+            _directory: directory,
+        }
     }
 }
 
@@ -39,7 +33,7 @@ fn link_directory(target: &Path, link: &Path) {
 #[tokio::test]
 async fn delete_should_reject_directory_replaced_by_symlink_after_listing() {
     let fixture = Fixture::new();
-    let root = &fixture.0;
+    let root = &fixture.path;
     fs::create_dir(root.join("visible")).unwrap();
     fs::create_dir(root.join("real")).unwrap();
     fs::write(root.join("real/keep.txt"), "keep").unwrap();
@@ -69,7 +63,7 @@ async fn delete_should_reject_directory_replaced_by_symlink_after_listing() {
 #[tokio::test]
 async fn rename_should_reject_directory_replaced_by_symlink_after_listing() {
     let fixture = Fixture::new();
-    let root = &fixture.0;
+    let root = &fixture.path;
     fs::create_dir(root.join("visible")).unwrap();
     fs::create_dir(root.join("real")).unwrap();
     fs::write(root.join("real/keep.txt"), "keep").unwrap();
@@ -94,7 +88,7 @@ async fn rename_should_reject_directory_replaced_by_symlink_after_listing() {
 #[tokio::test]
 async fn rename_should_reject_dangling_destination_symlink() {
     let fixture = Fixture::new();
-    let root = &fixture.0;
+    let root = &fixture.path;
     fs::create_dir(root.join("source")).unwrap();
     link_directory(&root.join("missing"), &root.join("destination"));
     let result = rename_project_file(root, "source", "destination").await;
@@ -110,7 +104,7 @@ async fn rename_should_reject_dangling_destination_symlink() {
 #[tokio::test]
 async fn mutations_should_reject_directory_suffixes_and_project_root() {
     let fixture = Fixture::new();
-    let root = &fixture.0;
+    let root = &fixture.path;
     fs::create_dir(root.join("real")).unwrap();
     fs::write(root.join("real/keep.txt"), "keep").unwrap();
     link_directory(&root.join("real"), &root.join("link"));
@@ -147,7 +141,7 @@ async fn mutations_should_reject_directory_suffixes_and_project_root() {
 #[tokio::test]
 async fn deletion_should_preserve_targets_of_links_inside_directory() {
     let fixture = Fixture::new();
-    let root = &fixture.0;
+    let root = &fixture.path;
     fs::create_dir(root.join("real")).unwrap();
     fs::write(root.join("real/keep.txt"), "keep").unwrap();
     fs::create_dir(root.join("source")).unwrap();
@@ -163,7 +157,7 @@ async fn deletion_should_preserve_targets_of_links_inside_directory() {
 #[tokio::test]
 async fn resolved_mutation_path_should_not_follow_late_symlink_replacement() {
     let fixture = Fixture::new();
-    let root = &fixture.0;
+    let root = &fixture.path;
     fs::create_dir(root.join("source")).unwrap();
     fs::create_dir(root.join("real")).unwrap();
     fs::write(root.join("real/keep.txt"), "keep").unwrap();

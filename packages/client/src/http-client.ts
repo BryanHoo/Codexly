@@ -43,9 +43,9 @@ export { SkillMarketHttpClient } from "./http-client-skill-market.js";
 export { TaskHttpClient } from "./http-client-tasks.js";
 export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 
-import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
+import { AcpHttpClient } from "./http-client-acp.js";
 
-export class CodexlyClient extends AsyncQuestionHttpClient {
+export class CodexlyClient extends AcpHttpClient {
   public readNetworkProxy(): Promise<NetworkProxyStatus> {
     return this.request("/v1/network-proxy", NetworkProxyStatusSchema);
   }

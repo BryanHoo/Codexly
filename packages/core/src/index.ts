@@ -74,3 +74,6 @@ export * from "./retained-work-budget.js";
 export { boundTaskTitleInput, taskTitlePrompt, parseTaskTitle } from "./task-title.js";
 export { readGenerationDefaults } from "./generation-defaults.js";
 export type { TaskTitleGenerator } from "./agent-provider.js";
+export type { AcpAgentSettingsService, AcpAgentServices } from "./acp-service.js";
+
+export { HostOutput, createHostOutputStream, HOST_OUTPUT_BUDGET } from "./host-output.js";

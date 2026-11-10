@@ -352,7 +352,6 @@ export {
   type OpenAgentTaskAttachmentResponse,
   type AgentMessagePhase,
   type AgentMessageSkill,
-  type AgentTask,
   type AgentTaskPage,
   type AgentTaskSnapshot,
   type AgentTurn,
@@ -492,9 +491,10 @@ export { WorkbenchChangeSchema, type WorkbenchChange } from "./workbench-change.
 export * from "./agent-engine.js";
 export * from "./engine-profile.js";
 export * from "./claude-extensions.js";
-export { AgentThreadConfigurationSchema } from "./agent-attachments.js";
+export { AgentThreadConfigurationSchema, type AgentTask } from "./agent-attachments.js";
 export * from "./task-activity.js";
 export { AgentThreadMemorySchema, type AgentThreadMemory } from "./thread-memory.js";
 export * from "./saved-prompts.js";
 export * from "./prompt-optimization.js";
 export * from "./network-proxy.js";
+export * from "./acp.js";

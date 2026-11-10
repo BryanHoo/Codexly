@@ -25,7 +25,14 @@ export interface TaskEventRequest {
 }
 export type TaskEventMetadata = Pick<
   AgentTaskSnapshot,
-  "status" | "title" | "updatedAt" | "goal" | "plan" | "contextUsage" | "threadConfiguration"
+  | "status"
+  | "title"
+  | "updatedAt"
+  | "goal"
+  | "plan"
+  | "contextUsage"
+  | "threadConfiguration"
+  | "acpSession"
 >;
 
 /** 只声明 reducer 实际读写的 Store 端口，Zustand、IPC 和网络由平台持有。 */

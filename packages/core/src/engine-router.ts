@@ -173,6 +173,15 @@ export class EngineProjectRouter implements AgentProvider {
   async updateTaskPermissionMode(id: string, mode: ClaudePermissionMode) {
     return (await this.#method(id, "updateTaskPermissionMode"))(id, mode);
   }
+  async readSessionConfiguration(id: string) {
+    return (await this.#method(id, "readSessionConfiguration"))(id);
+  }
+  async readSessionState(id: string) {
+    return (await this.#method(id, "readSessionState"))(id);
+  }
+  async setSessionConfiguration(id: string, configId: string, value: string | boolean) {
+    return (await this.#method(id, "setSessionConfiguration"))(id, configId, value);
+  }
   async readTask(...args: Parameters<AgentProvider["readTask"]>) {
     return (await this.#method(args[0], "readTask"))(args[0], args[1]);
   }

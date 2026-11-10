@@ -20,6 +20,10 @@ fn main() {
 
     // 所有应用命令先进入 ACL 清单；窗口仍需在 capability 中显式授权。
     let app_manifest = tauri_build::AppManifest::new().commands(&[
+        "read_acp_agent",
+        "acp_agent_request",
+        "acp_task_request",
+        "create_acp_task",
         "read_network_proxy",
         "save_network_proxy",
         "test_network_proxy",

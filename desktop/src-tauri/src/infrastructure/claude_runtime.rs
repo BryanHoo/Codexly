@@ -10,6 +10,11 @@ struct ClaudeVersionManifest {
 
 /// 关于页仅异步读取小清单；旧安装包或 legacy macOS 缺少资源时正常降级。
 pub(crate) async fn bundled_claude_version(resources: &Path) -> Option<String> {
+    match super::acp_runtime::bundled_version(resources, "claude").await {
+        Ok(Some(version)) => return Some(version),
+        Err(()) => return None,
+        Ok(None) => {}
+    }
     // 不调用 prepare、不启动 Claude，也不读取或哈希大型二进制；损坏清单同样限制读取量。
     const MAX_MANIFEST_BYTES: u64 = 16 * 1024;
     let file = tokio::fs::File::open(resources.join("claude/manifest.json"))

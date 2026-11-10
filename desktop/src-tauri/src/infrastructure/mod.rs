@@ -1,3 +1,4 @@
+pub(crate) mod acp_runtime;
 pub mod app_data;
 pub mod app_storage;
 pub(crate) mod atomic_file;

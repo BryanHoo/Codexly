@@ -1,3 +1,9 @@
+#[cfg(test)]
+mod acp_policy_tests;
+#[cfg(test)]
+mod acp_tests;
+#[cfg(unix)]
+mod lifetime;
 mod process;
 #[cfg(test)]
 mod tests;
@@ -17,6 +23,7 @@ use tokio::{
     time::{Instant, timeout_at},
 };
 use tokio_util::sync::CancellationToken;
+pub(super) use transport::cancellable_acp_request;
 use transport::{LANES, Transport};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
@@ -48,6 +55,8 @@ pub fn normalize_event(event: &mut Value) {
 pub struct ClaudeHostManager {
     host: Mutex<Option<Arc<ClaudeHost>>>,
     pub(crate) runtime: ClaudeRuntimeManager,
+    acp_runtime: crate::infrastructure::acp_runtime::AcpRuntimeManager,
+    acp: bool,
 }
 struct ClaudeHost {
     child: Arc<Mutex<Child>>,
@@ -55,7 +64,41 @@ struct ClaudeHost {
     finished: CancellationToken,
 }
 
+pub(super) enum HostLaunch {
+    Claude(RuntimePaths),
+    Acp(crate::infrastructure::acp_runtime::AcpRuntimePaths),
+}
+impl HostLaunch {
+    fn command(self, app_data: &std::path::Path) -> Command {
+        let mut command = match self {
+            Self::Claude((binary, host)) => {
+                let mut command = Command::new(host);
+                command.arg(app_data.join("engines/claude")).arg(binary);
+                command
+            }
+            Self::Acp(paths) => {
+                let mut command = Command::new(paths.host);
+                command
+                    .arg(app_data.join("engines/acp"))
+                    .arg(paths.codex)
+                    .arg(paths.claude);
+                command
+            }
+        };
+        crate::infrastructure::network_proxy::configure_claude_host(&mut command);
+        command.env("CODEXLY_APPLICATION_GENERATION", "1");
+        command
+    }
+}
+
 impl ClaudeHostManager {
+    pub fn for_acp() -> Self {
+        Self {
+            acp: true,
+            ..Self::default()
+        }
+    }
+
     pub async fn request(
         &self,
         app: &AppHandle,
@@ -66,7 +109,9 @@ impl ClaudeHostManager {
         // 从管理器排队开始计算同一个绝对时限；启动、写入和等待响应都不得重置计时。
         // 插件下载安装包含网络请求；仅扩展写操作放宽时限，普通会话保持原预算。
         let deadline = Instant::now()
-            + if method == "extensions.mutate" {
+            + if self.acp && method == "agent.authenticate" {
+                Duration::from_secs(150)
+            } else if method == "extensions.mutate" {
                 Duration::from_secs(120)
             } else {
                 REQUEST_TIMEOUT
@@ -91,15 +136,25 @@ impl ClaudeHostManager {
                         old.close().await;
                     }
                     let resources = crate::infrastructure::bundled_runtime::root(app)?;
-                    let paths = self
-                        .runtime
-                        .prepare(
-                            &resources,
-                            crate::infrastructure::bundled_runtime::claude_host()?,
-                            |_| {},
+                    let paths = if self.acp {
+                        HostLaunch::Acp(
+                            self.acp_runtime
+                                .prepare(&resources)
+                                .await
+                                .map_err(failure)?,
                         )
-                        .await
-                        .map_err(failure)?;
+                    } else {
+                        HostLaunch::Claude(
+                            self.runtime
+                                .prepare(
+                                    &resources,
+                                    crate::infrastructure::bundled_runtime::claude_host()?,
+                                    |_| {},
+                                )
+                                .await
+                                .map_err(failure)?,
+                        )
+                    };
                     *current = Some(Arc::new(ClaudeHost::start(app, paths).await?));
                 }
                 Arc::clone(
@@ -108,14 +163,27 @@ impl ClaudeHostManager {
                         .ok_or_else(|| failure("Claude host unavailable"))?,
                 )
             };
-            host.transport
-                .request(method, scope, params, deadline)
-                .await
-                .map_err(failure)
+            if self.acp {
+                host.transport
+                    .request_acp(method, scope, params, deadline)
+                    .await
+                    .map_err(failure)
+            } else {
+                host.transport
+                    .request(method, scope, params, deadline)
+                    .await
+                    .map_err(failure)
+            }
         };
-        timeout_at(deadline, operation)
-            .await
-            .map_err(|_| failure("Claude host request timed out"))?
+        let result = match timeout_at(deadline, operation).await {
+            Ok(result) => result,
+            Err(_) => Err(failure("Agent host request timed out")),
+        };
+        if self.acp {
+            result.map_err(|error| AppError::Acp(error.to_string()))
+        } else {
+            result
+        }
     }
 
     pub async fn close(&self) {
@@ -130,22 +198,19 @@ fn failure(error: impl std::fmt::Display) -> AppError {
 }
 
 impl ClaudeHost {
-    async fn start(app: &AppHandle, (binary, host_path): RuntimePaths) -> Result<Self, AppError> {
+    async fn start(app: &AppHandle, launch: HostLaunch) -> Result<Self, AppError> {
         let app_data = crate::infrastructure::app_data::directory(app).map_err(failure)?;
         let catalog = LocalCatalog::at(&app_data)?;
-        let mut command = Command::new(host_path);
-        crate::infrastructure::network_proxy::configure_claude_host(&mut command);
+        // 两种宿主共用传输、原生目录与进程守卫，启动参数只来自安装资源与应用数据目录。
+        let mut command = launch.command(&app_data);
         command
-            .env("CODEXLY_APPLICATION_GENERATION", "1")
-            .arg(app_data.join("engines/claude"))
-            .arg(binary)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
-        process::ProcessGuard::configure(&mut command);
+        let process_guard = process::ProcessGuard::configure(&mut command).map_err(failure)?;
         let mut child = command.spawn().map_err(failure)?;
-        let process_guard = process::ProcessGuard::attach(&child).map_err(failure)?;
+        let process_guard = process_guard.attach(&child).map_err(failure)?;
         let stdin = child
             .stdin
             .take()
