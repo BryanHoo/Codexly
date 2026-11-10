@@ -1,3 +1,4 @@
+import { isEmptyFileUpdate } from "@codexly/frontend-core/file-change-visibility";
 import { isVisibleProjectPath } from "@codexly/frontend-core/project-file-visibility";
 import type { AgentItem } from "@/protocol/index.js";
 
@@ -28,7 +29,7 @@ export function summarizeFileChanges(changes: readonly AgentFileChange[]): FileC
   const changeIndexByPath = new Map<string, number>();
 
   for (const change of changes) {
-    if (!isVisibleProjectPath(change.path)) continue;
+    if (!isVisibleProjectPath(change.path) || isEmptyFileUpdate(change)) continue;
     const normalizedPath = change.path.replaceAll("\\", "/");
     const existingIndex = changeIndexByPath.get(normalizedPath);
     if (existingIndex === undefined) {

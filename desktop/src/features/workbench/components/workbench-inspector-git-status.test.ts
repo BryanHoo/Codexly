@@ -69,3 +69,12 @@ it("分页全局行数扣除当前列表中的系统元数据", () => {
   ]};
   expect(deriveInspectorGitChangeState(status, undefined).changeStats).toEqual({additions: 1, removals: 0});
 });
+
+it("保留未加载的 Git 摘要，已确认空更新不进入右栏变更和文件树标记", () => {
+  const empty = {path: "main.ts", kind: "update" as const, diff: "", stats: {additions: 0, removals: 0}};
+  const status = {baseBranches: [], branch: "main", branches: [], repositoryMode: "root" as const, snapshot: "current", staged: [], unstaged: [empty]};
+  expect(deriveInspectorGitChangeState(status, undefined).displayChanges).toHaveLength(1);
+  const result = deriveInspectorGitChangeState(status, status);
+  expect(result.displayChanges).toEqual([]);
+  expect(result.fileChangesByPath.size).toBe(0);
+});

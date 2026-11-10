@@ -43,3 +43,10 @@ it("回复变更汇总不包含系统元数据", () => {
   const hidden = {path: "nested/._main.ts", diff: "+metadata", kind: "create" as const, stats: {additions: 1, removals: 0}};
   expect(summarizeFileChanges([hidden, visible])).toEqual({changes: [visible], additions: 1, removals: 0});
 });
+
+it("已完成的空更新不进入文件汇总，也不覆盖同文件真实修改", () => {
+  const real = {path: "main.ts", kind: "update" as const, diff: "@@ -1 +1 @@\n-old\n+new", stats: {additions: 1, removals: 1}};
+  const empty = {...real, diff: "", stats: {additions: 0, removals: 0}};
+  expect(summarizeFileChanges([empty]).changes).toEqual([]);
+  expect(summarizeFileChanges([real, empty]).changes).toEqual([real]);
+});

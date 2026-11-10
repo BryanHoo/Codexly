@@ -76,6 +76,7 @@ type PatchDiffViewerProps = Readonly<{
   patch: string;
   preloadLanguage?: boolean;
   unavailableLabel?: string;
+  emptyLabel?: string;
 }>;
 
 type ParsedDiffProps = Readonly<{ fileDiff: FileDiffMetadata }>;
@@ -162,15 +163,19 @@ export function PatchDiffViewer({
   patch,
   preloadLanguage = false,
   unavailableLabel = path,
+  emptyLabel = unavailableLabel,
 }: PatchDiffViewerProps) {
   // 每次正文变化仅解析一次，直接传递解析结果，避免 PatchDiff 内部重复扫描全文。
   const fileDiff = useMemo(() => parsePreviewPatch(patch), [patch]);
+  // Codex 的无内容修改返回空串；桌面规范化后只剩文件头，两者都不是解析失败。
+  const empty =
+    patch.trim().length === 0 || /^--- [^\r\n]+\r?\n\+\+\+ [^\r\n]+\r?\n?$/u.test(patch);
   const fallback = (
     <div
       className="grid min-h-24 place-items-center text-body-small text-muted-foreground"
       role="status"
     >
-      {formatDisplayPath(unavailableLabel)}
+      {formatDisplayPath(empty ? emptyLabel : unavailableLabel)}
     </div>
   );
   if (fileDiff === undefined) return fallback;

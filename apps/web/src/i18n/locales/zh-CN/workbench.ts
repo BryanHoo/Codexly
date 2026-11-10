@@ -38,6 +38,7 @@ export const workbench = {
   },
   commit: gitCommit,
   diff: {
+    noTextChanges: "本次操作没有文本差异",
     previewUnavailable: "此文件无法预览文本差异",
     changedFiles: "变更文件",
     changedFilesNavigation: "变更文件导航",

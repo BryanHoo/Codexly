@@ -12,5 +12,5 @@ configureDiffLanguages(projectLanguageByExtension, projectLanguageByFileName);
 export default function PatchDiffViewer({ change }: Readonly<{ change: AgentFileChange }>) {
   // 桌面端预加载当前语言，避免首次挂载时高亮结果无法重放。
   const { t } = useTranslation("workbench");
-  return <SharedPatchDiffViewer unavailableLabel={t("diff.previewUnavailable")} path={change.path} patch={change.diff} preloadLanguage />;
+  return <SharedPatchDiffViewer unavailableLabel={t("diff.previewUnavailable")} emptyLabel={change.stats.additions === 0 && change.stats.removals === 0 ? t("diff.noTextChanges") : t("diff.previewUnavailable")} path={change.path} patch={change.diff} preloadLanguage />;
 }

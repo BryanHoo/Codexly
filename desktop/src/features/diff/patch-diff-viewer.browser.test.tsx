@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import LegacyPatchDiffViewer from "../../compat/macos-legacy/patch-diff-viewer.js";
 import PatchDiffViewer from "./patch-diff-viewer.js";
+import { i18n } from "../../i18n/i18n.js";
 
 vi.mock("@pierre/diffs", async () => ({
   ...await vi.importActual<typeof import("@pierre/diffs")>("@pierre/diffs"),
@@ -26,4 +27,10 @@ it("Legacy 直接渲染原生新增补丁，不把补丁头再次变成新增正
   }} />);
   await expect.poll(() => document.querySelectorAll('.legacy-diff-line[data-kind="+"]').length).toBe(2);
   expect(document.querySelector('.legacy-diff-line[data-kind="+"]')?.textContent).toContain("first");
+});
+
+it.each(["", "--- a/acp-routes.ts\n+++ b/acp-routes.ts\n"])("Legacy 空补丁不会显示空白页面：%s", async (diff) => {
+  await i18n.changeLanguage("zh-CN");
+  const screen = await render(<LegacyPatchDiffViewer change={{ path: "acp-routes.ts", kind: "update", diff, stats: { additions: 0, removals: 0 } }} />);
+  await expect.element(screen.getByRole("status")).toHaveTextContent("本次操作没有文本差异");
 });

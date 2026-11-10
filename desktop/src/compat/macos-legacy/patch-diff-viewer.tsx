@@ -3,8 +3,11 @@ import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { AgentFileChange } from "../../features/diff/file-change.js";
 import { legacyDiffLines } from "./diff-lines.js";
+import { isEmptyFileUpdate } from "@codexly/frontend-core/file-change-visibility";
+import { useTranslation } from "../../i18n/i18n.js";
 
 export default function PatchDiffViewer({ change }: Readonly<{ change: AgentFileChange }>) {
+  const { t } = useTranslation("workbench");
   const scrollRef = useRef<HTMLDivElement>(null);
   const lines = useMemo(() => legacyDiffLines(change.diff), [change.diff]);
   const virtualizer = useVirtualizer({
@@ -14,6 +17,8 @@ export default function PatchDiffViewer({ change }: Readonly<{ change: AgentFile
     overscan: 16,
     initialRect: { width: 800, height: 600 },
   });
+  // 历史标签可能在空操作被过滤前已打开，兼容版同样提供明确空状态。
+  if (isEmptyFileUpdate(change)) return <div role="status" className="p-3 text-body-small text-muted-foreground">{t("diff.noTextChanges")}</div>;
   // 兼容版使用普通 DOM 与虚拟行，避免 Shadow DOM 样式表补丁和大补丁全量渲染。
   return (
     <div className="legacy-diff" ref={scrollRef} aria-label={formatDisplayPath(change.path)}>

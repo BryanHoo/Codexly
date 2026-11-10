@@ -10,6 +10,7 @@
 - [ ] 共享 Dialog 的非模态入口（`modal={false}`）不渲染遮罩，保留后台工作台交互；懒加载完成后再读取弹窗 DOM，浏览器交互测试须加载实际样式。回归入口为桌面 `project-sidebar-actions.browser.test.tsx`、`pdf-preview.browser.test.tsx`、`subagent.browser.test.tsx` 和 `task-timeline-operation-groups.browser.test.tsx`。
 - [ ] 模态弹窗统一复用 `Dialog`，须有可访问的右上角关闭入口；新入口向共享 `DialogContent` 传入翻译后的 `closeLabel`，已有预览工具栏关闭按钮可继续使用。操作期间通过 `closeDisabled` 禁用按钮，并在 `onOpenChange` 保留提交锁和未保存草稿保护。配置 `closeLabel` 的内容使用共享 `DialogTitle`，标题行按文字字号收紧行高，关闭按钮悬停容器随标题等高并对齐上下边缘，内部 14px 图标垂直居中；不固定按钮高度，标题栏无需额外预留右侧内边距。关闭与焦点恢复复用 Radix，草稿/待办浮层使用 `PopoverClose`。回归入口为桌面 `dialog-close.browser.test.tsx`（宽窄屏、长标题、提交期间禁用及焦点恢复）、`saved-prompts.browser.test.tsx`（脏草稿）和 Web `app-shell-new-project.spec.ts`（嵌套选择器）。
 - [ ] 渲染模型复用 Frontend Core；重型语法、编辑器和面板按需加载，缓存与任务调度保持有界。
+- [ ] Codex 已完成的空更新不显示聊天文件卡片或最终变更汇总，不覆盖同文件的真实补丁；右栏仅在当前快照的正文已加载后排除确认无内容的更新，项目树同步移除变更标记，轻量摘要空串不代表无变化。已打开的空 Diff 标签显示“本次操作没有文本差异”。新建/删除空文件、二进制、权限、重命名及截断正文仍保留，不借用当前 Git 内容冒充历史操作。两端复用 `file-change-visibility.ts`，回归入口为共享规则、两端文件汇总/右栏单测与跨端 `streaming-file-diff.browser.test.tsx`。
 - [ ] 交互变更同步检查 Web / 移动与桌面，核对焦点、滚动、触控、键盘及流式追加行为。
 - [ ] 仅有聊天时隐藏标签栏；存在文档标签时聊天始终首位且可见；常规批量关闭保留固定项，显式关闭固定文件也不能关闭聊天。批量关闭经过单次保存保护，失败整批保留；拖动仅在放下时提交顺序，不逐帧刷新 React。交互约定与验证见 [文档工作区](../../../../docs/document-workspace.md)。
 - [ ] 工作台左栏和中栏底栏共用高度与纵向留白，保持底边及内容中心线对齐；桌面底栏通过 Portal 移出文档容器时，单独保留输入框阴影的绘制空间。

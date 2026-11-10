@@ -1,3 +1,4 @@
+import { isEmptyFileUpdate } from "@codexly/frontend-core/file-change-visibility";
 import { filterVisibleProjectFiles } from "@codexly/frontend-core/project-file-visibility";
 import type { ProjectGitStatus } from "@codexly/protocol";
 
@@ -38,7 +39,10 @@ export function deriveInspectorGitChangeState(
   // 详情必须属于当前轻量快照，避免刷新竞态把旧行数展示到新文件集合上。
   const statsChanges =
     gitStatusDetails !== undefined && gitStatusDetails.snapshot === gitStatus?.snapshot
-      ? filterVisibleProjectFiles([...gitStatusDetails.unstaged, ...gitStatusDetails.staged])
+      ? filterVisibleProjectFiles([
+          ...gitStatusDetails.unstaged,
+          ...gitStatusDetails.staged,
+        ]).filter((change) => !isEmptyFileUpdate(change))
       : allChanges.every((change) => change.diff !== "")
         ? allChanges
         : undefined;

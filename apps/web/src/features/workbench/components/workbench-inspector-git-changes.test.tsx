@@ -139,3 +139,25 @@ it("从轻量状态和详情中同时过滤系统元数据及其行数", () => {
     expect(result.changeStats).toEqual({ additions: 2, removals: 1 });
   }
 });
+
+it("保留未加载的 Git 摘要，已确认空更新不进入右栏变更和文件树标记", () => {
+  const empty = {
+    path: "main.ts",
+    kind: "update" as const,
+    diff: "",
+    stats: { additions: 0, removals: 0 },
+  };
+  const status = {
+    baseBranches: [],
+    branch: "main",
+    branches: [],
+    repositoryMode: "root" as const,
+    snapshot: "current",
+    staged: [],
+    unstaged: [empty],
+  };
+  expect(deriveInspectorGitChangeState(status, undefined).displayChanges).toHaveLength(1);
+  const result = deriveInspectorGitChangeState(status, status);
+  expect(result.displayChanges).toEqual([]);
+  expect(result.fileChangesByPath.size).toBe(0);
+});

@@ -1,3 +1,4 @@
+import { isEmptyFileUpdate } from "@codexly/frontend-core/file-change-visibility";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { Task, TaskContent, TaskItem, TaskTrigger } from "../../../shared/components/agent/task.js";
@@ -123,6 +124,7 @@ export function ChangedFilesCard({
   onReviewFileChanges: (changes: readonly AgentFileChange[]) => void;
 }>) {
   const summary = summarizeFileChanges(changes);
+  if (summary.changes.length === 0) return null;
 
   return (
     <SharedChangedFilesCard
@@ -213,6 +215,13 @@ export function TimelineFileChangePresentation({
     conversationDisplayPreferences,
     "independentFileDiffs",
   );
+  // 只过滤已完成的空操作，等待、运行及失败记录继续保留真实状态。
+  if (
+    item.status === "completed" &&
+    item.changes.length > 0 &&
+    item.changes.every(isEmptyFileUpdate)
+  )
+    return null;
   if (!independent) return children;
   // 中断时没有完成事件的文件修改不能继续标为运行；已应用修改仍保留真实状态。
   const status =
@@ -227,7 +236,11 @@ export function TimelineFileChangePresentation({
         </div>
       ) : null}
       {item.changes
-        .filter((change) => isVisibleProjectPath(change.path))
+        .filter(
+          (change) =>
+            isVisibleProjectPath(change.path) &&
+            (item.status !== "completed" || !isEmptyFileUpdate(change)),
+        )
         .map((change) => (
           <TimelineFileDiff key={change.path} change={change} status={status} onOpen={onOpen} />
         ))}

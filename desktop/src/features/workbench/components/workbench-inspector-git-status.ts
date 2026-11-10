@@ -1,3 +1,4 @@
+import { isEmptyFileUpdate } from "@codexly/frontend-core/file-change-visibility";
 import { filterVisibleProjectFiles, isVisibleProjectPath } from "@codexly/frontend-core/project-file-visibility";
 import type { ProjectGitStatus } from "@/protocol/index.js";
 
@@ -41,7 +42,7 @@ export function deriveInspectorGitChangeState(
   const statsStatus = gitStatusDetails?.snapshot === gitStatus?.snapshot ? gitStatusDetails ?? gitStatus : gitStatus;
   const statsChanges =
     gitStatusDetails !== undefined && gitStatusDetails.snapshot === gitStatus?.snapshot
-      ? filterVisibleProjectFiles([...gitStatusDetails.unstaged, ...gitStatusDetails.staged])
+      ? filterVisibleProjectFiles([...gitStatusDetails.unstaged, ...gitStatusDetails.staged]).filter((change) => !isEmptyFileUpdate(change))
       : gitStatus?.stats !== undefined || allChanges.every((change) => change.diff !== "")
         ? allChanges
         : undefined;

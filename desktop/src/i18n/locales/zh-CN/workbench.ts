@@ -30,6 +30,7 @@ export const workbench = {
   },
   commit: gitCommit,
   diff: {
+    noTextChanges: "本次操作没有文本差异",
     previewUnavailable: "此文件无法预览文本差异",
     reviewTitle: "审核",
     truncated: "Diff 已截断，统计仅含已显示内容。",

@@ -11,6 +11,8 @@ import { createTaskStore as createDesktopStore } from "../../src/features/conver
 import { TaskStoreTimeline as DesktopTimeline } from "../../src/features/workbench/components/task-timeline-store.js";
 import { conversationDisplayPreferences as desktopPreferences } from "../../src/features/settings/conversation-display-preferences.js";
 import { i18n } from "../../src/i18n/i18n.js";
+import { FileDiffPanel as WebFileDiffPanel } from "../../../apps/web/src/features/diff/file-diff-panel.js";
+import { FileDiffPanel as DesktopFileDiffPanel } from "../../src/features/diff/file-diff-panel.js";
 import "../../src/shared/styles/globals.css";
 
 const time = "2026-11-05T00:00:00Z";
@@ -41,6 +43,27 @@ it("完整差异预览保留默认的分隔行密度", async () => {
   await screen.unmount();
 });
 for (const platform of platforms) describe(`${platform.name} 文件差异`, () => {
+  it("空操作隐藏文件卡片，随后完整补丁正常预览且空标签有提示", async () => {
+    await i18n.changeLanguage("zh-CN");
+    platform.preferences.set("independentFileDiffs", true);
+    const { store, element } = platform.create();
+    // 复现真实 Codex 空更新：Web 保留空串，桌面规范化后只有文件头。
+    const emptyChange = { ...change, diff: platform.name === "web" ? "" : "--- a/profile.js\n+++ b/profile.js\n", stats: { additions: 0, removals: 0 } };
+    const base = { version: 2 as const, provider: "codex", sessionId: "session", taskId: "task", turnId: "turn", timestamp: time };
+    store.getState().applyEvents([{ ...base, sequence: 1, type: "item.completed", itemId: "file", payload: { item: { ...file, status: "completed", changes: [emptyChange] } } }]);
+    const screen = await render(<TooltipProvider>{element}</TooltipProvider>);
+    expect(document.querySelector('[data-file-diff-card]')).toBeNull();
+    expect(document.querySelector('.file-diff-renderer')).toBeNull();
+    store.getState().applyEvents([{ ...base, sequence: 2, type: "item.completed", itemId: "file", payload: { item: { ...file, status: "completed" } } }]);
+    await expect.poll(() => document.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '', { timeout: 10000 }).toContain('newValue');
+    await screen.unmount();
+    // 卡片的“打开文件差异”复用此面板；核对标签页不会留下空白或再报解析失败。
+    const panel = platform.name === "web" ? <WebFileDiffPanel change={emptyChange} /> : <DesktopFileDiffPanel change={emptyChange} />;
+    const preview = await render(<TooltipProvider><div style={{ height: 600 }}>{panel}</div></TooltipProvider>);
+    await expect.element(preview.getByText("本次操作没有文本差异", { exact: true })).toBeVisible();
+    expect(document.querySelector('.file-diff-renderer')).toBeNull();
+    await preview.unmount();
+  });
   it("历史完成回合默认收起，展开过程后恢复差异", async () => {
     await i18n.changeLanguage("zh-CN");
     platform.preferences.set("independentFileDiffs", true);

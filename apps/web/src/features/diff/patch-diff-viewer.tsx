@@ -18,8 +18,9 @@ export default function PatchDiffViewer({ change }: Readonly<{ change: AgentFile
   return (
     <SharedPatchDiffViewer
       unavailableLabel={t("diff.previewUnavailable")}
+      emptyLabel={t("diff.noTextChanges")}
       path={change.path}
-      patch={normalizeFileChangePatch(change)}
+      patch={change.diff === "" ? "" : normalizeFileChangePatch(change)}
     />
   );
 }
