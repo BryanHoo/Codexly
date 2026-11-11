@@ -116,7 +116,16 @@ pub(super) async fn project_root(
     let directory = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
-    workspace_project_root::resolve(&catalog, project_id, root_path).await
+    project_root_from_catalog(&catalog, project_id, root_path).await
+}
+
+/// 已持有目录连接的 ACP 用例复用同一授权规则，避免重复创建应用或引擎状态。
+pub(super) async fn project_root_from_catalog(
+    catalog: &crate::infrastructure::local_catalog::LocalCatalog,
+    project_id: &str,
+    root_path: &str,
+) -> Result<(PathBuf, String), AppError> {
+    workspace_project_root::resolve(catalog, project_id, root_path).await
 }
 
 #[tauri::command(rename_all = "camelCase")]

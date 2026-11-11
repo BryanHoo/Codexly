@@ -59,7 +59,14 @@ const GlobalSettingsAbout = lazy(() =>
   import("./global-settings-about.js").then((module) => ({ default: module.GlobalSettingsAbout })),
 );
 
+const AcpAuthSettings = lazy(() =>
+  import("@codexly/ui/core/acp-auth-settings").then((module) => ({
+    default: module.AcpAuthSettings,
+  })),
+);
+
 export function GlobalSettingsPage({
+  agentRuntime = "legacy",
   client,
   accessMode = "local",
   initialSection = "appearance",
@@ -70,7 +77,6 @@ export function GlobalSettingsPage({
   error,
   isPending,
   apps,
-  fastModeAvailable = false,
   onRetry,
   ...props
 }: GlobalSettingsPageProps & Readonly<{ client: SettingsClient }>) {
@@ -162,6 +168,8 @@ export function GlobalSettingsPage({
   const ready = error === null && !isPending && settings !== undefined;
   return (
     <SettingsPageFrame
+      agentRuntime={agentRuntime}
+      acpClient={client}
       activeSection={activeSection}
       accessMode={accessMode}
       onBack={close}
@@ -205,8 +213,24 @@ export function GlobalSettingsPage({
             projects={projectData?.projects}
             projectsUnavailable={!projectData || projectData.isPending || !!projectData.error}
           />
+        ) : (activeSection === "provider" || activeSection === "claude-provider") &&
+          agentRuntime !== "legacy" ? (
+          <section>
+            <h1 className="mb-6 text-xl font-semibold">{t(`sections.${activeSection}`)}</h1>
+            {agentRuntime === "pending" ? (
+              <LoadingSkeleton variant="settings" label={t("loading")} className="p-0" />
+            ) : (
+              <AcpAuthSettings
+                client={client}
+                engine={activeSection === "provider" ? "codex" : "claude"}
+                language={language === "zh-CN" ? "zh-CN" : "en"}
+              />
+            )}
+          </section>
         ) : isClaudeSettingsSection(activeSection) ? (
           <ClaudeSettingsPanel client={client} section={activeSection} />
+        ) : activeSection === "agent" ? (
+          <AgentSettingsPanel client={client} />
         ) : activeSection === "about" ? (
           <GlobalSettingsAbout
             activeSection="about"
@@ -297,16 +321,6 @@ export function GlobalSettingsPage({
             settings={draft.pet}
             onChange={(pet) => {
               update((current) => ({ ...current, pet }));
-            }}
-          />
-        ) : activeSection === "agent" ? (
-          <AgentSettingsPanel
-            client={client}
-            settings={draft}
-            models={models}
-            fastModeAvailable={fastModeAvailable}
-            onChange={(next) => {
-              update(() => next);
             }}
           />
         ) : null}

@@ -68,6 +68,7 @@ test.each([640, 960].flatMap((width) => [false, true].flatMap((multiple) =>
       </ComposerDraftProvider></ProjectDraftProvider></TooltipProvider>
     </QueryClientProvider>);
     if (multiple) await page.getByRole("button", { name: "展开输入框" }).click();
+    await expect.element(screen.getByRole("textbox")).toBeInTheDocument();
     const editor = screen.getByRole("textbox").element();
     const form = editor.closest("form")!;
     // 展开时 WebKit 会主动聚焦编辑器；失焦后检查普通投影，不能把蓝色焦点环当作阴影。
@@ -112,6 +113,7 @@ test.each([1280, 1920])("locks the whole composer while preserving the draft and
     </ComposerDraftProvider></ProjectDraftProvider></TooltipProvider>
   </QueryClientProvider>;
   const screen = await render(view("checking"));
+  await expect.element(screen.getByRole("textbox")).toBeInTheDocument();
   const coldEditor = screen.getByRole("textbox").element() as HTMLTextAreaElement;
   expect(coldEditor.disabled).toBe(true);
   expect(coldEditor.closest("[inert]")).not.toBeNull();

@@ -169,6 +169,8 @@ export function ComposerConfigurationToolbar({ props, leading, children }: Reado
   children: ReactNode;
 }>) {
   const { t } = useTranslation(["workbench", "settings"]);
+  if (props.acp) return <ComposerToolbar moreLabel={t("composer.moreSettings")} title={t("composer.settingsTitle")} leading={leading} model={props.acp.controls} items={[]} actions={children} />;
+  if (props.activeSettings === undefined) return null;
   const modelProps = {
     activeSettings: props.activeSettings,
     disabled: props.turnControlsDisabled,

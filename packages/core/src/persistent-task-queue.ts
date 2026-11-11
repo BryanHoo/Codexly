@@ -283,20 +283,25 @@ export class PersistentTaskQueue {
     const task = await runtime.provider.readTask(runtime.taskId);
     // 历史按时间升序排列；旧会话可能残留未完成标记，活动目标与两端输入框一致取最新回合。
     const running = task?.turns.findLast((turn) => turn.status === "running");
+    const startConfiguredTurn = runtime.provider.startConfiguredTurn?.bind(runtime.provider);
     // 从队列引导也必须绑定调用时的回合，不能把迟到请求投递到后来启动的回合。
     if (expectedTurnId !== undefined && running?.id !== expectedTurnId)
       throw new TaskQueueBlockedError();
     // 手动立即发送由服务端选择 start/steer；自动出队不得打断正在运行的新回合。
-    if (running !== undefined && !allowSteer) return undefined;
+    // ACP 仅通过当前会话配置启动下一回合，不把排队正文改投旧 steer 语义。
+    if (running !== undefined && startConfiguredTurn && allowSteer)
+      throw new TaskQueueBlockedError();
+    if (running !== undefined && (!allowSteer || startConfiguredTurn)) return undefined;
     const { providerInput } = await this.#resolveProviderInput(
       runtime.projectId,
       selected.input,
       runtime.provider,
       runtime.taskId,
     );
-    const settings = this.#startTurn
-      ? undefined
-      : await this.#readTaskSettings?.(runtime.projectId, runtime.taskId);
+    const settings =
+      this.#startTurn || startConfiguredTurn
+        ? undefined
+        : await this.#readTaskSettings?.(runtime.projectId, runtime.taskId);
     // 结果缓存只覆盖持久化故障窗口；达到上限时暂停新启动，避免持续故障耗尽内存。
     if (this.#startResults.size >= 1_000) throw new TaskQueueBlockedError();
     if (!(await this.#repository.setQueueExecution(selected, { state: "starting" }))) {
@@ -324,6 +329,8 @@ export class PersistentTaskQueue {
     } else {
       try {
         if (this.#startTurn) turn = await this.#startTurn(runtime, providerInput);
+        else if (startConfiguredTurn)
+          turn = await startConfiguredTurn(runtime.taskId, providerInput);
         else if (settings)
           turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);
         else throw new Error("Missing queue execution configuration");

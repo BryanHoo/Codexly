@@ -1,4 +1,4 @@
-import { ToolApprovalPendingRequestSchema } from "@codexly/protocol";
+import { ToolApprovalPendingRequestSchema, ResolvePendingRequestRequestSchema as SharedResolvePendingRequestRequestSchema } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
 
 import { DateTimeSchema, NullableDateTimeSchema } from "./project-files.js";
@@ -380,7 +380,8 @@ const PermissionApprovalResolutionSchema = Type.Object(
 );
 
 export const ResolvePendingRequestRequestSchema = Type.Union([
-  Type.Object({ ...PendingRequestResolutionIdentityProperties, resolution: ApprovalResolutionSchema, type: Type.Literal("tool_approval") }, { additionalProperties: false }),
+  // ACP 工具审批直接复用共享契约，精确 optionId 不得被桌面旧 Schema 丢弃。
+  Type.Extract(SharedResolvePendingRequestRequestSchema, Type.Object({ type: Type.Literal("tool_approval") })),
   Type.Object(
     {
       ...PendingRequestResolutionIdentityProperties,

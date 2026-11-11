@@ -67,7 +67,7 @@ type ComposerSessionOptions = Readonly<{
   projectToolsEnabled: boolean;
   projectDraftStore: ProjectDraftStore;
   runtime: TaskRuntimeView | undefined;
-  settings: AgentTaskSettings;
+  settings: AgentTaskSettings | undefined;
   skills: readonly AgentSkill[];
   taskId: string | undefined;
 }>;
@@ -94,7 +94,7 @@ export function useComposerSession({
   taskId,
 }: ComposerSessionOptions) {
   // Git 与文件异步操作绑定当前根；切换根后旧请求不得更新新根的 Composer 状态。
-  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}:${settings.engineOptions?.engine ?? "codex"}`;
+  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}:${runtime?.metadata?.engine ?? settings?.engineOptions?.engine ?? "codex"}`;
   const composerDraftStore = useComposerDraftStore();
   const composerDraftBinding = useMemo(
     () =>
@@ -111,7 +111,7 @@ export function useComposerSession({
   const initialComposerDraft = initialDraft ?? composerDraftBinding.read();
   const [settingsOverride, setSettingsOverride] = useState<{
     scope: string;
-    settings: AgentTaskSettings;
+    settings: AgentTaskSettings | undefined;
   }>();
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
   const [attachments, setAttachments] = useState<readonly PromptInputAttachment[]>(
@@ -178,18 +178,18 @@ export function useComposerSession({
   const promptSubmission = toPromptSkillSubmission(promptContent);
   const threadConfiguration = runtime?.metadata?.threadConfiguration;
   const activeSettings = useMemo(
-    () => resolveThreadComposerSettings(settings, threadConfiguration,
+    () => settings === undefined ? undefined : resolveThreadComposerSettings(settings, threadConfiguration,
       settingsOverride?.scope === routeScope ? settingsOverride.settings : undefined),
     [routeScope, settings, settingsOverride, threadConfiguration],
   );
   const composerMode = composerModeState?.scope === routeScope ? composerModeState.mode : undefined;
   const selectedModel =
-    models.find((model) => model.id === activeSettings.model) ??
+    models.find((model) => model.id === activeSettings?.model) ??
     models.find((model) => model.isDefault) ??
     models[0];
   const selectedReasoningEffort = resolveReasoningEffort(
     selectedModel,
-    activeSettings.reasoningEffort,
+    activeSettings?.reasoningEffort ?? "",
   );
   const contextUsage = runtime?.metadata?.contextUsage;
   const promptHistoryEntries = useMemo(
@@ -212,7 +212,8 @@ export function useComposerSession({
   const fileSearchResults = fileSearch.data?.data ?? emptyProjectFileSearchResults;
 
   const { filteredCommands, filteredSkills } = usePromptSuggestions(
-    getPromptCommandItems({ projectToolsEnabled, ...(engineCommands === undefined ? {} : { engineCommands }) }),
+    getPromptCommandItems({ projectToolsEnabled, ...(engineCommands === undefined ? {} : { engineCommands }),
+      ...(runtime?.metadata?.acpSession === undefined ? {} : { acpCommands: runtime.metadata.acpSession.availableCommands }) }),
     capabilities?.skills.use === true ? skills : [],
     commandQuery,
     projectId,

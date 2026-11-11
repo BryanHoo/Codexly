@@ -6,14 +6,29 @@ use serde_json::{Value, json};
 use std::{fs, path::PathBuf};
 
 fn test_root() -> PathBuf {
+    // 系统时钟的纳秒表示不保证纳秒分辨率；进程内序号避免并发用例共享同一目录。
+    static NEXT_ROOT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let sequence = NEXT_ROOT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "codeagent-local-settings-{}-{nonce}",
+        "codeagent-local-settings-{}-{nonce}-{sequence}",
         std::process::id()
     ))
+}
+
+#[test]
+fn settings_test_roots_should_be_unique_during_concurrent_creation() {
+    let workers: Vec<_> = (0..8)
+        .map(|_| std::thread::spawn(|| (0..1024).map(|_| test_root()).collect::<Vec<_>>()))
+        .collect();
+    let paths: std::collections::HashSet<_> = workers
+        .into_iter()
+        .flat_map(|worker| worker.join().unwrap())
+        .collect();
+    assert_eq!(paths.len(), 8 * 1024, "并发设置测试必须使用独立目录");
 }
 
 #[test]

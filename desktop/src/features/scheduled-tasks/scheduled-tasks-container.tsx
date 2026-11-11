@@ -165,6 +165,8 @@ export function ScheduledTasksContainer({
   return (
     <div className="scheduled-tasks">
       <ScheduledTaskList
+        canCreate={context.capabilities?.runtime !== "acp"}
+        canToggle={context.capabilities?.runtime !== "acp"}
         {...(selectedTask === undefined ? {} : { activeId: selectedTask.id })}
         loading={tasksQuery.isPending}
         onCreate={() => {
@@ -183,6 +185,8 @@ export function ScheduledTasksContainer({
       {creating || selectedTask !== undefined ? (
         <ScheduledTaskEditor
           key={selectedTask?.id ?? `new:${projectId}`}
+          acpClient={context.client}
+          onEnabledChange={(taskId, enabled) => { enabledMutation.mutate({ enabled, taskId }); }}
           composerProps={composerProps}
           onPreview={previewSchedule}
           onOpenRun={(runProjectId, taskId) => {

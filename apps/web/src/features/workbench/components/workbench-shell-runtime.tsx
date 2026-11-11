@@ -23,9 +23,6 @@ import {
 } from "../../projects/project-context.js";
 import { resolveProjectRootFromSelections } from "../../projects/project-root-selection.js";
 import {
-  appInfoQueryOptions,
-  appUpdateMutationOptions,
-  appUpdateProgressQueryOptions,
   globalSettingsMutationOptions,
   globalSettingsQueryOptions,
   mcpServersQueryOptions,
@@ -40,6 +37,7 @@ import {
   taskRenameMutationOptions,
 } from "../../projects/project-queries.js";
 import { useBackgroundTerminals } from "../hooks/use-background-terminals.js";
+import { useWorkbenchAppUpdates } from "../hooks/use-workbench-app-updates.js";
 import { openProjectPath } from "../open-project-path.js";
 import { useProjectGitStatusRefresh } from "../hooks/use-project-git-status-refresh.js";
 import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
@@ -165,22 +163,18 @@ export function useWorkbenchShellRuntime({
   useLayoutEffect(() => {
     if (temporary && !paneOnly) setInspectorOpen(false);
   }, [setInspectorOpen, taskId, temporary, paneOnly]);
-  const appInfoQuery = useQuery(appInfoQueryOptions(client));
-  const appUpdateMutation = useMutation({
-    ...appUpdateMutationOptions(client),
-    onSuccess(response) {
-      queryClient.setQueryData(["app-info"], response);
-    },
-  });
-  const appUpdateProgressQuery = useQuery(
-    appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
-  );
+  const { appInfoQuery, appUpdateMutation, appUpdateProgressQuery } =
+    useWorkbenchAppUpdates(client);
   // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
+  const legacyConfiguration = capabilities !== undefined && capabilities.runtime !== "acp";
+  const modelsQuery = useQuery({
+    ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"),
+    enabled: legacyConfiguration,
+  });
   const providerConnectionQuery = useQuery({
     ...providerConnectionQueryOptions(),
-    enabled: codexEnabled,
+    enabled: codexEnabled && legacyConfiguration,
   });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
@@ -242,7 +236,11 @@ export function useWorkbenchShellRuntime({
     enabled: codexEnabled && capabilities?.skills.list === true,
   });
   const projectDefaultsQuery = useQuery(
-    projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary),
+    projectDefaultsQueryOptions(
+      projectId,
+      client,
+      codexEnabled && !temporary && legacyConfiguration,
+    ),
   );
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),

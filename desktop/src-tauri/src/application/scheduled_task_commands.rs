@@ -130,3 +130,41 @@ pub async fn run_scheduled_task_now(
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
     crate::infrastructure::app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)
 }
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn read_acp_scheduled_config(
+    app: AppHandle,
+    task_id: String,
+    runtime: State<'_, ScheduledTaskRuntime>,
+) -> Result<serde_json::Value, AppError> {
+    runtime
+        .read_acp_scheduled_config(&app_data_dir(&app)?, &task_id)
+        .await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn set_acp_scheduled_config(
+    app: AppHandle,
+    task_id: String,
+    input: serde_json::Value,
+    runtime: State<'_, ScheduledTaskRuntime>,
+) -> Result<serde_json::Value, AppError> {
+    runtime
+        .save_acp_scheduled_config(
+            &app_data_dir(&app)?,
+            &task_id,
+            input,
+            |project, engine, values| async move {
+                // 复用既有根目录授权与预览会话，不接收前端路径，也不启动旧模型查询。
+                super::acp_commands::acp_agent_request(
+                    app,
+                    engine,
+                    "settings.preview".into(),
+                    serde_json::json!({"projectId":project,"values":values}),
+                    None,
+                )
+                .await
+            },
+        )
+        .await
+}

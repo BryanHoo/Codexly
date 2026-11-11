@@ -143,6 +143,10 @@ export class AcpHistory {
       });
     });
   }
+  /** 只读取小型历史指针，首发保护不加载整页消息。 */
+  async hasTurns(task: string): Promise<boolean> {
+    return ((await this.#head(this.#root(task)))?.end ?? 0) > 0;
+  }
   async read(
     task: string,
     cursor?: string,

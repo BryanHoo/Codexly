@@ -5,8 +5,11 @@ import { HistoricalTaskAttachments, exportTaskAttachment } from "@codexly/core/t
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
+  AcpConfigValuesSchema,
+  AcpConfigPreviewRequestSchema,
   AgentEngineSchema,
   AcpDefaultsRequestSchema,
+  AcpSessionConfigRequestSchema,
   AcpProviderConfigSchema,
   AgentTurnOptionsSchema,
   AgentImageMediaTypeSchema,
@@ -16,6 +19,7 @@ import {
 } from "@codexly/protocol";
 import {
   readTaskWithCheckpoint,
+  AgentTurnNotSubmittedError,
   type AgentProvider,
   type AgentProviderTaskSnapshot,
 } from "@codexly/core";
@@ -89,12 +93,31 @@ export async function dispatchAcpHost(
         return service.inspect();
       case "agent.authenticate":
         return service.authenticate(text(params, "methodId"), signal);
+      case "settings.preview": {
+        if (Object.keys(params).some((key) => !["engine", "values", "change"].includes(key)))
+          throw new Error("Invalid preview parameters");
+        if (!Value.Check(Scope, message["scope"])) throw new Error("Invalid preview scope");
+        const input = {
+          values: params["values"],
+          ...(params["change"] === undefined ? {} : { change: params["change"] }),
+        };
+        if (!Value.Check(AcpConfigPreviewRequestSchema, input))
+          throw new Error("Invalid preview input");
+        signal.throwIfAborted();
+        return service.previewConfig(message["scope"].rootPath, input, signal);
+      }
       case "settings.read":
         return service.readDefaults();
       case "settings.write": {
         const input = { values: params["values"] };
         if (!Value.Check(AcpDefaultsRequestSchema, input)) throw new Error("Invalid defaults");
         return service.updateDefaults(input.values);
+      }
+      case "settings.config.write": {
+        const input = { configId: params["configId"], value: params["value"] };
+        if (!Value.Check(AcpSessionConfigRequestSchema, input))
+          throw new Error("Invalid default config");
+        return service.setDefaultConfig(input.configId, input.value);
       }
       case "providers.list":
         return service.providers.list();
@@ -120,6 +143,18 @@ export async function dispatchAcpHost(
   }
   const id = text(params, "taskId");
   switch (method) {
+    case "prompt.start":
+      if (!Value.Check(Input, params["input"]) || Object.hasOwn(params, "options"))
+        throw new Error("Invalid configured ACP prompt");
+      signal.throwIfAborted();
+      if (!provider.startConfiguredTurn)
+        throw new AgentTurnNotSubmittedError("ACP 配置会话执行端口不可用");
+      if (params["initialConfig"] !== undefined) {
+        if (!Value.Check(AcpConfigValuesSchema, params["initialConfig"]))
+          throw new Error("Invalid initial config");
+        return provider.startConfiguredTurn(id, params["input"], params["initialConfig"]);
+      }
+      return provider.startConfiguredTurn(id, params["input"]);
     case "queue.add": {
       if (!Value.Check(Input, params["input"])) throw new Error("Invalid queue input");
       const queuedSubmission = await queue.add(

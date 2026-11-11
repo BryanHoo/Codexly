@@ -3,6 +3,9 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export const vitestAliases = {
+  "@codexly/protocol/acp-config-validation": fileURLToPath(
+    new URL("./packages/protocol/src/acp-config-validation.ts", import.meta.url),
+  ),
   "@codexly/provider-acp/network-proxy": fileURLToPath(
     new URL("./packages/provider-acp/src/network-proxy.ts", import.meta.url),
   ),

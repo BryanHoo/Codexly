@@ -16,6 +16,25 @@ pub struct PendingResolutionReference {
     pub created_at: String,
 }
 
+/// 迁移期间只按显式 ACP 请求标记选择宿主；两条链路共用审批幂等与独立预算。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn resolve_pending_request(
+    app: AppHandle,
+    request: PendingResolutionReference,
+    resolution: Value,
+    idempotency_key: String,
+    acp: Option<bool>,
+) -> Result<Value, Value> {
+    resolve(
+        app,
+        request,
+        resolution,
+        idempotency_key,
+        acp.unwrap_or(false),
+    )
+    .await
+}
+
 impl PendingResolutionReference {
     pub(crate) fn matches(&self, request: &Value) -> bool {
         request["status"] == "pending"
@@ -33,6 +52,7 @@ pub async fn resolve(
     reference: PendingResolutionReference,
     resolution: Value,
     key: String,
+    acp: bool,
 ) -> Result<Value, Value> {
     let state = app.state::<super::state::AppState>();
     let worker_app = app.clone();
@@ -46,7 +66,30 @@ pub async fn resolve(
         &reference,
         &resolution,
         &key,
-        async move { execute(worker_app, worker_reference, worker_resolution).await },
+        async move {
+            if acp {
+                // 与旧审批复用同一幂等登记和独立预算；取消 WebView 等待不重复发出授权。
+                let request = super::acp_task_commands::acp_task_request(
+                    worker_app,
+                    worker_reference.project_id.clone(),
+                    "request.resolve".into(),
+                    serde_json::json!({
+                        "projectId":worker_reference.project_id,
+                        "taskId":worker_reference.task_id,
+                        "turnId":worker_reference.turn_id,
+                        "itemId":worker_reference.item_id,
+                        "requestId":worker_reference.request_id,
+                        "type":"tool_approval",
+                        "resolution":*worker_resolution,
+                    }),
+                    None,
+                )
+                .await?;
+                Ok(serde_json::json!({"request":request}))
+            } else {
+                execute(worker_app, worker_reference, worker_resolution).await
+            }
+        },
     )
     .await
 }

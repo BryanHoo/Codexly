@@ -1,6 +1,6 @@
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AcpConnection } from "./connection.js";
@@ -43,6 +43,7 @@ async function fixture() {
   });
   const closed = vi.fn(() => ({}));
   const applied = vi.fn();
+  const transformOptions = vi.fn((_id: string, options: acp.SessionConfigOption[]) => options);
   const routingSet = vi.fn(() => ({}));
   let sequence = 0;
   const launch = vi.fn<AcpAgentLauncher>(async (_engine, _scope, callbacks) => {
@@ -78,6 +79,8 @@ async function fixture() {
         if (!options || !option) throw new Error("缺少测试会话配置");
         if (option.type === "select" && typeof params.value === "string")
           option.currentValue = params.value;
+        if (option.type === "boolean" && typeof params.value === "boolean")
+          option.currentValue = params.value;
         if (params.configId === "model") {
           const effort = options[1];
           if (effort?.type === "select")
@@ -86,7 +89,9 @@ async function fixture() {
               { value: "high", name: "高" },
             ];
         }
-        return { configOptions: options };
+        const configOptions = transformOptions(params.configId, options);
+        sessions.set(params.sessionId, configOptions);
+        return { configOptions };
       })
       .connect({ readable: a.readable, writable: b.writable });
     const connection = await AcpConnection.connect(
@@ -110,6 +115,7 @@ async function fixture() {
     store,
     authenticate,
     applied,
+    transformOptions,
     routingSet,
     closed,
     launch,
@@ -120,6 +126,61 @@ async function fixture() {
   };
 }
 
+it("ACP 配置写入及迁移保留旧配置原文，旧版后续修改也不被第二次导入覆盖", async () => {
+  const f = await fixture();
+  const directory = join(f.root, "engines", "acp", "settings");
+  const store = new AcpSettingsStore(directory);
+  const service = new AcpAgentService("claude", directory, store, f.launch);
+  const files = [
+    "agent-settings.json",
+    ".codex/config.toml",
+    ".claude/settings.json",
+    "engines/claude/settings.json",
+  ];
+  const before = files.map((path, index) =>
+    path.endsWith("toml")
+      ? '# preserve comments\nmodel = "legacy-model"\n'
+      : JSON.stringify({ model: "a", reasoningEffort: "low", legacyExtra: index }) + "\n",
+  );
+  try {
+    for (const [index, path] of files.entries()) {
+      const target = join(f.root, path);
+      await mkdir(join(target, ".."), { recursive: true });
+      const content = before[index];
+      if (content === undefined) throw new Error("缺少旧配置夹具");
+      await writeFile(target, content);
+    }
+    await store.importLegacy("claude", { model: "a", reasoningEffort: "low" });
+    f.transformOptions.mockImplementation((_id, options) => [
+      ...options,
+      ...(options.some((option) => option.id === "future-mode")
+        ? []
+        : [
+            {
+              id: "future-mode",
+              name: "新布尔配置",
+              type: "boolean" as const,
+              currentValue: false,
+            },
+          ]),
+    ]);
+    await service.setDefaultConfig("model", "b");
+    await service.setDefaultConfig("future-mode", true);
+    expect((await store.read("claude")).values["future-mode"]).toBe(true);
+    for (const [index, path] of files.entries())
+      expect(await readFile(join(f.root, path), "utf8")).toBe(before[index]);
+    await writeFile(join(f.root, "agent-settings.json"), '{"model":"old-version-updated"}\n');
+    await store.importLegacy("claude", { model: "old-version-updated" });
+    expect((await store.read("claude")).values["model"]).toBe("b");
+    expect(await readFile(join(f.root, "agent-settings.json"), "utf8")).toBe(
+      '{"model":"old-version-updated"}\n',
+    );
+  } finally {
+    await service.close();
+    await f.dispose();
+  }
+});
+
 it("认证仅调用公布的 agent 方法，终端认证与失败不得伪装成功", async () => {
   const f = await fixture();
   try {
@@ -127,6 +188,7 @@ it("认证仅调用公布的 agent 方法，终端认证与失败不得伪装成
     expect(await f.service.inspect()).toMatchObject({
       engine: "claude",
       protocolVersion: 1,
+      providerConfiguration: true,
       authMethods: [{ id: "login" }, { id: "fail" }, { id: "terminal", type: "terminal" }],
     });
     await expect(f.service.authenticate("missing")).rejects.toThrow("认证方式");
@@ -135,6 +197,89 @@ it("认证仅调用公布的 agent 方法，终端认证与失败不得伪装成
     await expect(f.service.authenticate("fail")).rejects.toThrow();
     await expect(f.service.authenticate("login")).resolves.toEqual({});
     expect(f.authenticate.mock.calls.at(-1)?.[0].params).toEqual({ methodId: "login" });
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("单项模型切换消费完整响应，失效依赖保留原值，不重送旧思考档位", async () => {
+  const f = await fixture();
+  try {
+    await f.service.updateDefaults({ model: "b", effort: "high" });
+    f.transformOptions.mockImplementation((id, options) =>
+      id === "model" && options[0]?.currentValue === "a"
+        ? options.filter((option) => option.id !== "effort")
+        : options,
+    );
+    const result = await f.service.setDefaultConfig("model", "a");
+    expect(result.defaults).toEqual({ model: "a" });
+    expect(result.configOptions.map((option) => option.id)).toEqual(["model"]);
+    expect(result.unmappedLegacy).toContain("effort");
+    expect(await f.store.read("claude")).toMatchObject({
+      values: { model: "a" },
+      retainedValues: { effort: "high" },
+    });
+    expect(JSON.stringify(result)).not.toContain('"effort":"high"');
+    expect((await f.service.readDefaults()).unmappedLegacy).toContain("effort");
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("单项布尔变更保留 false，未知选项与关闭失败不覆盖原设置", async () => {
+  const f = await fixture();
+  try {
+    f.transformOptions.mockImplementation((_id, options) => [
+      ...options,
+      { id: "enabled", name: "开关", type: "boolean", currentValue: false },
+    ]);
+    await f.service.updateDefaults({ model: "b" });
+    expect((await f.service.setDefaultConfig("enabled", false)).defaults).toEqual({
+      model: "b",
+      enabled: false,
+    });
+    const before = await f.store.read("claude");
+    await expect(f.service.setDefaultConfig("unknown", true)).rejects.toThrow("配置");
+    expect(await f.store.read("claude")).toEqual(before);
+    f.closed.mockImplementationOnce(() => {
+      throw new Error("关闭失败");
+    });
+    await expect(f.service.setDefaultConfig("model", "a")).rejects.toThrow();
+    expect(await f.store.read("claude")).toEqual(before);
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("单项保存遇到另一宿主更新时拒绝覆盖并保留新配置", async () => {
+  const f = await fixture();
+  try {
+    await f.service.updateDefaults({ model: "b" });
+    const update = f.store.update.bind(f.store);
+    const spy = vi.spyOn(f.store, "update").mockImplementationOnce(async (engine, change) => {
+      await update(engine, (current) => ({ ...current, values: { model: "a", effort: "low" } }));
+      return update(engine, change);
+    });
+    await expect(f.service.setDefaultConfig("effort", "high")).rejects.toThrow("已变化");
+    spy.mockRestore();
+    expect((await f.store.read("claude")).values).toEqual({ model: "a", effort: "low" });
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("ACP 原始配置 ID 使用记录键语义，保留特殊键的布尔值", async () => {
+  const f = await fixture();
+  try {
+    f.transformOptions.mockImplementation((_id, options) => [
+      ...options,
+      { id: "__proto__", name: "扩展开关", type: "boolean", currentValue: false },
+    ]);
+    await f.service.updateDefaults({ model: "b" });
+    const result = await f.service.setDefaultConfig("__proto__", false);
+    expect(Object.hasOwn(result.defaults, "__proto__")).toBe(true);
+    expect(result.defaults["__proto__"]).toBe(false);
+    expect(Object.hasOwn((await f.store.read("claude")).values, "__proto__")).toBe(true);
   } finally {
     await f.dispose();
   }
@@ -310,6 +455,32 @@ it("供应商设置经公共服务保存，新项目连接先恢复配置再创�
     ).rejects.toThrow("协议");
   } finally {
     await runtime.close();
+    await f.dispose();
+  }
+});
+
+it("草稿服务协商完成后全局私有设置字节不变", async () => {
+  const f = await fixture();
+  try {
+    await f.service.updateDefaults({ model: "a", effort: "low" });
+    const before = JSON.stringify(await f.store.read("claude"));
+    const write = vi.spyOn(f.store, "update");
+    const result = await f.service.previewConfig(f.root, { values: { model: "b" } });
+    expect(result.values["model"]).toBe("b");
+    expect(JSON.stringify(await f.store.read("claude"))).toBe(before);
+    expect(write).not.toHaveBeenCalled();
+    expect(f.closed).toHaveBeenCalledTimes(2);
+    const controller = new AbortController();
+    f.transformOptions.mockImplementationOnce((_id, options) => {
+      controller.abort();
+      return options;
+    });
+    await expect(
+      f.service.previewConfig(f.root, { values: { model: "b" } }, controller.signal),
+    ).rejects.toThrow();
+    expect(f.closed).toHaveBeenCalledTimes(3);
+    expect(write).not.toHaveBeenCalled();
+  } finally {
     await f.dispose();
   }
 });

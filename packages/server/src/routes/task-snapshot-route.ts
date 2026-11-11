@@ -78,6 +78,8 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
       // 后续持久化答案和设置读取不推进覆盖边界；期间事件仍由该 checkpoint 回放。
       request.signal.throwIfAborted();
       const checkpoint = read.checkpoint;
+      // 已捕获的 ACP 快照本身即权威配置来源；不额外启动旧模型发现或设置迁移。
+      if (task.runtime === "acp") return { checkpoint, snapshot: task };
       const settings = await readEffectiveTaskSettings(
         request.params.projectId,
         request.params.taskId,

@@ -233,7 +233,10 @@ type SubagentThreadState = Readonly<{
   turnIds: readonly string[];
   itemKeysByTurnId: Readonly<Record<string, readonly string[]>>;
   turnsById: Readonly<Record<string, SubagentThreadTurn>>;
-  snapshotMetadata: { title: string; settings: { model: string; reasoningEffort?: string } } | null;
+  snapshotMetadata: {
+    title: string;
+    settings?: { model: string; reasoningEffort?: string };
+  } | null;
 }>;
 type SubagentThreadStore = Readonly<{
   subscribe: (listener: () => void) => () => void;
@@ -306,8 +309,8 @@ export function SubagentThreadContent({
     <SubagentContent
       agents={[{ taskId, status, ...(metadata?.title ? { nickname: metadata.title } : {}) }]}
       prompt={initialPrompt?.text}
-      model={metadata?.settings.model}
-      reasoningEffort={metadata?.settings.reasoningEffort}
+      model={metadata?.settings?.model}
+      reasoningEffort={metadata?.settings?.reasoningEffort}
       loadOlderLabel={loadOlderLabel}
     >
       {promptHistory ? (

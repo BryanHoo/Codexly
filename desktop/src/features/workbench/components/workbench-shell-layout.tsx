@@ -236,9 +236,9 @@ export function WorkbenchShellLayout({
             </Suspense>
           ) : error !== null ||
             (projectTaskState?.error ?? null) !== null ||
-            modelsQuery.error !== null ||
+            (capabilities?.runtime !== "acp" && (modelsQuery.error !== null ||
+              (!temporary && projectDefaultsQuery.error !== null))) ||
             skillsQuery.error !== null ||
-            (!temporary && projectDefaultsQuery.error !== null) ||
             (taskId === undefined && globalSettingsQuery.error !== null) ? (
             <RuntimeUnavailable onRetry={() => void retry()} />
           ) : board ? (

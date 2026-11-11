@@ -92,6 +92,8 @@ export type CodexlySkillMarketClient = Pick<
 >;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
+  | "getAcpDefaults"
+  | "setAcpDefaultConfig"
   | "getDiagnostics"
   | "saveDiagnostics"
   | "diagnosticsDownloadUrl"
@@ -156,6 +158,9 @@ export type CodexlyMutationClient = Pick<
 export type CodexlyPendingRequestClient = Pick<CodexlyClient, "resolvePendingRequest">;
 export type CodexlyScheduledTaskClient = Pick<
   CodexlyClient,
+  | "getAcpScheduledConfig"
+  | "setAcpScheduledConfig"
+  | "previewAcpConfig"
   | "createScheduledTask"
   | "deleteScheduledTask"
   | "listScheduledTasks"

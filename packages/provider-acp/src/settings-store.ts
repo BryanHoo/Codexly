@@ -14,6 +14,8 @@ const StoredSchema = Type.Object({
   version: Type.Literal(1),
   configured: Type.Boolean(),
   values: AcpConfigValuesSchema,
+  // 当前 agent 不再公布的选项只留在私有记录；与默认值共用 512 KiB 存储预算。
+  retainedValues: Type.Optional(AcpConfigValuesSchema),
   legacy: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   migration: Type.Optional(AcpSettingsMigrationSchema),
   providers: Type.Optional(Type.Record(Type.String(), AcpProviderConfigSchema)),

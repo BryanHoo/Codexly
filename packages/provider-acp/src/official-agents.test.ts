@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -25,6 +25,18 @@ describe.skipIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] !== "1")("官方 ACP ad
         const entry = Object.values(metadata.bin)[0];
         if (!entry) throw new Error("官方包未声明 agent 入口");
         await Promise.all([mkdir(join(root, "codex")), mkdir(join(root, "claude"))]);
+        // 使用临时目录中的旧配置验证真实 agent 启动，绝不接触用户自己的凭据或配置。
+        const preserved = [
+          {
+            path: join(root, "codex", "config.toml"),
+            text: '# legacy comment\nmodel_reasoning_effort = "high"\n',
+          },
+          {
+            path: join(root, "claude", "settings.json"),
+            text: '{ "permissions": { "defaultMode": "default" } }\n',
+          },
+        ];
+        await Promise.all(preserved.map((file) => writeFile(file.path, file.text)));
         const lifetimePath =
           process.env["CODEXLY_COMPILED_ACP_HOST"] && process.platform !== "win32"
             ? join(root, "lifetime.sock")
@@ -71,6 +83,7 @@ describe.skipIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] !== "1")("官方 ACP ad
         if (name === "@agentclientprotocol/codex-acp")
           await expect(history).rejects.toMatchObject({ code: -32000 });
         else expect((await history).sessions).toEqual([]);
+        for (const file of preserved) expect(await readFile(file.path, "utf8")).toBe(file.text);
         if (lifetimePath) {
           await expect.poll(() => lifetimeSocket !== undefined).toBe(true);
           lifetimeSocket?.destroy();

@@ -6,6 +6,7 @@ import { acpModels } from "./session-options.js";
 /** 这里只公布应用已经实现的操作；协议里存在的方法不能直接等同于产品能力。 */
 export function acpCapabilities(engine: AgentEngine) {
   return Promise.resolve({
+    runtime: "acp" as const,
     provider: engine,
     feedback: { upload: false },
     goals: { clear: false, read: false, update: false },

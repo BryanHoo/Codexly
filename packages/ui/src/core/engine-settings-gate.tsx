@@ -11,12 +11,14 @@ export function EngineSettingsGate({
   engine,
   language,
   download,
+  messages,
   prepare,
   children,
 }: Readonly<{
   engine: AgentEngine;
   language: string;
   download: boolean;
+  messages?: Readonly<{ description: string; failure: string }>;
   prepare: PrepareEngine;
   children: ReactNode;
 }>) {
@@ -38,13 +40,14 @@ export function EngineSettingsGate({
     <section className="space-y-5" aria-label={chinese ? `${name} 启用` : `Enable ${name}`}>
       <h1 className="text-xl font-semibold">{name}</h1>
       <p className="text-body-small text-muted-foreground">
-        {chinese
-          ? download
-            ? `尚未启用 ${name}。启用后会下载并校验所需组件，完成后即可配置连接。`
-            : `尚未启用 ${name}。启用后会检查服务端运行环境，准备完成后即可配置连接。`
-          : download
-            ? `${name} is not enabled. Download and verify its components before configuring a connection.`
-            : `${name} is not enabled. Check the server runtime before configuring a connection.`}
+        {messages?.description ??
+          (chinese
+            ? download
+              ? `尚未启用 ${name}。启用后会下载并校验所需组件，完成后即可配置连接。`
+              : `尚未启用 ${name}。启用后会检查服务端运行环境，准备完成后即可配置连接。`
+            : download
+              ? `${name} is not enabled. Download and verify its components before configuring a connection.`
+              : `${name} is not enabled. Check the server runtime before configuring a connection.`)}
       </p>
       {busy ? (
         <p role="status" className="text-body-small">
@@ -53,9 +56,10 @@ export function EngineSettingsGate({
       ) : null}
       {failed ? (
         <p role="alert" className="text-body-small text-danger">
-          {chinese
-            ? "准备失败，请重试。已完成的下载会复用。"
-            : "Preparation failed. Retry to reuse completed downloads."}
+          {messages?.failure ??
+            (chinese
+              ? "准备失败，请重试。已完成的下载会复用。"
+              : "Preparation failed. Retry to reuse completed downloads.")}
         </p>
       ) : null}
       <Button

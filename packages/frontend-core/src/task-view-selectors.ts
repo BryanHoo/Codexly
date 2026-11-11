@@ -25,6 +25,7 @@ export type InspectorTask<TItem extends ViewItem = AgentItem> = Pick<
 export type TaskRuntimeMetadata = Pick<
   AgentTaskSnapshot,
   | "id"
+  | "runtime"
   | "engine"
   | "workspacePath"
   | "title"
@@ -33,6 +34,7 @@ export type TaskRuntimeMetadata = Pick<
   | "threadConfiguration"
   | "contextUsage"
   | "goal"
+  | "acpSession"
 >;
 
 export function selectTaskRuntimeMetadata(
@@ -47,12 +49,14 @@ export function selectTaskRuntimeMetadata(
     ...(metadata.workspacePath === undefined ? {} : { workspacePath: metadata.workspacePath }),
     title: metadata.title,
     status: metadata.status,
-    settings: metadata.settings,
+    ...(metadata.settings === undefined ? {} : { settings: metadata.settings }),
+    ...(metadata.runtime === undefined ? {} : { runtime: metadata.runtime }),
     ...(metadata.threadConfiguration === undefined
       ? {}
       : { threadConfiguration: metadata.threadConfiguration }),
     contextUsage: metadata.contextUsage,
     goal: metadata.goal,
+    ...(metadata.acpSession === undefined ? {} : { acpSession: metadata.acpSession }),
   };
 }
 

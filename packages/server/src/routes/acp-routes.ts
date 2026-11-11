@@ -1,6 +1,9 @@
 import { Type, type TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
+  AcpConfigPreviewSchema,
+  AcpConfigPreviewRequestSchema,
+  type AcpConfigPreviewRequest,
   AgentEngineSchema,
   AcpAgentProfileSchema,
   AcpAuthenticateRequestSchema,
@@ -19,6 +22,7 @@ import {
 import type { AcpAgentServices } from "@codexly/core";
 import type { FastifyPluginCallback, FastifySchema, FastifySchemaCompiler } from "fastify";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
+import { resolveProjectRoot, ProjectRootScopeError } from "../project-root-scope.js";
 
 const Params = Type.Object({ engine: AgentEngineSchema }, { additionalProperties: false });
 const IdempotencyHeadersSchema = Type.Object({ "idempotency-key": Type.String({ minLength: 1 }) });
@@ -96,6 +100,43 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         () => providers(request.params.engine).disable(request.params.providerId),
       ),
   );
+  app.post<{ Params: { projectId: string; engine: AgentEngine }; Body: AcpConfigPreviewRequest }>(
+    "/v1/projects/:projectId/acp/:engine/preview",
+    {
+      validatorCompiler,
+      schema: {
+        params: Type.Object(
+          { projectId: Type.String({ minLength: 1 }), engine: AgentEngineSchema },
+          { additionalProperties: false },
+        ),
+        body: AcpConfigPreviewRequestSchema,
+        response: { 200: AcpConfigPreviewSchema },
+      },
+    },
+    async (request) => {
+      const project = await context.getProjectContext(request.params.projectId);
+      if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+      const agent = service(request.params.engine);
+      if (!agent.previewConfig)
+        throw new MutationHttpError("PROVIDER_ERROR", "ACP preview unavailable", 503);
+      let cwd = project.scope.rootPath;
+      if (request.body.workspacePath !== undefined) {
+        try {
+          cwd = await resolveProjectRoot(
+            context.projectRepository,
+            request.params.projectId,
+            request.body.workspacePath,
+          );
+        } catch (error) {
+          if (error instanceof ProjectRootScopeError)
+            throw new MutationHttpError("INVALID_REQUEST", "ACP preview workspace is invalid", 400);
+          throw error;
+        }
+      }
+      // 预览与首发共用根目录授权，不能把任意浏览器路径交给 agent。
+      return agent.previewConfig(cwd, request.body, request.signal);
+    },
+  );
   const taskProvider = async (params: { projectId: string; taskId: string }) => {
     const project = await context.getProjectContext(params.projectId);
     if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
@@ -159,6 +200,33 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         request.headers["idempotency-key"],
         request.body,
         () => service(request.params.engine).updateDefaults(request.body.values),
+      ),
+  );
+  app.patch<{
+    Params: { engine: AgentEngine };
+    Body: { configId: string; value: string | boolean };
+    Headers: { "idempotency-key": string };
+  }>(
+    "/v1/acp/agents/:engine/defaults",
+    {
+      validatorCompiler,
+      schema: {
+        params: Params,
+        body: AcpSessionConfigRequestSchema,
+        headers: IdempotencyHeadersSchema,
+        response: { 200: AcpDefaultsSchema },
+      },
+    },
+    (request) =>
+      context.runIdempotent(
+        ["acp-default-config", request.params.engine],
+        request.headers["idempotency-key"],
+        request.body,
+        () =>
+          service(request.params.engine).setDefaultConfig(
+            request.body.configId,
+            request.body.value,
+          ),
       ),
   );
   app.post<{

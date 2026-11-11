@@ -16,12 +16,12 @@ const textEncoder = new TextEncoder();
 export type RuntimeTaskSnapshot = Omit<AgentTaskSnapshot, "pendingRequests"> &
   Readonly<{ pendingRequests: readonly PendingRequest[] }>;
 
-export function mergeSubmittedPromptIntoSnapshot(
-  snapshot: RuntimeTaskSnapshot,
+export function mergeSubmittedPromptIntoSnapshot<T extends RuntimeTaskSnapshot>(
+  snapshot: T,
   submittedTurn: AgentTurn,
   input: Pick<AgentPromptInput, "attachments" | "skills" | "text"> &
     Readonly<{ messageAttachments?: readonly AgentMessageAttachment[] }>,
-): RuntimeTaskSnapshot {
+): Omit<T, "turns" | "status"> & Pick<RuntimeTaskSnapshot, "turns" | "status"> {
   // 原生回合已统一规范化 Skill；这里只补齐本次提交的乐观展示数据。
   const submittedUserMessage = submittedTurn.items.find(
     (item) => item.type === "message" && item.role === "user",

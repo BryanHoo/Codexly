@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 // 本机单进程串行目录分配；跨进程以独占 mkdir / SQLite 不可覆盖插入约束兜底。
 static CREATION: Mutex<()> = Mutex::const_new(());
-fn creation_id(project: &str, key: &str) -> String {
+pub(super) fn creation_id(project: &str, key: &str) -> String {
     let mut digest = Sha256::new();
     digest.update((project.len() as u64).to_be_bytes());
     digest.update(project.as_bytes());
@@ -26,6 +26,16 @@ pub(super) async fn create(
     engine: &str,
     key: &str,
 ) -> Result<Value, AppError> {
+    create_with_workspace(directory, catalog, project, engine, key, None).await
+}
+pub(super) async fn create_with_workspace(
+    directory: &Path,
+    catalog: &LocalCatalog,
+    project: &str,
+    engine: &str,
+    key: &str,
+    workspace_path: Option<&str>,
+) -> Result<Value, AppError> {
     if !matches!(engine, "codex" | "claude")
         || project.is_empty()
         || project.len() > 1024
@@ -36,17 +46,17 @@ pub(super) async fn create(
     }
     let _guard = CREATION.lock().await;
     let id = creation_id(project, key);
-    let existing = catalog.call("task.read", json!({"id":id})).await?;
-    if !existing.is_null() {
-        if existing["provider"] != engine
-            || existing["projectId"].as_str().unwrap_or("temporary") != project
-        {
-            return Err(AppError::Acp("ACP task creation identity conflict".into()));
-        }
-        return Ok(existing);
-    }
     let cwd = if project == "temporary" {
+        if workspace_path.is_some() {
+            return Err(AppError::Acp(
+                "Temporary task workspace cannot be overridden".into(),
+            ));
+        }
         workspace(directory, &id).await?
+    } else if let Some(path) = workspace_path {
+        super::workspace_commands::project_root_from_catalog(catalog, project, path)
+            .await?
+            .0
     } else {
         let project = catalog.call("project.read", json!({"id":project})).await?;
         let path = project["path"]
@@ -64,6 +74,22 @@ pub(super) async fn create(
         }
         path
     };
+    let existing = catalog.call("task.read", json!({"id":id})).await?;
+    if !existing.is_null() {
+        let stored_cwd = existing["cwd"]
+            .as_str()
+            .ok_or(AppError::FilesystemRequestFailed)?;
+        let stored_cwd = tokio::fs::canonicalize(stored_cwd)
+            .await
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        if existing["provider"] != engine
+            || existing["projectId"].as_str().unwrap_or("temporary") != project
+            || stored_cwd != cwd
+        {
+            return Err(AppError::Acp("ACP task creation identity conflict".into()));
+        }
+        return Ok(existing);
+    }
     let task = json!({"id":id,"provider":engine,"projectId":if project=="temporary" {Value::Null} else {json!(project)},
         "cwd":if project=="temporary" {cwd.to_string_lossy().into_owned()} else {crate::infrastructure::local_catalog::project_path(&cwd)},"sessionId":null,"title":"","status":"idle",
         "pinned":false,"archived":false,"updatedAt":chrono::Utc::now().timestamp()});
@@ -100,6 +126,113 @@ async fn workspace(directory: &Path, id: &str) -> Result<PathBuf, AppError> {
 mod tests {
     use crate::infrastructure::local_catalog::LocalCatalog;
     use serde_json::json;
+    #[tokio::test]
+    async fn creation_should_preserve_authorized_workspace_and_reject_changes() {
+        let root = tempfile::tempdir().unwrap();
+        let project_root = root.path().join("project");
+        let outside = root.path().join("outside");
+        std::fs::create_dir(&project_root).unwrap();
+        std::fs::create_dir(&outside).unwrap();
+        let catalog = LocalCatalog::at(&root.path().join("data")).unwrap();
+        let project = catalog
+            .add_project(vec![project_root.to_str().unwrap().into()])
+            .await
+            .unwrap();
+        let task = super::create_with_workspace(
+            root.path(),
+            &catalog,
+            &project.id,
+            "claude",
+            "root",
+            Some(project_root.to_str().unwrap()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            std::fs::canonicalize(task["cwd"].as_str().unwrap()).unwrap(),
+            std::fs::canonicalize(&project_root).unwrap()
+        );
+        assert!(
+            super::create_with_workspace(
+                root.path(),
+                &catalog,
+                &project.id,
+                "claude",
+                "bad",
+                Some(outside.to_str().unwrap())
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            super::create_with_workspace(
+                root.path(),
+                &catalog,
+                "temporary",
+                "claude",
+                "bad",
+                Some(project_root.to_str().unwrap())
+            )
+            .await
+            .is_err()
+        );
+        let git = |args: &[&str]| {
+            assert!(
+                std::process::Command::new("git")
+                    .current_dir(&project_root)
+                    .args(args)
+                    .output()
+                    .unwrap()
+                    .status
+                    .success()
+            );
+        };
+        git(&["init"]);
+        git(&[
+            "-c",
+            "user.name=ACP",
+            "-c",
+            "user.email=acp@example.test",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "init",
+        ]);
+        let worktree = root.path().join("worktree");
+        git(&[
+            "worktree",
+            "add",
+            "-b",
+            "acp-test",
+            worktree.to_str().unwrap(),
+        ]);
+        let scoped = super::create_with_workspace(
+            root.path(),
+            &catalog,
+            &project.id,
+            "claude",
+            "tree",
+            Some(worktree.to_str().unwrap()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            std::fs::canonicalize(scoped["cwd"].as_str().unwrap()).unwrap(),
+            std::fs::canonicalize(&worktree).unwrap()
+        );
+        assert!(
+            super::create_with_workspace(
+                root.path(),
+                &catalog,
+                &project.id,
+                "claude",
+                "tree",
+                Some(project_root.to_str().unwrap())
+            )
+            .await
+            .is_err()
+        );
+    }
     #[tokio::test]
     async fn creation_should_reuse_identity_and_reject_engine_changes() {
         let root = tempfile::tempdir().unwrap();

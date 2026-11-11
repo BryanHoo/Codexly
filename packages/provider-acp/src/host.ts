@@ -2,6 +2,7 @@ import { AcpQueue } from "./queue.js";
 import { StringDecoder } from "node:string_decoder";
 import type { Writable } from "node:stream";
 import {
+  AgentTurnNotSubmittedError,
   HostOutput,
   type CatalogOperations,
   type LocalCatalogStore,
@@ -148,8 +149,15 @@ export class AcpHost {
           if (result === ACP_HOST_RESPONSE_SENT) return;
           this.#output.send({ id, result: result ?? null });
         },
-        () => {
-          this.#output.send({ id, error: "ACP_HOST_REQUEST_FAILED" });
+        (error: unknown) => {
+          // 只发布应用类型确认的未提交状态，不能根据 agent 错误正文推断重试安全性。
+          this.#output.send({
+            id,
+            error:
+              message["method"] === "prompt.start" && error instanceof AgentTurnNotSubmittedError
+                ? "ACP_HOST_PROMPT_NOT_SUBMITTED"
+                : "ACP_HOST_REQUEST_FAILED",
+          });
         },
       )
       .finally(() => {

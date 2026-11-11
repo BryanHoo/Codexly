@@ -1,3 +1,4 @@
+import type { AcpAuthClient } from "@codexly/ui/core/acp-auth-settings";
 import { EngineSettingsGate } from "./engine-settings-gate.js";
 import { settingsSectionEngine } from "@codexly/frontend-core/settings-navigation";
 import { SettingsSaveFeedbackProvider } from "@codexly/ui/core/settings-save-status";
@@ -19,12 +20,16 @@ import {
 } from "@codexly/frontend-core/settings-navigation";
 
 export function SettingsPageFrame({
+  agentRuntime = "legacy",
+  acpClient,
   activeSection,
   accessMode = "local",
   children,
   onBack,
   onSectionChange,
 }: Readonly<{
+  acpClient?: Partial<Pick<AcpAuthClient, "getAcpAgent">>;
+  agentRuntime?: "pending" | "legacy" | "acp";
   activeSection: SettingsSectionId;
   accessMode?: "local" | "lan";
   children: ReactNode;
@@ -177,7 +182,12 @@ export function SettingsPageFrame({
           >
             <div className="mx-auto w-full max-w-content">
               {engine ? (
-                <EngineSettingsGate key={engine} engine={engine}>
+                <EngineSettingsGate
+                  key={engine}
+                  engine={engine}
+                  runtime={agentRuntime}
+                  {...(acpClient ? { acpClient } : {})}
+                >
                   {children}
                 </EngineSettingsGate>
               ) : (

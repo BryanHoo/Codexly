@@ -14,8 +14,7 @@ export async function createScheduledTasks(
   options: CreateCodexlyServerOptions,
   attachmentStore: AttachmentStore,
   getProjectContext: ProjectContextResolver,
-  listModels: ServerRouteContext["listModels"],
-  resolveProviderTurnInput: ServerRouteContext["resolveProviderTurnInput"],
+  execution: Pick<ServerRouteContext, "listModels" | "resolveProviderTurnInput" | "capabilities">,
 ) {
   const scheduledTaskAttachmentManager =
     options.scheduledTaskAttachmentRepository === undefined
@@ -37,8 +36,19 @@ export async function createScheduledTasks(
       attachmentStore,
       scheduledTaskAttachmentManager,
       getProjectContext,
-      listModels,
-      resolveProviderTurnInput,
+      execution.listModels,
+      execution.resolveProviderTurnInput,
+      execution.capabilities.runtime === "acp"
+        ? async (scheduleId) => {
+            // 只有明确 ACP 运行时读取私有配置；端口缺失或读取失败不能回退旧设置。
+            if (!options.localCatalogStore)
+              throw new Error("Scheduled ACP configuration store is unavailable");
+            return options.localCatalogStore.catalog("acp.schedule.read", {
+              source: "web",
+              scheduleId,
+            });
+          }
+        : undefined,
     ),
   });
   await scheduledTaskService.start();

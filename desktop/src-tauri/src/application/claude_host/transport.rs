@@ -20,7 +20,11 @@ pub(super) const LANES: usize = 8;
 pub(crate) fn cancellable_acp_request(method: &str) -> bool {
     matches!(
         method,
-        "agent.authenticate" | "agent.inspect" | "settings.read" | "providers.list"
+        "agent.authenticate"
+            | "agent.inspect"
+            | "settings.read"
+            | "settings.preview"
+            | "providers.list"
     )
 }
 type Reply = oneshot::Sender<Result<Value, String>>;

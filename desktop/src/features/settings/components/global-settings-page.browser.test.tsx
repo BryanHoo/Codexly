@@ -1,7 +1,8 @@
 import { Toaster } from "@codexly/ui/core/toaster";
 import type { AgentGlobalSettings } from "@/protocol/index.js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AcpDefaults } from "@codexly/protocol";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
@@ -10,6 +11,7 @@ import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { GlobalSettingsPage } from "./global-settings-page.js";
 import { createFallbackSettings } from "./global-settings-model.js";
 import { getNotificationPreference } from "../notification-preference.js";
+import { nativeClient } from "../../projects/project-queries.js";
 import "../../../shared/styles/globals.css";
 
 vi.mock("@/platform/tauri/autostart-client.js", () => ({
@@ -23,10 +25,37 @@ const models = [{
   supportedReasoningEfforts: ["low", "medium", "high"].map((id) => ({ id, description: id })),
 }];
 
+afterEach(() => vi.restoreAllMocks());
+
+const acpDefaults: AcpDefaults = {
+  defaults: {}, invalidDefaults: [], unmappedLegacy: [],
+  configOptions: [
+    { id: "agent-model", name: "智能体模型", type: "select", currentValue: "model-a",
+      options: [{ value: "model-a", name: "模型甲" }, { value: "model-b", name: "模型乙" }] },
+    { id: "agent-thought", name: "思考强度", type: "select", currentValue: "level-a",
+      options: [{ value: "level-a", name: "普通" }, { value: "level-b", name: "深入" }] },
+    { id: "agent-policy", name: "智能体授权", type: "select", currentValue: "ask",
+      options: [{ value: "ask", name: "询问" }, { value: "open", name: "自动" }] },
+    { id: "agent-switch", name: "智能体开关", type: "boolean", currentValue: false },
+  ],
+};
+
 async function renderSettings(initialSection: "appearance" | "personalization" | "git" = "appearance") {
   await i18n.changeLanguage("zh-CN");
   const onClose = vi.fn();
   const onSave = vi.fn(async (_settings: AgentGlobalSettings) => undefined);
+  // 整页使用真实原生客户端端口；原始控件由 ACP 返回，不能恢复旧厂商设置夹具。
+  let current = structuredClone(acpDefaults);
+  vi.spyOn(nativeClient, "getAcpDefaults").mockImplementation(async () => current);
+  const setConfig = vi.spyOn(nativeClient, "setAcpDefaultConfig").mockImplementation(async (_engine, id, value) => {
+    current = { ...current, configOptions: current.configOptions.map((option) => {
+      if (option.id !== id) return option;
+      if (option.type === "boolean" && typeof value === "boolean") return { ...option, currentValue: value };
+      if (option.type === "select" && typeof value === "string") return { ...option, currentValue: value };
+      throw new Error("配置类型不匹配");
+    }) };
+    return current;
+  });
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   queryClient.setQueryData(["temporary-workspace-settings"], { rootPath: "/Users/example/Documents/CodeAgent/Temporary tasks" });
   queryClient.setQueryData(["personalization", "instructions"], { content: "现有说明", path: "/custom/AGENTS.md", overrideActive: false });
@@ -54,11 +83,11 @@ async function renderSettings(initialSection: "appearance" | "personalization" |
     </I18nextProvider>,
   );
   await expect.element(screen.getByRole("heading", { name: initialSection === "appearance" ? "常规" : initialSection === "git" ? "辅助生成" : "个性化", exact: true })).toBeVisible();
-  return { onClose, onSave, screen };
+  return { onClose, onSave, screen, setConfig };
 }
 
 describe("GlobalSettingsPage", () => {
-  it("uses only the outer search focus ring and names model defaults consistently", async () => {
+  it("uses only the outer search focus ring and displays agent-provided model labels", async () => {
     const { screen } = await renderSettings();
     const input = screen.getByRole("searchbox", { name: "搜索设置" }).element() as HTMLInputElement;
     input.focus();
@@ -67,7 +96,7 @@ describe("GlobalSettingsPage", () => {
     expect(getComputedStyle(input).borderTopWidth).toBe("0px");
     expect(getComputedStyle(input.parentElement!).boxShadow).not.toBe("none");
     await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
-    await expect.element(screen.getByRole("heading", { name: "模型默认设置", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "智能体模型", exact: true })).toBeVisible();
   });
   it("frames settings groups and keeps labels smaller than section headings", async () => {
     const { screen } = await renderSettings();
@@ -99,21 +128,18 @@ describe("GlobalSettingsPage", () => {
     await page.screenshot({ path: "../../../../test-results/settings-personalization-commit.png" });
     await page.viewport(1440, 900);
   });
-  it("keeps permissions and runtime preferences in agent configuration", async () => {
-    const { screen, onSave } = await renderSettings();
+  it("saves raw ACP permissions and boolean preferences independently of legacy settings", async () => {
+    const { screen, onSave, setConfig } = await renderSettings();
     expect(screen.getByRole("combobox", { name: "审批", exact: true }).all()).toHaveLength(0);
     await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
-    await screen.getByRole("combobox", { name: "审批", exact: true }).selectOptions("auto-review");
-    await screen.getByRole("combobox", { name: "工作区", exact: true }).selectOptions("read-only");
-    await screen.getByRole("combobox", { name: "网页搜索", exact: true }).selectOptions("live");
-    await screen.getByRole("combobox", { name: "输出详细程度", exact: true }).selectOptions("high");
-    expect(screen.getByRole("combobox", { name: "推理摘要", exact: true }).all()).toHaveLength(0);
-    await expect.poll(() => onSave.mock.calls.at(-1)?.[0]).toMatchObject({
-      approvalPolicy: "on-request", approvalsReviewer: "auto_review", sandboxMode: "read-only",
-      webSearch: "live", modelVerbosity: "high",
-    });
-    await screen.getByRole("combobox", { name: "输出详细程度", exact: true }).selectOptions("");
-    await expect.poll(() => onSave.mock.calls.at(-1)?.[0]).toMatchObject({ modelVerbosity: null });
+    const policy = screen.getByRole("combobox", { name: "智能体授权", exact: true });
+    await policy.selectOptions("open");
+    await expect.element(policy).toHaveValue("open");
+    expect(setConfig).toHaveBeenLastCalledWith("codex", "agent-policy", "open", expect.objectContaining({ idempotencyKey: expect.any(String) }));
+    await screen.getByRole("checkbox", { name: "智能体开关", exact: true }).click();
+    await expect.element(screen.getByRole("checkbox", { name: "智能体开关", exact: true })).toBeChecked();
+    expect(setConfig).toHaveBeenLastCalledWith("codex", "agent-switch", true, expect.objectContaining({ idempotencyKey: expect.any(String) }));
+    expect(onSave).not.toHaveBeenCalled();
     for (const term of ["审批", "工作区", "网页搜索", "输出详细程度"]) {
       await screen.getByRole("searchbox", { name: "搜索设置" }).fill(term);
       await expect.element(screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true })).toBeVisible();
@@ -152,7 +178,7 @@ describe("GlobalSettingsPage", () => {
     expect(screen.getByRole("dialog").all()).toHaveLength(0);
     await expect.element(screen.getByRole("button", { name: "返回应用" })).toBeVisible();
     await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
-    await expect.element(screen.getByRole("combobox", { name: "模型", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "智能体模型", exact: true })).toBeVisible();
     expect(screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true })).toHaveAttribute("aria-current", "page");
     await screen.getByRole("button", { name: "常规", exact: true }).click();
 

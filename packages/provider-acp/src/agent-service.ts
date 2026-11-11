@@ -1,3 +1,5 @@
+import { previewAcpConfig } from "./config-preview.js";
+import type { AcpConfigPreviewRequest } from "@codexly/protocol";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AcpAgentSettingsService } from "@codexly/core";
 import type { AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
@@ -5,6 +7,7 @@ import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpSettingsStore } from "./settings-store.js";
 import { prepareAcpDefaults } from "./configuration.js";
+import { setAcpDefaultConfig } from "./default-config.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { importAcpCatalog } from "./catalog-import.js";
 import type { LocalCatalogStore } from "@codexly/core";
@@ -74,6 +77,10 @@ export class AcpAgentService implements AcpAgentSettingsService {
       return {
         engine: this.engine,
         protocolVersion: initialization.protocolVersion,
+        // 仅转发握手已公布的能力，界面不靠厂商名称猜测供应商接口。
+        ...(initialization.agentCapabilities?.providers
+          ? { providerConfiguration: true as const }
+          : {}),
         ...(initialization.agentInfo
           ? {
               agentInfo: {
@@ -116,6 +123,24 @@ export class AcpAgentService implements AcpAgentSettingsService {
       }
     });
   }
+  previewConfig(cwd: string, input: AcpConfigPreviewRequest, signal?: AbortSignal) {
+    // 与认证和默认值共用串行连接，但只读取私有设置快照，不进行任何持久写入。
+    return this.#run(async () => {
+      signal?.throwIfAborted();
+      const connection = await this.#agent();
+      const saved = await this.store.read(this.engine);
+      signal?.throwIfAborted();
+      try {
+        const result = await previewAcpConfig(connection, cwd, saved, input.values, input.change);
+        signal?.throwIfAborted();
+        return result;
+      } catch (error) {
+        // 预览关闭失败或取消后释放独立设置连接，不影响项目中的聊天连接。
+        await this.#closeHandle();
+        throw error;
+      }
+    });
+  }
   readDefaults(): Promise<AcpDefaults> {
     return this.#run(() => this.#defaults());
   }
@@ -128,6 +153,20 @@ export class AcpAgentService implements AcpAgentSettingsService {
   updateDefaults(values: AcpConfigValues): Promise<AcpDefaults> {
     return this.#run(() => this.#defaults(structuredClone(values)));
   }
+  setDefaultConfig(configId: string, value: string | boolean): Promise<AcpDefaults> {
+    return this.#run(async () => {
+      const connection = await this.#agent();
+      return setAcpDefaultConfig(
+        connection,
+        this.store,
+        this.engine,
+        this.cwd,
+        configId,
+        value,
+        (id) => this.#closeSession(connection, id),
+      );
+    });
+  }
   async #defaults(values?: AcpConfigValues): Promise<AcpDefaults> {
     const connection = await this.#agent();
     if (!connection.initialization.agentCapabilities?.sessionCapabilities?.close)
@@ -136,7 +175,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
     const validated = await (async () => {
       try {
         const current = await this.store.read(this.engine);
-        return await prepareAcpDefaults(
+        const prepared = await prepareAcpDefaults(
           connection,
           session.sessionId,
           session.configOptions ?? [],
@@ -144,6 +183,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
           values,
           values === undefined,
         );
+        return { ...prepared, retainedValues: current.retainedValues };
       } finally {
         await this.#closeSession(connection, session.sessionId);
       }
@@ -159,7 +199,17 @@ export class AcpAgentService implements AcpAgentSettingsService {
           ? { values: defaults }
           : {}),
     }));
-    return { configOptions, defaults, unmappedLegacy: migration?.unmapped ?? [], invalidDefaults };
+    return {
+      configOptions,
+      defaults,
+      unmappedLegacy: [
+        ...new Set([
+          ...(migration?.unmapped ?? []),
+          ...Object.keys(validated.retainedValues ?? {}),
+        ]),
+      ],
+      invalidDefaults,
+    };
   }
   async close(): Promise<void> {
     this.#closed = true;

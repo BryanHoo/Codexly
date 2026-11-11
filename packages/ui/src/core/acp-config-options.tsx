@@ -1,5 +1,5 @@
 import { memo, type ComponentType, type ReactNode, type SelectHTMLAttributes } from "react";
-import { isAcpConfigOption } from "@codexly/protocol";
+import { isAcpConfigOption } from "@codexly/protocol/acp-config-validation";
 import { Checkbox } from "./checkbox.js";
 
 interface FieldProps {

@@ -76,11 +76,17 @@ describe("ACP 增量事件投影", () => {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "部分回答" },
     });
+    expect(events.find((event) => event.type === "reasoning.delta")?.payload).toEqual({
+      delta: "思考",
+      field: "summary",
+    });
     const turn = projection.finish("cancelled");
     expect(turn.status).toBe("interrupted");
-    expect(turn.items.some((item) => item.type === "reasoning" && item.content === "思考")).toBe(
-      true,
-    );
+    expect(
+      turn.items.some(
+        (item) => item.type === "reasoning" && item.summary === "思考" && item.content === "",
+      ),
+    ).toBe(true);
     expect(turn.items.some((item) => item.type === "message" && item.text === "部分回答")).toBe(
       true,
     );

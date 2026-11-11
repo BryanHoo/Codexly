@@ -182,6 +182,8 @@ fn main() {
         "open_project",
         "open_task_attachment",
         "list_scheduled_tasks",
+        "read_acp_scheduled_config",
+        "set_acp_scheduled_config",
         "preview_scheduled_task",
         "create_scheduled_task",
         "update_scheduled_task",

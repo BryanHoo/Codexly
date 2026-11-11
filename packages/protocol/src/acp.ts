@@ -2,6 +2,7 @@ import { Type, type Static } from "@sinclair/typebox";
 import { AgentEngineSchema } from "./agent-engine.js";
 export * from "./acp-service.js";
 export * from "./acp-session.js";
+export { isAcpConfigOption } from "./acp-config-validation.js";
 
 /** ACP 绑定沿用应用任务身份；sessionId 是 agent 管理的不透明标识，不能替代 taskId。 */
 export const AcpTaskBindingSchema = Type.Object(

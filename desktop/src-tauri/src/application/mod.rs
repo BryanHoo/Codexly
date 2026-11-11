@@ -1,7 +1,9 @@
 pub mod acp_commands;
 mod acp_input;
+mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;
+mod acp_view;
 mod app_close;
 pub(super) mod app_lifecycle;
 mod app_minimize;
@@ -47,6 +49,7 @@ mod queue_start_recovery;
 pub mod queued_steer;
 mod request_cancellation;
 pub mod review_submission;
+mod scheduled_acp;
 pub mod scheduled_task_commands;
 mod scheduled_task_runner;
 pub mod scheduled_task_runtime;

@@ -148,6 +148,9 @@ export type NativeWorkbenchClient = Pick<NativeClient, "listClaudeExtensions" | 
 export type NativeSnapshotClient = Pick<NativeClient, "readTask">;
 export type NativeScheduledTaskClient = Pick<
   NativeClient,
+  | "getAcpScheduledConfig"
+  | "setAcpScheduledConfig"
+  | "previewAcpConfig"
   | "createScheduledTask"
   | "deleteScheduledTask"
   | "listScheduledTasks"

@@ -22,6 +22,12 @@ describe("共享工作台选择器的 Web 适配", () => {
       { engine: "claude" },
       { settings: { ...snapshotResponse.snapshot.settings, model: "new-model" } },
       { threadConfiguration: { model: "new-model", reasoningEffort: "high" } },
+      {
+        acpSession: {
+          configOptions: [],
+          availableCommands: [{ name: "custom", description: "动态命令" }],
+        },
+      },
     ];
     for (const patch of patches) {
       const metadata = store.getState().snapshotMetadata;

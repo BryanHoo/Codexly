@@ -11,6 +11,7 @@ function setup() {
   const { provider, startTurn, steerTurn, readTask } = createProvider();
   const repository = createMemoryTaskQueueRepository();
   const attachmentStore = new AttachmentStore();
+  const readTaskSettings = vi.fn(() => Promise.resolve(turnOptions));
   const runtime = {
     provider,
     projectId: "temporary",
@@ -21,7 +22,7 @@ function setup() {
     new PersistentTaskQueue({
       repository,
       attachmentStore,
-      readTaskSettings: () => Promise.resolve(turnOptions),
+      readTaskSettings,
       resolveProviderInput: (_projectId, input) =>
         Promise.resolve({
           attachmentIds: [],
@@ -34,7 +35,16 @@ function setup() {
           },
         }),
     });
-  return { repository, runtime, createQueue, startTurn, steerTurn, readTask, attachmentStore };
+  return {
+    repository,
+    runtime,
+    createQueue,
+    startTurn,
+    steerTurn,
+    readTask,
+    attachmentStore,
+    readTaskSettings,
+  };
 }
 
 const runningTurn = {
@@ -46,6 +56,63 @@ const runningTurn = {
   completedAt: null,
 };
 const prompt = { attachments: [], skills: [], text: "Run", type: "prompt" as const };
+
+describe("ACP configured queue", () => {
+  it.each(["known", "unknown"])(
+    "preserves %s configured prompt recovery without legacy fallback",
+    async (outcome) => {
+      const h = setup();
+      const failure =
+        outcome === "known"
+          ? new AgentTurnNotSubmittedError("not submitted")
+          : new Error("response lost");
+      const configured = vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(runningTurn);
+      h.runtime.provider.startConfiguredTurn = configured;
+      const queue = h.createQueue();
+      const item = await queue.add(h.runtime, prompt, "message");
+      await expect(queue.start(h.runtime, item.id)).rejects.toThrow(failure);
+      const recoverKnown = async () => {
+        expect(await h.createQueue().start(h.runtime, item.id)).toEqual(runningTurn);
+        expect(configured).toHaveBeenCalledTimes(2);
+      };
+      const recoverUnknown = async () => {
+        await expect(h.createQueue().start(h.runtime, item.id)).rejects.toThrow("blocked");
+        expect(configured).toHaveBeenCalledOnce();
+      };
+      await (outcome === "known" ? recoverKnown : recoverUnknown)();
+      expect(h.startTurn).not.toHaveBeenCalled();
+      expect(h.readTaskSettings).not.toHaveBeenCalled();
+    },
+  );
+  it("uses current ACP session settings without reading legacy task settings", async () => {
+    const h = setup();
+    const configured = vi.fn(() => Promise.resolve(runningTurn));
+    h.runtime.provider.startConfiguredTurn = configured;
+    const queue = h.createQueue();
+    const item = await queue.add(h.runtime, prompt, "message");
+    expect(await queue.start(h.runtime, item.id)).toEqual(runningTurn);
+    expect(configured).toHaveBeenCalledExactlyOnceWith(
+      "task-1",
+      expect.objectContaining({ text: "Run" }),
+    );
+    expect(h.readTaskSettings).not.toHaveBeenCalled();
+    expect(h.startTurn).not.toHaveBeenCalled();
+  });
+
+  it("keeps configured ACP prompts queued while another turn is running", async () => {
+    const h = setup();
+    const configured = vi.fn(() => Promise.resolve(runningTurn));
+    h.runtime.provider.startConfiguredTurn = configured;
+    h.readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+    const queue = h.createQueue();
+    const item = await queue.add(h.runtime, prompt, "message");
+    await expect(queue.start(h.runtime, item.id)).rejects.toThrow("blocked");
+    expect(h.steerTurn).not.toHaveBeenCalled();
+    expect(configured).not.toHaveBeenCalled();
+    expect(h.readTaskSettings).not.toHaveBeenCalled();
+    expect(await h.repository.listQueue("temporary", "task-1")).toHaveLength(1);
+  });
+});
 
 describe("resuming an edited queue", () => {
   it("saves the edited content and starts it without a second client request", async () => {

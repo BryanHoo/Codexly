@@ -64,6 +64,26 @@ describe("application task engine routing", () => {
   }
 
   it.each(["codex", "claude"])(
+    "routes configured %s prompts through its original engine without legacy options",
+    async (id) => {
+      const { router, codex, claude, tasks } = setup();
+      const selected = id === "codex" ? codex : claude;
+      const configured = vi.fn(() => Promise.resolve({ id: "configured-turn" }));
+      Object.assign(selected, { startConfiguredTurn: configured });
+      const input = { text: "继续", files: [], images: [], skills: [], textAttachments: [] };
+      expect(await router.startConfiguredTurn(id, input)).toEqual({ id: "configured-turn" });
+      expect(configured).toHaveBeenCalledExactlyOnceWith(id, input);
+      expect(codex.startTurn).not.toHaveBeenCalled();
+      expect(claude.startTurn).not.toHaveBeenCalled();
+      const task = tasks.get(id);
+      if (!task) throw new Error("Missing fixture task");
+      tasks.set(id, { ...task, projectId: "foreign" });
+      await expect(router.startConfiguredTurn(id, input)).rejects.toThrow();
+      expect(configured).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["codex", "claude"])(
     "reads %s archive state by application identity without loading the engine",
     async (id) => {
       const { router, tasks, codex, claude } = setup();

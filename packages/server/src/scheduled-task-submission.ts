@@ -3,7 +3,14 @@ import {
   type TaskSubmissionRecord,
   type TaskSubmissionRepository,
 } from "@codexly/core";
-import type { ScheduledTask, ScheduledTaskRun } from "@codexly/protocol";
+import type {
+  AcpConfigValues,
+  AgentEngine,
+  AgentTurn,
+  ScheduledTask,
+  ScheduledTaskRun,
+  SubmitTaskRequest,
+} from "@codexly/protocol";
 import type { AttachmentStore } from "./attachment-store.js";
 import type { ScheduledTaskAttachmentManager } from "./scheduled-task-attachments.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
@@ -19,6 +26,9 @@ export function createScheduledSubmission(
   getProjectContext: ProjectContextResolver,
   listModels: ServerRouteContext["listModels"],
   resolveInput: ServerRouteContext["resolveProviderTurnInput"],
+  readAcpConfig?: (
+    scheduleId: string,
+  ) => Promise<{ engine: AgentEngine; values: AcpConfigValues } | null>,
 ) {
   // 已确认启动但数据库临时不可写时保留结果，重试只能落库与清理。
   const pendingResults = new Map<string, TaskSubmissionRecord>();
@@ -30,12 +40,6 @@ export function createScheduledSubmission(
     );
     if (run === undefined) throw new Error("Scheduled run is unavailable");
     const key = keyFor(run);
-    const input = {
-      type: "prompt" as const,
-      input: scheduled.prompt,
-      options: scheduled.turnOptions,
-    };
-    const fingerprint = fingerprintPayload(input);
     let restored: { prompt: ScheduledTask["prompt"]; restoredIds: readonly string[] } | undefined;
     let previous: TaskSubmissionRecord | undefined;
     let createdTask: TaskSubmissionRecord["task"];
@@ -44,17 +48,51 @@ export function createScheduledSubmission(
       if (pending !== undefined)
         await repository.writeSubmission(scheduled.projectId, key, pending);
       previous = await repository.readSubmission(scheduled.projectId, key);
+      // 已知结果优先收尾：当前计划、配置或目录变化都不能改变原运行的提交身份。
+      if (previous?.result !== undefined) {
+        const result = previous.result;
+        if (previous.stage !== "completed") {
+          await attachmentStore.consume(
+            scheduled.projectId,
+            previous.attachmentIds ?? [],
+            result.turn.status === "running" ? result.turn.id : undefined,
+          );
+          await repository.writeSubmission(scheduled.projectId, key, {
+            ...previous,
+            stage: "completed",
+          });
+        }
+        pendingResults.delete(key);
+        return result.taskId;
+      }
       const context = await getProjectContext(scheduled.projectId);
       if (context === undefined) throw new Error("Scheduled task project was not found");
+      const config = await readAcpConfig?.(scheduled.id);
+      if (readAcpConfig !== undefined && !config)
+        throw new Error("Scheduled ACP configuration requires explicit migration");
+      const input: SubmitTaskRequest = config
+        ? {
+            type: "acp-prompt",
+            engine: config.engine,
+            initialConfig: config.values,
+            input: scheduled.prompt,
+          }
+        : { type: "prompt", input: scheduled.prompt, options: scheduled.turnOptions };
+      const fingerprint = fingerprintPayload(input);
       createdTask = previous?.task;
       let prepared: Awaited<ReturnType<typeof resolveInput>> | undefined;
       const result = await submitTask(repository, scheduled.projectId, key, fingerprint, input, {
         validate: async () => {
-          // 校验目录与创建引擎必须使用已保存的同一份选项，旧计划默认 Codex。
-          assertValidProjectDefaults(
-            await listModels(scheduled.turnOptions.engineOptions?.engine ?? "codex"),
-            scheduled.turnOptions,
-          );
+          if (config) {
+            if (!context.provider.startConfiguredTurn)
+              throw new Error("Scheduled ACP prompt is unavailable");
+          } else {
+            // 旧运行时继续校验原选项；ACP 不读取旧模型或猜测旧权限的含义。
+            assertValidProjectDefaults(
+              await listModels(scheduled.turnOptions.engineOptions?.engine ?? "codex"),
+              scheduled.turnOptions,
+            );
+          }
           // 附件恢复先于创建 Task，损坏的持久内容不会生成孤儿任务。
           restored =
             manager === undefined
@@ -63,16 +101,17 @@ export function createScheduledSubmission(
         },
         createTask: async () => {
           createdTask = await context.provider.startTask({
-            engine: scheduled.turnOptions.engineOptions?.engine ?? "codex",
+            engine: config?.engine ?? scheduled.turnOptions.engineOptions?.engine ?? "codex",
           });
           return createdTask;
         },
         prepare: async (taskId) => {
-          await settingsRepository.writeTaskSettings(
-            scheduled.projectId,
-            taskId,
-            scheduled.turnOptions,
-          );
+          if (!config)
+            await settingsRepository.writeTaskSettings(
+              scheduled.projectId,
+              taskId,
+              scheduled.turnOptions,
+            );
           if (restored === undefined) throw new Error("Scheduled attachments are unavailable");
           prepared = await resolveInput(
             scheduled.projectId,
@@ -85,11 +124,22 @@ export function createScheduledSubmission(
         execute: async (taskId) => {
           if (prepared === undefined) throw new Error("Scheduled input is unavailable");
           const checkpoint = context.eventStream.checkpoint;
-          const turn = await context.provider.startTurn(
-            taskId,
-            prepared.providerInput,
-            scheduled.turnOptions,
-          );
+          let turn: AgentTurn;
+          if (config) {
+            if (!context.provider.startConfiguredTurn)
+              throw new Error("Scheduled ACP prompt is unavailable");
+            turn = await context.provider.startConfiguredTurn(
+              taskId,
+              prepared.providerInput,
+              config.values,
+            );
+          } else {
+            turn = await context.provider.startTurn(
+              taskId,
+              prepared.providerInput,
+              scheduled.turnOptions,
+            );
+          }
           const result = {
             taskId,
             turn,

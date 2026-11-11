@@ -2,6 +2,7 @@ import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AcpAgentServices } from "./acp-service.js";
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
+  AcpConfigValues,
   AcpConfigOption,
   AcpSessionState,
   AgentGlobalApprovalPolicy,
@@ -203,7 +204,7 @@ export type AgentProviderEventSubscriptionOptions = Readonly<{
   includeEphemeral?: boolean;
 }>;
 
-// Provider Snapshot 不包含本地设置，Server 在交付 HTTP Snapshot 时统一合并持久化结果。
+// Provider 不包含旧本地设置；Server 仅为旧运行时合并设置，ACP 保留自身配置与身份。
 export type AgentProviderTaskSnapshot = Omit<AgentTaskSnapshot, "settings">;
 
 export type AgentFileSearchMatch = Readonly<{
@@ -316,6 +317,12 @@ export interface AgentProvider {
   renameTask(taskId: string, title: string): Promise<void>;
   resolvePendingRequest(input: ResolvePendingRequestInput): Promise<PendingRequest>;
   startReview(taskId: string, target: AgentReviewTarget): Promise<AgentTurn>;
+  /** 使用当前 ACP 会话配置发送；缺少端口时调用方必须拒绝，不能回落旧设置映射。 */
+  startConfiguredTurn?(
+    taskId: string,
+    input: AgentProviderTurnInput,
+    initialConfig?: AcpConfigValues,
+  ): Promise<AgentTurn>;
   startTask(options?: StartAgentTaskOptions): Promise<AgentTask>;
   startTurn(
     taskId: string,

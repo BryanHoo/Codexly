@@ -10,6 +10,7 @@ import type {
   AgentSkill,
   AgentTask,
   AgentTaskSettings,
+  AgentTaskSnapshotResponse,
   AgentTurn,
   AgentTurnOptions,
   EventCheckpoint,
@@ -17,8 +18,15 @@ import type {
   ProjectFileSearchEntry,
   ProjectRoot,
 } from "@codexly/protocol";
-import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
+import {
+  buildProjectAttachmentUrl,
+  buildTaskAttachmentUrl,
+  type CodexlyClient,
+} from "@codexly/client";
 import type { Ref, ReactNode } from "react";
+import type { AcpSessionClient } from "@codexly/ui/core/use-acp-session";
+import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
+import type { SubmitTaskResponse } from "@codexly/protocol";
 import type { AgentCommand } from "@codexly/protocol";
 
 import type {
@@ -62,13 +70,23 @@ export type WorkbenchComposerHandle = Readonly<{
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
+  acp?: Readonly<{
+    controls: ReactNode;
+    isBusy: boolean;
+    submit: (
+      input: AgentPromptInput,
+      key: string,
+    ) => Promise<SubmitTaskResponse & { acpSnapshot?: AgentTaskSnapshotResponse }>;
+  }>;
   engineControls?: ReactNode;
   engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
   client: {
     optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }>;
-  } & CodexlyMutationClient &
+  } & Partial<AcpSessionClient & AcpDraftClient> &
+    Partial<Pick<CodexlyClient, "readTask">> &
+    CodexlyMutationClient &
     Pick<
       CodexlyGitMutationClient,
       | "createProjectBranch"
@@ -124,6 +142,7 @@ export type WorkbenchComposerProps = Readonly<{
     settings?: AgentTaskSettings,
     messageAttachments?: readonly AgentMessageAttachment[],
     checkpoint?: EventCheckpoint,
+    acpSnapshot?: AgentTaskSnapshotResponse,
   ) => void;
   projectId: string;
   projectName?: string;
@@ -135,7 +154,7 @@ export type WorkbenchComposerProps = Readonly<{
   selectedProjectRootId: string;
   gitStatus?: ProjectGitStatus;
   runtime?: TaskRuntimeView;
-  settings: AgentTaskSettings;
+  settings: AgentTaskSettings | undefined;
   skills: readonly AgentSkill[];
   taskId?: string;
 }>;

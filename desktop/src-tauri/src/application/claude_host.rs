@@ -29,7 +29,13 @@ use transport::{LANES, Transport};
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 pub fn normalize_item(item: &mut Value) {
     if item["type"] == "reasoning" {
-        let text = item["content"].as_str().unwrap_or_default().to_owned();
+        // ACP 公开 thought 已投影为 summary；旧 Claude 思考仍保留原公开 content 回退。
+        let text = item["summary"]
+            .as_str()
+            .filter(|text| !text.is_empty())
+            .or_else(|| item["content"].as_str())
+            .unwrap_or_default()
+            .to_owned();
         let id = item["id"].clone();
         *item = json!({"id":id,"type":"reasoning","text":text});
     }

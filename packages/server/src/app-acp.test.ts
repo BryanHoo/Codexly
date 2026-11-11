@@ -20,6 +20,7 @@ it("服务装配直接使用运行时公布的 ACP 服务端口，无需另注�
     inspect: () => Promise.resolve(profile),
     readDefaults: () => Promise.resolve(defaults),
     updateDefaults: () => Promise.resolve(defaults),
+    setDefaultConfig: () => Promise.resolve(defaults),
     authenticate: () => Promise.resolve({}),
   };
   const app = await createCodexlyServer({
@@ -36,6 +37,7 @@ it("ACP 路由独立选择引擎、保留布尔值，并为认证与设置保持
     inspect: vi.fn(() => Promise.resolve(profile)),
     readDefaults: vi.fn(() => Promise.resolve(defaults)),
     updateDefaults: vi.fn(() => Promise.resolve(defaults)),
+    setDefaultConfig: vi.fn(() => Promise.resolve(defaults)),
     authenticate: vi.fn(() => Promise.resolve({})),
   };
   const codex = {
@@ -98,11 +100,65 @@ it("ACP 路由独立选择引擎、保留布尔值，并为认证与设置保持
     ).toBe(400);
 });
 
+it("单项默认配置使用严格 PATCH 契约、保持 false 和幂等完整响应", async () => {
+  const setDefaultConfig = vi.fn(() => Promise.resolve(defaults));
+  const service = {
+    inspect: () => Promise.resolve(profile),
+    readDefaults: () => Promise.resolve(defaults),
+    updateDefaults: () => Promise.resolve(defaults),
+    authenticate: () => Promise.resolve({}),
+    setDefaultConfig,
+  };
+  const app = await createCodexlyServer({
+    ...createServerOptions(createProvider().provider),
+    acpAgents: { codex: service, claude: service },
+  });
+  closeCallbacks.push(() => app.close());
+  const url = "/v1/acp/agents/claude/defaults";
+  for (let i = 0; i < 2; i++) {
+    const response = await app.inject({
+      method: "PATCH",
+      url,
+      payload: { configId: "enabled", value: false },
+      headers: { "idempotency-key": "patch-once" },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual(defaults);
+    expect(response.headers["cache-control"]).toBe("no-store");
+  }
+  expect(setDefaultConfig).toHaveBeenCalledExactlyOnceWith("enabled", false);
+  expect(
+    (
+      await app.inject({
+        method: "PATCH",
+        url,
+        payload: { configId: "enabled", value: true },
+        headers: { "idempotency-key": "patch-once" },
+      })
+    ).statusCode,
+  ).toBe(409);
+  for (const payload of [
+    { configId: "enabled", value: 0 },
+    { configId: "enabled", value: false, extra: true },
+  ])
+    expect(
+      (
+        await app.inject({
+          method: "PATCH",
+          url,
+          payload,
+          headers: { "idempotency-key": "invalid-patch" },
+        })
+      ).statusCode,
+    ).toBe(400);
+});
+
 it("LAN 认证先于 ACP 访问，未注入服务明确不可用", async () => {
   const service = {
     inspect: vi.fn(() => Promise.resolve(profile)),
     readDefaults: vi.fn(() => Promise.resolve(defaults)),
     updateDefaults: vi.fn(() => Promise.resolve(defaults)),
+    setDefaultConfig: vi.fn(() => Promise.resolve(defaults)),
     authenticate: vi.fn(() => Promise.resolve({})),
   };
   const lan = await createCodexlyServer({
@@ -194,6 +250,7 @@ it("供应商 HTTP 配置使用通用 ACP 契约并保持幂等，不回显密�
     inspect: () => Promise.resolve(profile),
     readDefaults: () => Promise.resolve(defaults),
     updateDefaults: () => Promise.resolve(defaults),
+    setDefaultConfig: () => Promise.resolve(defaults),
     authenticate: () => Promise.resolve({}),
   };
   const app = await createCodexlyServer({

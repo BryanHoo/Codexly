@@ -1,4 +1,6 @@
+import type { AgentTaskSnapshotResponse as NativeSnapshotResponse, AgentTurn as NativeAgentTurn } from "@/protocol/index.js";
 import type {
+  AcpConfigValues,
   AcpConfigOption,
   AcpSessionState,
   AgentPromptInput,
@@ -20,14 +22,35 @@ import type {
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
 import { TauriWorkspaceClient } from "./workspace-client.js";
 
-/** ACP 原生快照保留真实 checkpoint；旧 settings 字段由后续配置 UI 迁移，不伪造默认值。 */
-export type AcpNativeTaskSnapshot = Omit<AgentTaskSnapshotResponse, "snapshot"> & {
-  snapshot: Omit<AgentTaskSnapshotResponse["snapshot"], "settings">;
+/** ACP 快照保留真实 checkpoint 和本端条目扩展，不伪造旧 settings。 */
+export type AcpNativeTaskSnapshot = Omit<NativeSnapshotResponse, "snapshot"> & {
+  snapshot: Extract<NativeSnapshotResponse["snapshot"], { runtime: "acp" }>;
 };
 export type AcpNativePromptInput = Omit<AgentPromptInput, "attachments"> & {
   attachments: readonly AgentMessageAttachment[];
 };
 export class TauriAcpTaskClient extends TauriWorkspaceClient {
+  startConfiguredAcpPrompt(
+    projectId: string,
+    taskId: string,
+    input: AcpNativePromptInput,
+    idempotencyKey: string,
+    initialConfig?: AcpConfigValues,
+    recoveryKey?: string,
+  ): Promise<NativeAgentTurn> {
+    return this.mutateAcpTask(
+      projectId,
+      "prompt.start",
+      {
+        taskId,
+        input,
+        idempotencyKey,
+        ...(initialConfig === undefined ? {} : { initialConfig }),
+        ...(recoveryKey === undefined ? {} : { recoveryKey }),
+      },
+      {},
+    );
+  }
   getAcpSessionState(
     projectId: string,
     taskId: string,
@@ -43,7 +66,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
   async createAcpTask(
     projectId: string,
     engine: AgentEngine,
-    options: MutationOptions & { idempotencyKey: string },
+    options: MutationOptions & { idempotencyKey: string; workspacePath?: string },
   ): Promise<
     Pick<
       AgentTaskSnapshotResponse["snapshot"],
@@ -53,7 +76,12 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
     options.signal?.throwIfAborted();
     // 同一创建意图的重试由调用方保留幂等键；发送后不因等待取消而重新创建。
     const idempotencyKey = options.idempotencyKey;
-    return this.call("create_acp_task", { projectId, engine, idempotencyKey });
+    return this.call("create_acp_task", {
+      projectId,
+      engine,
+      idempotencyKey,
+      ...(options.workspacePath === undefined ? {} : { workspacePath: options.workspacePath }),
+    });
   }
 
   getAcpTask(
@@ -206,7 +234,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
     taskId: string,
     queuedSubmissionId?: string,
     options: MutationOptions = {},
-  ): Promise<StartAgentQueuedSubmissionResponse> {
+  ): Promise<Omit<StartAgentQueuedSubmissionResponse, "turn"> & { turn: NativeAgentTurn }> {
     return this.mutateAcpTask(
       projectId,
       "queue.start",

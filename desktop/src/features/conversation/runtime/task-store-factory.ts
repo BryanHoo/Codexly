@@ -230,7 +230,8 @@ export function createTaskStore(
     },
     setTaskSettings(settings) {
       set((state) =>
-        state.snapshotMetadata === null
+        // 旧设置请求可能晚于运行时接管返回，不能重新污染 ACP 元数据。
+        state.snapshotMetadata === null || state.snapshotMetadata.runtime === "acp"
           ? state
           : {
               snapshotMetadata: { ...state.snapshotMetadata, settings },

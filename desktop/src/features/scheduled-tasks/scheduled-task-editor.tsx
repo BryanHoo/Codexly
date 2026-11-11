@@ -1,3 +1,5 @@
+import { AcpScheduledTask } from "@codexly/ui/core/acp-scheduled-task";
+import type { AcpScheduledConfigClient } from "@codexly/ui/core/acp-scheduled-config-contract";
 import { buildNativeAssetUrl } from "@/platform/native-asset-url.js";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -38,6 +40,8 @@ import { useSchedulePreview, type PreviewSchedule } from "./use-schedule-preview
 
 type EditorProps = Readonly<{
   composerProps: WorkbenchComposerProps;
+  acpClient?: AcpScheduledConfigClient;
+  onEnabledChange?: (id: string, enabled: boolean) => void;
   onOpenRun: (projectId: string, taskId: string) => void;
   openingRun?: boolean;
   onProjectChange: (projectId: string) => void;
@@ -73,6 +77,18 @@ function promptDraft(task: ScheduledTask | undefined, skills: readonly AgentSkil
 }
 
 export function ScheduledTaskEditor(props: EditorProps) {
+  const { i18n } = useTranslation("workbench");
+  // ACP 模式完全隔离旧版 Composer，避免读取或回写旧引擎设置。
+  if (props.composerProps.capabilities?.runtime === "acp") {
+    if (!props.task || !props.acpClient) return null;
+    return <AcpScheduledTask client={props.acpClient} attachments={props.task.prompt.attachments} task={props.task} language={i18n.resolvedLanguage}
+      onOpenRun={props.onOpenRun} onRunNow={props.onRunNow} openingRun={props.openingRun}
+      onEnabledChange={props.onEnabledChange} />;
+  }
+  return <LegacyScheduledTaskEditor {...props} />;
+}
+
+function LegacyScheduledTaskEditor(props: EditorProps) {
   const { i18n, t } = useTranslation("workbench");
   const [timezone] = useState(() => props.task?.schedule.type === "rrule"
     ? props.task.schedule.timezone
@@ -82,7 +98,7 @@ export function ScheduledTaskEditor(props: EditorProps) {
   const [schedule, setSchedule] = useState<ScheduleDraft>(
     () => props.task === undefined ? defaultScheduleDraft() : scheduleToDraft(props.task.schedule),
   );
-  const [settings, setSettings] = useState<AgentTaskSettings>(
+  const [settings, setSettings] = useState<AgentTaskSettings | undefined>(
     props.task?.turnOptions ?? props.composerProps.settings,
   );
   const [saving, setSaving] = useState(false);

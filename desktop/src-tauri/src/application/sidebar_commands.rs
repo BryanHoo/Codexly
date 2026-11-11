@@ -311,15 +311,7 @@ pub async fn interrupt_turn(
         .map_err(AppError::from)
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn resolve_pending_request(
-    app: AppHandle,
-    request: super::pending_resolution::PendingResolutionReference,
-    resolution: Value,
-    idempotency_key: String,
-) -> Result<Value, Value> {
-    super::pending_resolution::resolve(app, request, resolution, idempotency_key).await
-}
+pub use super::pending_resolution::resolve_pending_request;
 
 pub use super::task_compact_commands::compact_task;
 

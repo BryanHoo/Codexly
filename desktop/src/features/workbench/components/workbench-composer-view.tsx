@@ -144,8 +144,8 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         props.submitAction === "blocked" ||
         (props.submitAction === "start" &&
           ((!props.captureMode && !props.canSubmit) ||
-            props.selectedModel === undefined ||
-            props.selectedReasoningEffort === undefined)) ||
+            (props.acp ? props.acp.isBusy : props.selectedModel === undefined ||
+            props.selectedReasoningEffort === undefined))) ||
         (props.submitAction === "interrupt" &&
           (!props.canInterrupt || props.activeTurnId === undefined))
       }

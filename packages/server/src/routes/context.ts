@@ -3,6 +3,7 @@ import type {
   AsyncQuestionRepository,
   ProjectTodoRepository,
   TaskSubmissionRepository,
+  LocalCatalogStore,
 } from "@codexly/core";
 import type {
   AgentFileSearchProvider,
@@ -123,6 +124,7 @@ export type TaskStartRecovery = Readonly<{
 }>;
 
 export interface ServerRouteContext {
+  readonly localCatalogStore?: LocalCatalogStore | undefined;
   readonly websocketLifecycle: WebSocketLifecycle;
   readonly workbenchChanges: WorkbenchChanges;
   readonly projectTodoRepository?: ProjectTodoRepository;

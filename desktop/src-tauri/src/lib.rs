@@ -54,7 +54,8 @@ use application::{
     prompt_submission::submit_prompt,
     scheduled_task_commands::{
         create_scheduled_task, delete_scheduled_task, list_scheduled_tasks, preview_scheduled_task,
-        run_scheduled_task_now, set_scheduled_task_enabled, update_scheduled_task,
+        read_acp_scheduled_config, run_scheduled_task_now, set_acp_scheduled_config,
+        set_scheduled_task_enabled, update_scheduled_task,
     },
     scheduled_task_runtime::ScheduledTaskRuntime,
     search_commands::{search_task_occurrences, search_tasks},
@@ -303,6 +304,8 @@ pub fn run() {
             create_project_directory,
             list_completed_tasks,
             list_scheduled_tasks,
+            read_acp_scheduled_config,
+            set_acp_scheduled_config,
             preview_scheduled_task,
             create_scheduled_task,
             update_scheduled_task,

@@ -4,6 +4,39 @@ import type { InvokeImplementation } from "./native-client.js";
 import { TauriSidebarClient } from "./sidebar-client.js";
 import type { AgentEventSubscription } from "./runtime.js";
 
+it("ACP 草稿创建保留独立创建键和授权工作目录，不初始化旧引擎", async () => {
+  const invoke = vi.fn(async () => ({})),
+    ensureRuntime = vi.fn();
+  const client = new TauriCatalogClient({ invoke: invoke as InvokeImplementation, ensureRuntime });
+  await client.createAcpTask("p", "claude", {
+    idempotencyKey: "creation",
+    workspacePath: "/project/worktree",
+  });
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("create_acp_task", {
+    projectId: "p",
+    engine: "claude",
+    idempotencyKey: "creation",
+    workspacePath: "/project/worktree",
+  });
+  expect(ensureRuntime).not.toHaveBeenCalled();
+});
+
+it("ACP 按当前会话发送时携带持久幂等身份，不携带旧设置", async () => {
+  const invoke = vi.fn(async () => ({}));
+  const client = new TauriCatalogClient({
+    invoke: invoke as InvokeImplementation,
+    ensureRuntime: vi.fn(),
+    connectEvents: () => Promise.resolve(),
+  });
+  const input = { type: "prompt" as const, text: "继续", attachments: [], skills: [] };
+  await client.startConfiguredAcpPrompt("p", "t", input, "stable-key");
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("acp_task_request", {
+    projectId: "p",
+    method: "prompt.start",
+    params: { taskId: "t", input, idempotencyKey: "stable-key" },
+  });
+});
+
 it("ACP 历史与会话布尔配置使用任务身份，不初始化旧引擎", async () => {
   const invoke = vi.fn(async () => ({})),
     ensureRuntime = vi.fn(async () => undefined);
@@ -203,4 +236,40 @@ it("ACP 队列保留应用附件引用与消息身份，不初始化旧运行时
       { projectId: "p", method: "queue.delete", params: { taskId: "t", queuedSubmissionId: "q" } },
     ],
   ]);
+});
+
+it("首发配置进入原生提交参数并保留 false 和幂等身份", async () => {
+  const invoke = vi.fn(() => Promise.resolve({}));
+  const client = new TauriCatalogClient({
+    invoke: invoke as InvokeImplementation,
+    ensureRuntime: vi.fn(),
+  });
+  const input = { type: "prompt" as const, text: "开始", attachments: [], skills: [] };
+  await client.startConfiguredAcpPrompt("p", "t", input, "same", { enabled: false });
+  expect(invoke).toHaveBeenCalledWith("acp_task_request", {
+    projectId: "p",
+    method: "prompt.start",
+    params: { taskId: "t", input, idempotencyKey: "same", initialConfig: { enabled: false } },
+  });
+});
+
+it("配置变更重试传递原提交恢复键，不复用旧发送入口", async () => {
+  const invoke = vi.fn(() => Promise.resolve({}));
+  const client = new TauriCatalogClient({
+    invoke: invoke as InvokeImplementation,
+    ensureRuntime: vi.fn(),
+  });
+  const input = { type: "prompt" as const, text: "重试", attachments: [], skills: [] };
+  await client.startConfiguredAcpPrompt("p", "t", input, "next", { enabled: true }, "old");
+  expect(invoke).toHaveBeenCalledWith("acp_task_request", {
+    projectId: "p",
+    method: "prompt.start",
+    params: {
+      taskId: "t",
+      input,
+      idempotencyKey: "next",
+      initialConfig: { enabled: true },
+      recoveryKey: "old",
+    },
+  });
 });

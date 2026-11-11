@@ -12,11 +12,13 @@ import { settingsSections, type SettingsSectionId } from "./global-settings-fiel
 import { settingsSectionGroups as sectionGroups, settingsSectionSearchKeys as sectionSearchKeys } from "@codexly/frontend-core/settings-navigation";
 
 export function SettingsPageFrame({
+  agentRuntime = "legacy",
   activeSection,
   children,
   onBack,
   onSectionChange,
 }: Readonly<{
+  agentRuntime?: "pending" | "legacy" | "acp";
   activeSection: SettingsSectionId;
   children: ReactNode;
   onBack: () => void;
@@ -136,7 +138,7 @@ export function SettingsPageFrame({
         </nav>
       </aside>
       <main aria-label={t("title")} className="min-h-0 min-w-0 overflow-y-auto px-10 py-12" ref={contentRef}>
-        <div className="mx-auto w-full max-w-content">{engine ? <EngineSettingsGate key={engine} engine={engine}>{children}</EngineSettingsGate> : children}</div>
+        <div className="mx-auto w-full max-w-content">{engine ? <EngineSettingsGate key={engine} engine={engine} runtime={agentRuntime}>{children}</EngineSettingsGate> : children}</div>
       </main>
     </div>
     )}

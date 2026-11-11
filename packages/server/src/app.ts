@@ -363,8 +363,7 @@ export async function createCodexlyServer(
     options,
     attachmentStore,
     getProjectContext,
-    listModels,
-    resolveProviderTurnInput,
+    { listModels, resolveProviderTurnInput, capabilities },
   );
   const activeGitMutations = new Set<string>();
   const taskStartRecoveries = new Map<string, TaskStartRecovery>();
@@ -406,6 +405,7 @@ export async function createCodexlyServer(
     attachmentStore,
     buildCommitMessagePrompt,
     capabilities,
+    localCatalogStore: options.localCatalogStore,
     commitProjectChanges,
     pushProjectCommits: options.pushProjectCommits ?? pushProjectCommits,
     createProjectBranch: options.createProjectBranch ?? gitBranch.createProjectBranch,

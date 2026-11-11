@@ -15,10 +15,12 @@ import {
 
 export function ScheduledTaskMenu({
   task,
+  canToggle = true,
   onDelete,
   onEnabledChange,
 }: Readonly<{
   task: ScheduledTask;
+  canToggle?: boolean;
   onDelete: (id: string) => Promise<unknown>;
   onEnabledChange: (id: string, enabled: boolean) => void;
 }>) {
@@ -51,28 +53,30 @@ export function ScheduledTaskMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" sideOffset={4} className="scheduled-task-menu">
-          <DropdownMenuItem
-            disabled={
-              !task.enabled &&
-              task.runs.some(
-                (run) =>
-                  run.status === "running" ||
-                  run.status === "unknown" ||
-                  run.status === "cleanup_pending",
-              )
-            }
-            aria-label={t(
-              task.enabled ? "scheduledTasks.disableTask" : "scheduledTasks.enableTask",
-              { name: task.name },
-            )}
-            onSelect={() => {
-              onEnabledChange(task.id, !task.enabled);
-            }}
-          >
-            {task.enabled ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-            {t(task.enabled ? "scheduledTasks.disable" : "scheduledTasks.enable")}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {canToggle ? (
+            <DropdownMenuItem
+              disabled={
+                !task.enabled &&
+                task.runs.some(
+                  (run) =>
+                    run.status === "running" ||
+                    run.status === "unknown" ||
+                    run.status === "cleanup_pending",
+                )
+              }
+              aria-label={t(
+                task.enabled ? "scheduledTasks.disableTask" : "scheduledTasks.enableTask",
+                { name: task.name },
+              )}
+              onSelect={() => {
+                onEnabledChange(task.id, !task.enabled);
+              }}
+            >
+              {task.enabled ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+              {t(task.enabled ? "scheduledTasks.disable" : "scheduledTasks.enable")}
+            </DropdownMenuItem>
+          ) : null}
+          {canToggle ? <DropdownMenuSeparator /> : null}
           <DropdownMenuItem
             className="text-danger"
             disabled={

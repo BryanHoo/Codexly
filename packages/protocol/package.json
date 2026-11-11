@@ -5,6 +5,10 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./acp-config-validation": {
+      "types": "./src/acp-config-validation.ts",
+      "default": "./src/acp-config-validation.ts"
+    },
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

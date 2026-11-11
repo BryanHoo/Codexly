@@ -30,6 +30,18 @@ Node 使用 [os.homedir()](https://nodejs.org/api/os.html#oshomedir)，桌面端
 
 两端共用 `packages/protocol/src/local-catalog-schema.json` 的表定义及 `app-storage-migration.json` 的导入 SQL。Web 数据库操作在 SQLite Worker 执行，桌面端在阻塞池执行；WAL、外键、5 秒 busy timeout 和短事务支持同机多进程访问，不增加后台同步轮询。切回窗口时，两端共用的恢复逻辑只使项目、任务、归档和置顶列表失效，后台不读取聊天正文。
 
+### ACP 定时任务配置（开发中）
+
+`acp_scheduled_configs` 独立保存计划的 ACP 原始配置，按 `source=web/desktop` 和原计划 ID 区分，避免两端同名计划互相覆盖。记录包含引擎、原始字符串或布尔选项及修订号；创建要求 `expectedRevision=0`，修改和删除要求匹配当前修订号，冲突返回空结果或 `false`。Node 和 Rust 共用 `packages/protocol/src/acp-scheduled-config-sql.json`，原子 SQL 同时约束数量和容量：最多 1000 项、单项选项 JSON 最多 256 KiB、总计最多 16 MiB。
+
+此增量表不改变共享 `user_version`、旧表字段或旧计划 JSON；旧版仍读取原计划和运行记录。读取时重新校验 ACP 值，损坏配置明确失败，不自动使用全局默认配置。Web 在运行时明确声明 `runtime=acp` 时，使用所属来源的配置执行已有计划；缺少配置或 ACP 执行端口时在创建会话前失败，不转换旧模型或权限选项，也不写旧任务设置。原有附件恢复与持久提交认领继续使用。
+
+已有运行的启动结果先于当前配置、目录和附件解析重放，恢复仅补写结果与清理原附件；配置更改、配置删除或项目不可用不能导致再次启动。结果未知时保留应用任务 ID 并阻止同一计划继续投递。
+
+桌面已有计划在保存了 `desktop` 来源的显式 ACP 配置后使用 ACP 入口，其余计划暂时保留原执行入口。应用任务创建键和发送键均由项目及原 runId 确定；创建前在既有 `native_acp_submissions` 记录原指纹与尚未发送状态，发送仍通过现有 ACP 原生命令，复用附件授权与原始 `initialConfig`。不读取旧模型或写入旧任务设置，不通过 HTTP 绕行。
+
+桌面重启时只检查中断运行及相关失败运行的私有阶段：确认启动的投影为 `started`，未知结果投影为 `failed`、保留任务引用并禁用计划，新版本还会阻止重新启用、改写或手工重发。旧文件继续使用原 schemaVersion 和四种运行枚举，不加入 `unknown` 或 `cleanup_pending`。私有账本损坏会明确失败，不能猜测成功或清除发送占用；普通完成历史和空闲调度不反复读取账本。ACP 计划编辑、新计划的私有保存及删除关联仍在迁移中，生产能力声明尚未切换。
+
 ## 应用目录升级
 
 升级前退出旧版本的 Web 服务和桌面应用，再分别启动新版本。首次启动发现 `CODEX_HOME/codexly`、默认 `~/.codex/codexly` 和旧 Tauri 应用目录（macOS Application Support、Ubuntu XDG 数据目录、Windows Roaming AppData）。已经迁移的目录以目标数据库内的标记判断；不再反复导入旧记录。

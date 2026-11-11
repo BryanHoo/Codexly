@@ -44,7 +44,7 @@ const engineIndependentCommands = new Set(["acp_task_request", "list_projects", 
 
 // 文件、Git 与应用工具由 Rust 本地服务执行，不依赖任何模型进程或模型事件订阅。
 const localCommands = new Set([
-  "acp_agent_request", "read_acp_agent", "create_acp_task",
+  "acp_agent_request", "read_acp_agent", "create_acp_task", "read_acp_scheduled_config", "set_acp_scheduled_config",
   "list_host_files", "upload_attachment", "import_host_attachment", "cache_project_image",
   "get_project_pdf_file", "open_project", "list_project_files", "search_project_files",
   "stop_project_file_search", "read_project_source_file", "save_project_text_file",

@@ -8,7 +8,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: state.engines, isError: false }),
 }));
 vi.mock("../../../i18n/i18n.js", () => ({ getCurrentLanguage: () => "zh-CN" }));
-import { EngineSetupGate } from "./engine-setup-gate.js";
+import { LegacyEngineSetupGate as EngineSetupGate } from "./legacy-engine-setup-gate.js";
 function Workspace() {
   return createElement("main", { "data-engines": useSelectedEngines()?.join(",") }, "工作区");
 }

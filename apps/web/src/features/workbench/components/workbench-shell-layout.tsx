@@ -255,9 +255,10 @@ export function WorkbenchShellLayout({
               ) : error !== null ||
                 (projectTaskState?.error ?? null) !== null ||
                 (codexEnabled &&
-                  (modelsQuery.error !== null ||
+                  ((capabilities?.runtime !== "acp" &&
+                    (modelsQuery.error !== null ||
+                      (!temporary && projectDefaultsQuery.error !== null))) ||
                     skillsQuery.error !== null ||
-                    (!temporary && projectDefaultsQuery.error !== null) ||
                     (taskId === undefined && globalSettingsQuery.error !== null))) ? (
                 <RuntimeUnavailable onRetry={() => void retry()} />
               ) : taskId === undefined ? (

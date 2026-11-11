@@ -50,7 +50,7 @@ function Harness({ currentRuntime, onSend }: Readonly<{
     <output>{session.selectedModel?.id}:{session.selectedReasoningEffort}</output>
     <button onClick={() => session.setSettingsOverride({ scope: session.routeScope, settings })}>手动选择</button>
     <button onClick={() => onSend(createComposerTurnOptions(
-      session.activeSettings, session.selectedModel!.id, session.selectedReasoningEffort, undefined, false,
+      session.activeSettings ?? settings, session.selectedModel!.id, session.selectedReasoningEffort, undefined, false,
     ))}>发送</button>
   </>;
 }

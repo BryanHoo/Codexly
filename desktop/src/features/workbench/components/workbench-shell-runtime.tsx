@@ -9,11 +9,7 @@ import { resolveDesktopTaskRoot } from "./workbench-task-root.js";
 import type {
   AgentMessageAttachment,
   AgentPromptInput,
-  AgentTask,
-  AgentTaskSnapshot,
-  AgentTaskSettings,
   AgentTurn,
-  EventCheckpoint,
 } from "@/protocol/index.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -21,7 +17,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "../../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import {
-  mergeSubmittedPromptIntoSnapshot,
   type RuntimeTaskSnapshot,
 } from "../../conversation/runtime/task-runtime.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
@@ -71,36 +66,8 @@ import { useSubmissionStartedAt } from "./use-submission-started-at.js";
 import { createProjectOpenRequest, type ProjectPathOpenInput } from "../project-file-reference.js";
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
 const emptyExpandedFileTreePaths = new Set<string>();
-export function taskLaunchQueryKey(projectId: string, taskId: string) {
-  return ["projects", projectId, "tasks", taskId, "launch"] as const;
-}
-export type TaskLaunchState = Readonly<{
-  checkpoint: EventCheckpoint;
-  input: AgentPromptInput;
-  messageAttachments: readonly AgentMessageAttachment[];
-  settings: AgentTaskSettings;
-  submissionStartedAt?: string;
-  task: AgentTask;
-  turn: AgentTurn;
-}>;
-export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): AgentTaskSnapshot {
-  const snapshot = mergeSubmittedPromptIntoSnapshot(
-    {
-      ...taskLaunchState.task,
-      contextUsage: null,
-      goal: null,
-      plan: null,
-      pendingRequests: [],
-      settings: taskLaunchState.settings,
-      status: "running",
-      turns: [taskLaunchState.turn],
-      turnsNextCursor: null,
-    },
-    taskLaunchState.turn,
-    { ...taskLaunchState.input, messageAttachments: taskLaunchState.messageAttachments },
-  );
-  return { ...snapshot, pendingRequests: [] };
-}
+import { createTaskLaunchSnapshot, taskLaunchQueryKey, type TaskLaunchState } from "./workbench-task-launch.js";
+export { createTaskLaunchSnapshot, taskLaunchQueryKey, type TaskLaunchState } from "./workbench-task-launch.js";
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
   messageAttachments: readonly AgentMessageAttachment[];
@@ -198,8 +165,10 @@ export function useWorkbenchShellRuntime({
   const engines = useSelectedEngines();
   const codexEnabled = engines?.includes("codex") ?? true;
   const engineEnabled = engines === undefined || engines.length > 0;
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled });
-  const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
+  // ACP 使用原始会话配置；能力未确认前不预先启动旧模型和认证查询。
+  const legacyConfiguration = capabilities !== undefined && capabilities.runtime !== "acp";
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled && legacyConfiguration });
+  const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled && legacyConfiguration });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
   );
@@ -245,7 +214,7 @@ export function useWorkbenchShellRuntime({
     ...skillsQueryOptions(projectId, client),
     enabled: codexEnabled && shouldEnableWorkbenchSkills(capabilities?.skills.list === true, temporary),
   });
-  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary));
+  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary && legacyConfiguration));
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
     onSuccess(response) {

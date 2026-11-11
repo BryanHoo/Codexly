@@ -10,7 +10,7 @@ import {
   resolveComposerSubmitAction,
   resolveIdempotencyAttempt,
 } from "../composer-state.js";
-import { HostAttachmentPickerDialog } from "./host-attachment-picker-dialog.js";
+import { ComposerAttachmentPicker } from "./composer-attachment-picker.js";
 import { isPromptSkillContentEmpty } from "./prompt-skill-editor.js";
 import { useWorkbenchBranchSwitch } from "../hooks/use-workbench-branch-switch.js";
 import { useComposerQueue } from "../hooks/use-composer-queue.js";
@@ -25,6 +25,7 @@ import { WorkbenchComposerView } from "./workbench-composer-view.js";
 export * from "./workbench-composer-contracts.js";
 export * from "../composer-state.js";
 export function WorkbenchComposerBase({
+  acp,
   engineControls,
   engineCommands,
   composerRef,
@@ -105,7 +106,6 @@ export function WorkbenchComposerBase({
     activeTaskId,
     activeTurnId,
     attachmentCount,
-    attachmentPickerKind,
     attachments,
     attachmentsDisabled,
     baseBranches,
@@ -199,7 +199,7 @@ export function WorkbenchComposerBase({
   });
   const composerQueue = useComposerQueue({
     activeTurnId,
-    client,
+    client: acp?.queueClient ?? client,
     handleAttachmentsChange,
     projectId,
     replacePromptContent: session.replacePromptContent,
@@ -215,6 +215,7 @@ export function WorkbenchComposerBase({
     }
   }, [composerQueue.queueError, setMutationError]);
   const submitPrompt = createComposerSubmission({
+    ...(acp ? {acp} : {}),
     activeUserMessageIds:
       runtime?.store === undefined
         ? []
@@ -334,7 +335,8 @@ export function WorkbenchComposerBase({
       interruptAttempt.current = attempt;
       try {
         // `202` 仅确认请求已接收；后续显式重试继续复用同一幂等键。
-        await interruptPromptTurn(client, projectId, activeTaskId, activeTurnId, attempt.key);
+        if (acp) await acp.interrupt(activeTaskId, activeTurnId);
+        else await interruptPromptTurn(client, projectId, activeTaskId, activeTurnId, attempt.key);
       } catch (error) {
         if (isCurrentScope(requestScope)) {
           setMutationError(error instanceof Error ? error : new Error("Turn interruption failed"));
@@ -350,6 +352,7 @@ export function WorkbenchComposerBase({
   const nativeDrop = useMemo(() => createNativeAttachmentDrop(client, projectId), [client, projectId]);
   const composerView = (
     <WorkbenchComposerView
+      {...(acp ? {acp} : {})}
       nativeDrop={nativeDrop}
       promptOptimization={createComposerOptimizationButton(session, client, projectId, skills, i18n.language)}
       engineControls={engineControls}
@@ -425,6 +428,7 @@ export function WorkbenchComposerBase({
       }}
       onFastModeChange={(enabled) => {
         setFastModeSelection({ enabled, scope: composerScope });
+        if (activeSettings === undefined) return;
         void Promise.resolve(onFastModeChange(enabled, activeSettings)).catch(() => undefined);
       }}
       onInterrupt={() => {
@@ -475,25 +479,5 @@ export function WorkbenchComposerBase({
       turnControlsDisabled={turnControlsDisabled}
     />
   );
-  if (attachmentPickerKind === undefined || draftInputDisabled) {
-    return composerView;
-  }
-  return (
-    <>
-      {composerView}
-      <HostAttachmentPickerDialog
-        client={client}
-        kind={attachmentPickerKind}
-        onAdd={(attachment) => {
-          if (!isCurrentScope(routeScope)) {
-            return;
-          }
-          handleAttachmentsChange([...attachments, attachment]);
-          setAttachmentPickerKind(undefined);
-        }}
-        onClose={() => setAttachmentPickerKind(undefined)}
-        projectId={projectId}
-      />
-    </>
-  );
+  return <ComposerAttachmentPicker client={client} projectId={projectId} session={session}>{composerView}</ComposerAttachmentPicker>;
 }

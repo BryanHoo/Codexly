@@ -35,7 +35,7 @@ type SubmitPrompt = (
 
 type ComposerQueueOptions = Readonly<{
   activeTurnId: string | undefined;
-  client: NativeMutationClient;
+  client: Pick<NativeMutationClient, "listQueuedSubmissions" | "addQueuedSubmission" | "deleteQueuedSubmission" | "moveQueuedSubmission" | "startQueuedSubmission" | "getTaskAttachmentUrl">;
   handleAttachmentsChange: (files: readonly PromptInputAttachment[]) => void;
   projectId: string;
   replacePromptContent: (content: PromptSkillContent, cursorOffset?: number) => void;

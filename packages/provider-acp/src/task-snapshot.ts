@@ -36,6 +36,7 @@ export async function readAcpTaskSnapshot(
       ? [...page.turns.filter((turn) => turn.id !== active.id), active]
       : page.turns;
   const snapshot: AgentProviderTaskSnapshot = {
+    runtime: "acp",
     ...(sessionState ? { acpSession: sessionState } : {}),
     ...localTaskMetadata(task),
     engine: source.engine,

@@ -132,7 +132,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
     });
     host.receive(
       Buffer.from(
-        `${JSON.stringify({ id: 3, method: "turn.start", scope, params: { taskId: task.id, input: { text: "问题", files: [], images: [], skills: [], textAttachments: [] }, options: { model: "a", reasoningEffort: "low", approvalPolicy: "on-request", approvalsReviewer: "user", sandboxMode: "workspace-write" } } })}\n`,
+        `${JSON.stringify({ id: 3, method: "prompt.start", scope, params: { taskId: task.id, input: { text: "问题", files: [], images: [], skills: [], textAttachments: [] } } })}\n`,
       ),
     );
     const pending = await vi.waitFor(() => {

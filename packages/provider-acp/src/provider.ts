@@ -19,7 +19,7 @@ import {
   type ResolvePendingRequestInput,
   type AgentProviderEventSubscriptionOptions,
 } from "@codexly/core";
-import type { AgentEngine, AgentTurnOptions, AgentTurn } from "@codexly/protocol";
+import type { AcpConfigValues, AgentEngine, AgentTurnOptions, AgentTurn } from "@codexly/protocol";
 import type { SessionNotification, SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import type { AcpConnection, AcpClientCallbacks } from "./connection.js";
 import type { AcpHistory } from "./history.js";
@@ -188,13 +188,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     const task = [...this.#sessions].find(([, native]) => native === sessionId)?.[0];
     if (task) this.#emit({ type: "acp.session.updated", taskId: task, payload: { state } });
   }
-  async #load(task: LocalTask): Promise<AcpConnection> {
+  async #load(task: LocalTask, explicitConfig = false): Promise<AcpConnection> {
     const connection = await this.#agent();
     const bound = this.#sessions.get(task.id);
     if (bound) {
       // 创建成功但目录写入失败时，重试先确认同一绑定，禁止重新创建或提交未绑定会话。
       if (task.sessionId !== bound) await this.#patch(task.id, { sessionId: bound });
-      await this.#initialize(task.id, connection, bound);
+      if (!explicitConfig) await this.#initialize(task.id, connection, bound);
       return connection;
     }
     if (this.#sessions.size >= 64) throw new Error("ACP 活跃会话达到容量限制");
@@ -208,7 +208,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       this.#sessions.set(task.id, session.sessionId);
       this.#needsDefaults.add(task.id);
       await this.#patch(task.id, { sessionId: session.sessionId });
-      await this.#initialize(task.id, connection, session.sessionId);
+      if (!explicitConfig) await this.#initialize(task.id, connection, session.sessionId);
       this.#emitSessionState(session.sessionId, connection.readSessionState(session.sessionId));
     } else {
       const replay = new AcpReplay(this.history, task.id);
@@ -277,6 +277,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     input: AgentProviderTurnInput,
     options: Partial<Pick<AgentTurnOptions, "model" | "reasoningEffort">>,
     signal?: AbortSignal,
+    initialConfig?: AcpConfigValues,
   ): Promise<AgentTurn> {
     return submitAcpTurn((submitted) =>
       this.#serial(id, async () => {
@@ -294,9 +295,21 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           ),
         );
         const attachments = await this.attachments.prepare(id, input);
-        await this.#load(task);
+        await this.#load(task, initialConfig !== undefined);
         const sessionId = this.#sessions.get(id);
         if (!sessionId) throw new Error("ACP 会话绑定缺失");
+        if (initialConfig !== undefined) {
+          if (await this.history.hasTurns(id))
+            throw new AgentTurnNotSubmittedError("任务已有历史，请使用现有会话继续聊天");
+          // 配置和 prompt 共用任务串行锁；配置失败仍属于明确未发送，可沿用原提交身份重试。
+          await applyAcpConfig(
+            agent,
+            sessionId,
+            agent.readSessionState(sessionId).configOptions,
+            initialConfig,
+          );
+          this.#needsDefaults.delete(id);
+        }
         const selected = migrateAcpSettings(
           {
             ...(options.model ? { model: options.model } : {}),
@@ -455,9 +468,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     const session = this.#sessions.get(id);
     if (session) await (await this.#agent()).cancel(session);
   }
-  async startConfiguredTurn(id: string, input: AgentProviderTurnInput): Promise<AgentTurn> {
+  async startConfiguredTurn(
+    id: string,
+    input: AgentProviderTurnInput,
+    initialConfig?: AcpConfigValues,
+  ): Promise<AgentTurn> {
     await this.#taskSettlements.get(id);
-    return this.#startTurn(id, input, {});
+    return this.#startTurn(id, input, {}, undefined, initialConfig);
   }
   async readTaskAttachment(id: string, attachmentId: string) {
     await this.#task(id);

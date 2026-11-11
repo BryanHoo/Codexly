@@ -14,7 +14,7 @@ import type {
   ExportDiagnosticsResponse,
   ProjectOpenApp,
 } from "@/protocol/index.js";
-import { Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
@@ -35,6 +35,7 @@ import { SettingsPageFrame } from "./settings-page-frame.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
 
 type GlobalSettingsPageProps = Readonly<{
+  agentRuntime?: "pending" | "legacy" | "acp";
   appInfo?: AppInfoResponse;
   appInfoError?: Error | null;
   apps: readonly ProjectOpenApp[];
@@ -58,12 +59,16 @@ type GlobalSettingsPageProps = Readonly<{
 
 
 
+const AcpAuthSettings = lazy(() =>
+  import("@codexly/ui/core/acp-auth-settings").then((module) => ({ default: module.AcpAuthSettings })),
+);
+
 export function GlobalSettingsPage({
+  agentRuntime = "legacy",
   appInfo,
   appInfoError = null,
   apps,
   error,
-  fastModeAvailable = false,
   initialSection = "appearance",
   isAppInfoPending = false,
   isPending,
@@ -158,6 +163,7 @@ export function GlobalSettingsPage({
 
   return (
     <SettingsPageFrame
+      agentRuntime={agentRuntime}
       activeSection={activeSection}
       onBack={close}
       onSectionChange={setActiveSection}
@@ -175,7 +181,14 @@ export function GlobalSettingsPage({
         onUpdate={onUpdate}
       /> : null}
 
-      {activeSection === "network" ? <NetworkProxySettingsField /> : activeSection === "prompts" ? <SavedPromptsSettings language={language} projects={projectData?.projects} projectsUnavailable={!projectData || projectData.isPending || !!projectData.error} /> : isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
+      {activeSection === "network" ? <NetworkProxySettingsField /> : activeSection === "prompts" ? <SavedPromptsSettings language={language} projects={projectData?.projects} projectsUnavailable={!projectData || projectData.isPending || !!projectData.error} /> : (activeSection === "provider" || activeSection === "claude-provider") && agentRuntime !== "legacy" ? (
+          <section>
+            <h1 className="mb-6 text-xl font-semibold">{t(`sections.${activeSection}`)}</h1>
+            {agentRuntime === "pending" ? <LoadingSkeleton variant="settings" label={t("loading")} className="p-0" /> : (
+              <AcpAuthSettings client={nativeClient} engine={activeSection === "provider" ? "codex" : "claude"} language={language === "zh-CN" ? "zh-CN" : "en"} />
+            )}
+          </section>
+        ) : isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
         <section id="settings-panel-provider">
           <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
           <ProviderConnectionPanel autoSave />
@@ -196,7 +209,7 @@ export function GlobalSettingsPage({
 </>
           )}
         </section>
-      ) : activeSection === "about" ? null : error !== null ? (
+      ) : activeSection === "agent" ? <AgentSettingsPanel /> : activeSection === "about" ? null : error !== null ? (
         <div
           className="flex min-h-40 flex-col items-center justify-center gap-3"
           role="alert"
@@ -241,9 +254,6 @@ export function GlobalSettingsPage({
             />
           ) : null}
 
-          {activeSection === "agent" ? (
-            <AgentSettingsPanel settings={draft} models={models} fastModeAvailable={fastModeAvailable} onChange={(next) => updateDraft(() => next)} />
-          ) : null}
 
 
         </>

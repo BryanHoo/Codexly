@@ -25,7 +25,7 @@ export function WorkbenchComposerFooter({ props, rootControls, controls, collaps
       {rootControls}
       <TerminalStatusTrigger />
     </> : null}
-    {collapsed ? <ComposerModelStatus
+    {collapsed && props.activeSettings ? <ComposerModelStatus
       modelLabel={props.selectedModel?.displayName ?? props.activeSettings.model}
       effortLabel={t(`settings:effort.${props.selectedReasoningEffort ?? props.activeSettings.reasoningEffort}`, {
         defaultValue: props.selectedReasoningEffort ?? props.activeSettings.reasoningEffort,

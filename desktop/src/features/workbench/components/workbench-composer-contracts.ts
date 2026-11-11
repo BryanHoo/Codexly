@@ -1,3 +1,4 @@
+import type { AcpComposerClient, AcpComposerQueueClient } from "../../../platform/tauri/acp-composer-client.js";
 import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
@@ -10,6 +11,7 @@ import type {
   AgentSkill,
   AgentTask,
   AgentTaskSettings,
+  AgentTaskSnapshotResponse,
   AgentTurn,
   AgentTurnOptions,
   EventCheckpoint,
@@ -63,11 +65,18 @@ export type WorkbenchComposerHandle = Readonly<{
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
+  acp?: Readonly<{
+    controls: ReactNode;
+    isBusy: boolean;
+    queueClient: AcpComposerQueueClient;
+    submit: (input: AgentPromptInput, key: string) => Promise<{turn: AgentTurn; createdTask?: AgentTask; checkpoint?: EventCheckpoint; acpSnapshot?: AgentTaskSnapshotResponse}>;
+    interrupt: (taskId: string, turnId: string) => Promise<unknown>;
+  }>;
   engineControls?: ReactNode;
   engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
-  client: { optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }> } & NativeMutationClient &
+  client: { optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }> } & Partial<AcpComposerClient> & NativeMutationClient &
     Pick<
       NativeGitMutationClient,
       | "createProjectBranch"
@@ -119,6 +128,7 @@ export type WorkbenchComposerProps = Readonly<{
     settings?: AgentTaskSettings,
     messageAttachments?: readonly AgentMessageAttachment[],
     checkpoint?: EventCheckpoint,
+    acpSnapshot?: AgentTaskSnapshotResponse,
   ) => void;
   projectId: string;
   projectName: string;
@@ -129,7 +139,7 @@ export type WorkbenchComposerProps = Readonly<{
   selectedProjectRootId: string;
   gitStatus?: ProjectGitStatus;
   runtime?: TaskRuntimeView;
-  settings: AgentTaskSettings;
+  settings: AgentTaskSettings | undefined;
   skills: readonly AgentSkill[];
   taskId?: string;
 }>;

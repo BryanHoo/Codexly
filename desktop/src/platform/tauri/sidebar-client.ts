@@ -56,7 +56,6 @@ import type {
   UpdateAgentGoalResponse,
 } from "@/protocol/index.js";
 
-import type { TauriClientOptions } from "./native-client.js";
 import type { PendingResolutionReference } from "@/protocol/pending-request.js";
 import { subscribeProjectEvents } from "./project-event-subscription.js";
 import { TauriRuntimeClient } from "./runtime-client.js";
@@ -73,10 +72,6 @@ export class TauriSidebarClient extends TauriRuntimeClient {
       this.taskProjects.set(task.id, options.projectId);
       options.onTaskCreated?.(task);
     } });
-  }
-
-  public constructor(options: TauriClientOptions = {}) {
-    super(options);
   }
 
   public async searchTasks(input: TaskSearchInput, options: ReadOptions = {}) {
@@ -388,6 +383,8 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     options: Readonly<{ idempotencyKey: string }>,
   ): Promise<ResolvePendingRequestResponse> {
     return this.call("resolve_pending_request", {
+      // 迁移期间按请求自身的 ACP 标记分流，不能根据当前选中的全局引擎猜测。
+      ...(request.type === "tool_approval" && request.acpOptions !== undefined ? { acp: true } : {}),
       request: {
         projectId: request.projectId, taskId: request.taskId, turnId: request.turnId,
         itemId: request.itemId, requestId: request.requestId, createdAt: request.createdAt,

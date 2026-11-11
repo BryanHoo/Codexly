@@ -1,4 +1,9 @@
-import type { SavedPromptsRequest, SharedSavedPrompt } from "@codexly/protocol";
+import type {
+  AcpConfigValues,
+  AgentEngine,
+  SavedPromptsRequest,
+  SharedSavedPrompt,
+} from "@codexly/protocol";
 /** 应用目录与任务独立于执行引擎；sessionId 仅用于适配器恢复会话。 */
 export interface LocalProject {
   id: string;
@@ -33,7 +38,27 @@ export interface LocalTaskQuery {
   limit?: number;
 }
 
+/** 与旧计划分离的 ACP 配置；来源区分 Web / 桌面各自的旧计划身份。 */
+export interface AcpScheduledConfigKey {
+  source: "web" | "desktop";
+  scheduleId: string;
+}
+export interface AcpScheduledConfig extends AcpScheduledConfigKey {
+  engine: AgentEngine;
+  values: AcpConfigValues;
+  revision: number;
+}
 export interface CatalogOperations {
+  "acp.schedule.read": [AcpScheduledConfigKey, AcpScheduledConfig | null];
+  "acp.schedule.set": [
+    AcpScheduledConfigKey & {
+      engine: AgentEngine;
+      values: AcpConfigValues;
+      expectedRevision: number;
+    },
+    AcpScheduledConfig | null,
+  ];
+  "acp.schedule.delete": [AcpScheduledConfigKey & { expectedRevision: number }, boolean];
   "prompts.sync": [SavedPromptsRequest, SharedSavedPrompt[]];
   "project.list": [undefined, LocalProject[]];
   "project.put": [LocalProject, LocalProject];

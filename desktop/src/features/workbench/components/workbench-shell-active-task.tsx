@@ -287,7 +287,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         selectedProjectRootId={selectedProjectRootId}
         {...(gitStatus === undefined ? {} : { gitStatus })}
         runtime={runtime}
-        settings={runtime.metadata?.settings ?? startingSnapshot?.settings ?? fallbackSettings}
+        settings={capabilities?.runtime === "acp" || runtime.metadata?.runtime === "acp" || startingSnapshot?.runtime === "acp" ? undefined : runtime.metadata?.settings ?? startingSnapshot?.settings ?? fallbackSettings}
         skills={skills}
         taskId={taskId}
       />

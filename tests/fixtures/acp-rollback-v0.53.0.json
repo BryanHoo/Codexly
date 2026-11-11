@@ -1,0 +1,411 @@
+{
+  "source": {
+    "tag": "v0.53.0",
+    "commit": "4f6596e2691c30ffedde8c7a913ad073c23b259b"
+  },
+  "globalSettings": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "approvalPolicy",
+      "approvalsReviewer",
+      "modelContextWindow",
+      "defaultModel",
+      "commitMessagePrompt",
+      "defaultOpenAppId",
+      "fastMode",
+      "followUpBehavior",
+      "pet",
+      "model",
+      "reasoningEffort",
+      "sandboxMode"
+    ],
+    "properties": {
+      "approvalPolicy": {
+        "anyOf": [
+          {
+            "const": "on-request",
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["granular"],
+            "properties": {
+              "granular": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "mcp_elicitations",
+                  "request_permissions",
+                  "rules",
+                  "sandbox_approval",
+                  "skill_approval"
+                ],
+                "properties": {
+                  "mcp_elicitations": {
+                    "type": "boolean"
+                  },
+                  "request_permissions": {
+                    "type": "boolean"
+                  },
+                  "rules": {
+                    "type": "boolean"
+                  },
+                  "sandbox_approval": {
+                    "type": "boolean"
+                  },
+                  "skill_approval": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "const": "never",
+            "type": "string"
+          }
+        ]
+      },
+      "approvalsReviewer": {
+        "anyOf": [
+          {
+            "const": "user",
+            "type": "string"
+          },
+          {
+            "const": "auto_review",
+            "type": "string"
+          }
+        ]
+      },
+      "defaultAgent": {
+        "anyOf": [
+          {
+            "const": "codex",
+            "type": "string"
+          },
+          {
+            "const": "claude",
+            "type": "string"
+          }
+        ]
+      },
+      "modelContextWindow": {
+        "anyOf": [
+          {
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "defaultModel": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "commitMessagePrompt": {
+        "maxLength": 4000,
+        "type": "string"
+      },
+      "taskTitlePrompt": {
+        "maxLength": 4000,
+        "type": "string"
+      },
+      "promptOptimizationPrompt": {
+        "maxLength": 4000,
+        "type": "string"
+      },
+      "defaultOpenAppId": {
+        "anyOf": [
+          {
+            "anyOf": [
+              {
+                "const": "visual-studio-code",
+                "type": "string"
+              },
+              {
+                "const": "zed",
+                "type": "string"
+              },
+              {
+                "const": "windsurf",
+                "type": "string"
+              },
+              {
+                "const": "finder",
+                "type": "string"
+              },
+              {
+                "const": "terminal",
+                "type": "string"
+              },
+              {
+                "const": "ghostty",
+                "type": "string"
+              },
+              {
+                "const": "xcode",
+                "type": "string"
+              },
+              {
+                "const": "android-studio",
+                "type": "string"
+              },
+              {
+                "const": "file-manager",
+                "type": "string"
+              },
+              {
+                "const": "gnome-terminal",
+                "type": "string"
+              },
+              {
+                "const": "konsole",
+                "type": "string"
+              },
+              {
+                "const": "xfce-terminal",
+                "type": "string"
+              },
+              {
+                "const": "explorer",
+                "type": "string"
+              },
+              {
+                "const": "windows-terminal",
+                "type": "string"
+              },
+              {
+                "const": "command-prompt",
+                "type": "string"
+              }
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "fastMode": {
+        "type": "boolean"
+      },
+      "followUpBehavior": {
+        "anyOf": [
+          {
+            "const": "queue",
+            "type": "string"
+          },
+          {
+            "const": "steer",
+            "type": "string"
+          }
+        ]
+      },
+      "pet": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["enabled", "selectedPetId"],
+            "properties": {
+              "enabled": {
+                "const": false,
+                "type": "boolean"
+              },
+              "selectedPetId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["enabled", "selectedPetId"],
+            "properties": {
+              "enabled": {
+                "const": true,
+                "type": "boolean"
+              },
+              "selectedPetId": {
+                "minLength": 1,
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "model": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "reasoningEffort": {
+        "type": "string"
+      },
+      "sandboxMode": {
+        "anyOf": [
+          {
+            "const": "read-only",
+            "type": "string"
+          },
+          {
+            "const": "workspace-write",
+            "type": "string"
+          },
+          {
+            "const": "danger-full-access",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  },
+  "taskSettings": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": ["approvalPolicy", "approvalsReviewer", "model", "reasoningEffort", "sandboxMode"],
+    "properties": {
+      "engineOptions": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["engine", "permissionMode"],
+        "properties": {
+          "engine": {
+            "const": "claude",
+            "type": "string"
+          },
+          "permissionMode": {
+            "anyOf": [
+              {
+                "const": "default",
+                "type": "string"
+              },
+              {
+                "const": "auto",
+                "type": "string"
+              },
+              {
+                "const": "acceptEdits",
+                "type": "string"
+              },
+              {
+                "const": "plan",
+                "type": "string"
+              },
+              {
+                "const": "dontAsk",
+                "type": "string"
+              },
+              {
+                "const": "bypassPermissions",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "approvalPolicy": {
+        "anyOf": [
+          {
+            "const": "untrusted",
+            "type": "string"
+          },
+          {
+            "const": "on-request",
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["granular"],
+            "properties": {
+              "granular": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "mcp_elicitations",
+                  "request_permissions",
+                  "rules",
+                  "sandbox_approval",
+                  "skill_approval"
+                ],
+                "properties": {
+                  "mcp_elicitations": {
+                    "type": "boolean"
+                  },
+                  "request_permissions": {
+                    "type": "boolean"
+                  },
+                  "rules": {
+                    "type": "boolean"
+                  },
+                  "sandbox_approval": {
+                    "type": "boolean"
+                  },
+                  "skill_approval": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "const": "never",
+            "type": "string"
+          }
+        ]
+      },
+      "approvalsReviewer": {
+        "anyOf": [
+          {
+            "const": "user",
+            "type": "string"
+          },
+          {
+            "const": "auto_review",
+            "type": "string"
+          }
+        ]
+      },
+      "model": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "reasoningEffort": {
+        "type": "string"
+      },
+      "sandboxMode": {
+        "anyOf": [
+          {
+            "const": "read-only",
+            "type": "string"
+          },
+          {
+            "const": "workspace-write",
+            "type": "string"
+          },
+          {
+            "const": "danger-full-access",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  },
+  "catalog": {
+    "version": 1,
+    "sql": "\nCREATE TABLE IF NOT EXISTS managed_projects (\n  id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL UNIQUE,\n  created_at TEXT NOT NULL, position INTEGER NOT NULL\n) STRICT;\nCREATE TABLE IF NOT EXISTS managed_tasks (\n  id TEXT PRIMARY KEY,\n  project_id TEXT REFERENCES managed_projects(id) ON DELETE CASCADE,\n  title TEXT NOT NULL, cwd TEXT NOT NULL,\n  provider TEXT NOT NULL, session_id TEXT,\n  updated_at REAL NOT NULL, pinned INTEGER NOT NULL CHECK(pinned IN (0,1)),\n  archived INTEGER NOT NULL CHECK(archived IN (0,1)), status TEXT NOT NULL,\n  UNIQUE(provider, session_id)\n) STRICT;\nCREATE INDEX IF NOT EXISTS managed_tasks_page ON managed_tasks(project_id, archived, updated_at DESC, id DESC);\nCREATE INDEX IF NOT EXISTS managed_tasks_pinned ON managed_tasks(project_id, archived, pinned, updated_at DESC, id DESC);\nCREATE TABLE IF NOT EXISTS managed_catalog_migration (id INTEGER PRIMARY KEY CHECK(id = 1)) STRICT;\n",
+    "previewSql": "CREATE TABLE IF NOT EXISTS managed_task_previews (task_id TEXT PRIMARY KEY REFERENCES managed_tasks(id) ON DELETE CASCADE, preview TEXT NOT NULL) STRICT;"
+  }
+}

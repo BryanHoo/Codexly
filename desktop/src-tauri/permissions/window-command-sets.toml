@@ -5,6 +5,8 @@ identifier = "main-window-commands"
 description = "Allows the main window to call the application commands used by the workbench."
 permissions = [
   "allow-read-acp-agent",
+  "allow-read-acp-scheduled-config",
+  "allow-set-acp-scheduled-config",
   "allow-acp-agent-request",
   "allow-acp-task-request",
   "allow-create-acp-task",

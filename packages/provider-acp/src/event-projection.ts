@@ -101,13 +101,14 @@ export class AcpEventProjection {
     const delta = contentText(update.content);
     if (!delta) return;
     if (item.type === "reasoning") {
-      this.#items.set(id, { ...item, content: item.content + delta });
+      // ACP 主动公开的 thought 属于可展示摘要；旧 content 字段不参与两端展示。
+      this.#items.set(id, { ...item, summary: item.summary + delta });
       this.emit({
         type: "reasoning.delta",
         taskId: this.taskId,
         turnId: this.turnId,
         itemId: id,
-        payload: { delta, field: "content" },
+        payload: { delta, field: "summary" },
       });
     } else if (item.type === "message") {
       this.#items.set(id, { ...item, text: item.text + delta });

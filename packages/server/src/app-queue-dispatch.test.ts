@@ -1,6 +1,14 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { AgentTurnNotSubmittedError } from "@codexly/core";
-import { createHarness, snapshot } from "./app-all.test-support.js";
+import {
+  createHarness,
+  snapshot,
+  createProvider,
+  createServerOptions,
+  createSettingsRepository,
+  closeCallbacks,
+} from "./app-all.test-support.js";
+import { createCodexlyServer } from "./app.js";
 
 const base = "/v1/projects/codexly/tasks/task-1/queue";
 const input = { attachments: [], skills: [], text: "队列正文", type: "prompt" };
@@ -12,6 +20,55 @@ const running = {
   startedAt: null,
   completedAt: null,
 };
+
+test("Web ACP 入队与立即发送都沿用当前会话配置，活动回合期间返回 409", async () => {
+  const h = createProvider(),
+    settings = createSettingsRepository();
+  const configured = vi.fn(() => Promise.resolve({ ...running, id: "acp-turn" }));
+  h.readTask.mockResolvedValue({ ...snapshot, turns: [running] });
+  const app = await createCodexlyServer(
+    createServerOptions(
+      { ...h.provider, startConfiguredTurn: configured },
+      { settingsRepository: settings.repository },
+    ),
+  );
+  closeCallbacks.push(() => app.close());
+  const added = await app.inject({
+    method: "POST",
+    url: base,
+    headers: { "idempotency-key": "acp-add" },
+    payload: { input, clientUserMessageId: "acp-message" },
+  });
+  expect(added.statusCode, added.body).toBe(201);
+  const id = added.json<{ queuedSubmission: { id: string } }>().queuedSubmission.id;
+  const blocked = await app.inject({
+    method: "POST",
+    url: `${base}/start`,
+    headers: { "idempotency-key": "acp-blocked" },
+    payload: { queuedSubmissionId: id },
+  });
+  expect(blocked.statusCode, blocked.body).toBe(409);
+  expect(configured).not.toHaveBeenCalled();
+  expect(h.steerTurn).not.toHaveBeenCalled();
+  h.readTask.mockResolvedValue({ ...snapshot, turns: [] });
+  const send = {
+    method: "POST" as const,
+    url: `${base}/start`,
+    headers: { "idempotency-key": "acp-start" },
+    payload: { queuedSubmissionId: id },
+  };
+  const first = await app.inject(send),
+    repeated = await app.inject(send);
+  expect(first.statusCode, first.body).toBe(201);
+  expect(repeated.json()).toEqual(first.json());
+  expect(configured).toHaveBeenCalledExactlyOnceWith(
+    "task-1",
+    expect.objectContaining({ text: "队列正文" }),
+  );
+  expect(settings.readTaskSettings).not.toHaveBeenCalled();
+  expect(settings.writeTaskSettings).not.toHaveBeenCalled();
+  expect(h.startTurn).not.toHaveBeenCalled();
+});
 
 test("dispatches an enqueue that arrives after the previous turn completed", async () => {
   const { app, startTurn, readTask } = await createHarness();

@@ -27,12 +27,13 @@ import type { ProjectTodoRecord } from "../project-todo-store.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
+  acp?: Readonly<{ controls: ReactNode; isBusy: boolean }>;
   engineControls?: ReactNode;
   promptOptimization?: ReactNode;
   asyncQuestions?: ReactNode;
   activeCommandIndex: number;
   activeCommandItemId: string | undefined;
-  activeSettings: AgentTaskSettings;
+  activeSettings: AgentTaskSettings | undefined;
   activeTurnId: string | undefined;
   attachments: readonly PromptInputAttachment[];
   attachmentsDisabled: boolean;

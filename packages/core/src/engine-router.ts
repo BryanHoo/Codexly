@@ -1,3 +1,4 @@
+import type { AcpConfigValues } from "@codexly/protocol";
 import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AgentEngine, AgentTask, ClaudePermissionMode } from "@codexly/protocol";
 import type {
@@ -8,6 +9,7 @@ import type {
   StartAgentTaskOptions,
 } from "./agent-provider.js";
 import type { LocalCatalogStore, LocalTask } from "./local-catalog.js";
+import { AgentTurnNotSubmittedError } from "./agent-provider.js";
 
 export type AgentExecutionAdapter = Partial<AgentProvider> &
   Pick<AgentProvider, "startTask" | "readTask" | "startTurn" | "subscribeEvents">;
@@ -203,6 +205,19 @@ export class EngineProjectRouter implements AgentProvider {
         await this.store.catalog("task.preview", { id: task.id, preview: preview.slice(0, 2048) });
     }
     return this.#engineMethod(task.provider, "startTurn")(...args);
+  }
+  async startConfiguredTurn(
+    taskId: string,
+    input: Parameters<AgentProvider["startTurn"]>[1],
+    initialConfig?: AcpConfigValues,
+  ) {
+    const execute = await this.#method(taskId, "startConfiguredTurn").catch((cause: unknown) => {
+      // 路由和端口解析失败发生在 prompt 前；进入执行端后的错误不能在这里重分类。
+      throw new AgentTurnNotSubmittedError("ACP 任务执行端口不可用", { cause });
+    });
+    return initialConfig === undefined
+      ? execute(taskId, input)
+      : execute(taskId, input, initialConfig);
   }
   async stopSession(taskId: string, backgroundTaskId?: string) {
     return (await this.#method(taskId, "stopSession"))(taskId, backgroundTaskId);

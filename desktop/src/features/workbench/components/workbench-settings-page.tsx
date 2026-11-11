@@ -29,11 +29,13 @@ export function WorkbenchSettingsPage({
     projectOpenCapabilitiesQuery,
     setGlobalSettingsSection,
   } = context;
+  const agentRuntime = context.capabilities === undefined ? "pending" : context.capabilities.runtime ?? "legacy";
   if (globalSettingsSection === null) return null;
 
   return (
     <Suspense fallback={<main className="grid h-full place-items-center text-body-small text-muted-foreground" role="status">{t("loading")}</main>}>
       <LazyGlobalSettingsPage
+        agentRuntime={agentRuntime}
         {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
         appInfoError={appInfoQuery.error}
         apps={projectToolsEnabled ? (projectOpenCapabilitiesQuery.data?.apps ?? []) : []}

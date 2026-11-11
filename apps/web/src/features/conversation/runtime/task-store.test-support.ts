@@ -15,8 +15,10 @@ export function readTurnItemIds(
 }
 
 export function createResponse(
-  overrides: Partial<AgentTaskSnapshotResponse["snapshot"]> = {},
-): AgentTaskSnapshotResponse {
+  overrides: Partial<Extract<AgentTaskSnapshotResponse["snapshot"], { runtime?: never }>> = {},
+): Omit<AgentTaskSnapshotResponse, "snapshot"> & {
+  snapshot: Extract<AgentTaskSnapshotResponse["snapshot"], { runtime?: never }>;
+} {
   return {
     checkpoint: { sequence: 10, sessionId: "session-1" },
     snapshot: {

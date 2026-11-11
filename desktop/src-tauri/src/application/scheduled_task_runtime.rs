@@ -24,10 +24,19 @@ use crate::{
 
 use super::{error::AppError, scheduled_task_runner::start_scheduled_task_turn};
 
+#[path = "scheduled_acp_config.rs"]
+mod acp_config;
+#[cfg(test)]
+#[path = "scheduled_acp_config_tests.rs"]
+mod acp_config_tests;
 #[path = "scheduled_task_dispatch.rs"]
 mod dispatch;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+
+#[cfg(test)]
+#[path = "scheduled_acp_tests.rs"]
+mod acp_tests;
 
 #[derive(Clone)]
 pub(super) struct ScheduledTaskClaim {
@@ -77,7 +86,9 @@ impl ScheduledTaskRuntime {
         state.tasks = read_scheduled_tasks(app_data)
             .await
             .map_err(map_store_error)?;
-        if repair_interrupted_runs(&mut state.tasks, now_unix_ms()) {
+        let acp_repaired =
+            super::scheduled_acp::recover(app_data, &mut state.tasks, now_unix_ms()).await?;
+        if repair_interrupted_runs(&mut state.tasks, now_unix_ms()) || acp_repaired {
             write_scheduled_tasks(app_data, &state.tasks)
                 .await
                 .map_err(map_store_error)?;
@@ -131,6 +142,7 @@ impl ScheduledTaskRuntime {
             .iter_mut()
             .find(|task| task.id == id)
             .ok_or(AppError::ScheduledTaskNotFound)?;
+        super::scheduled_acp::assert_resolved(app_data, existing).await?;
         updated.created_at_unix_ms = existing.created_at_unix_ms;
         updated.last_run_at_unix_ms = existing.last_run_at_unix_ms;
         updated.last_run_status = existing.last_run_status.clone();
@@ -175,6 +187,9 @@ impl ScheduledTaskRuntime {
             .iter_mut()
             .find(|task| task.id == id)
             .ok_or(AppError::ScheduledTaskNotFound)?;
+        if enabled {
+            super::scheduled_acp::assert_resolved(app_data, task).await?;
+        }
         task.enabled = enabled;
         task.updated_at_unix_ms = now;
         if enabled {

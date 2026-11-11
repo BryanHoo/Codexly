@@ -5,6 +5,12 @@ use crate::infrastructure::{codex::ConnectionError, workspace::WorkspaceError};
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("ACP submission outcome is unknown; inspect the task before sending again")]
+    AcpSubmissionUnknown,
+    #[error("ACP submission key belongs to a different request")]
+    AcpSubmissionConflict,
+    #[error("Scheduled task configuration changed; reload before saving")]
+    ScheduledTaskConfigConflict,
     #[error("{0}")]
     Claude(String),
     #[error("{0}")]
@@ -98,6 +104,9 @@ impl Serialize for AppError {
             return payload.end();
         }
         let structured_error = match self {
+            Self::AcpSubmissionUnknown => Some(("SUBMISSION_OUTCOME_UNKNOWN", self.to_string())),
+            Self::AcpSubmissionConflict => Some(("IDEMPOTENCY_CONFLICT", self.to_string())),
+            Self::ScheduledTaskConfigConflict => Some(("IDEMPOTENCY_CONFLICT", self.to_string())),
             Self::Acp(message) => Some(("ACP_REQUEST_FAILED", message.clone())),
             Self::Claude(message) => Some(("CLAUDE_ERROR", message.clone())),
             Self::ModelCatalogUnavailable => Some(("MODEL_CATALOG_UNAVAILABLE", self.to_string())),

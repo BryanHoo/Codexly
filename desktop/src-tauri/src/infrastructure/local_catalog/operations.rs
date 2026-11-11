@@ -76,6 +76,16 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "acp.schedule.read" | "acp.schedule.set" | "acp.schedule.delete" => {
+            super::acp_scheduled_configs::execute(db, op, p)
+        }
+        "acp.submission.inspect"
+        | "acp.submission.prepare"
+        | "acp.submission.read"
+        | "acp.submission.begin"
+        | "acp.submission.complete"
+        | "acp.submission.recover"
+        | "acp.submission.retry" => super::acp_submissions::execute(db, op, p),
         "prompts.sync" => super::saved_prompts::execute(db, p),
         "project.list" => projects(db),
         "project.read" => read(db, "managed_projects", string(p, "id")?),

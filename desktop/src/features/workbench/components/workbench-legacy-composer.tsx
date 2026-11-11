@@ -1,0 +1,81 @@
+import { engineProfileQuery } from "@codexly/frontend-core/engine-settings-query";
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { NativeClient } from "@/platform/native-client-contract.js";
+import type { AgentEngine, AgentTaskSettings } from "@codexly/protocol";
+import { resolveClaudeComposerSettings, resolveCodexComposerSettings } from "@codexly/frontend-core/engine-composer";
+import { AgentEngineSelector } from "@codexly/ui/core/agent-engine-controls";
+import { useEngineComposerState } from "@codexly/ui/core/engine-composer-state";
+import { useTranslation } from "../../../i18n/i18n.js";
+import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
+import { WorkbenchComposerBase } from "./workbench-composer-base.js";
+import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
+export * from "./workbench-composer-contracts.js";
+export * from "../composer-state.js";
+
+type EngineClient = Pick<NativeClient, "getEngineProfile" | "configureEngine" | "updateTaskSettings">;
+const emptyModels = [] as const;
+
+// 仅旧路径需要完整设置；等待快照期间不启动旧引擎查询。
+export function LegacyWorkbenchComposer(props: WorkbenchComposerProps) {
+  return props.settings ? <LegacyComposerWithSettings {...props} settings={props.settings} /> : null;
+}
+function LegacyComposerWithSettings(props: WorkbenchComposerProps & { settings: AgentTaskSettings }) {
+  const { t } = useTranslation("workbench");
+  const queryClient = useQueryClient();
+  const selectedEngines = useSelectedEngines();
+  const codexEnabled = selectedEngines?.includes("codex") ?? true;
+  const connection = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
+  const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
+  const scope = JSON.stringify([props.projectId, props.composerDraftId ?? props.taskId ?? (props.onCaptureSubmission ? "capture" : "draft")]);
+  const profileQueryKey = ["engine-profile", "claude", props.projectId] as const;
+  const readProfile = useCallback(
+    (engine: AgentEngine) => {
+      if (import.meta.env.VITE_MACOS_LEGACY === "true") return Promise.reject(new Error(t("engine.unsupportedLegacy")));
+      const getProfile = client.getEngineProfile?.bind(client);
+      if (!getProfile) return Promise.reject(new Error("Engine service unavailable"));
+      return getProfile(engine, props.projectId);
+    },
+    [client, props.projectId, t],
+  );
+  const load = useCallback(
+    (engine: AgentEngine) => queryClient.fetchQuery(engineProfileQuery(readProfile, engine, props.projectId)),
+    [props.projectId, queryClient, readProfile],
+  );
+  // 只订阅缓存，发现请求仍由共享状态触发；会话正在使用的配置不能被空闲 GC 回收。
+  useQuery({ ...engineProfileQuery(readProfile, "claude", props.projectId), enabled: false });
+  const invalidateProfile = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["engine-profile"], refetchType: "none" });
+  }, [queryClient]);
+  const state = useEngineComposerState({ scope, profileScope: props.projectId,
+    cachedProfile: queryClient.getQueryData(profileQueryKey), invalidateProfile, taskId: props.taskId, taskEngine: props.runtime?.metadata?.engine,
+    ...(props.initialEngine === undefined ? {} : { initialEngine: props.initialEngine }), codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected", claudeSupported: import.meta.env.VITE_MACOS_LEGACY !== "true", load });
+  const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings } | undefined>(() =>
+    props.onCaptureSubmission && props.settings.engineOptions?.engine === "claude"
+      ? { scope, settings: props.settings }
+      : undefined,
+  );
+  const claude = state.engine === "claude";
+  const models = state.pending ? emptyModels : claude ? state.profile?.models.data ?? emptyModels : props.models;
+  const settings = claude ? resolveClaudeComposerSettings(override?.scope === scope ? override.settings : props.settings, models, state.profile?.settings) : resolveCodexComposerSettings(props.settings, props.models);
+  const controls = <>
+    {/* 单引擎直接跳过选择器组件，避免执行其内部渲染与交互逻辑。 */}
+    {selectedEngines?.length !== 1 && state.codexConfigured && state.claudeConfigured ? <AgentEngineSelector codexAvailable={state.codexConfigured} claudeAvailable={state.claudeConfigured} label={t("engine.select")} value={state.engine} locked={state.locked} disabled={state.submitting} onChange={state.select} /> : null}
+  </>;
+  return <WorkbenchComposerBase {...props}
+    engineControls={controls}
+    {...(claude ? { engineCommands: state.profile?.commands ?? [] } : {})}
+    models={models} modelsPending={state.pending || (!claude && props.modelsPending)} modelsError={claude ? state.error ?? null : props.modelsError}
+    capabilities={claude ? state.profile?.capabilities : props.capabilities}
+    settings={settings} skills={claude ? [] : props.skills}
+    fastModeAvailable={!claude && props.fastModeAvailable}
+    followUpBehavior={props.followUpBehavior}
+    onSubmissionStateChange={(submitting) => { state.setSubmitting(submitting); props.onSubmissionStateChange?.(submitting); }}
+    onSettingsChange={async (next, field, fastMode) => {
+      if (!claude) return props.onSettingsChange(next, field, fastMode);
+      if (props.taskId && client.updateTaskSettings) await client.updateTaskSettings(props.projectId, props.taskId, next);
+      setOverride({ scope, settings: next });
+    }}
+  />;
+}

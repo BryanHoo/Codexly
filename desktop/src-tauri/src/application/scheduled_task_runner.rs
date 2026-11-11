@@ -154,7 +154,7 @@ async fn start_goal_turn(
     }))
 }
 
-pub(crate) async fn start_scheduled_task_turn(
+async fn start_legacy_scheduled_task_turn(
     app: &AppHandle,
     scheduled: &ScheduledTask,
 ) -> Result<String, String> {
@@ -201,6 +201,61 @@ pub(crate) async fn start_scheduled_task_turn(
     }
     result.map_err(|error| error.to_string())?;
     Ok(response.task.id)
+}
+
+pub(crate) async fn start_scheduled_task_turn(
+    app: &AppHandle,
+    scheduled: &ScheduledTask,
+) -> Result<String, super::scheduled_acp::LaunchFailure> {
+    let directory = crate::infrastructure::app_data::directory(app)
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)
+        .map_err(AppError::from)?;
+    let project = scheduled.project_id.clone();
+    let outcome = super::scheduled_acp::try_start(&directory, &catalog, scheduled, |params| {
+        let app = app.clone();
+        async move {
+            super::acp_task_commands::acp_task_request(
+                app,
+                project,
+                "prompt.start".into(),
+                params,
+                None,
+            )
+            .await
+        }
+    })
+    .await;
+    let task_id = match &outcome {
+        Ok(Some(id)) => Some(id.as_str()),
+        Err(failure) => failure.task_id.as_deref(),
+        _ => None,
+    };
+    if let Some(id) = task_id {
+        // 后端启动与失败留下的任务都通知原主窗口；通知失败不能改变已确认的提交结果。
+        let notify = async {
+            let task = catalog.owned_task(&scheduled.project_id, id).await?;
+            let task = crate::infrastructure::local_catalog::sidebar::map_task(&task)?;
+            app.state::<AppState>()
+                .remember_task_metadata(
+                    &scheduled.project_id,
+                    [(task.id.as_str(), task.title.as_str())],
+                )
+                .await;
+            app.emit_to("main", "scheduled-task://started", &task)
+                .map_err(|_| AppError::FilesystemRequestFailed)
+        };
+        if let Err(error) = notify.await {
+            crate::infrastructure::diagnostics::record_error("scheduled_acp_notify_failed", error);
+        }
+    }
+    match outcome {
+        Ok(Some(id)) => Ok(id),
+        Ok(None) => start_legacy_scheduled_task_turn(app, scheduled)
+            .await
+            .map_err(Into::into),
+        Err(error) => Err(error),
+    }
 }
 
 /// 保存与执行共用同一条模型校验路径，避免调度触发后才发现引擎或模型不匹配。

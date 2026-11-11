@@ -2,8 +2,7 @@ import * as draft from "./workbench-composer-followup.js";
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useAccess } from "../../access/access-context.js";
 import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
-import { AsyncQuestionComposer } from "./async-question-composer.js";
-import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handler.js";
+import { createComposerQuestions } from "./composer-async-questions.js";
 import { ProjectTodoComposerGate } from "./project-todo-composer-gate.js";
 import { useComposerSettingsUpdate } from "./workbench-composer-settings.js";
 import { useComposerMenuDismissal } from "./workbench-composer-menus.js";
@@ -26,6 +25,7 @@ import { createComposerSubmission } from "./workbench-composer-submission.js";
 import { WorkbenchComposerAttachmentPicker } from "./workbench-composer-attachment-picker.js";
 import { WorkbenchComposerView } from "./workbench-composer-view.js";
 export function WorkbenchComposerBase({
+  acp,
   engineControls,
   engineCommands,
   composerRef,
@@ -203,6 +203,7 @@ export function WorkbenchComposerBase({
     }
   }, [composerQueue.queueError, setMutationError]);
   const submitPrompt = createComposerSubmission({
+    ...(acp ? { acp } : {}),
     activeUserMessageIds:
       runtime?.store === undefined
         ? []
@@ -334,25 +335,17 @@ export function WorkbenchComposerBase({
       : "queue";
   const composerView = (
     <WorkbenchComposerView
+      {...(acp ? { acp } : {})}
       promptOptimization={draft.optimizeButton(session, client, projectId, skills, i18n.language)}
       engineControls={engineControls}
-      asyncQuestions={
-        <AsyncQuestionComposer
-          key={composerScope}
-          projectId={projectId}
-          taskId={taskId}
-          enabled={!turnControlsDisabled}
-          isTaskRunning={state === "running" || state === "reconnecting"}
-          onAnswered={createAsyncQuestionAnswerHandler({
-            controller: composerController,
-            requestScope: routeScope,
-            store: runtime?.store,
-            onDirectSubmission,
-            onTurnStarted,
-            onSteerAccepted: composerQueue.onSteerAccepted,
-          })}
-        />
-      }
+      asyncQuestions={createComposerQuestions(session, {
+        projectId,
+        taskId,
+        store: runtime?.store,
+        onDirectSubmission,
+        onTurnStarted,
+        onSteerAccepted: composerQueue.onSteerAccepted,
+      })}
       activeCommandIndex={activeCommandIndex}
       activeCommandItemId={activeCommandItemId}
       activeSettings={activeSettings}
@@ -424,6 +417,7 @@ export function WorkbenchComposerBase({
       }}
       onFastModeChange={(enabled) => {
         setFastModeSelection({ enabled, scope: composerScope });
+        if (activeSettings === undefined) return;
         void Promise.resolve(onFastModeChange(enabled, activeSettings)).catch(() => undefined);
       }}
       onInterrupt={() => void interruptTurn()}

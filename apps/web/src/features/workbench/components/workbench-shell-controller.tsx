@@ -248,20 +248,25 @@ export function useWorkbenchShellController(
       settings?: AgentTaskSettings,
       messageAttachments: readonly AgentMessageAttachment[] = [],
       checkpoint?: EventCheckpoint,
+      acpSnapshot?: AgentTaskSnapshotResponse,
     ) => {
       cacheProjectTask(startedTask);
-      if (
-        startedTurn !== undefined &&
-        startedInput !== undefined &&
-        settings !== undefined &&
-        checkpoint !== undefined
-      ) {
+      const launchSource =
+        acpSnapshot?.snapshot.runtime === "acp"
+          ? {
+              runtime: "acp" as const,
+              snapshot: acpSnapshot.snapshot,
+              checkpoint: acpSnapshot.checkpoint,
+            }
+          : settings !== undefined && checkpoint !== undefined
+            ? { settings, checkpoint }
+            : undefined;
+      if (startedTurn !== undefined && startedInput !== undefined && launchSource !== undefined) {
         const confirmedStartedAt = getNewChatSubmissionStartedAt() ?? startedTurn.startedAt;
         const launchState: TaskLaunchState = {
-          checkpoint,
+          ...launchSource,
           input: startedInput,
           messageAttachments,
-          settings,
           ...(confirmedStartedAt === null ? {} : { submissionStartedAt: confirmedStartedAt }),
           task: startedTask,
           turn: startedTurn,
@@ -273,7 +278,7 @@ export function useWorkbenchShellController(
         );
         queryClient.setQueryData<AgentTaskSnapshotResponse>(
           taskSnapshotQueryOptions(startedTask.projectId, startedTask.id, client).queryKey,
-          { checkpoint, snapshot: createTaskLaunchSnapshot(launchState) },
+          { checkpoint: launchState.checkpoint, snapshot: createTaskLaunchSnapshot(launchState) },
         );
       }
       if (startedTurn !== undefined) {

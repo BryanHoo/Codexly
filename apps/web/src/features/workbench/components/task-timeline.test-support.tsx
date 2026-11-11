@@ -24,7 +24,7 @@ export const completedTurn: RuntimeTaskSnapshot["turns"][number] = {
   status: "completed",
 };
 
-export const snapshot: RuntimeTaskSnapshot = {
+export const snapshot = {
   contextUsage: null,
   goal: null,
   plan: null,
@@ -44,7 +44,7 @@ export const snapshot: RuntimeTaskSnapshot = {
   turns: [completedTurn],
   turnsNextCursor: null,
   updatedAt: "2026-07-24T00:01:00.000Z",
-};
+} satisfies RuntimeTaskSnapshot;
 
 export const unpaginatedRuntime = {
   activeTurnId: undefined,

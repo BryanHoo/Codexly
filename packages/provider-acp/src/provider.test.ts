@@ -1,132 +1,12 @@
-import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { afterEach, it, expect, vi } from "vitest";
+import { it, expect, vi } from "vitest";
 import * as acp from "@agentclientprotocol/sdk/unstable";
-import type {
-  LocalTask,
-  LocalCatalogStore,
-  CatalogOperations,
-  AgentProviderEvent,
-} from "@codexly/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import type { AgentTurnOptions } from "@codexly/protocol";
-import { AcpConnection } from "./connection.js";
-import { AcpHistory } from "./history.js";
-import { AcpAgentProvider } from "./provider.js";
-const cleanup: (() => Promise<void>)[] = [];
-afterEach(async () => {
-  for (const close of cleanup.splice(0)) await close();
-});
-async function fixture(
-  engine: "codex" | "claude",
-  handler?: (context: acp.AgentRequestContext<acp.PromptRequest>) => Promise<acp.PromptResponse>,
-  initializeSession?: (
-    connection: AcpConnection,
-    sessionId: string,
-    options: acp.SessionConfigOption[],
-  ) => Promise<acp.SessionConfigOption[]>,
-) {
-  const directory = await mkdtemp(join(tmpdir(), "acp-provider-"));
-  const tasks = new Map<string, LocalTask>();
-  const catalog = vi.fn((op: string, input: LocalTask) => {
-    if (op === "task.read") return tasks.get(input.id) ?? null;
-    if (op === "task.put") {
-      tasks.set(input.id, input);
-      return input;
-    }
-    if (op === "task.patch") {
-      const old = tasks.get(input.id);
-      if (!old) throw new Error("不存在");
-      const next = { ...old, ...input };
-      tasks.set(input.id, next);
-      return next;
-    }
-    throw new Error(op);
-  });
-  const created = vi.fn<
-    (
-      context: acp.AgentRequestContext<acp.NewSessionRequest>,
-    ) => acp.NewSessionResponse | Promise<acp.NewSessionResponse>
-  >(() => ({
-    sessionId: "native",
-    configOptions: [],
-  }));
-  const loaded = vi.fn(
-    async ({ params, client }: acp.AgentRequestContext<acp.LoadSessionRequest>) => {
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: {
-          sessionUpdate: "user_message_chunk",
-          messageId: "old-user",
-          content: { type: "text", text: "旧问题" },
-        },
-      });
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          messageId: "old-reply",
-          content: { type: "text", text: "旧回答" },
-        },
-      });
-      return {};
-    },
-  );
-  const app = acp
-    .agent({ name: "test" })
-    .onRequest(acp.methods.agent.initialize, () => ({
-      protocolVersion: 1,
-      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } },
-    }))
-    .onRequest(acp.methods.agent.session.new, created)
-    .onRequest(acp.methods.agent.session.close, () => ({}))
-    .onRequest(acp.methods.agent.session.load, loaded)
-    .onRequest(acp.methods.agent.session.prompt, async (context) => {
-      if (handler) return handler(context);
-      const { params, client } = context;
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: "ACP 回答" },
-        },
-      });
-      return { stopReason: "end_turn" };
-    });
-  const history = new AcpHistory(directory);
-  const provider = new AcpAgentProvider(
-    engine,
-    { id: "project", kind: "project", rootPath: directory, runtimeWorkspaceRoots: [directory] },
-    {
-      catalog: <K extends keyof CatalogOperations>(
-        operation: K,
-        payload: CatalogOperations[K][0],
-      ) =>
-        Promise.resolve(
-          catalog(operation, payload as unknown as LocalTask) as CatalogOperations[K][1],
-        ),
-    } satisfies LocalCatalogStore,
-    history,
-    async (callbacks) => {
-      const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
-      const b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
-      const agent = app.connect({ readable: a.readable, writable: b.writable });
-      cleanup.push(() => {
-        agent.close();
-        return Promise.resolve();
-      });
-      return AcpConnection.connect({ readable: b.readable, writable: a.writable }, callbacks);
-    },
-    initializeSession,
-  );
-  cleanup.push(async () => {
-    await provider.close();
-    await rm(directory, { recursive: true, force: true });
-  });
-  return { provider, tasks, created, loaded, history, catalog, app };
-}
-const input = { text: "问题", files: [], images: [], skills: [], textAttachments: [] };
+import type { AcpConnection } from "./connection.js";
+import { fixture, input } from "./provider.test-support.js";
 it("完整ACP会话状态包含提前到达的命令，配置变更更新事件和历史快照", async () => {
   const f = await fixture("claude");
   const config: acp.SessionConfigOption[] = [
@@ -175,6 +55,9 @@ it("历史读取结束时同步交付最新快照给 checkpoint 捕获器", asyn
     snapshotRead: { prepare: (_key, read) => read(), capture },
   });
   expect(capture).toHaveBeenCalledExactlyOnceWith(snapshot);
+  expect(snapshot.runtime).toBe("acp");
+  expect(snapshot).not.toHaveProperty("settings");
+  expect(f.created).not.toHaveBeenCalled();
 });
 it("新会话应用默认值失败后重试原绑定，已有历史会话不套用全局默认值", async () => {
   const initialize = vi.fn(
@@ -468,4 +351,34 @@ it("附件随用户消息持久化，原始输入删除后仍可按任务读取"
   expect(Buffer.from(attachment?.content ?? []).toString()).toBe("proof");
   const other = await f.provider.startTask();
   expect(await f.provider.readTaskAttachment(other.id, user.attachments[0].id)).toBeUndefined();
+});
+
+it("首发原始配置先于 prompt 生效，覆盖失效全局默认值且不要求旧模型", async () => {
+  const order: string[] = [];
+  const initialize = vi.fn(() => Promise.reject(new Error("失效全局默认值")));
+  const f = await fixture(
+    "claude",
+    () => {
+      order.push("prompt");
+      return Promise.resolve({ stopReason: "end_turn" });
+    },
+    initialize,
+  );
+  f.created.mockReturnValue({
+    sessionId: "native",
+    configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: true }],
+  });
+  f.app.onRequest(acp.methods.agent.session.setConfigOption, ({ params }) => {
+    order.push("config");
+    expect(params.value).toBe(false);
+    return {
+      configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: false }],
+    };
+  });
+  const task = await f.provider.startTask();
+  await f.provider.startConfiguredTurn(task.id, input, { enabled: false });
+  await vi.waitFor(() => {
+    expect(order).toEqual(["config", "prompt"]);
+  });
+  expect(initialize).not.toHaveBeenCalled();
 });

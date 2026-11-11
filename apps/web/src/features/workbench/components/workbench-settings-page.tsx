@@ -28,11 +28,14 @@ export function WorkbenchSettingsPage({
     queryClient,
     setGlobalSettingsSection,
   } = context;
+  const agentRuntime =
+    context.capabilities === undefined ? "pending" : (context.capabilities.runtime ?? "legacy");
   return (
     <>
       {globalSettingsSection === null ? null : (
         <Suspense fallback={null}>
           <LazyGlobalSettingsPage
+            agentRuntime={agentRuntime}
             client={client}
             {...(access.status === undefined ? {} : { accessMode: access.status.mode })}
             {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
