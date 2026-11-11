@@ -18,6 +18,8 @@ mod acp_plan_resource_tests;
     expect(dead_code, reason = "资源交付尚未装配类型化二进制端口")
 )]
 mod acp_plan_resources;
+#[cfg(test)]
+mod acp_plan_scan_tests;
 mod acp_plan_state;
 #[cfg(test)]
 mod acp_plan_state_tests;

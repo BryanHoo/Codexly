@@ -72,6 +72,10 @@ export interface AcpPlanDueCursor {
   nextRunAt: number;
   scheduleId: string;
 }
+export interface AcpPlanRunReference {
+  scheduleId: string;
+  runId: string;
+}
 export interface AcpPlanMetadata
   extends
     AcpScheduledConfigKey,
@@ -104,6 +108,12 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  "acp.plan.claimRef": [CatalogOperations["acp.plan.claim"][0], AcpPlanRunReference | null];
+  "acp.plan.active": [
+    { source: "web" | "desktop"; after?: string; limit: number },
+    { data: AcpPlanRunReference[]; nextCursor: string | null },
+  ];
+  "acp.plan.nextDue": [{ source: "web" | "desktop"; after: number }, number | null];
   "acp.plan.completion.read": [AcpScheduledConfigKey & { runId: string }, AcpPlanCompletion | null];
   "acp.plan.completion.put": [AcpPlanCompletion, AcpPlanCompletion | null];
   "acp.resource.begin": [

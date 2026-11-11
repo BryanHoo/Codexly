@@ -17,6 +17,8 @@ mod acp_plan_discovery;
 mod acp_plan_executor;
 #[cfg_attr(not(test), expect(dead_code, reason = "计划附件暂存尚待界面装配"))]
 mod acp_plan_resources;
+#[cfg_attr(not(test), expect(dead_code, reason = "新计划调度循环待生产入口装配"))]
+mod acp_plan_scheduler;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;

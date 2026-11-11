@@ -104,7 +104,7 @@ it("规则计算完成后配置已改变，旧发现结果不能领取", async (
   });
   const wrapped: LocalCatalogStore = {
     async catalog(op, input) {
-      if (op === "acp.plan.claim")
+      if (op === "acp.plan.claimRef")
         await store.catalog("acp.plan.set", {
           ...key,
           definition: { ...definition, name: "Changed" },

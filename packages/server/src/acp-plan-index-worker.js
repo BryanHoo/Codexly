@@ -27,8 +27,25 @@ function metadata(row) {
 export function createAcpPlanIndexOperations(db) {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE name='acp_plan_index'").get()) return {};
   const list = db.prepare(sql.list),
-    due = db.prepare(sql.due);
+    due = db.prepare(sql.due),
+    active = db.prepare(sql.active),
+    nextDue = db.prepare(sql.nextDue);
   return {
+    "acp.plan.nextDue": (p) => {
+      if (!["web", "desktop"].includes(p?.source) || !Number.isSafeInteger(p.after))
+        throw new Error("Invalid ACP next due query");
+      return nextDue.get(p.source, p.after)?.next_run_at ?? null;
+    },
+    "acp.plan.active": (p) => {
+      validate(p);
+      const after = p.after === undefined ? "" : p.after;
+      if (typeof after !== "string" || after.length > 256)
+        throw new Error("Invalid ACP active cursor");
+      // 启动恢复只读取运行身份，避免把全部未解决运行的正文传回主线程。
+      const rows = active.all(p.source, after, p.limit + 1);
+      const data = rows.slice(0, p.limit);
+      return { data, nextCursor: rows.length > p.limit ? data.at(-1).scheduleId : null };
+    },
     "acp.plan.list": (p) => {
       validate(p);
       const after = p.after === undefined ? "" : p.after;

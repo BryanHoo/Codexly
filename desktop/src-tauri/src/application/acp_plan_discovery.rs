@@ -46,7 +46,7 @@ async fn claim_one(store: &LocalCatalog, item: &Value, now: i64) -> Result<Value
     })
     .await
     .map_err(|_| AppError::ScheduledTaskInvalid)??;
-    Ok(store.call("acp.plan.claim",json!({"source":"desktop","scheduleId":item["scheduleId"],"expectedRevision":item["revision"],"expectedStateRevision":item["stateRevision"],"now":now,"nextRunAt":next,"runId":uuid::Uuid::new_v4().to_string()})).await?)
+    Ok(store.call("acp.plan.claimRef",json!({"source":"desktop","scheduleId":item["scheduleId"],"expectedRevision":item["revision"],"expectedStateRevision":item["stateRevision"],"now":now,"nextRunAt":next,"runId":uuid::Uuid::new_v4().to_string()})).await?)
 }
 
 #[cfg(test)]

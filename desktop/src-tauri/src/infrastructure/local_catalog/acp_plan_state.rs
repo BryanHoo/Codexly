@@ -92,7 +92,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
                 )
             }
         }
-        "acp.plan.claim" => {
+        "acp.plan.claim" | "acp.plan.claimRef" => {
             let run = text(p, "runId", 256)?;
             let now = integer(p, "now", -9_007_199_254_740_991)?;
             let next = time(p)?;
@@ -118,7 +118,11 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
                 .map_err(db_error)?;
             let result = read(&tx, "readRun", params![source, id, run])?;
             tx.commit().map_err(db_error)?;
-            Ok(result)
+            Ok(if op == "acp.plan.claimRef" {
+                serde_json::json!({"scheduleId":id,"runId":run})
+            } else {
+                result
+            })
         }
         "acp.plan.finish" => {
             let run = text(p, "runId", 256)?;

@@ -68,6 +68,10 @@ export function createAcpPlanStateOperations(db) {
         : read("armUpdate", [revision, next, source, id, stateRevision, revision]);
     },
     "acp.plan.claim": (p) => claim.immediate(p),
+    "acp.plan.claimRef": (p) => {
+      const value = claim.immediate(p);
+      return value ? { scheduleId: p.scheduleId, runId: value.runId } : null;
+    },
     "acp.plan.finish": (p) => {
       const identity = key(p),
         runId = text(p.runId, 256);

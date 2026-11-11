@@ -1,4 +1,4 @@
-import type { AcpPlanDueCursor, AcpPlanRun, LocalCatalogStore } from "@codexly/core";
+import type { AcpPlanDueCursor, AcpPlanRunReference, LocalCatalogStore } from "@codexly/core";
 import { randomUUID } from "node:crypto";
 import { previewScheduledTask } from "./scheduled-task-recurrence.js";
 
@@ -10,7 +10,7 @@ export async function discoverDueAcpPlans(
   after?: AcpPlanDueCursor | null,
 ): Promise<{
   nextCursor: AcpPlanDueCursor | null;
-  claims: AcpPlanRun[];
+  claims: AcpPlanRunReference[];
   errors: { scheduleId: string; message: string }[];
 }> {
   const due = await store.catalog("acp.plan.due", {
@@ -19,7 +19,7 @@ export async function discoverDueAcpPlans(
     limit,
     ...(after ? { after } : {}),
   });
-  const claims: AcpPlanRun[] = [],
+  const claims: AcpPlanRunReference[] = [],
     errors: { scheduleId: string; message: string }[] = [];
   for (const item of due) {
     try {
@@ -27,7 +27,7 @@ export async function discoverDueAcpPlans(
       if (item.schedule.type === "once" && item.schedule.atUnixMs > now)
         throw new Error("ACP plan cursor is before its occurrence");
       const nextRunAt = (await previewScheduledTask(item.schedule, now, 1))[0] ?? null;
-      const claimed = await store.catalog("acp.plan.claim", {
+      const claimed = await store.catalog("acp.plan.claimRef", {
         source: "web",
         scheduleId: item.scheduleId,
         expectedRevision: item.revision,

@@ -74,12 +74,52 @@ fn decode(
 /// 查询只读取小型投影和游标；提示词 / values 留在定义表，不参与列表与到期扫描。
 pub(super) fn execute(db: &Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     let source = string(p, "source")?;
+    if !matches!(source, "web" | "desktop") {
+        return Err(CatalogError::InvalidMessage);
+    }
+    if op == "acp.plan.nextDue" {
+        let after = p["after"]
+            .as_i64()
+            .filter(|n| (-9_007_199_254_740_991..=9_007_199_254_740_991).contains(n))
+            .ok_or(CatalogError::InvalidMessage)?;
+        return Ok(json!(
+            db.prepare_cached(sql("nextDue")?)
+                .map_err(db_error)?
+                .query_row(params![source, after], |r| r.get::<_, i64>(0))
+                .optional()
+                .map_err(db_error)?
+        ));
+    }
     let limit = p["limit"]
         .as_i64()
         .filter(|n| (1..=100).contains(n))
         .ok_or(CatalogError::InvalidMessage)?;
-    if !matches!(source, "web" | "desktop") {
-        return Err(CatalogError::InvalidMessage);
+    if op == "acp.plan.active" {
+        let after = match p.get("after") {
+            None => "",
+            Some(Value::String(s)) if s.encode_utf16().count() <= 256 => s,
+            _ => return Err(CatalogError::InvalidMessage),
+        };
+        // 运行恢复只投影两个身份字段，不读取或复制不可变正文快照。
+        let mut rows = db
+            .prepare_cached(sql("active")?)
+            .map_err(db_error)?
+            .query_map(params![source, after, limit + 1], |r| {
+                Ok(json!({"scheduleId":r.get::<_,String>(0)?,"runId":r.get::<_,String>(1)?}))
+            })
+            .map_err(db_error)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(db_error)?;
+        let more = rows.len() > limit as usize;
+        rows.truncate(limit as usize);
+        let next = if more {
+            rows.last()
+                .map(|r| r["scheduleId"].clone())
+                .unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
+        return Ok(json!({"data":rows,"nextCursor":next}));
     }
     let rows = if op == "acp.plan.list" {
         let after = match p.get("after") {
