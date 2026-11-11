@@ -8,6 +8,13 @@ use std::{
 mod acp_plan_index;
 #[cfg(test)]
 mod acp_plan_index_tests;
+#[cfg(test)]
+mod acp_plan_resource_tests;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "资源交付尚未装配类型化二进制端口")
+)]
+mod acp_plan_resources;
 mod acp_plan_state;
 #[cfg(test)]
 mod acp_plan_state_tests;
@@ -199,6 +206,13 @@ impl LocalCatalog {
             .map_err(|_| CatalogError::StateUnavailable)?
     }
     fn execute(&self, operation: &str, payload: &Value) -> Result<Value, CatalogError> {
+        self.with_database(|db| operations::execute(db, operation, payload))
+    }
+    // 类型化二进制端口共用连接初始化与互斥，避免把字节转成 JSON。
+    fn with_database<R>(
+        &self,
+        action: impl FnOnce(&mut Connection) -> Result<R, CatalogError>,
+    ) -> Result<R, CatalogError> {
         let mut guard = self
             .inner
             .database
@@ -239,6 +253,7 @@ impl LocalCatalog {
             acp_submissions::initialize(&mut db)?;
             acp_scheduled_configs::initialize(&db)?;
             acp_scheduled_plans::initialize(&db)?;
+            acp_plan_resources::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
                 .map_err(db_error)?;
@@ -247,11 +262,7 @@ impl LocalCatalog {
             }
             *guard = Some(db);
         }
-        operations::execute(
-            guard.as_mut().ok_or(CatalogError::StateUnavailable)?,
-            operation,
-            payload,
-        )
+        action(guard.as_mut().ok_or(CatalogError::StateUnavailable)?)
     }
 }
 fn db_error(error: rusqlite::Error) -> CatalogError {

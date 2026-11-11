@@ -1,5 +1,6 @@
 import type { AcpScheduledPlanDefinition } from "@codexly/protocol/acp-scheduled-plan";
 import type {
+  AgentMessageAttachment,
   AcpConfigValues,
   AgentEngine,
   SavedPromptsRequest,
@@ -80,7 +81,39 @@ export interface AcpPlanMetadata
   scheduledRevision: number | null;
   nextRunAt: number | null;
 }
+export interface AcpPlanResourceScope {
+  source: "web" | "desktop";
+  scheduleId: string;
+  projectId: string;
+}
+export interface AcpPlanResourceKey extends AcpPlanResourceScope {
+  token: string;
+}
+export interface AcpPlanResource {
+  token: string;
+  attachment: AgentMessageAttachment;
+  digest: string | null;
+  written: number;
+  boundRevision: number | null;
+}
 export interface CatalogOperations {
+  "acp.resource.begin": [
+    AcpPlanResourceKey & { attachment: AgentMessageAttachment },
+    AcpPlanResource,
+  ];
+  "acp.resource.append": [AcpPlanResourceKey & { offset: number; content: Uint8Array }, number];
+  "acp.resource.seal": [AcpPlanResourceKey, AcpPlanResource];
+  "acp.resource.chunk": [AcpPlanResourceKey & { offset: number }, Uint8Array | null];
+  "acp.resource.abort": [AcpPlanResourceKey, boolean];
+  "acp.resource.list": [AcpPlanResourceScope & { expectedRevision: number }, AcpPlanResource[]];
+  "acp.plan.save": [
+    AcpScheduledConfigKey & {
+      definition: AcpScheduledPlanDefinition;
+      expectedRevision: number;
+      resources: readonly string[];
+    },
+    AcpScheduledPlan | null,
+  ];
   "acp.plan.list": [
     { source: "web" | "desktop"; after?: string; limit: number },
     { data: AcpPlanMetadata[]; nextCursor: string | null },
