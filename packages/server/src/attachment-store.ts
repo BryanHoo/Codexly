@@ -20,11 +20,16 @@ import {
   type AgentImageMediaType,
 } from "@codexly/protocol";
 import { AttachmentQueueIndex } from "./attachment-queue-index.js";
+import {
+  readAttachmentHeader as readHeader,
+  openAttachmentStream,
+} from "./attachment-file-reader.js";
 import type {
   AttachmentStoreOptions,
   AttachmentUploadInput,
   ResolvedAttachment,
   StoredAttachmentContent,
+  StoredAttachmentStream,
   StoredAttachmentUpload,
 } from "./attachment-store-types.js";
 
@@ -88,17 +93,6 @@ function validateUploadMetadata(input: AttachmentUploadInput): string {
   const extension = extname(input.name).toLowerCase();
   // 普通文件不解析内容，保留后缀落盘后由 Provider 作为本地路径交给 Codex。
   return extension;
-}
-
-async function readHeader(path: string, bytes: number): Promise<Buffer> {
-  const handle = await open(path, "r");
-  try {
-    const value = Buffer.alloc(bytes);
-    const { bytesRead } = await handle.read(value, 0, bytes, 0);
-    return value.subarray(0, bytesRead);
-  } finally {
-    await handle.close();
-  }
 }
 
 async function isAnimatedGif(path: string): Promise<boolean> {
@@ -359,6 +353,15 @@ export class AttachmentStore {
     }
     // 预览只通过随机附件 ID 读取已导入副本，不向浏览器暴露宿主文件路径。
     return { attachment: entry.attachment, content: await readFile(entry.path) };
+  }
+
+  public async stream(projectId: string, id: string): Promise<StoredAttachmentStream> {
+    await this.#pruneExpired();
+    const entry = this.#entries.get(id);
+    if (entry?.projectId !== projectId || entry.consumedTurnId !== undefined) {
+      throw new AttachmentNotFoundError();
+    }
+    return { attachment: entry.attachment, content: await openAttachmentStream(entry.path) };
   }
 
   public async readSubmitted(projectId: string, id: string): Promise<StoredAttachmentContent> {

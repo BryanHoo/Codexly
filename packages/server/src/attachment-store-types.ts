@@ -35,6 +35,11 @@ export type StoredAttachmentContent = Readonly<{
   content: Buffer;
 }>;
 
+export type StoredAttachmentStream = Readonly<{
+  attachment: AgentAttachment;
+  content: Readable;
+}>;
+
 export type ResolvedAttachment =
   | Readonly<{
       kind: "file";

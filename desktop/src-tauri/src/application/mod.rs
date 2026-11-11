@@ -10,6 +10,11 @@ mod acp_plan_discovery;
     expect(dead_code, reason = "新计划后台执行器装配前保留调用式端口")
 )]
 mod acp_plan_executor;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "计划附件暂存尚待界面与执行器装配")
+)]
+mod acp_plan_resources;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;
