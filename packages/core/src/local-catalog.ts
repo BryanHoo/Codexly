@@ -53,7 +53,51 @@ export interface AcpScheduledPlan extends AcpScheduledConfigKey {
   definition: AcpScheduledPlanDefinition;
   revision: number;
 }
+export interface AcpPlanState {
+  revision: number;
+  definitionRevision: number;
+  nextRunAt: number | null;
+}
+export interface AcpPlanRun {
+  runId: string;
+  status: "claimed" | "unknown" | "started" | "failed";
+  claimedAt: number;
+  definitionRevision: number;
+  definition: AcpScheduledPlanDefinition | null;
+  taskId: string | null;
+  error: string | null;
+}
 export interface CatalogOperations {
+  "acp.plan.readState": [AcpScheduledConfigKey, AcpPlanState | null];
+  "acp.plan.arm": [
+    AcpScheduledConfigKey & {
+      expectedRevision: number;
+      expectedStateRevision: number;
+      nextRunAt: number | null;
+    },
+    AcpPlanState | null,
+  ];
+  "acp.plan.claim": [
+    AcpScheduledConfigKey & {
+      expectedRevision: number;
+      expectedStateRevision: number;
+      nextRunAt: number | null;
+      now: number;
+      runId: string;
+    },
+    AcpPlanRun | null,
+  ];
+  "acp.plan.readRun": [AcpScheduledConfigKey & { runId: string }, AcpPlanRun | null];
+  "acp.plan.finish": [
+    AcpScheduledConfigKey & {
+      runId: string;
+      expectedStatus: "claimed" | "unknown";
+      status: "unknown" | "started" | "failed";
+      taskId: string | null;
+      error: string | null;
+    },
+    AcpPlanRun | null,
+  ];
   "acp.plan.read": [AcpScheduledConfigKey, AcpScheduledPlan | null];
   "acp.plan.set": [
     AcpScheduledConfigKey & { definition: AcpScheduledPlanDefinition; expectedRevision: number },

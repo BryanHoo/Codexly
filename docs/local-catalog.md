@@ -115,3 +115,9 @@ Web、移动浏览器和桌面遵循相同顺序：先校验任务归属及运�
 `acp_scheduled_plans` 独立保存新计划的项目身份、名称、提示词、规则和原始 ACP 引擎配置。`acp.plan.read/set/delete` 按来源和 ID 区分，创建使用修订 0，更新 / 删除匹配修订；更新不能更换项目。最多 1000 项、单项 512 KiB、总计 32 MiB。它不写旧计划 JSON、旧配置或共享目录版本；定义存储完成不代表新调度器已经接入，现阶段不开放用户入口。
 
 TypeScript 契约位于 `acp-scheduled-plan.ts`，原生 Node Worker 使用保留 TypeBox 符号的生成 JS。修改契约后运行 `pnpm exec tsx tools/generate-acp-plan-schema.ts` 并格式化生成文件；测试会核对完整契约（含符号）一致。Rust 在实际数据库边界校验相同定义，双端共用正反例、SQL 和容量限制。运行阶段、附件资源事务及新建 UI 继续接入。
+
+### 新计划运行状态（开发中，内部端口）
+
+`acp_plan_state` 保存定义修订、下一次时间及状态修订。`acp.plan.arm` 要求同时匹配定义与状态修订；定义更改后旧游标不能领取。`acp.plan.claim` 在立即事务中检查启用、到期、修订及占用，推进游标并写入 runId 和定义快照；身份冲突或损坏定义使整次事务回滚。
+
+`acp_plan_runs` 的 claimed / unknown 阶段阻止再次领取、改定义及删除。`acp.plan.finish` 按预期阶段 CAS 保存明确结果或未知结果，不自行重发；调用者必须先核对既有持久提交账本。未知保留快照，明确 started / failed 释放快照，每计划最多保留 20 项运行记录。`readState` / `readRun` 可在重启后恢复状态。没有超时自动释放或新增轮询，旧计划 JSON 与版本号不变；正式执行器及用户入口仍待接入。

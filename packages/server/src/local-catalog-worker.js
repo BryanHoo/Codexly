@@ -1,3 +1,4 @@
+import { createAcpPlanStateOperations } from "./acp-plan-state-worker.js";
 import { createAcpScheduledPlanOperations } from "./acp-scheduled-plan-worker.js";
 import { createAcpScheduledConfigOperations } from "./acp-scheduled-config-worker.js";
 import { createSavedPromptOperations } from "./saved-prompts-worker.js";
@@ -95,6 +96,7 @@ export function createLocalCatalogOperations(db) {
     ...createSavedPromptOperations(db),
     ...createAcpScheduledConfigOperations(db),
     ...createAcpScheduledPlanOperations(db),
+    ...createAcpPlanStateOperations(db),
     "project.list": listProjects,
     "project.read": ({ id }) => readProject(id),
     "project.put": putProject,

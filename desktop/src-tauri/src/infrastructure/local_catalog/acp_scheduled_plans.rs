@@ -16,7 +16,8 @@ fn sql(name: &str) -> Result<&'static str, CatalogError> {
     string(value, name)
 }
 pub(super) fn initialize(db: &Connection) -> Result<(), CatalogError> {
-    db.execute_batch(sql("schema")?).map_err(db_error)
+    db.execute_batch(sql("schema")?).map_err(db_error)?;
+    super::acp_plan_state::initialize(db)
 }
 fn encode(v: &Value) -> Result<String, CatalogError> {
     if !super::acp_plan_validation::valid(v) {

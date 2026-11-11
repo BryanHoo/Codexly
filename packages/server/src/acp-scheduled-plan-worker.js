@@ -1,3 +1,4 @@
+import stateSql from "../../protocol/src/acp-plan-state-sql.json" with { type: "json" };
 import { Value } from "@sinclair/typebox/value";
 import schema from "../../protocol/src/acp-scheduled-plan-schema.js";
 import sql from "../../protocol/src/acp-scheduled-plan-sql.json" with { type: "json" };
@@ -34,6 +35,7 @@ function record(row) {
 export function createAcpScheduledPlanOperations(db) {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE name='managed_projects'").get()) return {};
   db.exec(sql.schema);
+  db.exec(stateSql.schema);
   const read = db.prepare(sql.read),
     insert = db.prepare(sql.insert),
     update = db.prepare(sql.update),
