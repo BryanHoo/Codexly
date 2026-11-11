@@ -67,7 +67,28 @@ export interface AcpPlanRun {
   taskId: string | null;
   error: string | null;
 }
+export interface AcpPlanDueCursor {
+  nextRunAt: number;
+  scheduleId: string;
+}
+export interface AcpPlanMetadata
+  extends
+    AcpScheduledConfigKey,
+    Pick<AcpScheduledPlanDefinition, "name" | "projectId" | "engine" | "enabled" | "schedule"> {
+  revision: number;
+  stateRevision: number | null;
+  scheduledRevision: number | null;
+  nextRunAt: number | null;
+}
 export interface CatalogOperations {
+  "acp.plan.list": [
+    { source: "web" | "desktop"; after?: string; limit: number },
+    { data: AcpPlanMetadata[]; nextCursor: string | null },
+  ];
+  "acp.plan.due": [
+    { after?: AcpPlanDueCursor; source: "web" | "desktop"; now: number; limit: number },
+    AcpPlanMetadata[],
+  ];
   "acp.plan.readState": [AcpScheduledConfigKey, AcpPlanState | null];
   "acp.plan.arm": [
     AcpScheduledConfigKey & {

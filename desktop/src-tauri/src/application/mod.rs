@@ -1,5 +1,10 @@
 pub mod acp_commands;
 mod acp_input;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "新计划执行器接入前，仅提供调用式发现基础")
+)]
+mod acp_plan_discovery;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;

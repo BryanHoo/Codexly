@@ -5,6 +5,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock, Weak},
 };
+mod acp_plan_index;
+#[cfg(test)]
+mod acp_plan_index_tests;
 mod acp_plan_state;
 #[cfg(test)]
 mod acp_plan_state_tests;
