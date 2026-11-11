@@ -9,6 +9,46 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
 
+pub(super) async fn discard_task(directory: &Path, task: &str) -> Result<(), AppError> {
+    let parent = directory
+        .join("attachments")
+        .join(crate::infrastructure::queued_media::scope(task));
+    let mut entries = match tokio::fs::read_dir(parent).await {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(_) => return Err(AppError::FilesystemRequestFailed),
+    };
+    // 只回收本任务的计划副本，普通队列文件、目录和历史附件保持原所有权。
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)?
+    {
+        let name = entry.file_name();
+        let is_owned = name
+            .to_str()
+            .and_then(|s| s.strip_prefix("acp-plan-"))
+            .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok());
+        if is_owned
+            && entry
+                .file_type()
+                .await
+                .map_err(|_| AppError::FilesystemRequestFailed)?
+                .is_dir()
+        {
+            remove_cache(&entry.path()).await?;
+        }
+    }
+    Ok(())
+}
+async fn remove_cache(path: &Path) -> Result<(), AppError> {
+    match tokio::fs::remove_dir_all(path).await {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(_) => Err(AppError::FilesystemRequestFailed),
+    }
+}
+
 pub(super) struct RestoredPlanPrompt {
     pub input: Value,
     directory: Option<PathBuf>,
@@ -17,9 +57,7 @@ impl RestoredPlanPrompt {
     /// 只移除本轮随机子目录，不触及同一任务已有的队列或历史附件。
     pub async fn discard(self) -> Result<(), AppError> {
         if let Some(path) = self.directory {
-            tokio::fs::remove_dir_all(path)
-                .await
-                .map_err(|_| AppError::FilesystemRequestFailed)?;
+            remove_cache(&path).await?;
         }
         Ok(())
     }

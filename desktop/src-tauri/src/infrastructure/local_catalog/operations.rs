@@ -76,6 +76,9 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "acp.plan.completion.read" | "acp.plan.completion.put" => {
+            super::acp_plan_completion::execute(db, op, p)
+        }
         "acp.resource.begin" | "acp.resource.seal" | "acp.resource.abort" | "acp.resource.list"
         | "acp.plan.save" => super::acp_plan_resources::execute(db, op, p),
         "acp.plan.list" | "acp.plan.due" => super::acp_plan_index::execute(db, op, p),

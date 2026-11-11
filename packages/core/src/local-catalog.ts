@@ -86,6 +86,13 @@ export interface AcpPlanResourceScope {
   scheduleId: string;
   projectId: string;
 }
+export interface AcpPlanCompletion extends AcpScheduledConfigKey {
+  runId: string;
+  projectId: string;
+  status: "started" | "failed";
+  taskId: string | null;
+  error: string | null;
+}
 export interface AcpPlanResourceKey extends AcpPlanResourceScope {
   token: string;
 }
@@ -97,6 +104,8 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  "acp.plan.completion.read": [AcpScheduledConfigKey & { runId: string }, AcpPlanCompletion | null];
+  "acp.plan.completion.put": [AcpPlanCompletion, AcpPlanCompletion | null];
   "acp.resource.begin": [
     AcpPlanResourceKey & { attachment: AgentMessageAttachment },
     AcpPlanResource,

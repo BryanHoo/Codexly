@@ -97,8 +97,30 @@ pub async fn acp_task_request(
     app: AppHandle,
     project_id: String,
     method: String,
+    params: Value,
+    request_id: Option<String>,
+) -> Result<Value, AppError> {
+    request_with_input(app, project_id, method, params, request_id, None).await
+}
+
+/// 仅执行器可以提供已经恢复的输入；原 params 决定提交身份，前端没有覆盖入口。
+#[cfg(not(test))]
+pub(super) async fn start_plan_prompt(
+    app: AppHandle,
+    project: String,
+    params: Value,
+    input: Option<Value>,
+) -> Result<Value, AppError> {
+    request_with_input(app, project, "prompt.start".into(), params, None, input).await
+}
+
+async fn request_with_input(
+    app: AppHandle,
+    project_id: String,
+    method: String,
     mut params: Value,
     request_id: Option<String>,
+    prepared_input: Option<Value>,
 ) -> Result<Value, AppError> {
     validate_request(&method, &params)?;
     let cancellable = matches!(
@@ -176,7 +198,7 @@ pub async fn acp_task_request(
                 &directory,
                 &project_id,
                 &task_id,
-                params["input"].clone(),
+                prepared_input.unwrap_or_else(|| params["input"].clone()),
             )
             .await?;
             for id in references {

@@ -3,22 +3,20 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, open, readFile, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { extname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { TextDecoder } from "node:util";
 
 import {
-  MAX_AGENT_FILE_BYTES,
   MAX_AGENT_FILE_TOTAL_BYTES,
-  MAX_AGENT_IMAGE_BYTES,
   MAX_AGENT_IMAGE_TOTAL_BYTES,
-  MAX_AGENT_TEXT_BYTES,
   type AgentAttachment,
-  type AgentAttachmentKind,
   type AgentAttachmentMediaType,
   type AgentImageMediaType,
 } from "@codexly/protocol";
+import { maximumBytesFor, validateUploadMetadata } from "./attachment-upload-metadata.js";
+import { ownedAttachmentDirectory } from "./attachment-owned-cache.js";
 import { AttachmentQueueIndex } from "./attachment-queue-index.js";
 import {
   readAttachmentHeader as readHeader,
@@ -44,12 +42,6 @@ export type {
 const DEFAULT_ATTACHMENT_TTL_MS = 30 * 60 * 1_000;
 const DEFAULT_MAX_ENTRIES = 1_500;
 const DEFAULT_MAX_TOTAL_BYTES = MAX_AGENT_IMAGE_TOTAL_BYTES + MAX_AGENT_FILE_TOTAL_BYTES;
-const IMAGE_EXTENSIONS = new Map<AgentImageMediaType, string>([
-  ["image/gif", ".gif"],
-  ["image/jpeg", ".jpg"],
-  ["image/png", ".png"],
-  ["image/webp", ".webp"],
-]);
 
 export class AttachmentNotFoundError extends Error {
   public constructor() {
@@ -64,35 +56,6 @@ interface StoredAttachment {
   expiresAt: number;
   path: string;
   projectId: string;
-}
-
-function maximumBytesFor(kind: AgentAttachmentKind): number {
-  if (kind === "image") {
-    return MAX_AGENT_IMAGE_BYTES;
-  }
-  return kind === "text" ? MAX_AGENT_TEXT_BYTES : MAX_AGENT_FILE_BYTES;
-}
-
-function validateUploadMetadata(input: AttachmentUploadInput): string {
-  if (input.name.length === 0 || input.name.length > 255 || input.mediaType.length > 255) {
-    throw new TypeError("Attachment metadata is invalid");
-  }
-  if (input.kind === "image") {
-    const extension = IMAGE_EXTENSIONS.get(input.mediaType as AgentImageMediaType);
-    if (extension === undefined) {
-      throw new TypeError("Attachment image type is unsupported");
-    }
-    return extension;
-  }
-  if (input.kind === "text") {
-    if (input.mediaType !== "text/plain") {
-      throw new TypeError("Generated text attachment must use text/plain");
-    }
-    return ".txt";
-  }
-  const extension = extname(input.name).toLowerCase();
-  // 普通文件不解析内容，保留后缀落盘后由 Provider 作为本地路径交给 Codex。
-  return extension;
 }
 
 async function isAnimatedGif(path: string): Promise<boolean> {
@@ -224,9 +187,39 @@ export class AttachmentStore {
     this.#ttlMs = options.ttlMs ?? DEFAULT_ATTACHMENT_TTL_MS;
   }
 
-  public async add(
+  public add(projectId: string, input: AttachmentUploadInput): Promise<StoredAttachmentUpload> {
+    return this.#add(projectId, input, this.#attachmentDirectory);
+  }
+
+  public addOwned(
     projectId: string,
     input: AttachmentUploadInput,
+    owner: string,
+  ): Promise<StoredAttachmentUpload> {
+    return this.#add(
+      projectId,
+      input,
+      ownedAttachmentDirectory(this.#attachmentDirectory, projectId, owner),
+    );
+  }
+
+  /** 完成意图固定结果后才回收归属目录；重启后无需依赖内存附件索引。 */
+  public async discardOwned(projectId: string, owner: string): Promise<void> {
+    const directory = ownedAttachmentDirectory(this.#attachmentDirectory, projectId, owner);
+    await rm(directory, { recursive: true, force: true });
+    for (const [id, entry] of this.#entries) {
+      if (entry.projectId === projectId && dirname(entry.path) === directory) {
+        this.#entries.delete(id);
+        this.#queueIndex.deleteAttachment(id);
+        this.#totalBytes -= entry.attachment.size;
+      }
+    }
+  }
+
+  async #add(
+    projectId: string,
+    input: AttachmentUploadInput,
+    directory: string,
   ): Promise<StoredAttachmentUpload> {
     await this.#pruneExpired();
     const extension = validateUploadMetadata(input);
@@ -240,10 +233,7 @@ export class AttachmentStore {
     let filePath: string | undefined;
     try {
       const id = this.#createId();
-      filePath = join(
-        this.#attachmentDirectory,
-        `${Buffer.from(id).toString("base64url")}${extension}`,
-      );
+      filePath = join(directory, `${Buffer.from(id).toString("base64url")}${extension}`);
       const digest = createHash("sha256");
       let bytes = 0;
       const limiter = new Transform({
@@ -259,7 +249,7 @@ export class AttachmentStore {
         },
       });
 
-      await mkdir(this.#attachmentDirectory, { recursive: true });
+      await mkdir(directory, { recursive: true });
       await pipeline(input.content, limiter, createWriteStream(filePath, { flags: "wx" }));
       if (bytes === 0) {
         throw new RangeError("Attachment must not be empty");
@@ -283,7 +273,8 @@ export class AttachmentStore {
       // 总字节检查与提交不让出事件循环，保证并发上传只能基于最新容量提交。
       this.#entries.set(id, {
         attachment,
-        expiresAt: this.#clock() + this.#ttlMs,
+        // 计划副本由完成意图驱动回收；未知结果不能按普通上传 TTL 提前删掉。
+        expiresAt: directory === this.#attachmentDirectory ? this.#clock() + this.#ttlMs : Infinity,
         path: filePath,
         projectId,
       });

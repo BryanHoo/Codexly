@@ -142,9 +142,22 @@ async fn acp_plan_restore_should_survive_restart_and_use_task_authorization() {
         .as_str()
         .unwrap()
         .to_owned();
-    first.discard().await.unwrap();
-    second.discard().await.unwrap();
+    let parent = root
+        .path()
+        .join("attachments")
+        .join(crate::infrastructure::queued_media::scope("task"));
+    tokio::fs::write(parent.join("keep.bin"), b"keep")
+        .await
+        .unwrap();
+    discard_task(root.path(), "task").await.unwrap();
+    discard_task(root.path(), "task").await.unwrap();
     assert!(!tokio::fs::try_exists(cached).await.unwrap());
+    assert!(
+        tokio::fs::try_exists(parent.join("keep.bin"))
+            .await
+            .unwrap()
+    );
+    drop((first, second));
     assert_eq!(
         catalog
             .call(

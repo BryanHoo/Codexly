@@ -3,8 +3,11 @@ use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{future::Future, path::Path};
+#[cfg(test)]
+#[path = "acp_plan_executor_resource_tests.rs"]
+mod resource_tests;
 
-fn identity(project: &str, id: &str, run: &str) -> Result<(String, String), AppError> {
+pub(super) fn identity(project: &str, id: &str, run: &str) -> Result<(String, String), AppError> {
     let bytes = serde_json::to_vec(&(id, run)).map_err(|_| AppError::ScheduledTaskInvalid)?;
     let key = format!(
         "acp-plan:desktop:{}",
@@ -13,7 +16,7 @@ fn identity(project: &str, id: &str, run: &str) -> Result<(String, String), AppE
     let task = super::acp_task_creation::creation_id(project, &key);
     Ok((key, task))
 }
-async fn finish(
+pub(super) async fn finish(
     catalog: &LocalCatalog,
     id: &str,
     run: &str,
@@ -42,7 +45,7 @@ pub(super) async fn execute_with<F, Fut>(
     submit: F,
 ) -> Result<Value, AppError>
 where
-    F: FnOnce(String, Value) -> Fut,
+    F: FnOnce(String, Value, Option<Value>) -> Fut,
     Fut: Future<Output = Result<Value, AppError>>,
 {
     let lookup = json!({"source":"desktop","scheduleId":id,"runId":run_id});
@@ -70,6 +73,21 @@ where
         .as_str()
         .ok_or(AppError::ScheduledTaskInvalid)?;
     let (key, task) = identity(project, id, run_id)?;
+    let completion_key =
+        json!({"source":"desktop","scheduleId":id,"runId":run_id,"projectId":project});
+    let complete = |status: &str, task: Value, error: Value| {
+        let mut intent = completion_key.clone();
+        intent["status"] = json!(status);
+        intent["taskId"] = task;
+        intent["error"] = error;
+        super::acp_plan_completion::record(directory, catalog, intent)
+    };
+    let pending = catalog
+        .call("acp.plan.completion.read", completion_key.clone())
+        .await?;
+    if !pending.is_null() {
+        return super::acp_plan_completion::apply(directory, catalog, pending).await;
+    }
     let params = json!({"taskId":task,"idempotencyKey":key,"input":definition["prompt"],"initialConfig":definition["values"]});
     let (request, _) = super::acp_prompt_submission::identity(project, &params)?;
     let phase = match catalog.call("acp.submission.read", request.clone()).await {
@@ -80,7 +98,7 @@ where
         if phase["result"]["id"].as_str().is_none_or(str::is_empty) {
             return Ok(run);
         }
-        return finish(catalog, id, run_id, "started", json!(task), Value::Null).await;
+        return complete("started", json!(task), Value::Null).await;
     }
     if !owned || phase["status"] != "available" {
         // 只补回已有任务引用，不能把未知结果转换成一次新的发送。
@@ -122,15 +140,18 @@ where
     }
     let mut sent = false;
     let mut created = false;
+    let mut restored = None;
     let result: Result<(), AppError> = async {
         let prompt = &definition["prompt"];
-        if prompt["attachments"]
-            .as_array()
-            .is_none_or(|a| !a.is_empty())
-            || prompt["skills"].as_array().is_none_or(|a| !a.is_empty())
-            || prompt["text"].as_str().is_none_or(|s| s.trim().is_empty())
+        let attachments=prompt["attachments"].as_array().ok_or(AppError::ScheduledTaskInvalid)?;
+        if prompt["skills"].as_array().is_none_or(|a| !a.is_empty())
+            || (attachments.is_empty() && prompt["text"].as_str().is_none_or(|s| s.trim().is_empty()))
         {
             return Err(AppError::ScheduledTaskInvalid);
+        }
+        if !attachments.is_empty() {
+            let plan=json!({"source":"desktop","scheduleId":id,"definition":definition,"revision":run["definitionRevision"]});
+            restored=Some(super::acp_plan_resources::restore(directory,catalog,&plan,&task,&tokio_util::sync::CancellationToken::new()).await?);
         }
         let prepared = catalog
             .call("acp.submission.prepare", request.clone())
@@ -153,12 +174,12 @@ where
             .call("task.preview", json!({"id":task,"preview":preview}))
             .await?;
         sent = true;
-        submit(project.to_owned(), params).await?;
+        submit(project.to_owned(), params, restored.as_ref().map(|r|r.input.clone())).await?;
         Ok(())
     }
     .await;
     match result {
-        Ok(()) => finish(catalog, id, run_id, "started", json!(task), Value::Null).await,
+        Ok(()) => complete("started", json!(task), Value::Null).await,
         Err(error) => {
             let phase = catalog.call("acp.submission.read", request).await;
             let known = phase.as_ref().is_ok_and(|p| {
@@ -166,7 +187,7 @@ where
                     && p["result"]["id"].as_str().is_some_and(|s| !s.is_empty())
             });
             if known {
-                return finish(catalog, id, run_id, "started", json!(task), Value::Null).await;
+                return complete("started", json!(task), Value::Null).await;
             }
             let uncertain = matches!(
                 error,
@@ -182,6 +203,14 @@ where
                         .await
                         .is_ok_and(|p| p["status"] == "available"));
             let message: String = error.to_string().chars().take(1024).collect();
+            if !uncertain {
+                return complete(
+                    "failed",
+                    if created { json!(task) } else { Value::Null },
+                    json!(message),
+                )
+                .await;
+            }
             finish(
                 catalog,
                 id,
@@ -205,15 +234,8 @@ pub(super) async fn execute(app: tauri::AppHandle, id: &str, run: &str) -> Resul
         &catalog,
         id,
         run,
-        move |project, params| async move {
-            super::acp_task_commands::acp_task_request(
-                app,
-                project,
-                "prompt.start".into(),
-                params,
-                None,
-            )
-            .await
+        move |project, params, input| async move {
+            super::acp_task_commands::start_plan_prompt(app, project, params, input).await
         },
     )
     .await
@@ -257,7 +279,7 @@ mod tests {
             &store,
             "plan",
             "run",
-            move |project, params| async move {
+            move |project, params, _input| async move {
                 count.fetch_add(1, Ordering::SeqCst);
                 assert_eq!(project, "temporary");
                 assert_eq!(params["initialConfig"], json!({"mode":false}));
@@ -268,7 +290,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(result["status"], "started");
-        execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             panic!("must not resend")
         })
         .await
@@ -278,13 +300,13 @@ mod tests {
     #[tokio::test]
     async fn acp_plan_executor_should_keep_unknown_without_resending_after_restart() {
         let (root, store) = setup().await;
-        execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             Err(AppError::AcpSubmissionUnknown)
         })
         .await
         .unwrap();
         let fresh = LocalCatalog::at(root.path()).unwrap();
-        let result = execute_with(root.path(), &fresh, "plan", "run", |_, _| async {
+        let result = execute_with(root.path(), &fresh, "plan", "run", |_, _, _| async {
             panic!("unknown must not send")
         })
         .await
@@ -302,7 +324,7 @@ mod tests {
             &store,
             "plan",
             "run",
-            move |project, params| async move {
+            move |project, params, _input| async move {
                 let (mut request, _) =
                     super::super::acp_prompt_submission::identity(&project, &params)?;
                 ledger.call("acp.submission.begin", request.clone()).await?;
@@ -316,7 +338,7 @@ mod tests {
         assert!(result.is_err());
         db.execute_batch("DROP TRIGGER fail_plan_result").unwrap();
         let restored = LocalCatalog::at(root.path()).unwrap();
-        let value = execute_with(root.path(), &restored, "plan", "run", |_, _| async {
+        let value = execute_with(root.path(), &restored, "plan", "run", |_, _, _| async {
             panic!("known result must not resend")
         })
         .await
@@ -328,7 +350,7 @@ mod tests {
     async fn acp_plan_executor_should_reject_resources_before_creation_and_preserve_definite_failure()
      {
         let (root, store) = setup_for("codex", true).await;
-        let value = execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        let value = execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             panic!("resources unavailable")
         })
         .await
@@ -344,7 +366,7 @@ mod tests {
                 .is_null()
         );
         let (root, store) = setup_for("codex", false).await;
-        let value = execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        let value = execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             Err(AppError::Acp("not submitted".into()))
         })
         .await
@@ -362,7 +384,7 @@ mod tests {
     #[tokio::test]
     async fn acp_plan_executor_should_not_resend_when_unknown_ledger_is_missing() {
         let (root, store) = setup().await;
-        execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             Err(AppError::AcpSubmissionUnknown)
         })
         .await
@@ -375,7 +397,7 @@ mod tests {
             [],
         )
         .unwrap();
-        let value = execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        let value = execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             panic!("missing ledger is not proof of no send")
         })
         .await
@@ -391,15 +413,21 @@ mod tests {
         let (entered, ready) = tokio::sync::oneshot::channel();
         let (release, wait) = tokio::sync::oneshot::channel();
         let first = tokio::spawn(async move {
-            execute_with(&directory, &sender, "plan", "run", move |_, _| async move {
-                let _ = entered.send(());
-                let _ = wait.await;
-                Ok(json!({"id":"turn","status":"running"}))
-            })
+            execute_with(
+                &directory,
+                &sender,
+                "plan",
+                "run",
+                move |_, _, _| async move {
+                    let _ = entered.send(());
+                    let _ = wait.await;
+                    Ok(json!({"id":"turn","status":"running"}))
+                },
+            )
             .await
         });
         ready.await.unwrap();
-        let value = execute_with(root.path(), &store, "plan", "run", |_, _| async {
+        let value = execute_with(root.path(), &store, "plan", "run", |_, _, _| async {
             panic!("second executor must not send")
         })
         .await

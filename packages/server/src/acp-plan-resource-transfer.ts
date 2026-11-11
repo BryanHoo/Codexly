@@ -18,6 +18,7 @@ export class AcpPlanResourceManager {
   async restore(
     plan: AcpScheduledPlan,
     signal?: AbortSignal,
+    owner?: string,
   ): Promise<{ prompt: AgentPromptInput; restoredIds: string[] }> {
     if (plan.source !== "web") throw new TypeError("Invalid ACP resource source");
     signal?.throwIfAborted();
@@ -47,7 +48,7 @@ export class AcpPlanResourceManager {
         signal?.throwIfAborted();
         const resource = byId.get(reference.id);
         if (!resource?.digest) throw new Error("ACP plan resource is not sealed");
-        const uploaded = await this.uploads.add(scope.projectId, {
+        const input = {
           kind: resource.attachment.kind,
           mediaType: resource.attachment.mediaType,
           name: resource.attachment.name,
@@ -55,7 +56,10 @@ export class AcpPlanResourceManager {
             objectMode: false,
             highWaterMark: 262144,
           }),
-        });
+        };
+        const uploaded = await (owner
+          ? this.uploads.addOwned(scope.projectId, input, owner)
+          : this.uploads.add(scope.projectId, input));
         restoredIds.push(uploaded.attachment.id);
         signal?.throwIfAborted();
         if (
@@ -70,6 +74,7 @@ export class AcpPlanResourceManager {
     } catch (error) {
       try {
         await this.discard(restoredIds);
+        if (owner) await this.releaseOwner(scope.projectId, owner);
       } catch (cleanup) {
         throw new AggregateError([error, cleanup], "ACP resource restoration cleanup failed", {
           cause: cleanup,
@@ -77,6 +82,9 @@ export class AcpPlanResourceManager {
       }
       throw error;
     }
+  }
+  releaseOwner(projectId: string, owner: string): Promise<void> {
+    return this.uploads.discardOwned(projectId, owner);
   }
   async *#chunks(scope: AcpPlanResourceScope, resource: AcpPlanResource, signal?: AbortSignal) {
     let offset = 0;

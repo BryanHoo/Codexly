@@ -5,6 +5,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock, Weak},
 };
+mod acp_plan_completion;
+#[cfg(test)]
+mod acp_plan_completion_tests;
 mod acp_plan_index;
 #[cfg(test)]
 mod acp_plan_index_tests;
@@ -253,6 +256,7 @@ impl LocalCatalog {
             acp_submissions::initialize(&mut db)?;
             acp_scheduled_configs::initialize(&db)?;
             acp_scheduled_plans::initialize(&db)?;
+            acp_plan_completion::initialize(&db)?;
             acp_plan_resources::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
