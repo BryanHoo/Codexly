@@ -36,6 +36,10 @@
     "./acp-scheduled-plan": {
       "types": "./src/acp-scheduled-plan.ts",
       "default": "./src/acp-scheduled-plan.ts"
+    },
+    "./acp-plan-api": {
+      "types": "./src/acp-plan-api.ts",
+      "default": "./src/acp-plan-api.ts"
     }
   },
   "dependencies": {

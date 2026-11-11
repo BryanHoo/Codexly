@@ -78,20 +78,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
     match op {
         "acp.plan.readState" => read(db, "readState", params![source, id]),
         "acp.plan.readRun" => read(db, "readRun", params![source, id, text(p, "runId", 256)?]),
-        "acp.plan.arm" => {
-            let revision = integer(p, "expectedRevision", 1)?;
-            let state = integer(p, "expectedStateRevision", 0)?;
-            let next = time(p)?;
-            if state == 0 {
-                read(db, "armInsert", params![next, source, id, revision])
-            } else {
-                read(
-                    db,
-                    "armUpdate",
-                    params![revision, next, source, id, state, revision],
-                )
-            }
-        }
+        "acp.plan.arm" => arm(db, p),
         "acp.plan.claim" | "acp.plan.claimRef" => {
             let run = text(p, "runId", 256)?;
             let now = integer(p, "now", -9_007_199_254_740_991)?;
@@ -148,5 +135,26 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             )
         }
         _ => Err(CatalogError::InvalidMessage),
+    }
+}
+
+/// 供原子提交复用；调用者负责事务，不能在这里开启嵌套事务。
+pub(super) fn arm(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
+    let source = string(p, "source")?;
+    let id = text(p, "scheduleId", 256)?;
+    if !matches!(source, "web" | "desktop") {
+        return Err(CatalogError::InvalidMessage);
+    }
+    let revision = integer(p, "expectedRevision", 1)?;
+    let state = integer(p, "expectedStateRevision", 0)?;
+    let next = time(p)?;
+    if state == 0 {
+        read(db, "armInsert", params![next, source, id, revision])
+    } else {
+        read(
+            db,
+            "armUpdate",
+            params![revision, next, source, id, state, revision],
+        )
     }
 }

@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { TextDecoder } from "node:util";
 import sql from "../../protocol/src/acp-plan-resource-sql.json" with { type: "json" };
+import { createAcpPlanStateOperations } from "./acp-plan-state-worker.js";
+import commitSql from "../../protocol/src/acp-plan-commit-sql.json" with { type: "json" };
 import { createAcpScheduledPlanOperations } from "./acp-scheduled-plan-worker.js";
 const fail = () => {
   throw new Error("Invalid ACP plan resource");
@@ -49,6 +51,7 @@ export function createAcpPlanResourceOperations(db) {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE name='acp_scheduled_plans'").get()) return {};
   db.exec(sql.schema);
   const plans = createAcpScheduledPlanOperations(db);
+  const states = createAcpPlanStateOperations(db);
   const row = (p) => {
     const value = db.prepare(sql.read).get(...key(p));
     if (!value) fail();
@@ -125,7 +128,7 @@ export function createAcpPlanResourceOperations(db) {
     db.prepare(sql.seal).run(hash.digest("hex"), r.token);
     return record(row(p));
   });
-  const save = db.transaction((p) => {
+  const saveBound = (p) => {
     // 保存完整引用集合；CAS 或预算失败会连同旧资源回收一起回滚。
     if (
       !Array.isArray(p.resources) ||
@@ -163,6 +166,51 @@ export function createAcpPlanResourceOperations(db) {
     for (const token of p.resources)
       db.prepare(sql.bind).run(plan.revision, ...key({ ...scoped, token }));
     return plan;
+  };
+  const save = db.transaction(saveBound);
+  const list = (p) => {
+    const s = scope(p);
+    if (!Number.isSafeInteger(p.expectedRevision) || p.expectedRevision < 1) fail();
+    return db
+      .prepare(sql.list)
+      .all(...s, p.expectedRevision)
+      .map(record);
+  };
+  const status = (p) => {
+    if (!["web", "desktop"].includes(p?.source)) fail();
+    const r = db.prepare(commitSql.status).get(p.source, text(p.scheduleId, 256));
+    return r ? JSON.parse(r.result) : null;
+  };
+  const viewBound = (p) => {
+    const plan = plans["acp.plan.read"](p);
+    if (!plan) return null;
+    return {
+      ...plan,
+      ...status(p),
+      resources: list({
+        ...p,
+        projectId: plan.definition.projectId,
+        expectedRevision: plan.revision,
+      }),
+    };
+  };
+  // 一致读取使用只读快照；提交不持锁等待 agent 或日历计算。
+  const view = db.transaction(viewBound);
+  const conflict = new Error("ACP plan commit conflict");
+  const commit = db.transaction((p) => {
+    if (
+      !Number.isSafeInteger(p.expectedStateRevision) ||
+      p.expectedStateRevision < 0 ||
+      (p.nextRunAt !== null && !Number.isSafeInteger(p.nextRunAt)) ||
+      (p.definition?.enabled === false && p.nextRunAt !== null)
+    )
+      fail();
+    const before = status(p);
+    if ((before?.state?.revision ?? 0) !== p.expectedStateRevision || before?.canEdit === false)
+      throw conflict;
+    const plan = saveBound(p);
+    if (!plan || !states["acp.plan.arm"]({ ...p, expectedRevision: plan.revision })) throw conflict;
+    return viewBound(p);
   });
   return {
     "acp.resource.begin": (p) => begin.immediate(p),
@@ -170,13 +218,15 @@ export function createAcpPlanResourceOperations(db) {
     "acp.resource.seal": (p) => seal.immediate(p),
     "acp.resource.chunk": chunk,
     "acp.resource.abort": (p) => db.prepare(sql.abort).run(...key(p)).changes > 0,
-    "acp.resource.list": (p) => {
-      const s = scope(p);
-      if (!Number.isSafeInteger(p.expectedRevision) || p.expectedRevision < 1) fail();
-      return db
-        .prepare(sql.list)
-        .all(...s, p.expectedRevision)
-        .map(record);
+    "acp.resource.list": list,
+    "acp.plan.view": (p) => view.deferred(p),
+    "acp.plan.commit": (p) => {
+      try {
+        return commit.immediate(p);
+      } catch (error) {
+        if (error === conflict) return null;
+        throw error;
+      }
     },
     "acp.plan.save": (p) => save.immediate(p),
   };

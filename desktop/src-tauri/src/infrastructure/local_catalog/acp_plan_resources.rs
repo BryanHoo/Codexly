@@ -244,6 +244,16 @@ fn seal(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
     Ok(value)
 }
 fn save(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
+    let tx = db
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(db_error)?;
+    let plan = save_bound(&tx, p)?;
+    if !plan.is_null() {
+        tx.commit().map_err(db_error)?;
+    }
+    Ok(plan)
+}
+pub(super) fn save_bound(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     // 定义 CAS、完整引用集合、资源绑定及旧块回收必须共同提交，失败时全部回滚。
     let tokens = p["resources"]
         .as_array()
@@ -269,15 +279,12 @@ fn save(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
     if refs.len() != tokens.len() {
         return Err(CatalogError::InvalidMessage);
     }
-    let tx = db
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(db_error)?;
     let mut image_bytes = 0;
     let mut file_bytes = 0;
     let mut images = 0;
     for token in tokens {
         let input = json!({"source":source,"scheduleId":id,"projectId":project,"token":token});
-        let r = read(&tx, &input)?;
+        let r = read(db, &input)?;
         if r.digest.is_none() || !ids.remove(string(&r.attachment, "id")?) {
             return Err(CatalogError::InvalidMessage);
         }
@@ -291,11 +298,11 @@ fn save(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
     if !ids.is_empty() || images > 20 || image_bytes > 52428800 || file_bytes > 52428800 {
         return Err(CatalogError::InvalidMessage);
     }
-    let plan = super::acp_scheduled_plans::execute(&tx, "acp.plan.set", p)?;
+    let plan = super::acp_scheduled_plans::execute(db, "acp.plan.set", p)?;
     if plan.is_null() {
         return Ok(plan);
     }
-    tx.execute(
+    db.execute(
         sql("prune")?,
         params![
             source,
@@ -305,7 +312,7 @@ fn save(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
     )
     .map_err(db_error)?;
     for token in tokens {
-        tx.execute(
+        db.execute(
             sql("bind")?,
             params![
                 plan["revision"].as_i64(),
@@ -317,7 +324,6 @@ fn save(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
         )
         .map_err(db_error)?;
     }
-    tx.commit().map_err(db_error)?;
     Ok(plan)
 }
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
@@ -328,26 +334,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         return seal(db, p);
     }
     if op == "acp.resource.list" {
-        let (source, id, project) = scope(p)?;
-        let revision = p["expectedRevision"]
-            .as_i64()
-            .filter(|n| (1..=9_007_199_254_740_991).contains(n))
-            .ok_or(CatalogError::InvalidMessage)?;
-        let mut statement = db.prepare_cached(sql("list")?).map_err(db_error)?;
-        let tokens = statement
-            .query_map(params![source, id, project, revision], |r| {
-                r.get::<_, String>(0)
-            })
-            .map_err(db_error)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(db_error)?;
-        let mut data = Vec::new();
-        for token in tokens {
-            let mut key = p.clone();
-            key["token"] = json!(token);
-            data.push(read(db, &key)?.value());
-        }
-        return Ok(json!(data));
+        return list(db, p);
     }
     let (source, id, project) = scope(p)?;
     let token = text(p, "token", 128)?;
@@ -400,4 +387,27 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
     let result = read(&tx, p)?.value();
     tx.commit().map_err(db_error)?;
     Ok(result)
+}
+
+pub(super) fn list(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
+    let (source, id, project) = scope(p)?;
+    let revision = p["expectedRevision"]
+        .as_i64()
+        .filter(|n| (1..=9_007_199_254_740_991).contains(n))
+        .ok_or(CatalogError::InvalidMessage)?;
+    let mut statement = db.prepare_cached(sql("list")?).map_err(db_error)?;
+    let tokens = statement
+        .query_map(params![source, id, project, revision], |r| {
+            r.get::<_, String>(0)
+        })
+        .map_err(db_error)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(db_error)?;
+    let mut data = Vec::new();
+    for token in tokens {
+        let mut key = p.clone();
+        key["token"] = json!(token);
+        data.push(read(db, &key)?.value());
+    }
+    Ok(json!(data))
 }

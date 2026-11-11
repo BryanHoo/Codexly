@@ -16,7 +16,7 @@ fn time(v: &Value) -> bool {
 }
 
 /// 与共享定义契约保持同样的字段和 UTF-16 边界；只校验定义，不解析厂商设置。
-pub(super) fn valid(v: &Value) -> bool {
+pub(crate) fn valid(v: &Value) -> bool {
     if !object(
         v,
         &[

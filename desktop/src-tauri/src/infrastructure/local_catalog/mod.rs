@@ -5,6 +5,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock, Weak},
 };
+mod acp_plan_commit;
+#[cfg(test)]
+mod acp_plan_commit_tests;
 mod acp_plan_completion;
 #[cfg(test)]
 mod acp_plan_completion_tests;
@@ -24,6 +27,7 @@ mod acp_plan_state;
 #[cfg(test)]
 mod acp_plan_state_tests;
 mod acp_plan_validation;
+pub(crate) use acp_plan_validation::valid as valid_plan_definition;
 mod acp_schedule_retirements;
 #[cfg(test)]
 mod acp_scheduled_config_tests;

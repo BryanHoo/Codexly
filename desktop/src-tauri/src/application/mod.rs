@@ -19,6 +19,11 @@ mod acp_plan_executor;
 mod acp_plan_resources;
 #[cfg_attr(not(test), expect(dead_code, reason = "新计划调度循环待生产入口装配"))]
 mod acp_plan_scheduler;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "计划服务待 HTTP 对等原生入口装配")
+)]
+mod acp_plan_service;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;

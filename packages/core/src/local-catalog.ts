@@ -54,6 +54,11 @@ export interface AcpScheduledPlan extends AcpScheduledConfigKey {
   definition: AcpScheduledPlanDefinition;
   revision: number;
 }
+export interface AcpPlanView extends AcpScheduledPlan {
+  state: AcpPlanState | null;
+  canEdit: boolean;
+  resources: AcpPlanResource[];
+}
 export interface AcpPlanState {
   revision: number;
   definitionRevision: number;
@@ -108,6 +113,14 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  "acp.plan.view": [AcpScheduledConfigKey, AcpPlanView | null];
+  "acp.plan.commit": [
+    CatalogOperations["acp.plan.save"][0] & {
+      expectedStateRevision: number;
+      nextRunAt: number | null;
+    },
+    AcpPlanView | null,
+  ];
   "acp.plan.claimRef": [CatalogOperations["acp.plan.claim"][0], AcpPlanRunReference | null];
   "acp.plan.active": [
     { source: "web" | "desktop"; after?: string; limit: number },
