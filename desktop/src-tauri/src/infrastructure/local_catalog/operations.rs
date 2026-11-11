@@ -76,6 +76,9 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "acp.plan.read" | "acp.plan.set" | "acp.plan.delete" => {
+            super::acp_scheduled_plans::execute(db, op, p)
+        }
         "acp.schedule.read"
         | "acp.schedule.set"
         | "acp.schedule.delete"

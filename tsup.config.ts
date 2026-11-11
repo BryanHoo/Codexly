@@ -26,6 +26,7 @@ export default defineConfig({
     options.alias = {
       ...options.alias,
       "@codexly/provider-acp/network-proxy": "./packages/provider-acp/src/network-proxy.ts",
+      "@codexly/protocol/acp-scheduled-plan": "./packages/protocol/src/acp-scheduled-plan.ts",
       "@codexly/protocol/task-queue-storage": "./packages/protocol/src/task-queue-storage.ts",
       "@codexly/core/persistent-historical-attachment-store":
         "./packages/core/src/persistent-historical-attachment-store.ts",

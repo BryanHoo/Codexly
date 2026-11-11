@@ -5,10 +5,14 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock, Weak},
 };
+mod acp_plan_validation;
 mod acp_schedule_retirements;
 #[cfg(test)]
 mod acp_scheduled_config_tests;
 mod acp_scheduled_configs;
+#[cfg(test)]
+mod acp_scheduled_plan_tests;
+mod acp_scheduled_plans;
 mod acp_submissions;
 mod operations;
 #[cfg(test)]
@@ -228,6 +232,7 @@ impl LocalCatalog {
             saved_prompts::initialize(&db)?;
             acp_submissions::initialize(&mut db)?;
             acp_scheduled_configs::initialize(&db)?;
+            acp_scheduled_plans::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
                 .map_err(db_error)?;

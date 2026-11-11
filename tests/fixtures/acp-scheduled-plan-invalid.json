@@ -1,0 +1,50 @@
+[
+  {
+    "turnOptions": {}
+  },
+  {
+    "name": ""
+  },
+  {
+    "projectId": ""
+  },
+  {
+    "engine": "other"
+  },
+  {
+    "enabled": "false"
+  },
+  {
+    "values": {
+      "mode": {}
+    }
+  },
+  {
+    "prompt": {
+      "type": "prompt",
+      "text": "",
+      "attachments": [],
+      "skills": []
+    }
+  },
+  {
+    "schedule": {
+      "type": "once",
+      "atUnixMs": 1,
+      "path": "/bad"
+    }
+  },
+  {
+    "schedule": {
+      "type": "rrule",
+      "startAtUnixMs": 1,
+      "rrule": "",
+      "timezone": "UTC"
+    }
+  },
+  {
+    "values": {
+      "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀": false
+    }
+  }
+]

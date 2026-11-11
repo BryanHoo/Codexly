@@ -32,6 +32,10 @@
     "./task-common": {
       "types": "./src/task-common.ts",
       "default": "./src/task-common.ts"
+    },
+    "./acp-scheduled-plan": {
+      "types": "./src/acp-scheduled-plan.ts",
+      "default": "./src/acp-scheduled-plan.ts"
     }
   },
   "dependencies": {

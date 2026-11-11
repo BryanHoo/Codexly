@@ -1,3 +1,4 @@
+import type { AcpScheduledPlanDefinition } from "@codexly/protocol/acp-scheduled-plan";
 import type {
   AcpConfigValues,
   AgentEngine,
@@ -48,7 +49,17 @@ export interface AcpScheduledConfig extends AcpScheduledConfigKey {
   values: AcpConfigValues;
   revision: number;
 }
+export interface AcpScheduledPlan extends AcpScheduledConfigKey {
+  definition: AcpScheduledPlanDefinition;
+  revision: number;
+}
 export interface CatalogOperations {
+  "acp.plan.read": [AcpScheduledConfigKey, AcpScheduledPlan | null];
+  "acp.plan.set": [
+    AcpScheduledConfigKey & { definition: AcpScheduledPlanDefinition; expectedRevision: number },
+    AcpScheduledPlan | null,
+  ];
+  "acp.plan.delete": [AcpScheduledConfigKey & { expectedRevision: number }, boolean];
   "acp.schedule.read": [AcpScheduledConfigKey, AcpScheduledConfig | null];
   "acp.schedule.set": [
     AcpScheduledConfigKey & {

@@ -1,3 +1,4 @@
+import { createAcpScheduledPlanOperations } from "./acp-scheduled-plan-worker.js";
 import { createAcpScheduledConfigOperations } from "./acp-scheduled-config-worker.js";
 import { createSavedPromptOperations } from "./saved-prompts-worker.js";
 import { createHash } from "node:crypto";
@@ -93,6 +94,7 @@ export function createLocalCatalogOperations(db) {
   const operations = {
     ...createSavedPromptOperations(db),
     ...createAcpScheduledConfigOperations(db),
+    ...createAcpScheduledPlanOperations(db),
     "project.list": listProjects,
     "project.read": ({ id }) => readProject(id),
     "project.put": putProject,
