@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock, Weak},
 };
+mod acp_schedule_retirements;
 #[cfg(test)]
 mod acp_scheduled_config_tests;
 mod acp_scheduled_configs;

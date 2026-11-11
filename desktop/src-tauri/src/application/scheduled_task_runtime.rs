@@ -24,6 +24,9 @@ use crate::{
 
 use super::{error::AppError, scheduled_task_runner::start_scheduled_task_turn};
 
+#[path = "scheduled_acp_cleanup.rs"]
+mod acp_cleanup;
+
 #[path = "scheduled_acp_config.rs"]
 mod acp_config;
 #[cfg(test)]
@@ -93,6 +96,7 @@ impl ScheduledTaskRuntime {
                 .await
                 .map_err(map_store_error)?;
         }
+        acp_cleanup::recover_best_effort(app_data, &state.tasks).await;
         state.app_data = Some(app_data.to_owned());
         Ok(())
     }
@@ -166,7 +170,10 @@ impl ScheduledTaskRuntime {
         if state.tasks.len() == before {
             return Err(AppError::ScheduledTaskNotFound);
         }
+        // 先记录可恢复意图，再发布旧格式 JSON；失败时配置和内存状态保持。
+        acp_cleanup::prepare(app_data, id).await?;
         current.commit_candidate(state).await?;
+        acp_cleanup::recover_best_effort(app_data, &current.tasks).await;
         drop(current);
         self.notify.notify_one();
         Ok(())

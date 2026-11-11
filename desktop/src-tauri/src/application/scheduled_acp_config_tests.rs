@@ -146,3 +146,199 @@ async fn scheduled_acp_config_preview_should_leave_runtime_unlocked_and_recheck_
             .is_null()
     );
 }
+
+#[tokio::test]
+async fn scheduled_acp_delete_should_remove_only_source_config() {
+    let (root, runtime, saved) = fixture().await;
+    let store = LocalCatalog::at(root.path()).unwrap();
+    for source in ["web", "desktop"] {
+        store.call("acp.schedule.set",json!({"source":source,"scheduleId":saved.id,"engine":"codex","values":{"mode":false},"expectedRevision":0})).await.unwrap();
+    }
+    runtime.delete(root.path(), &saved.id).await.unwrap();
+    assert!(
+        store
+            .call(
+                "acp.schedule.read",
+                json!({"source":"desktop","scheduleId":saved.id})
+            )
+            .await
+            .unwrap()
+            .is_null()
+    );
+    assert_eq!(
+        store
+            .call(
+                "acp.schedule.read",
+                json!({"source":"web","scheduleId":saved.id})
+            )
+            .await
+            .unwrap()["revision"],
+        1
+    );
+    assert!(
+        ScheduledTaskRuntime::default()
+            .list(root.path())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn scheduled_acp_delete_should_recover_both_json_commit_boundaries() {
+    for removed in [false, true] {
+        let (root, _runtime, saved) = fixture().await;
+        let store = LocalCatalog::at(root.path()).unwrap();
+        let key = json!({"source":"desktop","scheduleId":saved.id});
+        store.call("acp.schedule.set",json!({"source":"desktop","scheduleId":saved.id,"engine":"claude","values":{"mode":false},"expectedRevision":0})).await.unwrap();
+        store
+            .call("acp.schedule.retire", key.clone())
+            .await
+            .unwrap();
+        if removed {
+            write_scheduled_tasks(root.path(), &[]).await.unwrap();
+        }
+        let tasks = ScheduledTaskRuntime::default()
+            .list(root.path())
+            .await
+            .unwrap();
+        assert_eq!(tasks.is_empty(), removed);
+        assert_eq!(
+            store
+                .call("acp.schedule.read", key)
+                .await
+                .unwrap()
+                .is_null(),
+            removed
+        );
+        assert_eq!(
+            store
+                .call("acp.schedule.retirements", json!({"source":"desktop"}))
+                .await
+                .unwrap(),
+            json!([])
+        );
+    }
+}
+
+#[tokio::test]
+async fn scheduled_acp_delete_should_defer_failed_cleanup_until_restart() {
+    let (root, runtime, saved) = fixture().await;
+    let store = LocalCatalog::at(root.path()).unwrap();
+    let key = json!({"source":"desktop","scheduleId":saved.id});
+    store.call("acp.schedule.set",json!({"source":"desktop","scheduleId":saved.id,"engine":"codex","values":{},"expectedRevision":0})).await.unwrap();
+    let db = rusqlite::Connection::open(root.path().join("state.sqlite3")).unwrap();
+    let version: i64 = db
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    db.execute_batch("CREATE TRIGGER stop_acp_cleanup BEFORE DELETE ON acp_scheduled_configs BEGIN SELECT RAISE(ABORT,'injected cleanup failure'); END;").unwrap();
+    runtime.delete(root.path(), &saved.id).await.unwrap();
+    assert!(read_scheduled_tasks(root.path()).await.unwrap().is_empty());
+    assert_eq!(
+        store.call("acp.schedule.read", key.clone()).await.unwrap()["revision"],
+        1
+    );
+    assert_eq!(
+        store
+            .call("acp.schedule.retirements", json!({"source":"desktop"}))
+            .await
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    db.execute_batch("DROP TRIGGER stop_acp_cleanup").unwrap();
+    assert!(
+        ScheduledTaskRuntime::default()
+            .list(root.path())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        store
+            .call("acp.schedule.read", key)
+            .await
+            .unwrap()
+            .is_null()
+    );
+    assert_eq!(
+        db.query_row::<i64, _, _>("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap(),
+        version
+    );
+}
+
+#[tokio::test]
+async fn scheduled_acp_delete_should_preserve_config_when_json_commit_fails() {
+    let (root, runtime, saved) = fixture().await;
+    let store = LocalCatalog::at(root.path()).unwrap();
+    let key = json!({"source":"desktop","scheduleId":saved.id});
+    store.call("acp.schedule.set",json!({"source":"desktop","scheduleId":saved.id,"engine":"codex","values":{},"expectedRevision":0})).await.unwrap();
+    let before = std::fs::read(root.path().join("scheduled-tasks/v1.json")).unwrap();
+    // 只替换测试运行时的写入目的地，原文件保持可读，模拟磁盘发布失败。
+    let blocked = root.path().join("blocked");
+    std::fs::write(&blocked, b"not a directory").unwrap();
+    runtime.inner.lock().await.app_data = Some(blocked);
+    assert!(runtime.delete(root.path(), &saved.id).await.is_err());
+    assert_eq!(
+        std::fs::read(root.path().join("scheduled-tasks/v1.json")).unwrap(),
+        before
+    );
+    assert_eq!(
+        store.call("acp.schedule.read", key.clone()).await.unwrap()["revision"],
+        1
+    );
+    assert_eq!(
+        ScheduledTaskRuntime::default()
+            .list(root.path())
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        store.call("acp.schedule.read", key).await.unwrap()["revision"],
+        1
+    );
+    assert_eq!(
+        store
+            .call("acp.schedule.retirements", json!({"source":"desktop"}))
+            .await
+            .unwrap(),
+        json!([])
+    );
+}
+
+#[tokio::test]
+async fn scheduled_acp_delete_should_not_remove_newer_config_after_interruption() {
+    let (root, _runtime, saved) = fixture().await;
+    let store = LocalCatalog::at(root.path()).unwrap();
+    let key = json!({"source":"desktop","scheduleId":saved.id});
+    for revision in [0, 1] {
+        store.call("acp.schedule.set",json!({"source":"desktop","scheduleId":saved.id,"engine":"codex","values":{},"expectedRevision":revision})).await.unwrap();
+        if revision == 0 {
+            store
+                .call("acp.schedule.retire", key.clone())
+                .await
+                .unwrap();
+        }
+    }
+    write_scheduled_tasks(root.path(), &[]).await.unwrap();
+    ScheduledTaskRuntime::default()
+        .list(root.path())
+        .await
+        .unwrap();
+    assert_eq!(
+        store.call("acp.schedule.read", key).await.unwrap()["revision"],
+        2
+    );
+    assert_eq!(
+        store
+            .call("acp.schedule.retirements", json!({"source":"desktop"}))
+            .await
+            .unwrap(),
+        json!([])
+    );
+}

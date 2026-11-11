@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 const MAX_REVISION: i64 = 9_007_199_254_740_991;
 type StoredConfig = (String, String, String, String, i64);
 
-fn sql(name: &str) -> Result<&'static str, CatalogError> {
+pub(super) fn sql(name: &str) -> Result<&'static str, CatalogError> {
     // 编译内嵌并只解析一次；两端使用同一份 SQL，不能分别修改 CAS 或预算语义。
     static SQL: OnceLock<Result<Value, serde_json::Error>> = OnceLock::new();
     let value = SQL
@@ -97,6 +97,12 @@ fn record(stored: Option<StoredConfig>) -> Result<Value, CatalogError> {
 }
 
 pub(super) fn execute(db: &Connection, op: &str, input: &Value) -> Result<Value, CatalogError> {
+    if matches!(
+        op,
+        "acp.schedule.retire" | "acp.schedule.retirements" | "acp.schedule.finalize"
+    ) {
+        return super::acp_schedule_retirements::execute(db, op, input);
+    }
     let (source, id) = key(input)?;
     match op {
         "acp.schedule.read" => record(
