@@ -8,6 +8,7 @@ import {
 import { ScheduledTaskAttachmentManager } from "./scheduled-task-attachments.js";
 import { createScheduledSubmission } from "./scheduled-task-submission.js";
 import { createMemorySubmissionRepository } from "./task-submission-service.js";
+import { createAcpPlanExecutor } from "./acp-plan-executor.js";
 
 // 调度装配独立于 HTTP 应用入口，保持资源所有权与关闭顺序清晰。
 export async function createScheduledTasks(
@@ -52,5 +53,17 @@ export async function createScheduledTasks(
     ),
   });
   await scheduledTaskService.start();
-  return { scheduledTaskAttachmentManager, scheduledTaskService };
+  // 新计划只装配调用式执行器；资源事务和调度循环接通前不自动领取或启动。
+  const acpPlanExecutor =
+    execution.capabilities.runtime === "acp" &&
+    options.localCatalogStore &&
+    options.submissionRepository
+      ? createAcpPlanExecutor({
+          catalog: options.localCatalogStore,
+          submissions: options.submissionRepository,
+          getProjectContext,
+          resolveInput: execution.resolveProviderTurnInput,
+        })
+      : undefined;
+  return { scheduledTaskAttachmentManager, scheduledTaskService, acpPlanExecutor };
 }

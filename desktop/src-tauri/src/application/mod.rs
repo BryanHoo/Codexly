@@ -5,6 +5,11 @@ mod acp_input;
     expect(dead_code, reason = "新计划执行器接入前，仅提供调用式发现基础")
 )]
 mod acp_plan_discovery;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "新计划后台执行器装配前保留调用式端口")
+)]
+mod acp_plan_executor;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;
