@@ -7,6 +7,11 @@ mod acp_input;
 mod acp_plan_completion;
 #[cfg_attr(
     not(test),
+    expect(dead_code, reason = "计划交付层待原生命令及调度生命周期装配")
+)]
+mod acp_plan_delivery;
+#[cfg_attr(
+    not(test),
     expect(dead_code, reason = "新计划执行器接入前，仅提供调用式发现基础")
 )]
 mod acp_plan_discovery;
