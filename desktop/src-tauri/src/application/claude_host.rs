@@ -87,7 +87,9 @@ impl HostLaunch {
                 command
                     .arg(app_data.join("engines/acp"))
                     .arg(paths.codex)
-                    .arg(paths.claude);
+                    .arg(paths.claude)
+                    // 可信目录只由宿主装配传入；共享层只读应用旧设置，不推测用户或厂商路径。
+                    .arg(app_data);
                 command
             }
         };

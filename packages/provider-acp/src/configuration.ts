@@ -55,14 +55,16 @@ export async function prepareAcpDefaults(
   inspect = false,
 ) {
   let options = initial;
-  if (!requested && !saved.configured && saved.legacy) {
-    const mapped = migrateAcpSettings(saved.legacy, options);
+  // 已被原生配置覆盖的应用副本仅供恢复留档，不能重新覆盖 agent 当前值。
+  const legacy = saved.legacyPolicy === "preserve" ? undefined : saved.legacy;
+  if (!requested && !saved.configured && legacy) {
+    const mapped = migrateAcpSettings(legacy, options);
     const model = options.find((option) => option.category === "model");
     const value = model ? mapped.values[model.id] : undefined;
     if (model && value !== undefined)
       options = await applyAcpConfig(connection, sessionId, options, { [model.id]: value });
   }
-  const migration = saved.legacy ? migrateAcpSettings(saved.legacy, options) : undefined;
+  const migration = legacy ? migrateAcpSettings(legacy, options) : undefined;
   const defaults =
     requested ?? (saved.configured ? saved.values : (migration?.values ?? saved.values));
   // 读取设置必须保留修正入口；实际保存与新会话执行仍严格拒绝过期默认值。

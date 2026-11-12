@@ -17,7 +17,7 @@ import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
 import { AcpAgentService } from "./agent-service.js";
 import { prepareAcpDefaults } from "./configuration.js";
-import { AcpSettingsStore } from "./settings-store.js";
+import { AcpSettingsStore, type AcpLegacySettingsSource } from "./settings-store.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 const require = createRequire(import.meta.url);
 /** 只解析官方包声明的可执行入口；不运行动态 npx、不拼接 shell，也不导入厂商 SDK。 */
@@ -53,9 +53,10 @@ export class AcpRuntime {
     readonly directory: string,
     readonly store: LocalCatalogStore,
     readonly launch: AcpAgentLauncher = launchOfficialAgent,
+    legacySource?: AcpLegacySettingsSource,
   ) {
     this.#history = new AcpHistory(join(directory, "history"));
-    this.settings = new AcpSettingsStore(join(directory, "settings"));
+    this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource);
     this.agents = {
       codex: new AcpAgentService("codex", directory, this.settings, launch),
       claude: new AcpAgentService("claude", directory, this.settings, launch),

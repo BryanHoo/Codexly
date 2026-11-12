@@ -10,6 +10,7 @@ import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
 import { acpCapabilities } from "./provider-discovery.js";
 import { acpModels } from "./session-options.js";
 import { migrateAcpSettings } from "./migration.js";
+import type { AcpLegacySettingsSource } from "./settings-store.js";
 
 type Preferences = Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel">;
 const unsupported = (operation: string): Promise<never> =>
@@ -22,8 +23,9 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
     store: LocalCatalogStore,
     readonly readPreferences: () => Promise<Preferences | undefined>,
     launch?: AcpAgentLauncher,
+    legacySource?: AcpLegacySettingsSource,
   ) {
-    super(directory, store, launch);
+    super(directory, store, launch, legacySource);
   }
   get acpAgents() {
     return this.agents;

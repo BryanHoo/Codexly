@@ -43,6 +43,8 @@ export class AcpAgentService implements AcpAgentSettingsService {
   }
   async #agent(): Promise<AcpConnection> {
     if (!this.#handle) {
+      // 迁移来源只读校验先于启动；失败不启动 agent，已保存的 ACP 配置由存储层优先保留。
+      if (this.store.legacySource) await this.store.read(this.engine);
       const pending = this.launch(
         this.engine,
         {

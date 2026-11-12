@@ -10,6 +10,7 @@ function baseline(settings: AcpStoredSettings): string {
     settings.values,
     settings.retainedValues,
     settings.legacy,
+    settings.legacyPolicy,
   ]);
 }
 

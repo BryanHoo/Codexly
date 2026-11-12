@@ -433,7 +433,8 @@ fn acp_launch_should_pass_only_shared_storage_and_bundled_executables() {
                 .to_string_lossy()
                 .into_owned(),
             String::from("/bundle/codex"),
-            String::from("/bundle/claude")
+            String::from("/bundle/claude"),
+            String::from("/private/app")
         ]
     );
 }

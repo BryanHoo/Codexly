@@ -4,6 +4,7 @@ import type { Readable, Writable } from "node:stream";
 import { AcpHost } from "./host.js";
 import { AcpProcess } from "./process.js";
 import type { AcpAgentLauncher } from "./runtime.js";
+import { readAcpLegacyApplicationSettings } from "./legacy-settings.js";
 
 export const ACP_HOST_VERSION = "codexly-acp-host/1";
 /** 宿主与两个 agent 模式由同一独立程序供应；原生二进制仍由应用资源管理器校验。 */
@@ -16,8 +17,14 @@ export async function runAcpHost(
     io.output.write(`${ACP_HOST_VERSION}\n`);
     return 0;
   }
-  const [directory, codex, claude] = args;
-  if (args.length !== 3 || !directory || !codex || !claude || !args.every(isAbsolute))
+  const [directory, codex, claude, applicationDirectory] = args;
+  if (
+    (args.length !== 3 && args.length !== 4) ||
+    !directory ||
+    !codex ||
+    !claude ||
+    !args.every(isAbsolute)
+  )
     throw new Error("ACP 宿主需要数据目录及两个原生程序的绝对路径");
   io.signal?.throwIfAborted();
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -33,7 +40,15 @@ export async function runAcpHost(
         },
         callbacks,
       ));
-  const host = new AcpHost(directory, io.output, launcher);
+  // 仅可信原生启动器提供旧应用目录；三参数独立宿主不推测父目录或读取用户文件。
+  const host = new AcpHost(
+    directory,
+    io.output,
+    launcher,
+    applicationDirectory === undefined
+      ? undefined
+      : (engine) => readAcpLegacyApplicationSettings(applicationDirectory, engine),
+  );
   return new Promise<number>((resolve, reject) => {
     let finishing = false;
     const finish = (code: number) => {

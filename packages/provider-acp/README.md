@@ -43,7 +43,7 @@ HTTP 契约：`/v1/acp/agents/:engine`、`/authenticate`、`/defaults`、`/provi
 
 运行 `node tools/build-acp-host.mjs` 构建到 `.artifacts/acp/acp-host`（Windows 带 `.exe`），同时生成包含目标平台、架构、官方包版本与 SHA-256 的清单。`CODEXLY_ACP_TARGET` 可指定 Tauri 目标三元组；只有本机目标会执行版本探测。构建依赖 pnpm 已批准安装的 Bun，成品不需要 Node 或 Bun。
 
-成品普通模式接收三个绝对路径参数：私有 ACP 数据目录、Codex 原生程序、Claude 原生程序。`--acp-agent codex` 和 `--acp-agent claude` 模式直接进入官方 ACP CLI，分别使用官方 `CODEX_PATH` 与 `CLAUDE_CODE_EXECUTABLE` 指定随包原生程序。
+成品普通模式接收三个绝对路径参数：私有 ACP 数据目录、Codex 原生程序、Claude 原生程序。Native 启动器另提供第四个可信应用数据目录，用于下述应用旧设置只读导入；旧三参数调用继续有效，且不会推测父目录或读取用户旧文件。`--acp-agent codex` 和 `--acp-agent claude` 模式直接进入官方 ACP CLI，分别使用官方 `CODEX_PATH` 与 `CLAUDE_CODE_EXECUTABLE` 指定随包原生程序。
 
 `CODEXLY_COMPILED_ACP_HOST=/absolute/acp-host node --test tools/acp-host.test.mjs` 验证真实独立程序目录回调与 EOF。为官方 adapter 测试额外设置 `CODEXLY_REAL_RUNTIME_TEST=1`、两个原生程序覆盖环境和 `CODEXLY_COMPILED_ACP_HOST`，即可让 `official-agents.test.ts` 改用编译后的两个 agent 模式；仍不发送模型请求。
 
@@ -62,3 +62,11 @@ POSIX 原生进程守卫为宿主注入私有 Unix 生命周期连接，独立 a
 桌面 `createAcpTask(projectId, engine, { idempotencyKey })` 只创建应用目录任务，不启动 agent。调用方必须为同一创建意图保留幂等键；普通聊天使用受控工作区并绑定稳定应用 ID。已绑定工作区在目录写入失败时保留，按同一键重试恢复；未绑定的失败目录仅清理本次分配，既有同名目录不会被接管。遗留绑定目录回收和任务删除的工作区生命周期仍待完整接入。
 
 任务附件存储已提取到 Core，旧 Claude 保留兼容导出与原磁盘布局。ACP 用户消息保存稳定附件引用，可在进程重启后读取正文；桌面 `startAcpPrompt` 使用完整应用附件元数据，经原生校验后转为标准 ACP 内容块。历史预览通过 `buildNativeTaskAttachmentUrl(..., "acp")` 显式选择 ACP 归属校验，旧预览继续兼容旧路径。共享宿主内嵌附件 Worker，编译产物已验证真实读取；设置 / 聊天 UI 的最终装配和旧历史附件迁移仍待完成。
+
+## 应用旧设置的只读导入
+
+`AcpSettingsStore` 可注入 `AcpLegacySettingsSource`，由 `AcpRuntime`、`AcpApplicationRuntime` 和桌面共享宿主传递。尚未导入且未明确配置 ACP 默认值时，首次读取采集旧快照；同一进程的并发读取合并，持锁重查最新记录，失败不写入空快照。已有 legacy 快照或用户明确保存的 ACP 配置优先，重启不会重读并覆盖，旧来源后来损坏也不阻断已配置用户。设置服务在冷启动 agent 前完成该校验，失败不启动 agent。
+
+Native 实际启动传入应用数据目录后，`readAcpLegacyApplicationSettings` 只读 `agent-settings.json` 的 v1 global 遗留智能体字段及 `engines/claude/preferences.json`。公共界面偏好继续由原存储消费，不当作智能体配置；未知字段和原始 false 留在 ACP 私有 legacy。来源策略区分 migrate / preserve：Codex 应用文件的旧副本仅归档，不能覆盖官方 agent 当前配置，也不作为待迁移默认值显示；Claude 应用 preferences 中的现行偏好才按公布选项精确迁移。源文件单次读取沿用 512 KiB 预算，增长、损坏、未知版本及无效 UTF-8 明确失败；原文件逐字节保留。单个配置文件过大时不会静默跳过或写入空的成功标记。
+
+模型、权限、认证与供应商原生文件由官方 agent 使用，此入口不解析 TOML、不读取或复制厂商原生凭据，也不写原生配置。旧值仅在 agent 公布精确可用选项后应用，公开默认值不包含 legacy 原记录。Web 已提供相同来源注入点，CLI 的实际旧数据库读取与生产装配仍在最终切换任务中完成；项目 / 任务覆盖、认证就绪后的目录恢复和崩溃锁恢复仍需后续验证。

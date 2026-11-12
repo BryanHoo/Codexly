@@ -145,3 +145,122 @@ test(
     }
   },
 );
+
+test(
+  "compiled host imports app legacy settings before starting an unavailable agent",
+  { skip: !binary, timeout: 20000 },
+  async () => {
+    const { mkdir, writeFile, readFile } = await import("node:fs/promises");
+    const root = await mkdtemp(join(tmpdir(), "acp-compiled-legacy-"));
+    const directory = join(root, "engines/acp");
+    await mkdir(root, { recursive: true });
+    const original =
+      '{"version":1,"global":{"model":"old","future":false,"defaultAgent":"claude"},"projects":{}}\n';
+    await writeFile(join(root, "agent-settings.json"), original);
+    const child = spawn(binary, [directory, process.execPath, process.execPath, root], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        CODEX_HOME: join(root, "codex-home"),
+        CLAUDE_CONFIG_DIR: join(root, "claude-home"),
+      },
+    });
+    child.stderr.resume();
+    const lines = createInterface({ input: child.stdout });
+    let timer;
+    const exited = new Promise((resolve) => child.once("exit", resolve));
+    try {
+      const response = new Promise((resolve, reject) => {
+        timer = setTimeout(() => reject(Error("compiled bootstrap response timed out")), 12000);
+        child.once("error", reject);
+        lines.on("line", (line) => {
+          try {
+            const frame = JSON.parse(line);
+            if (frame.id === 1) resolve(frame);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+      child.stdin.write('{"id":1,"method":"agent.inspect","params":{"engine":"codex"}}\n');
+      const result = await response;
+      assert.ok(result.error);
+      const settings = JSON.parse(await readFile(join(directory, "settings/codex.json"), "utf8"));
+      assert.deepEqual(settings.legacy, { model: "old", future: false });
+      assert.deepEqual(settings.values, {});
+      assert.equal(await readFile(join(root, "agent-settings.json"), "utf8"), original);
+      child.stdin.end();
+      assert.equal(await exited, 0);
+    } finally {
+      clearTimeout(timer);
+      child.kill();
+      lines.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "compiled host rejects malformed legacy UTF-8 without a marker and retries after repair",
+  { skip: !binary, timeout: 20000 },
+  async () => {
+    const { writeFile, readFile } = await import("node:fs/promises");
+    const root = await mkdtemp(join(tmpdir(), "acp-compiled-invalid-")),
+      directory = join(root, "engines/acp");
+    const invalid = Buffer.concat([
+      Buffer.from('{"version":1,"global":{"model":"'),
+      Buffer.from([0xc3, 0x28]),
+      Buffer.from('"},"projects":{}}'),
+    ]);
+    await writeFile(join(root, "agent-settings.json"), invalid);
+    const child = spawn(binary, [directory, process.execPath, process.execPath, root], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        CODEX_HOME: join(root, "codex-home"),
+        CLAUDE_CONFIG_DIR: join(root, "claude-home"),
+      },
+    });
+    child.stderr.resume();
+    const lines = createInterface({ input: child.stdout });
+    const exited = new Promise((resolve) => child.once("exit", resolve));
+    let timer;
+    const pending = new Map();
+    lines.on("line", (line) => {
+      const frame = JSON.parse(line);
+      pending.get(frame.id)?.(frame);
+    });
+    const request = (id) =>
+      new Promise((resolve, reject) => {
+        timer = setTimeout(() => reject(Error("compiled bootstrap response timed out")), 12000);
+        pending.set(id, (frame) => {
+          clearTimeout(timer);
+          pending.delete(id);
+          resolve(frame);
+        });
+        child.stdin.write(
+          JSON.stringify({ id, method: "agent.inspect", params: { engine: "codex" } }) + "\n",
+        );
+      });
+    try {
+      assert.equal((await request(1)).error, "ACP_HOST_REQUEST_FAILED");
+      assert.deepEqual(await readFile(join(root, "agent-settings.json")), invalid);
+      await assert.rejects(readFile(join(directory, "settings/codex.json")), { code: "ENOENT" });
+      await writeFile(
+        join(root, "agent-settings.json"),
+        '{"version":1,"global":{"model":"old"},"projects":{}}',
+      );
+      await request(2);
+      const stored = JSON.parse(await readFile(join(directory, "settings/codex.json"), "utf8"));
+      assert.deepEqual(stored.legacy, { model: "old" });
+      assert.equal(stored.legacyPolicy, "preserve");
+      child.stdin.end();
+      assert.equal(await exited, 0);
+    } finally {
+      clearTimeout(timer);
+      child.kill();
+      lines.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);

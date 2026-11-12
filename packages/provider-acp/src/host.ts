@@ -11,6 +11,7 @@ import {
 } from "@codexly/core";
 import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
 import { dispatchAcpHost, hostRecord, ACP_HOST_RESPONSE_SENT } from "./host-dispatch.js";
+import type { AcpLegacySettingsSource } from "./settings-store.js";
 
 /** 桌面只负责启动和转发此宿主；双引擎协议与事件投影共用 Web 的 ACP 实现。 */
 export class AcpHost {
@@ -30,7 +31,12 @@ export class AcpHost {
   get finished(): Promise<undefined> {
     return this.#finished.promise;
   }
-  constructor(directory: string, output: Writable, launch?: AcpAgentLauncher) {
+  constructor(
+    directory: string,
+    output: Writable,
+    launch?: AcpAgentLauncher,
+    legacySource?: AcpLegacySettingsSource,
+  ) {
     this.#output = new HostOutput(output, () => {
       void this.close().catch(() => undefined);
     });
@@ -40,7 +46,7 @@ export class AcpHost {
         payload: CatalogOperations[K][0],
       ) => this.#catalog(operation, payload) as Promise<CatalogOperations[K][1]>,
     };
-    this.runtime = new AcpRuntime(directory, store, launch);
+    this.runtime = new AcpRuntime(directory, store, launch, legacySource);
     this.queue = new AcpQueue(
       directory,
       async (project, task, input) => {

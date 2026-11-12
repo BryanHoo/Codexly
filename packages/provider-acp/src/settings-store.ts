@@ -17,6 +17,8 @@ const StoredSchema = Type.Object({
   // 当前 agent 不再公布的选项只留在私有记录；与默认值共用 512 KiB 存储预算。
   retainedValues: Type.Optional(AcpConfigValuesSchema),
   legacy: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+  // 原生配置已覆盖的应用旧副本只归档，不能重新成为新会话默认值。
+  legacyPolicy: Type.Optional(Type.Literal("preserve")),
   migration: Type.Optional(AcpSettingsMigrationSchema),
   providers: Type.Optional(Type.Record(Type.String(), AcpProviderConfigSchema)),
   disabledProviders: Type.Optional(
@@ -24,11 +26,41 @@ const StoredSchema = Type.Object({
   ),
 });
 export type AcpStoredSettings = Static<typeof StoredSchema>;
+/** 来源声明旧值是否仍有效；被原生配置覆盖的副本只归档，不能重新参与默认值映射。 */
+export interface AcpLegacySettingsSnapshot {
+  settings: Record<string, unknown>;
+  policy: "migrate" | "preserve";
+}
+export type AcpLegacySettingsSource = (engine: AgentEngine) => Promise<AcpLegacySettingsSnapshot>;
 const empty = (): AcpStoredSettings => ({ version: 1, configured: false, values: {} });
 /** 文件仅存应用默认值与私有迁移凭据；禁止把 legacy 整体返回到客户端。 */
 export class AcpSettingsStore {
-  constructor(readonly directory: string) {}
+  readonly #imports = new Map<AgentEngine, Promise<AcpStoredSettings>>();
+  constructor(
+    readonly directory: string,
+    readonly legacySource?: AcpLegacySettingsSource,
+  ) {}
   async read(engine: AgentEngine): Promise<AcpStoredSettings> {
+    const current = await this.#read(engine);
+    const source = this.legacySource;
+    // 用户已经明确保存的新默认值不再依赖旧来源可读；损坏的旧文件不能阻断现有 ACP 配置。
+    if (current.configured || current.legacy !== undefined || !source) return current;
+    const existing = this.#imports.get(engine);
+    if (existing) return existing;
+    // 首读只采集应用自有旧值；并发读取共用一次来源，失败不能写入空的迁移标记。
+    const pending = (async () => {
+      const snapshot = await source(engine);
+      await this.importLegacy(engine, snapshot.settings, snapshot.policy);
+      return this.#read(engine);
+    })();
+    this.#imports.set(engine, pending);
+    try {
+      return await pending;
+    } finally {
+      if (this.#imports.get(engine) === pending) this.#imports.delete(engine);
+    }
+  }
+  async #read(engine: AgentEngine): Promise<AcpStoredSettings> {
     const path = join(this.directory, `${engine}.json`);
     let text: string;
     try {
@@ -52,7 +84,8 @@ export class AcpSettingsStore {
     const lock = await open(`${path}.lock`, "wx", 0o600);
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
-      const next = change(await this.read(engine));
+      // 持锁重读原记录，不递归触发首读导入；保留另一宿主已保存的新选择或旧快照。
+      const next = change(await this.#read(engine));
       const data = JSON.stringify(next);
       if (Buffer.byteLength(data) > 512 * 1024) throw new Error("ACP 设置超出存储预算");
       const file = await open(temporary, "wx", 0o600);
@@ -70,9 +103,19 @@ export class AcpSettingsStore {
       await rm(`${path}.lock`, { force: true });
     }
   }
-  async importLegacy(engine: AgentEngine, legacy: Record<string, unknown>): Promise<void> {
+  async importLegacy(
+    engine: AgentEngine,
+    legacy: Record<string, unknown>,
+    policy: AcpLegacySettingsSnapshot["policy"] = "migrate",
+  ): Promise<void> {
     await this.update(engine, (current) =>
-      current.legacy ? current : { ...current, legacy: structuredClone(legacy) },
+      current.legacy
+        ? current
+        : {
+            ...current,
+            legacy: structuredClone(legacy),
+            ...(policy === "preserve" ? { legacyPolicy: policy } : {}),
+          },
     );
   }
 }
