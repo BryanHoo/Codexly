@@ -208,6 +208,7 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             application::acp_plan_commands::acp_plan_request,
+            application::application_preferences_commands::application_preferences_request,
             application::acp_commands::read_acp_agent,
             application::acp_commands::acp_agent_request,
             application::acp_task_commands::acp_task_request,

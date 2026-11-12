@@ -20,6 +20,7 @@ pub(crate) mod app_storage_runtime;
 #[cfg(test)]
 mod app_storage_runtime_tests;
 mod app_update;
+pub mod application_preferences_commands;
 pub mod attachment_commands;
 pub mod autostart_commands;
 pub mod background_commands;

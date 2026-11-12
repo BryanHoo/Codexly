@@ -40,6 +40,10 @@
     "./acp-plan-api": {
       "types": "./src/acp-plan-api.ts",
       "default": "./src/acp-plan-api.ts"
+    },
+    "./application-preferences": {
+      "types": "./src/application-preferences.ts",
+      "default": "./src/application-preferences.ts"
     }
   },
   "dependencies": {

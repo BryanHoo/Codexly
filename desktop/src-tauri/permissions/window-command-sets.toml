@@ -9,6 +9,7 @@ permissions = [
   "allow-set-acp-scheduled-config",
   "allow-acp-agent-request",
   "allow-acp-plan-request",
+  "allow-application-preferences-request",
   "allow-acp-task-request",
   "allow-create-acp-task",
   "allow-read-network-proxy",

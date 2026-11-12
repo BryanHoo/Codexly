@@ -76,6 +76,9 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "app.preferences.read" | "app.preferences.patch" => {
+            super::application_preferences::execute(db, op, p)
+        }
         "acp.plan.view" | "acp.plan.commit" => super::acp_plan_commit::execute(db, op, p),
         "acp.plan.completion.read" | "acp.plan.completion.put" => {
             super::acp_plan_completion::execute(db, op, p)

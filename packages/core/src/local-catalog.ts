@@ -1,3 +1,7 @@
+import type {
+  ApplicationPreferences,
+  ApplicationPreferencesPatch,
+} from "@codexly/protocol/application-preferences";
 import type { AcpPlanHistory, AcpPlanRunSummary } from "@codexly/protocol/acp-plan-api";
 import type { AcpScheduledPlanDefinition } from "@codexly/protocol/acp-scheduled-plan";
 import type {
@@ -114,6 +118,11 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  "app.preferences.read": [Record<string, never>, ApplicationPreferences | null];
+  "app.preferences.patch": [
+    { baseline: ApplicationPreferences; changes: ApplicationPreferencesPatch },
+    ApplicationPreferences,
+  ];
   "acp.plan.history": [AcpScheduledConfigKey, AcpPlanHistory | null];
   "acp.plan.summary": [AcpScheduledConfigKey & { runId: string }, AcpPlanRunSummary | null];
   "acp.plan.view": [AcpScheduledConfigKey, AcpPlanView | null];

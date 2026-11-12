@@ -25,6 +25,9 @@ mod acp_plan_state;
 #[cfg(test)]
 mod acp_plan_state_tests;
 mod acp_plan_validation;
+pub(crate) mod application_preferences;
+#[cfg(test)]
+mod application_preferences_tests;
 pub(crate) use acp_plan_validation::valid as valid_plan_definition;
 mod acp_schedule_retirements;
 #[cfg(test)]
@@ -257,6 +260,7 @@ impl LocalCatalog {
             ))
             .map_err(|_| CatalogError::InvalidMessage)?;
             saved_prompts::initialize(&db)?;
+            application_preferences::initialize(&db)?;
             acp_submissions::initialize(&mut db)?;
             acp_scheduled_configs::initialize(&db)?;
             acp_scheduled_plans::initialize(&db)?;

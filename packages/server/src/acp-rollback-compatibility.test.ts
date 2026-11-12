@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import Fastify from "fastify";
 import { expect, it } from "vitest";
 import { AgentGlobalSettingsSchema, AgentTaskSettingsSchema } from "@codexly/protocol";
+import { applicationPreferencesFromLegacy } from "@codexly/core";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
 
 const contract = JSON.parse(
@@ -46,6 +47,14 @@ it("新版设置仓储往返后，v0.53.0 的严格读取契约仍接受原设�
   };
   await repository.writeGlobalSettings(global);
   await repository.writeTaskSettings("temporary", "legacy-task", task);
+  await repository.catalog("app.preferences.patch", {
+    baseline: applicationPreferencesFromLegacy(global),
+    changes: { defaultAgent: "claude", defaultModel: "raw/acp/model".repeat(1000) },
+  });
+  await repository.catalog("app.preferences.patch", {
+    baseline: applicationPreferencesFromLegacy(global),
+    changes: { defaultAgent: "codex", defaultModel: null },
+  });
   // 新版真实写入原始 ACP 计划配置后，再让冻结的旧读取器校验原设置。
   await repository.catalog("acp.schedule.set", {
     source: "web",

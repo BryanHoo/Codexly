@@ -1,0 +1,15 @@
+{
+  "schema": "CREATE TABLE IF NOT EXISTS acp_application_preferences (id INTEGER PRIMARY KEY CHECK(id=1), settings_json TEXT NOT NULL CHECK(json_valid(settings_json) AND length(CAST(settings_json AS BLOB))<=262144));",
+  "read": "SELECT settings_json FROM acp_application_preferences WHERE id=1",
+  "write": "INSERT INTO acp_application_preferences(id,settings_json) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET settings_json=excluded.settings_json",
+  "defaults": {
+    "defaultAgent": "codex",
+    "defaultModel": null,
+    "commitMessagePrompt": "",
+    "taskTitlePrompt": "",
+    "promptOptimizationPrompt": "",
+    "defaultOpenAppId": null,
+    "followUpBehavior": "queue",
+    "pet": { "enabled": false, "selectedPetId": null }
+  }
+}

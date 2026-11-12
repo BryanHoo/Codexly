@@ -26,6 +26,8 @@ async fn acp_journal_should_keep_released_catalog_schema_and_old_sql_writes_usab
     );
     let request = json!({"projectId":"temporary","taskId":"legacy","key":"new-attempt","fingerprint":"acp-body-hash"});
     store.call("acp.submission.begin", request).await.unwrap();
+    store.call("app.preferences.patch",json!({"baseline":settings["global"],"changes":{"defaultAgent":"claude","defaultModel":"raw/acp/model".repeat(1000)}})).await.unwrap();
+    store.call("app.preferences.patch",json!({"baseline":settings["global"],"changes":{"defaultAgent":"codex","defaultModel":null}})).await.unwrap();
     // 私有计划配置已写入后，旧目录读取和不带列名的 SQL 写入也必须继续工作。
     store.call("acp.schedule.set", json!({"source":"desktop","scheduleId":"legacy-plan","engine":"claude","values":{"agent-defined-mode":true,"model":"native-model"},"expectedRevision":0})).await.unwrap();
     drop(store);

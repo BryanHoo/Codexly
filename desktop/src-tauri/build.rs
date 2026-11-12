@@ -23,6 +23,7 @@ fn main() {
         "read_acp_agent",
         "acp_agent_request",
         "acp_plan_request",
+        "application_preferences_request",
         "acp_task_request",
         "create_acp_task",
         "read_network_proxy",

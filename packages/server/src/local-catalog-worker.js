@@ -1,3 +1,4 @@
+import { createApplicationPreferencesOperations } from "./application-preferences-worker.js";
 import { createAcpPlanResourceOperations } from "./acp-plan-resource-worker.js";
 import { createAcpPlanCompletionOperations } from "./acp-plan-completion-worker.js";
 import { createAcpPlanIndexOperations } from "./acp-plan-index-worker.js";
@@ -96,6 +97,7 @@ export function createLocalCatalogOperations(db) {
     return readTask(t.id);
   };
   const operations = {
+    ...createApplicationPreferencesOperations(db),
     ...createSavedPromptOperations(db),
     ...createAcpScheduledConfigOperations(db),
     ...createAcpScheduledPlanOperations(db),
