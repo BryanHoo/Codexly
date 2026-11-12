@@ -1,3 +1,8 @@
+import {
+  backgroundTerminalQuery,
+  assertLegacyBackgroundTerminals,
+  type BackgroundTerminalRuntime,
+} from "@codexly/frontend-core/background-terminal-query";
 import type { AgentBackgroundTerminal } from "@codexly/protocol";
 import {
   getBackgroundTerminalPollInterval,
@@ -26,30 +31,20 @@ export function useBackgroundTerminals(
   taskId: string | undefined,
   isTaskRunning: boolean,
   enabled = true,
+  runtime: BackgroundTerminalRuntime = "legacy",
 ): BackgroundTerminalView {
   const queryClient = useQueryClient();
+  const runtimeRef = useRef(runtime);
+  runtimeRef.current = runtime;
   const previousTaskRunningRef = useRef(isTaskRunning);
   const idempotencyKeysRef = useRef(new Map<string, string>());
   const terminateLockRef = useRef(createAsyncActionLock());
-  const terminalsQuery = useQuery({
-    enabled: enabled && taskId !== undefined,
-    queryFn: ({ signal }) => {
-      if (taskId === undefined) {
-        throw new Error("Background terminal query requires a task");
-      }
-      return client.listBackgroundTerminals(projectId, taskId, { signal });
-    },
-    queryKey: ["projects", projectId, "tasks", taskId, "background-terminals"] as const,
-    // 进程存活状态不能沿用全局 30 秒新鲜期；重新打开任务或上下文时校准缓存。
-    staleTime: 0,
-    refetchInterval(query) {
-      // Turn 已结束但终端仍存在时继续轮询，直到 Provider 确认进程退出。
-      return getBackgroundTerminalPollInterval(isTaskRunning, query.state.data?.data.length ?? 0);
-    },
-    refetchIntervalInBackground: false,
-  });
+  const terminalsQuery = useQuery(
+    backgroundTerminalQuery(projectId, taskId, client, isTaskRunning, enabled, runtime),
+  );
   const terminateMutation = useMutation({
     mutationFn: async (terminalId: string) => {
+      assertLegacyBackgroundTerminals(runtimeRef.current);
       if (taskId === undefined) {
         throw new Error("Background terminal termination requires a task");
       }
@@ -69,7 +64,7 @@ export function useBackgroundTerminals(
 
   useEffect(() => {
     const shouldRefresh = shouldRefreshBackgroundTerminals(
-      enabled,
+      enabled && runtime === "legacy",
       previousTaskRunningRef.current,
       isTaskRunning,
       taskId,
@@ -80,29 +75,36 @@ export function useBackgroundTerminals(
     }
     // Turn 终态到达时立即读取一次，不能把仍存活的后台终端随回复一起清除。
     void refetchTerminals();
-  }, [enabled, isTaskRunning, refetchTerminals, taskId]);
+  }, [enabled, isTaskRunning, refetchTerminals, runtime, taskId]);
 
   const terminateTerminal = useCallback(
-    (terminalId: string) =>
-      terminateLockRef.current.run(async () => {
+    async (terminalId: string) => {
+      // 旧引用可能留在弹窗里，使用当前运行时再次确认，拒绝时不能进入失败刷新。
+      assertLegacyBackgroundTerminals(runtimeRef.current);
+      await terminateLockRef.current.run(async () => {
         try {
           await terminateTerminalMutation(terminalId);
           idempotencyKeysRef.current.delete(terminalId);
-        } catch {
+        } catch (error) {
           // 进程可能已自然退出；失败后重新读取权威列表，避免残留无法结束的命令。
           // 根级 MutationCache 仍负责展示真实请求错误。
+          if (runtimeRef.current !== "legacy")
+            throw error instanceof Error ? error : new Error("后台终端终止失败", { cause: error });
           await refetchTerminals();
         }
-      }),
+      });
+    },
     [refetchTerminals, terminateTerminalMutation],
   );
 
   return {
-    error: terminalsQuery.error,
-    isPending: terminalsQuery.isPending,
-    terminals: terminalsQuery.data?.data ?? [],
+    error: runtime === "legacy" ? terminalsQuery.error : null,
+    isPending: runtime === "legacy" && terminalsQuery.isPending,
+    terminals: runtime === "legacy" ? (terminalsQuery.data?.data ?? []) : [],
     terminatingTerminalId:
-      terminateMutation.isPending && typeof terminateMutation.variables === "string"
+      runtime === "legacy" &&
+      terminateMutation.isPending &&
+      typeof terminateMutation.variables === "string"
         ? terminateMutation.variables
         : null,
     terminateTerminal,

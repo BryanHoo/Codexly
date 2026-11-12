@@ -283,6 +283,8 @@ export function useWorkbenchShellRuntime({
     taskId,
     isTaskRunning,
     inspectorActivation.context,
+
+    runtimeKind,
   );
   const fileTreeScope = `${projectId}:${selectedRootPath ?? "temporary"}`;
   const [fileTreeExpansion, setFileTreeExpansion] = useState(() => ({

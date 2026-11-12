@@ -229,7 +229,7 @@ export function WorkbenchInspector({
           <LazyWarningNoticesSection store={taskStore} />
         </Suspense>
       )}
-      {backgroundTerminals.length > 0 ? (
+      {legacyContext && backgroundTerminals.length > 0 ? (
         <BackgroundTerminalSection
           onTerminate={onTerminateBackgroundTerminal}
           terminals={backgroundTerminals}

@@ -229,9 +229,10 @@ export function WorkbenchInspector({
         <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
       )}
       {taskStore === undefined ? null : <RuntimeWarningsSection store={taskStore} />}
-      {backgroundTerminals.length > 0 ||
-      backgroundTerminalsPending ||
-      backgroundTerminalsError !== null ? (
+      {legacyContext &&
+      (backgroundTerminals.length > 0 ||
+        backgroundTerminalsPending ||
+        backgroundTerminalsError !== null) ? (
         <BackgroundTerminalSection
           error={backgroundTerminalsError}
           isPending={backgroundTerminalsPending}
