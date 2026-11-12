@@ -19,11 +19,16 @@ export async function fixture(
     sessionId: string,
     options: acp.SessionConfigOption[],
   ) => Promise<acp.SessionConfigOption[]>,
+  management?: {
+    capabilities?: acp.InitializeResponse["agentCapabilities"];
+    deleteSession?: (sessionId: string) => Record<string, never> | Promise<Record<string, never>>;
+  },
 ) {
   const directory = await mkdtemp(join(tmpdir(), "acp-provider-"));
   const tasks = new Map<string, LocalTask>();
   const catalog = vi.fn((op: string, input: LocalTask) => {
     if (op === "task.read") return tasks.get(input.id) ?? null;
+    if (op === "task.remove") return tasks.delete(input.id);
     if (op === "task.put") {
       tasks.set(input.id, input);
       return input;
@@ -70,10 +75,17 @@ export async function fixture(
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
       protocolVersion: 1,
-      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } },
+      agentCapabilities: management?.capabilities ?? {
+        loadSession: true,
+        sessionCapabilities: { close: {} },
+      },
     }))
     .onRequest(acp.methods.agent.session.new, created)
     .onRequest(acp.methods.agent.session.close, () => ({}))
+    .onRequest(acp.methods.agent.session.delete, ({ params }) => {
+      if (!management?.deleteSession) throw new Error("未配置测试删除处理器");
+      return management.deleteSession(params.sessionId);
+    })
     .onRequest(acp.methods.agent.session.load, loaded)
     .onRequest(acp.methods.agent.session.prompt, async (context) => {
       if (handler) return handler(context);

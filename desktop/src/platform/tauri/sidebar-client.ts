@@ -20,22 +20,18 @@ import type {
   AgentTaskSettings,
   AgentTaskSettingsResponse,
   AgentTurnOptions,
-  ArchiveAgentTaskResponse,
   CompactAgentTaskResponse,
   ClearAgentGoalResponse,
-  DeleteAgentTaskResponse,
   DeleteAgentQueuedSubmissionResponse,
   DeleteScheduledTaskResponse,
   ForkAgentTaskRequest,
   ForkAgentTaskResponse,
   InterruptAgentTurnResponse,
-  PinAgentTaskResponse,
   PendingRequest,
   ProjectDirectoryListing,
   ProjectPage,
   RemoveProjectResponse,
   ResolvePendingRequestResponse,
-  RenameAgentTaskResponse,
   RenameProjectResponse,
   ReorderProjectsResponse,
   MoveAgentQueuedSubmissionResponse,
@@ -49,20 +45,19 @@ import type {
   ScheduledTaskSchedule,
   ScheduledTaskPreview,
   TerminateAgentBackgroundTerminalResponse,
-  UnarchiveAgentTaskResponse,
   UpdateAgentGoalRequest,
   UpdateAgentGoalResponse,
 } from "@/protocol/index.js";
 
 import type { PendingResolutionReference } from "@/protocol/pending-request.js";
 import { subscribeProjectEvents } from "./project-event-subscription.js";
-import { TauriTaskLifecycleClient } from "./task-lifecycle-client.js";
+import { TauriTaskManagementClient } from "./task-management-client.js";
 import type { SubmitPromptOptions } from "./prompt-submission.js";
 import type { SubmitReviewOptions } from "./review-submission.js";
 
 export type { InvokeImplementation } from "./native-client.js";
 
-export class TauriSidebarClient extends TauriTaskLifecycleClient {
+export class TauriSidebarClient extends TauriTaskManagementClient {
   public async submitPrompt(options: SubmitPromptOptions) {
     // 提交专用校验按需加载，避免增加工作台首次渲染的协议代码。
     const { submitPrompt } = await import("./prompt-submission.js");
@@ -203,43 +198,6 @@ export class TauriSidebarClient extends TauriTaskLifecycleClient {
     projectIds: readonly string[],
   ): Promise<ReorderProjectsResponse> {
     return this.call("reorder_projects", { projectIds: [...projectIds] });
-  }
-
-  public async pinTask(
-    projectId: string,
-    taskId: string,
-    pinned: boolean,
-  ): Promise<PinAgentTaskResponse> {
-    return this.call("pin_task", { pinned, projectId, taskId });
-  }
-
-  public async renameTask(
-    projectId: string,
-    taskId: string,
-    title: string,
-  ): Promise<RenameAgentTaskResponse> {
-    return this.call("rename_task", { projectId, taskId, title });
-  }
-
-  public async archiveTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<ArchiveAgentTaskResponse> {
-    return this.call("archive_task", { projectId, taskId });
-  }
-
-  public async unarchiveTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<UnarchiveAgentTaskResponse> {
-    return this.call("unarchive_task", { projectId, taskId });
-  }
-
-  public async deleteTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<DeleteAgentTaskResponse> {
-    return this.call("delete_task", { projectId, taskId });
   }
 
   public async startTask(

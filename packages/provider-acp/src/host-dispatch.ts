@@ -19,6 +19,8 @@ import {
   AgentSkillReferenceSchema,
   ResolvePendingRequestRequestSchema,
   ReorderAgentQueuedSubmissionsRequestSchema,
+  PinAgentTaskRequestSchema,
+  RenameAgentTaskRequestSchema,
 } from "@codexly/protocol";
 import {
   readTaskWithCheckpoint,
@@ -308,13 +310,27 @@ export async function dispatchAcpHost(
       );
       return result === undefined ? undefined : ACP_HOST_RESPONSE_SENT;
     }
-    case "task.rename":
-      return provider.renameTask(id, text(params, "title"));
+    case "task.pin": {
+      const { taskId: _task, ...input } = params;
+      if (!Value.Check(PinAgentTaskRequestSchema, input)) throw new Error("Invalid task pin");
+      return provider.pinTask(id, input.pinned);
+    }
+    case "task.rename": {
+      const { taskId: _task, ...input } = params;
+      if (!Value.Check(RenameAgentTaskRequestSchema, input)) throw new Error("Invalid task title");
+      return provider.renameTask(id, input.title);
+    }
     case "task.archive":
+      if (Object.keys(params).some((key) => key !== "taskId"))
+        throw new Error("Invalid task archive");
       return provider.archiveTask(id);
     case "task.unarchive":
+      if (Object.keys(params).some((key) => key !== "taskId"))
+        throw new Error("Invalid task unarchive");
       return provider.unarchiveTask(id);
     case "task.delete":
+      if (Object.keys(params).some((key) => key !== "taskId"))
+        throw new Error("Invalid task delete");
       return provider.deleteTask(id);
     case "session.config.read":
       return provider.readSessionConfiguration?.(id);

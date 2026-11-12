@@ -10,6 +10,7 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
             | "task.retain"
             | "task.release"
             | "attachment.export"
+            | "task.pin"
             | "task.rename"
             | "task.archive"
             | "task.unarchive"
@@ -32,6 +33,7 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
     {
         return Err(AppError::Acp("Invalid ACP task request".into()));
     }
+    super::acp_task_management::validate(method, params)?;
     // 订阅只消费应用生成的稳定身份，不允许前端夹带执行目录或宿主作用域。
     if matches!(method, "task.retain" | "task.release")
         && (!params["leaseId"]
@@ -157,7 +159,7 @@ async fn request_with_input(
             .as_str()
             .ok_or(AppError::FilesystemRequestFailed)?
             .to_owned();
-        catalog.owned_task(&project_id, &task_id).await?;
+        let owned_task = catalog.owned_task(&project_id, &task_id).await?;
         let submission = if method == "prompt.start" {
             let (mut identity, bytes) =
                 super::acp_prompt_submission::identity(&project_id, &params)?;
@@ -260,6 +262,30 @@ async fn request_with_input(
             }
             result => result?,
         };
+        if let Some(response) =
+            super::acp_task_management::response(&catalog, &project_id, &task_id, &method).await?
+        {
+            if method == "task.delete" {
+                // 仅在 agent 与应用目录确认删除后，清理原生授权且无其他引用的临时目录。
+                super::task_workspace::remove_deleted_workspace(
+                    &app,
+                    &project_id,
+                    &task_id,
+                    owned_task["cwd"].as_str().map(std::path::Path::new),
+                )
+                .await?;
+            }
+            if let (Some(id), Some(title)) = (
+                response["task"]["id"].as_str(),
+                response["task"]["title"].as_str(),
+            ) {
+                state
+                    .remember_task_metadata(&project_id, [(id, title)])
+                    .await;
+            }
+            // 变更事件已由共享 Provider 发布，不重复使用会触发旧引擎退订的目录发布器。
+            result = response;
+        }
         // 宿主保留统一 ACP 数据，桌面视图转换集中在 IPC 返回边界并纳入幂等重放。
         super::acp_view::normalize_response(&method, &mut result);
         if let Some((mut identity, _)) = submission {
@@ -281,6 +307,43 @@ async fn request_with_input(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn task_management_should_accept_pin_and_reject_unknown_arguments() {
+        assert!(
+            super::validate_request("task.pin", &serde_json::json!({"taskId":"t","pinned":true}))
+                .is_ok()
+        );
+        for (method, params) in [
+            (
+                "task.pin",
+                serde_json::json!({"taskId":"t","pinned":"true"}),
+            ),
+            ("task.rename", serde_json::json!({"taskId":"t","title":" "})),
+            (
+                "task.rename",
+                serde_json::json!({"taskId":"t","title":"x".repeat(201)}),
+            ),
+            (
+                "task.rename",
+                serde_json::json!({"taskId":"t","title":"😀".repeat(101)}),
+            ),
+            (
+                "task.archive",
+                serde_json::json!({"taskId":"t","scope":{"id":"other"}}),
+            ),
+            (
+                "task.unarchive",
+                serde_json::json!({"taskId":"t","force":true}),
+            ),
+            (
+                "task.delete",
+                serde_json::json!({"taskId":"t","rootPath":"/secret"}),
+            ),
+        ] {
+            assert!(super::validate_request(method, &params).is_err());
+        }
+    }
+
     #[test]
     fn task_subscription_should_accept_owned_identity_only() {
         for method in ["task.retain", "task.release"] {

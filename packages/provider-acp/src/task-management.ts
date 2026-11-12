@@ -33,7 +33,10 @@ export class AcpTaskManagement {
   }
   async pinTask(id: string, pinned: boolean) {
     await this.#task(id);
-    return localTaskMetadata(await this.store.catalog("task.patch", { id, pinned }));
+    const task = localTaskMetadata(await this.store.catalog("task.patch", { id, pinned }));
+    // 应用元数据也走共享 Provider 事件，避免原生交付层误用固定 Codex 的旧事件。
+    this.emit({ type: "task.metadata_changed", taskId: id, payload: {} });
+    return task;
   }
   async archiveTask(id: string): Promise<void> {
     await this.#task(id);
@@ -44,7 +47,9 @@ export class AcpTaskManagement {
   async unarchiveTask(id: string) {
     await this.#task(id);
     this.#idle(id);
-    return localTaskMetadata(await this.store.catalog("task.patch", { id, archived: false }));
+    const task = localTaskMetadata(await this.store.catalog("task.patch", { id, archived: false }));
+    this.emit({ type: "task.metadata_changed", taskId: id, payload: {} });
+    return task;
   }
   async deleteTask(id: string): Promise<void> {
     const task = await this.#task(id);

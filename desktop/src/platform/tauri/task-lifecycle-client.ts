@@ -38,38 +38,53 @@ export class TauriTaskLifecycleClient extends TauriRuntimeClient {
     return this.#subscription(projectId, taskId, false);
   }
 
+  protected forgetTaskSubscription(projectId: string, taskId: string): Promise<void> {
+    const key = JSON.stringify([projectId, taskId]);
+    const forget = () => {
+      this.#leases.delete(key);
+      this.taskProjects.delete(taskId);
+      return Promise.resolve();
+    };
+    // 没有本任务在途操作时直接清理；其他任务的容量不能把已确认删除误报成失败。
+    return this.#operations.has(key) ? this.#serial(key, forget) : forget();
+  }
+
   #subscription(projectId: string, taskId: string, retain: boolean): Promise<void> {
     const key = JSON.stringify([projectId, taskId]);
+    return this.#serial(key, async () => {
+      if ((await this.applicationRuntime()) !== "acp") {
+        await this.call(retain ? "retain_task_subscription" : "release_task_subscription", {
+          projectId,
+          taskId,
+        });
+        return;
+      }
+      let leaseId = this.#leases.get(key);
+      if (!leaseId) {
+        if (!retain) return;
+        if (this.#leases.size >= 512) throw new Error("任务订阅已达上限");
+        // ProjectRuntime 合并同客户端同任务的多个视图；重试复用身份，不能重复计数。
+        // 沿用项目 UUID 库，兼容仅支持 getRandomValues 的旧 WebKit。
+        leaseId = createUuid();
+        this.#leases.set(key, leaseId);
+      }
+      this.taskProjects.set(taskId, projectId);
+      await this.call("acp_task_request", {
+        projectId,
+        method: retain ? "task.retain" : "task.release",
+        params: { taskId, leaseId },
+      });
+      // 成功释放才清身份；失败保留以便幂等重试。重挂排在释放之后生成新身份。
+      if (!retain) this.#leases.delete(key);
+    });
+  }
+
+  #serial(key: string, action: () => Promise<void>): Promise<void> {
     if (!this.#operations.has(key) && this.#operations.size >= 512)
       return Promise.reject(new Error("任务订阅操作已达上限"));
     const operation = (this.#operations.get(key) ?? Promise.resolve())
       .catch(() => undefined)
-      .then(async () => {
-        if ((await this.applicationRuntime()) !== "acp") {
-          await this.call(retain ? "retain_task_subscription" : "release_task_subscription", {
-            projectId,
-            taskId,
-          });
-          return;
-        }
-        let leaseId = this.#leases.get(key);
-        if (!leaseId) {
-          if (!retain) return;
-          if (this.#leases.size >= 512) throw new Error("任务订阅已达上限");
-          // ProjectRuntime 合并同客户端同任务的多个视图；重试复用身份，不能重复计数。
-          // 沿用项目 UUID 库，兼容仅支持 getRandomValues 的旧 WebKit。
-          leaseId = createUuid();
-          this.#leases.set(key, leaseId);
-        }
-        this.taskProjects.set(taskId, projectId);
-        await this.call("acp_task_request", {
-          projectId,
-          method: retain ? "task.retain" : "task.release",
-          params: { taskId, leaseId },
-        });
-        // 成功释放才清身份；失败保留以便幂等重试。重挂排在释放之后生成新身份。
-        if (!retain) this.#leases.delete(key);
-      })
+      .then(action)
       .finally(() => {
         if (this.#operations.get(key) === operation) this.#operations.delete(key);
       });

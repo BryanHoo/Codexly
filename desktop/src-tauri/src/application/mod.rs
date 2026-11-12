@@ -11,6 +11,7 @@ mod acp_plan_service;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
 mod acp_task_creation;
+mod acp_task_management;
 mod acp_view;
 mod app_close;
 pub(super) mod app_lifecycle;
