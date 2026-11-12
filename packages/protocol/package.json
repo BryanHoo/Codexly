@@ -44,6 +44,10 @@
     "./application-preferences": {
       "types": "./src/application-preferences.ts",
       "default": "./src/application-preferences.ts"
+    },
+    "./application-generation": {
+      "types": "./src/application-generation.ts",
+      "default": "./src/application-generation.ts"
     }
   },
   "dependencies": {

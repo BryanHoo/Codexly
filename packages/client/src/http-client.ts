@@ -64,7 +64,12 @@ export class CodexlyClient extends ApplicationPreferencesHttpClient {
     });
   }
 
-  public optimizePrompt(projectId: string, text: string): Promise<{ text: string }> {
+  public optimizePrompt(
+    projectId: string,
+    text: string,
+    options: ReadOptions = {},
+  ): Promise<{ text: string }> {
+    options.signal?.throwIfAborted();
     return this.request(
       `/v1/projects/${encodeURIComponent(projectId)}/prompt-optimization`,
       OptimizePromptResponseSchema,
@@ -74,7 +79,7 @@ export class CodexlyClient extends ApplicationPreferencesHttpClient {
         body: JSON.stringify({ text }),
       },
       undefined,
-      { timeoutMs: 150_000 },
+      { timeoutMs: 150_000, ...options },
     );
   }
 

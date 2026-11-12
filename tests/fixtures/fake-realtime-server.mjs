@@ -109,7 +109,49 @@ const server = await createCodexlyServer({
   staticRoot,
 });
 
+// 仅供浏览器取消回归：在测试 HTTP 边界分流同源端点，已 ready 的产品路由不增加测试 API。
+const optimizationRequests = new Map();
+const productHttpListeners = server.server.listeners("request");
+server.server.removeAllListeners("request");
+server.server.on("request", (request, response) => {
+  const match = /^\/__test__\/prompt-optimization\/([a-f0-9-]+)$/u.exec(request.url ?? "");
+  if (!match) {
+    for (const listener of productHttpListeners) listener.call(server.server, request, response);
+    return;
+  }
+  const id = match[1];
+  const send = (value) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify(value));
+  };
+  if (request.method === "POST") {
+    const completion = Promise.withResolvers();
+    const state = { entered: false, disconnected: false, completion };
+    optimizationRequests.set(id, state);
+    request.resume();
+    request.once("end", () => {
+      state.entered = true;
+    });
+    response.once("close", () => {
+      state.disconnected = true;
+      completion.resolve();
+    });
+    void completion.promise.then(() => {
+      if (!response.destroyed) send({ text: "旧优化结果" });
+    });
+  } else if (request.method === "DELETE") {
+    optimizationRequests.get(id)?.completion.resolve();
+    optimizationRequests.delete(id);
+    send({});
+  } else {
+    const state = optimizationRequests.get(id);
+    send({ entered: state?.entered ?? false, disconnected: state?.disconnected ?? false });
+  }
+});
+
 const close = async () => {
+  for (const state of optimizationRequests.values()) state.completion.resolve();
+  optimizationRequests.clear();
   await server.close();
   await runtime.close();
   await persistence.close();

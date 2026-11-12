@@ -191,17 +191,23 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     return this.call("list_project_worktrees", { projectId, rootPath });
   }
 
-  public optimizePrompt(projectId: string, text: string): Promise<{ text: string }> {
+  public async optimizePrompt(projectId: string, text: string, options: MutationOptions = {}): Promise<{ text: string }> {
     // 原生宿主按辅助生成设置选择引擎，Claude 单引擎无需预热 Codex。
-    return this.invokeCommand("optimize_prompt", { projectId, text });
+    options.signal?.throwIfAborted();
+    const runtime = await this.applicationRuntime();
+    if (runtime !== "acp") return this.invokeCommand("optimize_prompt", {projectId,text});
+    return this.callCancellable("optimize_prompt", { projectId, text, agentRuntime: "acp" }, options.signal);
   }
 
   public async generateCommitMessage(
     projectId: string,
     rootPath: string,
     input: GenerateCommitMessageRequest,
-    _options: MutationOptions = {},
+    options: MutationOptions = {},
   ): Promise<GenerateCommitMessageResponse> {
+    options.signal?.throwIfAborted();
+    if (await this.applicationRuntime() === "acp")
+      return this.callCancellable("generate_commit_message", {input,projectId,rootPath,agentRuntime:"acp"}, options.signal);
     // Claude 分支由原生宿主按需启动，不先初始化 Codex。
     if (input.engine === "claude") return this.invokeCommand("generate_commit_message", { input, projectId, rootPath });
     return this.call("generate_commit_message", { input, projectId, rootPath });

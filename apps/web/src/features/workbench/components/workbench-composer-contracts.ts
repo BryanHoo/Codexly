@@ -83,7 +83,11 @@ export type WorkbenchComposerProps = Readonly<{
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
   client: {
-    optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }>;
+    optimizePrompt?: (
+      projectId: string,
+      text: string,
+      options?: Readonly<{ signal?: AbortSignal }>,
+    ) => Promise<{ text: string }>;
   } & Partial<AcpSessionClient & AcpDraftClient> &
     Partial<Pick<CodexlyClient, "readTask">> &
     CodexlyMutationClient &

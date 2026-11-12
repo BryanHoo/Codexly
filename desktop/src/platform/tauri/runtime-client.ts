@@ -27,6 +27,10 @@ export type AppUpdateInstallOptions = MutationOptions &
   Readonly<{ onProgress?: (progress: AppUpdateInstallProgress) => void }>;
 
 export class TauriRuntimeClient extends TauriCatalogClient {
+  protected override async applicationRuntime(): Promise<"legacy" | "acp"> {
+    return (await this.getCapabilities()).runtime === "acp" ? "acp" : "legacy";
+  }
+
   public listClaudeExtensions(kind: ClaudeExtensionKind, projectId?: string): Promise<ClaudeExtensionPage> {
     return this.invokeCommand("claude_engine_request", { method: "extensions.list", projectId, params: { kind } });
   }

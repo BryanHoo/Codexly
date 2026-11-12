@@ -25,6 +25,7 @@ pub(crate) fn cancellable_acp_request(method: &str) -> bool {
             | "settings.read"
             | "settings.preview"
             | "providers.list"
+            | "application.generate"
     )
 }
 type Reply = oneshot::Sender<Result<Value, String>>;

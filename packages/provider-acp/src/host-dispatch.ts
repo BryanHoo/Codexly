@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { HistoricalTaskAttachments, exportTaskAttachment } from "@codexly/core/task-attachments";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { ApplicationGenerationRequestSchema } from "@codexly/protocol/application-generation";
+import { ApplicationPreferencesSchema } from "@codexly/protocol/application-preferences";
 import {
   AcpConfigValuesSchema,
   AcpConfigPreviewRequestSchema,
@@ -19,6 +21,7 @@ import {
 } from "@codexly/protocol";
 import {
   readTaskWithCheckpoint,
+  generateApplicationText,
   AgentTurnNotSubmittedError,
   type AgentProvider,
   type AgentProviderTaskSnapshot,
@@ -35,6 +38,11 @@ const Scope = Type.Object(
   },
   { additionalProperties: false },
 );
+const ApplicationGeneration = Type.Object(
+  { preferences: ApplicationPreferencesSchema, request: ApplicationGenerationRequestSchema },
+  { additionalProperties: false },
+);
+
 const Input = Type.Object(
   {
     text: Type.String(),
@@ -79,6 +87,18 @@ export async function dispatchAcpHost(
 ): Promise<unknown> {
   const params = hostRecord(message["params"] ?? {}),
     method = text(message, "method");
+  if (method === "application.generate") {
+    if (!Value.Check(Scope, message["scope"]) || !Value.Check(ApplicationGeneration, params))
+      throw new Error("Invalid application generation parameters");
+    // 独立辅助会话不进入任务订阅和目录；工作目录只消费原生已授权的 scope。
+    return generateApplicationText(
+      params.preferences,
+      message["scope"].rootPath,
+      params.request,
+      signal,
+      (engine, cwd, prompt, model, stop) => runtime.generateText(engine, cwd, prompt, model, stop),
+    );
+  }
   if (
     method.startsWith("agent.") ||
     method.startsWith("settings.") ||

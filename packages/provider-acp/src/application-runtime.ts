@@ -1,6 +1,8 @@
 import {
-  taskTitlePrompt,
-  parseTaskTitle,
+  generateApplicationText,
+  boundTaskTitleInput,
+  ApplicationPreferencesService,
+  applicationPreferencesFromLegacy,
   type AgentRuntimeProvider,
   type AgentRuntimeDefaultSettings,
   type LocalCatalogStore,
@@ -58,9 +60,11 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
     await this.agents.codex.updateDefaults({ ...current.defaults, ...migration.values });
   }
   async readGenerationDefaults(stored: Preferences | undefined): Promise<Required<Preferences>> {
-    const preferences = stored ?? (await this.readPreferences());
-    const defaultAgent = preferences?.defaultAgent ?? "codex";
-    if (preferences?.defaultModel) return { defaultAgent, defaultModel: preferences.defaultModel };
+    const preferences =
+      (await this.store.catalog("app.preferences.read", {})) ??
+      applicationPreferencesFromLegacy(stored ?? (await this.readPreferences()));
+    const defaultAgent = preferences.defaultAgent;
+    if (preferences.defaultModel) return { defaultAgent, defaultModel: preferences.defaultModel };
     // 缺省模型只取所选 agent 的实际当前值；不探测另一个引擎或维护模型别名。
     const page = await this.listModels(defaultAgent);
     const model = page.data.find((item) => item.isDefault);
@@ -70,21 +74,22 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
   async generateTaskTitle(
     cwd: string,
     text: string,
-    model: string,
+    _model: string,
     signal: AbortSignal,
-    instructions?: string,
+    _instructions?: string,
   ): Promise<string> {
-    signal.throwIfAborted();
-    const preferences = await this.readGenerationDefaults(await this.readPreferences());
-    const prompt = `${taskTitlePrompt(text, instructions)}\n仅返回 JSON 对象，格式为 {"title":"标题"}。`;
-    return parseTaskTitle(
-      await this.generateText(
-        preferences.defaultAgent,
-        cwd,
-        prompt,
-        model || preferences.defaultModel,
-        signal,
-      ),
+    const preferences = await new ApplicationPreferencesService(
+      this.store,
+      this.readPreferences,
+    ).read();
+    // 旧调用中的模型和标题规则不能覆盖用户已保存的 ACP 应用偏好。
+    return generateApplicationText(
+      preferences,
+      cwd,
+      { purpose: "title", text: boundTaskTitleInput(text) },
+      signal,
+      (engine, root, prompt, selected, cancellation) =>
+        this.generateText(engine, root, prompt, selected, cancellation),
     );
   }
 

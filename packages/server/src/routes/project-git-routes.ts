@@ -1,6 +1,7 @@
 import { registerProjectGitDiscardRoutes } from "./project-git-discard-routes.js";
 import { registerProjectGitPushRoutes } from "./project-git-push-routes.js";
-import { readGenerationDefaults } from "@codexly/core";
+import { withGenerationCancellation } from "./generation-cancellation.js";
+import { generateProjectCommitMessage } from "./project-git-generation.js";
 import {
   CommitProjectChangesRequestSchema,
   CommitProjectChangesResponseSchema,
@@ -18,7 +19,6 @@ import {
   ProjectGitStatusQuerySchema,
   ProjectRootQuerySchema,
   SwitchProjectBranchRequestSchema,
-  type AgentTaskSettings,
   type CommitProjectChangesRequest,
   type CreateProjectBranchRequest,
   type GenerateCommitMessageRequest,
@@ -51,19 +51,15 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
   const {
     activeGitMutations,
     assertCommitSelection,
-    buildCommitMessagePrompt,
     commitProjectChanges,
     createProjectBranch,
-    generateCommitMessageWithCodex,
     getProjectContext,
     projectRepository,
-    provider: runtimeProvider,
     readProjectGitHistory,
     readProjectGitCommitFiles,
     readProjectGitCommitFileDiff,
     readProjectGitStatus,
     runIdempotent,
-    settingsRepository,
     switchProjectBranch,
     toGitCommitHttpError,
   } = context;
@@ -372,66 +368,47 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
         },
       },
     },
-    async (request) => {
-      const context = await getProjectContext(request.params.projectId);
-      if (context === undefined) {
-        throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
-      }
-      const rootPath = await resolveGitMutationRoot(
-        projectRepository,
-        request.params.projectId,
-        request.query.rootPath,
-      );
-      return runIdempotent(
-        ["generate-commit-message", request.params.projectId, rootPath],
-        request.headers["idempotency-key"],
-        { request: request.body, rootPath },
-        async () => {
-          const status = await readProjectGitStatus(rootPath, {
-            includeDiff: true,
-            ...(request.body.repository === undefined
-              ? {}
-              : { repository: request.body.repository }),
-          }).catch((error: unknown) => {
-            throw new MutationHttpError(
-              "GIT_REPOSITORY_UNAVAILABLE",
-              originalErrorMessage(error, "Git repository is unavailable"),
-              409,
+    async (request, reply) =>
+      withGenerationCancellation(request, reply, async (signal) => {
+        const project = await getProjectContext(request.params.projectId);
+        if (project === undefined) {
+          throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+        }
+        const rootPath = await resolveGitMutationRoot(
+          projectRepository,
+          request.params.projectId,
+          request.query.rootPath,
+        );
+        return runIdempotent(
+          ["generate-commit-message", request.params.projectId, rootPath],
+          request.headers["idempotency-key"],
+          { request: request.body, rootPath },
+          async () => {
+            const status = await readProjectGitStatus(rootPath, {
+              includeDiff: true,
+              ...(request.body.repository === undefined
+                ? {}
+                : { repository: request.body.repository }),
+            }).catch((error: unknown) => {
+              throw new MutationHttpError(
+                "GIT_REPOSITORY_UNAVAILABLE",
+                originalErrorMessage(error, "Git repository is unavailable"),
+                409,
+              );
+            });
+            assertCommitSelection(status, request.body);
+            const message = await generateProjectCommitMessage(
+              context,
+              project.provider,
+              rootPath,
+              status,
+              request.body,
+              signal,
             );
-          });
-          assertCommitSelection(status, request.body);
-          const stored = await settingsRepository.readGlobalSettings();
-          // 生成使用公共偏好，独立于当前聊天及请求中的引擎。
-          const generation = await readGenerationDefaults(runtimeProvider, stored);
-          if (generation.defaultAgent === "claude") {
-            const service = runtimeProvider.engines?.claude;
-            if (!service?.generateCommitMessage)
-              throw new MutationHttpError("PROVIDER_ERROR", "Claude engine is unavailable", 503);
-            return {
-              message: await service.generateCommitMessage(
-                buildCommitMessagePrompt(status, request.body, stored?.commitMessagePrompt ?? ""),
-                generation.defaultModel,
-              ),
-              snapshot: status.snapshot,
-            };
-          }
-          const settings: AgentTaskSettings = {
-            approvalPolicy: "never",
-            approvalsReviewer: "user",
-            model: generation.defaultModel,
-            // 沿用所选模型默认推理档位，辅助生成不额外加载聊天模型目录。
-            reasoningEffort: "",
-            sandboxMode: "read-only" as const,
-          };
-          const message = await generateCommitMessageWithCodex(
-            context.provider,
-            buildCommitMessagePrompt(status, request.body, stored?.commitMessagePrompt ?? ""),
-            settings,
-          );
-          return { message, snapshot: status.snapshot };
-        },
-      );
-    },
+            return { message, snapshot: status.snapshot };
+          },
+        );
+      }),
   );
 
   app.post<{

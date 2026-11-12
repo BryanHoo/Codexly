@@ -58,3 +58,39 @@ async fn cancelled_acp_read_should_keep_the_host_and_forward_cancel_id() {
     worker.abort();
     let _ = worker.await;
 }
+
+#[tokio::test]
+async fn cancelled_application_generation_should_forward_cancel_without_stopping_host() {
+    assert!(cancellable_acp_request("application.generate"));
+    let (transport, writes) = Transport::new();
+    let (writer, reader) = tokio::io::duplex(4096);
+    let worker = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
+    let pending = Arc::clone(&transport);
+    let request = tokio::spawn(async move {
+        pending
+            .request_acp(
+                "application.generate",
+                None,
+                json!({}),
+                Instant::now() + Duration::from_secs(2),
+            )
+            .await
+    });
+    let mut lines = BufReader::new(reader).lines();
+    let frame: serde_json::Value =
+        serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+    request.abort();
+    let _ = request.await;
+    let cancel = timeout(Duration::from_secs(1), lines.next_line())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&cancel).unwrap()["cancelId"],
+        frame["id"]
+    );
+    assert!(!transport.stopped.is_cancelled());
+    worker.abort();
+    let _ = worker.await;
+}

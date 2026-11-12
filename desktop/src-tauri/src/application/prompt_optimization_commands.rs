@@ -11,8 +11,13 @@ pub async fn optimize_prompt(
     app: AppHandle,
     project_id: String,
     text: String,
+    agent_runtime: Option<String>,
+    request_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let acp =
+        super::application_generation::is_acp(agent_runtime.as_deref(), request_id.as_deref())?;
+    state.run_cancellable(if acp {request_id.as_deref()} else {None}, async {
     if text.trim().is_empty() || text.chars().count() > 32_000 {
         return Err(AppError::FilesystemRequestFailed);
     }
@@ -36,6 +41,10 @@ pub async fn optimize_prompt(
                 .path,
         )
     };
+    if acp {
+        let text = super::application_generation::generate(&app, &state, &project_id, &root, "optimize", &text).await?;
+        return Ok(json!({"text":text}));
+    }
     let preferences = super::generation_settings::read(&app).await?;
     let settings = codex::resolve_commit_message_settings(&preferences);
     let defaults: Value = serde_json::from_str(include_str!(
@@ -110,4 +119,5 @@ pub async fn optimize_prompt(
         )
         .await;
     result
+    }).await
 }

@@ -58,7 +58,7 @@ async fn legacy(directory: &Path) -> Result<Value, AppError> {
     encode(&preferences, false)?;
     Ok(preferences)
 }
-async fn read(catalog: &LocalCatalog, directory: &Path) -> Result<Value, AppError> {
+pub(super) async fn read(catalog: &LocalCatalog, directory: &Path) -> Result<Value, AppError> {
     let value = catalog.call("app.preferences.read", json!({})).await?;
     if value.is_null() {
         legacy(directory).await

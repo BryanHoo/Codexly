@@ -1,12 +1,11 @@
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::{AppHandle, State};
-use tokio::time::timeout;
 
 use super::{error::AppError, state::AppState, task_workspace};
-use crate::infrastructure::{codex, workspace};
+use crate::infrastructure::workspace;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -391,67 +390,46 @@ pub async fn generate_commit_message(
     project_id: String,
     root_path: String,
     input: CommitMutationInput,
+    agent_runtime: Option<String>,
+    request_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
-    let (root, _) = project_root(&app, &project_id, &root_path).await?;
-    let context = workspace::prepare_commit_message(
-        &root,
-        input.repository.as_deref(),
-        &input.paths,
-        &input.expected_snapshot,
-    )
-    .await
-    .map_err(AppError::from)?;
-    let global_settings = super::generation_settings::read(&app).await?;
-    let settings = codex::resolve_commit_message_settings(&global_settings);
-    if global_settings["defaultAgent"] == "claude" {
-        // 只读取本地项目目录并复用 Claude 宿主的无工具请求，不启动 Codex 推理。
-        let prompt = format!(
-            "{}\n\n以下是选中的 Git 变更：\n{}",
-            settings.prompt, context.changes
-        );
-        let message = state
-            .claude
-            .request(
-                &app,
-                "commit.generate",
-                None,
-                json!({"prompt": prompt, "model": settings.model}),
+    let acp =
+        super::application_generation::is_acp(agent_runtime.as_deref(), request_id.as_deref())?;
+    // 在授权和 Git 采集前登记取消，避免准备期间的取消丢失；旧调用行为保持不变。
+    state
+        .run_cancellable(if acp { request_id.as_deref() } else { None }, async {
+            let (root, _) = project_root(&app, &project_id, &root_path).await?;
+            let context = workspace::prepare_commit_message(
+                &root,
+                input.repository.as_deref(),
+                &input.paths,
+                &input.expected_snapshot,
             )
-            .await?;
-        let text = message
-            .as_str()
-            .filter(|text| !text.trim().is_empty() && text.len() <= 10000)
-            .ok_or(AppError::FilesystemRequestFailed)?;
-        return Ok(json!({"message": text, "snapshot": context.snapshot}));
-    }
-    let connection = state.codex_connection().await?;
-    let thread_id = codex::start_commit_message_thread(&connection, &root, &settings.model)
+            .await
+            .map_err(AppError::from)?;
+            if acp {
+                let message = super::application_generation::generate(
+                    &app,
+                    &state,
+                    &project_id,
+                    &root,
+                    "commit",
+                    &context.changes,
+                )
+                .await?;
+                return Ok(json!({"message":message,"snapshot":context.snapshot}));
+            }
+            super::legacy_commit_generation::generate(
+                &app,
+                &state,
+                &root,
+                &context.changes,
+                &context.snapshot,
+            )
+            .await
+        })
         .await
-        .map_err(AppError::from)?;
-    let completed = state.register_model_turn(&thread_id).await;
-    if let Err(error) = codex::start_commit_message_turn(
-        &connection,
-        &thread_id,
-        &settings.model,
-        &settings.prompt,
-        &context.changes,
-    )
-    .await
-    {
-        state.cancel_model_turn(&thread_id).await;
-        return Err(AppError::from(error));
-    }
-    let output = match timeout(Duration::from_secs(120), completed).await {
-        Ok(Ok(Some(output))) => output,
-        _ => {
-            state.cancel_model_turn(&thread_id).await;
-            return Err(AppError::CodexRequestFailed);
-        }
-    };
-    let message =
-        codex::parse_commit_message_output(&output).map_err(|_| AppError::CodexRequestFailed)?;
-    Ok(json!({"message": message, "snapshot": context.snapshot}))
 }
 
 #[tauri::command(rename_all = "camelCase")]

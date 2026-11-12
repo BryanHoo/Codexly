@@ -25,6 +25,8 @@ export default defineConfig({
     };
     options.alias = {
       ...options.alias,
+      "@codexly/protocol/application-generation":
+        "./packages/protocol/src/application-generation.ts",
       "@codexly/protocol/application-preferences":
         "./packages/protocol/src/application-preferences.ts",
       "@codexly/provider-acp/network-proxy": "./packages/provider-acp/src/network-proxy.ts",

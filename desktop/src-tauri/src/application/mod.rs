@@ -20,6 +20,7 @@ pub(crate) mod app_storage_runtime;
 #[cfg(test)]
 mod app_storage_runtime_tests;
 mod app_update;
+mod application_generation;
 pub mod application_preferences_commands;
 pub mod attachment_commands;
 pub mod autostart_commands;
@@ -41,6 +42,7 @@ pub mod error;
 pub mod extension_commands;
 pub(crate) mod generation_settings;
 pub mod history_storage_commands;
+mod legacy_commit_generation;
 mod model_turn_waiters;
 pub mod notification_commands;
 pub(crate) mod notification_delivery;

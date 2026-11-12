@@ -44,7 +44,7 @@ const engineIndependentCommands = new Set(["acp_task_request", "list_projects", 
 
 // 文件、Git 与应用工具由 Rust 本地服务执行，不依赖任何模型进程或模型事件订阅。
 const localCommands = new Set([
-  "application_preferences_request",
+  "application_preferences_request", "optimize_prompt",
   "acp_plan_request", "acp_agent_request", "read_acp_agent", "create_acp_task", "read_acp_scheduled_config", "set_acp_scheduled_config",
   "list_host_files", "upload_attachment", "import_host_attachment", "cache_project_image",
   "get_project_pdf_file", "open_project", "list_project_files", "search_project_files",
@@ -56,7 +56,14 @@ const localCommands = new Set([
   "list_workbench_pets", "download_workbench_pet", "start_worktree_task",
 ]);
 
+function isLocalCommand(command: string, args?: Record<string, unknown>): boolean {
+  return localCommands.has(command) || (command === "generate_commit_message" && args?.["agentRuntime"] === "acp");
+}
+
 export class TauriNativeClient {
+  /** 子类从静态能力选择交付链路，不通过模型连接猜测运行时。 */
+  protected applicationRuntime(): Promise<"legacy" | "acp"> { return Promise.resolve("legacy"); }
+
   protected readonly connectRuntime: () => Promise<unknown>;
   protected readonly ensureRuntime: () => Promise<unknown>;
   protected readonly invokeNative: InvokeImplementation;
@@ -72,7 +79,7 @@ export class TauriNativeClient {
 
   protected async call<T>(command: string, args?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
     signal?.throwIfAborted();
-    if (!localCommands.has(command)) {
+    if (!isLocalCommand(command, args)) {
       await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
     }
     // 通道连接期间仍可能取消；只有真正调用原生命令后才进入不可自动重试的提交阶段。
@@ -101,7 +108,7 @@ export class TauriNativeClient {
     if (signal === undefined) return this.call(command, args);
 
     signal.throwIfAborted();
-    if (!localCommands.has(command)) {
+    if (!isLocalCommand(command, args)) {
       await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
     }
     signal.throwIfAborted();

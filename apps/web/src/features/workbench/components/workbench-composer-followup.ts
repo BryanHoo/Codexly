@@ -51,7 +51,13 @@ export function createComposerDraftActions(
 /** 共享按钮只接受字符串；平台适配负责正文、Skill 和持久草稿的同步替换。 */
 export function optimizeButton(
   session: ReturnType<typeof useComposerSession>,
-  client: { optimizePrompt?: (projectId: string, text: string) => Promise<{ text: string }> },
+  client: {
+    optimizePrompt?: (
+      projectId: string,
+      text: string,
+      options?: Readonly<{ signal?: AbortSignal }>,
+    ) => Promise<{ text: string }>;
+  },
   projectId: string,
   skills: readonly AgentSkill[],
   language: string,
@@ -63,7 +69,7 @@ export function optimizeButton(
     scope: session.composerScope,
     text: serializePromptSkillContent(session.promptContent),
     disabled: session.draftInputDisabled || session.isSubmitting,
-    generate: (text) => generate(projectId, text),
+    generate: (text, signal) => generate(projectId, text, { signal }),
     replace: (text) => {
       session.closeCommandMenu();
       session.closeFileMenu();

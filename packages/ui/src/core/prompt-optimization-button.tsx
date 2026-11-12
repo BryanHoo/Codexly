@@ -10,13 +10,14 @@ export function PromptOptimizationButton(
     scope: string;
     text: string;
     disabled: boolean;
-    generate: (text: string) => Promise<{ text: string }>;
+    generate: (text: string, signal: AbortSignal) => Promise<{ text: string }>;
     replace: (text: string) => void;
     onError: (error: Error) => void;
   }>,
 ) {
   const [pending, setPending] = useState(false);
   const lock = useRef(false);
+  const active = useRef<AbortController | null>(null);
   const latest = useRef(props);
   latest.current = props;
   const revision = useRef(0);
@@ -33,6 +34,12 @@ export function PromptOptimizationButton(
       revision.current += 1;
     };
   }, []);
+  useEffect(() => {
+    // 草稿失去归属时停止传输与后端辅助会话；revision 继续防御忽略取消的旧调用方。
+    return () => {
+      active.current?.abort();
+    };
+  }, [props.scope, props.text, props.disabled]);
   const zh = props.language.startsWith("zh");
   const label = pending
     ? zh
@@ -46,8 +53,10 @@ export function PromptOptimizationButton(
     lock.current = true;
     setPending(true);
     const started = revision.current;
+    const controller = new AbortController();
+    active.current = controller;
     try {
-      const result = await props.generate(props.text);
+      const result = await props.generate(props.text, controller.signal);
       // 即使用户修改后又恢复同文，也不接管已经发生过编辑的草稿。
       if (mounted.current && started === revision.current && !latest.current.disabled) {
         const text = result.text.trim();
@@ -55,13 +64,14 @@ export function PromptOptimizationButton(
         latest.current.replace(text);
       }
     } catch (error) {
-      if (mounted.current && started === revision.current)
+      if (!controller.signal.aborted && mounted.current && started === revision.current)
         latest.current.onError(
           new Error(zh ? "提示词优化失败，请重试" : "Prompt optimization failed. Please retry.", {
             cause: error,
           }),
         );
     } finally {
+      if (active.current === controller) active.current = null;
       lock.current = false;
       if (mounted.current) setPending(false);
     }
