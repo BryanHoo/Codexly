@@ -30,7 +30,7 @@ export function GeneralSettingsPanel({
 }: Readonly<{
   activeSection: SettingsSectionId;
   apps: readonly ProjectOpenApp[];
-  settings: AgentGlobalSettings;
+  settings: Pick<AgentGlobalSettings, "followUpBehavior" | "defaultOpenAppId">;
   language: SupportedLanguage;
   notificationsEnabled: boolean;
   theme: ThemePreference;
@@ -53,6 +53,7 @@ export function GeneralSettingsPanel({
           <SettingsField label={t("fields.defaultOpenWith")} description={t("general.openAppDescription")}>
             <SettingsSelect aria-label={t("fields.defaultOpenWith")} value={settings.defaultOpenAppId ?? ""} onChange={(event) => onDefaultOpenAppChange((event.currentTarget.value || null) as AgentGlobalSettings["defaultOpenAppId"])}>
               <option value="">{t("appearance.defaultOpenAutomatic")}</option>
+              {settings.defaultOpenAppId && !apps.some(app => app.id === settings.defaultOpenAppId) ? <option disabled value={settings.defaultOpenAppId}>{settings.defaultOpenAppId}</option> : null}
               {apps.filter((app) => app.kind !== "system-default").map((app) => <option key={app.id} value={app.id}>{app.name}</option>)}
             </SettingsSelect>
           </SettingsField>

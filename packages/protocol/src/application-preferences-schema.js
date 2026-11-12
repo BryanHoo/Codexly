@@ -53,6 +53,7 @@ export default {
           ],
           [Kind]: "Union",
         },
+        { const: "iterm2", type: "string", [Kind]: "Literal" },
         { type: "null", [Kind]: "Null" },
       ],
       [Kind]: "Union",

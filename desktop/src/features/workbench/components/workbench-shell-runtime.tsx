@@ -1,3 +1,4 @@
+import { useApplicationSettings } from "@codexly/ui/core/use-application-settings";
 import { useTaskVisibility } from "@codexly/ui/core/use-task-visibility";
 import { documentResourceId } from "@codexly/frontend-core/document-presentation";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
@@ -35,8 +36,6 @@ import { resolveProjectRootFromSelections } from "../../projects/project-root-se
 import {
   appInfoQueryOptions,
   appUpdateMutationOptions,
-  globalSettingsMutationOptions,
-  globalSettingsQueryOptions,
   mcpServersQueryOptions,
   mcpServersReloadMutationOptions,
   modelsQueryOptions,
@@ -181,7 +180,6 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const projectOpenCapabilitiesQuery = useQuery(projectOpenCapabilitiesQueryOptions(client));
   const projectPathOpenMutation = useMutation({
     // 外部应用已经提供明确的成功反馈，仅保留失败 toast。
@@ -221,11 +219,9 @@ export function useWorkbenchShellRuntime({
       queryClient.setQueryData(["projects", projectId, "defaults"], response);
     },
   });
-  const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
-    async onSuccess(response) {
-      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
-      if (!shouldRefreshTaskDefaults(response.changedFields)) {
+  const {globalSettingsQuery,globalSettingsMutation} = useApplicationSettings(
+    client, codexEnabled ? "codex" : "claude", capabilities === undefined ? "pending" : capabilities.runtime ?? "legacy", async changedFields => {
+      if (!shouldRefreshTaskDefaults(changedFields)) {
         return;
       }
       // 仅任务默认字段变化时，重新解析未配置的 Project 与当前 Task 回退值。
@@ -237,7 +233,7 @@ export function useWorkbenchShellRuntime({
         await projectRuntime.refreshTaskSnapshot(projectId, taskId);
       }
     },
-  });
+  );
   const taskLaunchState =
     taskId === undefined
       ? undefined

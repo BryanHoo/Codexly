@@ -82,6 +82,8 @@ export type NativeSkillsClient = Pick<
 >;
 export type NativeSettingsClient = Pick<
   NativeClient,
+  | "getApplicationPreferences"
+  | "patchApplicationPreferences"
   | "getGlobalSettings"
   | "getProjectDefaults"
   | "updateGlobalSettings"

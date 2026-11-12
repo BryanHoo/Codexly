@@ -13,6 +13,8 @@ export const ApplicationPreferencesSchema = Type.Object(
     promptOptimizationPrompt: Type.String({ maxLength: 4000 }),
     defaultOpenAppId: Type.Union([
       Type.Exclude(ProjectOpenAppIdSchema, Type.Literal("system-default")),
+      // 原生旧版本已有该应用；跨端私有偏好必须无损保留，实际打开仍核对宿主能力。
+      Type.Literal("iterm2"),
       Type.Null(),
     ]),
     followUpBehavior: Type.Union([Type.Literal("queue"), Type.Literal("steer")]),

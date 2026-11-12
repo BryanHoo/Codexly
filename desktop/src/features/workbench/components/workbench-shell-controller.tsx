@@ -327,12 +327,13 @@ export function useWorkbenchShellController(
   );
   const models = modelsQuery.data?.data ?? [];
   const globalSettings = globalSettingsQuery.data?.settings;
+  const legacyGlobalSettings = globalSettings && "model" in globalSettings ? globalSettings : undefined;
   const projectDefaults = projectDefaultsQuery.data?.settings;
   const fastModeAvailable =
     providerConnectionQuery.data === undefined
       ? false
       : isAgentFastModeAvailable(providerConnectionQuery.data);
-  const draftDefaults = temporary ? globalSettings : projectDefaults;
+  const draftDefaults = temporary ? legacyGlobalSettings : projectDefaults;
   const defaultModel =
     models.find((model) => model.id === draftDefaults?.model) ??
     models.find((model) => model.isDefault) ??
@@ -341,14 +342,14 @@ export function useWorkbenchShellController(
   const inheritedDraftSettings = useMemo<AgentTaskSettings>(
     () => ({
       approvalPolicy:
-        draftDefaults?.approvalPolicy ?? globalSettings?.approvalPolicy ?? "on-request",
+        draftDefaults?.approvalPolicy ?? legacyGlobalSettings?.approvalPolicy ?? "on-request",
       approvalsReviewer:
-        draftDefaults?.approvalsReviewer ?? globalSettings?.approvalsReviewer ?? "user",
+        draftDefaults?.approvalsReviewer ?? legacyGlobalSettings?.approvalsReviewer ?? "user",
       model: defaultModel?.id ?? draftDefaults?.model ?? "",
       reasoningEffort: draftDefaults?.reasoningEffort ?? defaultModel?.defaultReasoningEffort ?? "",
       sandboxMode: draftDefaults?.sandboxMode ?? "workspace-write",
     }),
-    [defaultModel, draftDefaults, globalSettings],
+    [defaultModel, draftDefaults, legacyGlobalSettings],
   );
   const [temporaryDraftSettings, setTemporaryDraftSettings] = useState<AgentTaskSettings>();
   const draftSettings = temporary
@@ -357,7 +358,7 @@ export function useWorkbenchShellController(
   const fastModeDefault = resolveProjectFastModeDefault(
     temporary,
     projectDefaults?.fastMode,
-    globalSettings?.fastMode,
+    legacyGlobalSettings?.fastMode,
   );
   const updateProjectTaskDefaults = async (settings: AgentTaskSettings, fastMode: boolean) => {
     if (temporary) {

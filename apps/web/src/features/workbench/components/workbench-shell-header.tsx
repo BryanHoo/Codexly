@@ -142,7 +142,12 @@ export function WorkbenchShellHeader({
             className="flex"
             {...(globalSettings === undefined
               ? {}
-              : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
+              : {
+                  defaultOpenAppId:
+                    projectOpenCapabilitiesQuery.data?.apps.find(
+                      (app) => app.id === globalSettings.defaultOpenAppId,
+                    )?.id ?? null,
+                })}
             hidden={false}
             isDetecting={projectOpenCapabilitiesQuery.isPending}
             isPending={projectPathOpenMutation.isPending}

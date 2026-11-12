@@ -35,6 +35,7 @@ export function WorkbenchSettingsPage({
       {globalSettingsSection === null ? null : (
         <Suspense fallback={null}>
           <LazyGlobalSettingsPage
+            key={agentRuntime}
             agentRuntime={agentRuntime}
             client={client}
             {...(access.status === undefined ? {} : { accessMode: access.status.mode })}
@@ -43,12 +44,12 @@ export function WorkbenchSettingsPage({
             apps={projectToolsEnabled ? (projectOpenCapabilitiesQuery.data?.apps ?? []) : []}
             error={
               globalSettingsQuery.error ??
-              modelsQuery.error ??
+              (agentRuntime === "legacy" ? modelsQuery.error : null) ??
               (projectToolsEnabled ? projectOpenCapabilitiesQuery.error : null)
             }
             isPending={
               globalSettingsQuery.isPending ||
-              modelsQuery.isPending ||
+              (agentRuntime === "legacy" && modelsQuery.isPending) ||
               (projectToolsEnabled && projectOpenCapabilitiesQuery.isPending)
             }
             fastModeAvailable={fastModeAvailable}
@@ -74,13 +75,19 @@ export function WorkbenchSettingsPage({
             onRetry={() =>
               Promise.all([
                 globalSettingsQuery.refetch(),
-                modelsQuery.refetch(),
+                ...(agentRuntime === "legacy" ? [modelsQuery.refetch()] : []),
                 ...(projectToolsEnabled ? [projectOpenCapabilitiesQuery.refetch()] : []),
               ])
             }
             onRetryAppInfo={() => refreshAppInfo(queryClient, client)}
-            onSave={(settings) =>
-              globalSettingsMutation.mutateAsync(settings).then(() => undefined)
+            onSave={(settings, baseline = settings, idempotencyKey) =>
+              globalSettingsMutation
+                .mutateAsync({
+                  settings,
+                  baseline,
+                  ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+                })
+                .then(() => undefined)
             }
             onUpdate={(version) => appUpdateMutation.mutateAsync(version).then(() => undefined)}
             {...(globalSettingsQuery.data === undefined

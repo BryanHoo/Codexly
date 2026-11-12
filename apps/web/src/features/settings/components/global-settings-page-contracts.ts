@@ -1,3 +1,4 @@
+import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import type { AcpAuthClient } from "@codexly/ui/core/acp-auth-settings";
 import type {
   AccessMode,
@@ -10,7 +11,9 @@ import type {
 
 import type { SettingsSectionId } from "./global-settings-fields.js";
 
-export type GlobalSettingsPageProps = Readonly<{
+export type GlobalSettingsPageProps<
+  T extends AgentGlobalSettings | ApplicationPreferences = AgentGlobalSettings,
+> = Readonly<{
   agentRuntime?: "pending" | "legacy" | "acp";
   accessMode?: AccessMode;
   appInfo?: AppInfoResponse;
@@ -28,9 +31,9 @@ export type GlobalSettingsPageProps = Readonly<{
   onLogoutAccess?: () => Promise<void>;
   onRetry: () => unknown;
   onRetryAppInfo?: () => unknown;
-  onSave: (settings: AgentGlobalSettings) => Promise<void>;
+  onSave: (settings: T, baseline?: T, idempotencyKey?: string) => Promise<void>;
   onUpdate?: (version: string) => Promise<void>;
-  settings?: AgentGlobalSettings;
+  settings?: T;
 }>;
 import type { CodexlyClient } from "@codexly/client";
 export type SettingsClient = Pick<

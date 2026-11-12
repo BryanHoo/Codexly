@@ -22,3 +22,6 @@ it("应用偏好保留原始模型和 null，拒绝缺失宠物身份、未知�
 it("Node Worker 校验与公开 Schema 完全一致", () => {
   expect(workerSchema).toEqual(ApplicationPreferencesSchema);
 });
+it("原生已有 iTerm2 偏好可以在共享私有记录保留", () => {
+  expect(Value.Check(ApplicationPreferencesPatchSchema, { defaultOpenAppId: "iterm2" })).toBe(true);
+});

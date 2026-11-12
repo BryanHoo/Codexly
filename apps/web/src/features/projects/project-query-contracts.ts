@@ -111,6 +111,8 @@ export type CodexlySettingsClient = Pick<
   | "compressHistory"
   | "getAgentPreferences"
   | "updateAgentPreferences"
+  | "getApplicationPreferences"
+  | "patchApplicationPreferences"
   | "getGlobalSettings"
   | "getProjectDefaults"
   | "updateGlobalSettings"

@@ -138,7 +138,7 @@ export function WorkbenchShellHeader({
             className="flex"
             {...(globalSettings === undefined
               ? {}
-              : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
+              : { defaultOpenAppId: projectOpenCapabilitiesQuery.data?.apps.find(app => app.id === globalSettings.defaultOpenAppId)?.id ?? null })}
             hidden={false}
             isDetecting={projectOpenCapabilitiesQuery.isPending}
             // 新聊天尚未分配任务工作目录时保留入口，待任务建立后启用。

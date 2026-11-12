@@ -2,16 +2,18 @@ import type { AgentGlobalSettings } from "@codexly/protocol";
 import { GenerationPromptsSettings } from "@codexly/ui/core/generation-prompts-settings";
 import { getCurrentLanguage } from "../../../i18n/i18n.js";
 
-export function CommitSettingsPanel({
+export function CommitSettingsPanel<
+  T extends Pick<
+    AgentGlobalSettings,
+    "commitMessagePrompt" | "taskTitlePrompt" | "promptOptimizationPrompt"
+  >,
+>({
   settings,
   onChange,
   onFlush,
 }: Readonly<{
-  settings: AgentGlobalSettings;
-  onChange: (
-    update: (current: AgentGlobalSettings) => AgentGlobalSettings,
-    debounce?: boolean,
-  ) => void;
+  settings: T;
+  onChange: (update: (current: T) => T, debounce?: boolean) => void;
   onFlush: () => void;
 }>) {
   return (

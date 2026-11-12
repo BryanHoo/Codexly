@@ -1,3 +1,4 @@
+import { useApplicationSettings } from "@codexly/ui/core/use-application-settings";
 import { useTaskVisibility } from "@codexly/ui/core/use-task-visibility";
 import { documentResourceId } from "@codexly/frontend-core/document-presentation";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
@@ -23,8 +24,6 @@ import {
 } from "../../projects/project-context.js";
 import { resolveProjectRootFromSelections } from "../../projects/project-root-selection.js";
 import {
-  globalSettingsMutationOptions,
-  globalSettingsQueryOptions,
   mcpServersQueryOptions,
   mcpServersReloadMutationOptions,
   modelsQueryOptions,
@@ -188,9 +187,6 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery({
-    ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
-  });
   const projectOpenCapabilitiesQuery = useQuery(
     // 聊天同样支持打开宿主工作目录，沿用按作用域缓存的应用探测。
     projectOpenCapabilitiesQueryOptions(projectId, client),
@@ -248,10 +244,11 @@ export function useWorkbenchShellRuntime({
       queryClient.setQueryData(["projects", projectId, "defaults"], response);
     },
   });
-  const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
-    async onSuccess(response) {
-      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
+  const { globalSettingsQuery, globalSettingsMutation } = useApplicationSettings(
+    client,
+    codexEnabled ? "codex" : "claude",
+    capabilities === undefined ? "pending" : (capabilities.runtime ?? "legacy"),
+    async () => {
       // 局部显式设置仍由 Server 保持优先；刷新只让未配置的当前上下文重新解析全局回退。
       await queryClient.invalidateQueries({
         exact: true,
@@ -261,7 +258,7 @@ export function useWorkbenchShellRuntime({
         await projectRuntime.refreshTaskSnapshot(projectId, taskId);
       }
     },
-  });
+  );
   const taskLaunchState =
     taskId === undefined
       ? undefined

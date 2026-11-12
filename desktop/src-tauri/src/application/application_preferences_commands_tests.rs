@@ -11,6 +11,7 @@ async fn application_preferences_delivery_should_preserve_old_bytes_and_survive_
     assert!(!path.exists());
     let mut global = empty.clone();
     global["defaultModel"] = json!("old-model");
+    global["defaultOpenAppId"] = json!("iterm2");
     let bytes =
         serde_json::to_vec_pretty(&json!({"version":1,"projects":{},"global":global})).unwrap();
     tokio::fs::write(&path, &bytes).await.unwrap();

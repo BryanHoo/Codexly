@@ -1,3 +1,7 @@
+import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
+import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
+import { v4 as createUuid } from "uuid";
+import { AcpGenerationSettings } from "@codexly/ui/core/acp-generation-settings";
 import { NetworkProxySettingsField } from "./settings-section-loaders.js";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
@@ -22,7 +26,6 @@ import { getNotificationPreference } from "../notification-preference.js";
 import type { ThemePreference } from "../theme-preference.js";
 import type { SettingsSectionId } from "./global-settings-fields.js";
 import {
-  createFallbackSettings,
   readInitialTheme,
 } from "./global-settings-model.js";
 import {
@@ -34,7 +37,7 @@ import { applyBrowserSettingsChanges } from "./browser-settings-apply.js";
 import { SettingsPageFrame } from "./settings-page-frame.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
 
-type GlobalSettingsPageProps = Readonly<{
+type GlobalSettingsPageProps<T extends AgentGlobalSettings | ApplicationPreferences = AgentGlobalSettings> = Readonly<{
   agentRuntime?: "pending" | "legacy" | "acp";
   appInfo?: AppInfoResponse;
   appInfoError?: Error | null;
@@ -49,12 +52,12 @@ type GlobalSettingsPageProps = Readonly<{
   onRetry: () => unknown;
   onRetryAppInfo?: () => unknown;
   onExportDiagnostics?: () => Promise<ExportDiagnosticsResponse>;
-  onSave: (settings: AgentGlobalSettings) => Promise<void>;
+  onSave: (settings: T, baseline?: T, idempotencyKey?: string) => Promise<void>;
   onUpdate?: (
     version: string,
     onProgress: (progress: AppUpdateInstallProgress) => void,
   ) => Promise<void>;
-  settings?: AgentGlobalSettings;
+  settings?: T;
 }>;
 
 
@@ -63,7 +66,7 @@ const AcpAuthSettings = lazy(() =>
   import("@codexly/ui/core/acp-auth-settings").then((module) => ({ default: module.AcpAuthSettings })),
 );
 
-export function GlobalSettingsPage({
+export function GlobalSettingsPage<T extends AgentGlobalSettings | ApplicationPreferences = AgentGlobalSettings>({
   agentRuntime = "legacy",
   appInfo,
   appInfoError = null,
@@ -80,15 +83,13 @@ export function GlobalSettingsPage({
   onSave,
   onUpdate = () => Promise.resolve(),
   settings,
-}: GlobalSettingsPageProps) {
+}: GlobalSettingsPageProps<T>) {
   const { t } = useTranslation("settings");
   const projectData = useContext(ProjectDataContext);
   const getGenerationModels = useCallback(async (engine: "codex" | "claude") =>
     engine === "codex" ? models : (await nativeClient.getEngineProfile(engine)).models.data, [models]);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
-  const [draft, setDraft] = useState<AgentGlobalSettings>(
-    () => settings ?? createFallbackSettings(models),
-  );
+  const [draft, setDraft] = useState<T | undefined>(() => settings);
   const [theme, setTheme] = useState<ThemePreference>(readInitialTheme);
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
@@ -108,14 +109,17 @@ export function GlobalSettingsPage({
   };
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const [persistence] = useState(() => createSettingsDraftPersistence<T>(
+    (next, baseline, key) => agentRuntime === "acp" ? onSaveRef.current(next, baseline, key) : onSaveRef.current(next), createUuid,
+  ));
   const draftRef = useRef(draft);
   const hasLocalChangesRef = useRef(false);
-  const saveQueueRef = useRef<ReturnType<typeof createGlobalSettingsSaveQueue> | null>(null);
+  const saveQueueRef = useRef<ReturnType<typeof createGlobalSettingsSaveQueue<T>> | null>(null);
   if (saveQueueRef.current === null) {
-    saveQueueRef.current = createGlobalSettingsSaveQueue((next) => onSaveRef.current(next), (status) => {
+    saveQueueRef.current = createGlobalSettingsSaveQueue<T>((next) => persistence.save(next), (status) => {
       if (mounted.current) setSaveStatus(status);
     });
-    if (settings !== undefined) saveQueueRef.current.reset(settings);
+    if (settings !== undefined) { saveQueueRef.current.reset(settings); persistence.reset(settings); }
   }
   const saveQueue = saveQueueRef.current;
   useEffect(() => {
@@ -123,13 +127,15 @@ export function GlobalSettingsPage({
       draftRef.current = settings;
       setDraft(settings);
       saveQueue.reset(settings);
+      persistence.reset(settings);
     }
-  }, [saveQueue, settings]);
+  }, [saveQueue, settings, persistence]);
 
   const updateDraft = (
-    update: (current: AgentGlobalSettings) => AgentGlobalSettings,
+    update: (current: T) => T,
     debounce = false,
   ) => {
+    if (draftRef.current === undefined) return;
     const next = update(draftRef.current);
     draftRef.current = next;
     hasLocalChangesRef.current = true;
@@ -168,7 +174,7 @@ export function GlobalSettingsPage({
       onBack={close}
       onSectionChange={setActiveSection}
     >
-      {activeSection === "appearance" || activeSection === "pets" || activeSection === "agent" || activeSection === "git" ? <SettingsSaveStatus status={saveStatus} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => saveQueue.save(draftRef.current)} /> : null}
+      {activeSection === "appearance" || activeSection === "pets" || activeSection === "agent" || activeSection === "git" ? <SettingsSaveStatus status={saveStatus} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { if (draftRef.current !== undefined) saveQueue.save(draftRef.current); }} /> : null}
       {activeSection === "appearance" ? <SettingsSaveStatus status={browserSave.status} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { void browserSave.queue.retry(); }} /> : null}
       <Suspense fallback={<LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />}>
       {activeSection === "about" ? <GlobalSettingsAbout
@@ -202,10 +208,10 @@ export function GlobalSettingsPage({
           error !== null ? <div role="alert" className="text-body-small text-danger">
             <p>{t("errors.load")}</p>
             <Button variant="ghost" onClick={() => void onRetry()}>{t("common:actions.retry")}</Button>
-          </div> : isPending || settings === undefined ? <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} /> : (
+          </div> : isPending || settings === undefined || draft === undefined ? <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} /> : (
             <>
-<DefaultGenerationSettings settings={draft} language={language} getModels={getGenerationModels} onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))} />
-<CommitSettingsPanel settings={draft} onChange={updateDraft} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
+{agentRuntime === "acp" ? <AcpGenerationSettings client={nativeClient} settings={draft} language={language} onChange={patch => updateDraft(current => ({...current,...patch}))} /> : typeof draft.defaultModel === "string" ? <DefaultGenerationSettings settings={{defaultModel:draft.defaultModel,...(draft.defaultAgent===undefined?{}:{defaultAgent:draft.defaultAgent})}} language={language} getModels={getGenerationModels} onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))} /> : null}
+<CommitSettingsPanel settings={draft} onChange={(change, debounce) => updateDraft(current => ({...current,...change(current)}), debounce)} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
 </>
           )}
         </section>
@@ -224,7 +230,7 @@ export function GlobalSettingsPage({
             {t("common:actions.retry")}
           </Button>
         </div>
-      ) : isPending || settings === undefined ? (
+      ) : isPending || settings === undefined || draft === undefined ? (
         <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />
       ) : (
         <>

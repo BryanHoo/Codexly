@@ -44,6 +44,12 @@ it("应用偏好不读取引擎，首次保存建私有快照并跨连接合并�
     followUpBehavior: "steer",
     taskTitlePrompt: "新标题",
   });
+  expect(
+    await call(reopened, "app.preferences.patch", {
+      baseline,
+      changes: { defaultOpenAppId: "iterm2" },
+    }),
+  ).toMatchObject({ defaultOpenAppId: "iterm2" });
 });
 
 it("持久边界拒绝空补丁、未知字段和未配对模型，失败不落新记录", async () => {

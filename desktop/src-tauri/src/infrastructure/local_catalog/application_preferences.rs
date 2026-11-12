@@ -36,7 +36,8 @@ fn valid_field(key: &str, value: &Value) -> bool {
                 || matches!(
                     value.as_str(),
                     Some(
-                        "visual-studio-code"
+                        "iterm2"
+                            | "visual-studio-code"
                             | "zed"
                             | "windsurf"
                             | "finder"
