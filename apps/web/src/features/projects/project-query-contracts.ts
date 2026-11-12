@@ -173,7 +173,14 @@ export type CodexlyScheduledTaskClient = Pick<
 >;
 export type CodexlyWorkbenchClient = Pick<
   CodexlyClient,
-  "getTaskActivities" | "acknowledgeTaskActivity" | "subscribeWorkbenchChanges"
+  | "listAcpPlans"
+  | "readAcpPlan"
+  | "saveAcpPlan"
+  | "deleteAcpPlan"
+  | "stageAcpPlanAttachment"
+  | "getTaskActivities"
+  | "acknowledgeTaskActivity"
+  | "subscribeWorkbenchChanges"
 > &
   Pick<
     CodexlyClient,

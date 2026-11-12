@@ -1,3 +1,6 @@
+import {AcpPlanWorkspace} from "@codexly/ui/core/acp-plan-workspace";
+import {AcpPlanScheduleFieldAdapter} from "./acp-plan-schedule-field.js";
+import {useTranslation} from "../../i18n/i18n.js";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -21,7 +24,7 @@ import { ScheduledTaskList } from "./scheduled-task-list.js";
 const queryKey = ["scheduled-tasks"] as const;
 const emptyTasks: readonly ScheduledTask[] = [];
 
-export function ScheduledTasksContainer({
+function ExistingScheduledTasksContainer({
   context,
   projectId,
   temporary,
@@ -230,4 +233,11 @@ export function ScheduledTasksContainer({
       )}
     </div>
   );
+}
+
+// ACP 使用共享私有计划工作区；旧计划保留原容器，非 ACP 不改变原入口。
+export function ScheduledTasksContainer(props:Parameters<typeof ExistingScheduledTasksContainer>[0]) {
+ const {i18n}=useTranslation("workbench");
+ if(props.context.capabilities?.runtime!=="acp")return <ExistingScheduledTasksContainer {...props}/>;
+ return <AcpPlanWorkspace client={props.context.client} projectId={props.projectId} projects={props.context.projects} language={i18n.resolvedLanguage??"zh-CN"} ScheduleField={AcpPlanScheduleFieldAdapter}><ExistingScheduledTasksContainer {...props}/></AcpPlanWorkspace>;
 }

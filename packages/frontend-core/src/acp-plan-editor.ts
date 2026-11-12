@@ -29,12 +29,18 @@ export class AcpPlanEditorSession {
   #state: AcpPlanEditorSnapshot;
   #request: { kind: "save" | "stage"; fingerprint: string; key: string } | undefined;
   #active: AbortController | undefined;
+  readonly id: string;
+  private readonly ports: AcpPlanEditorPorts;
+  private readonly makeKey: () => string;
   constructor(
-    readonly id: string,
+    id: string,
     definition: AcpScheduledPlanDefinition,
-    private readonly ports: AcpPlanEditorPorts,
-    private readonly makeKey: () => string = () => crypto.randomUUID(),
+    ports: AcpPlanEditorPorts,
+    makeKey: () => string = () => crypto.randomUUID(),
   ) {
+    this.id = id;
+    this.ports = ports;
+    this.makeKey = makeKey;
     if (!id || id.length > 256 || definition.prompt.attachments.length)
       throw new TypeError("New ACP plan requires an empty private resource set");
     this.#state = {
