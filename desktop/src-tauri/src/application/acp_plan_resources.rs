@@ -49,12 +49,20 @@ async fn remove_cache(path: &Path) -> Result<(), AppError> {
     }
 }
 
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "生产完成清理由稳定任务和完成意图回收；单次目录句柄供恢复测试验证"
+    )
+)]
 pub(super) struct RestoredPlanPrompt {
     pub input: Value,
     directory: Option<PathBuf>,
 }
 impl RestoredPlanPrompt {
     /// 只移除本轮随机子目录，不触及同一任务已有的队列或历史附件。
+    #[cfg(test)]
     pub async fn discard(self) -> Result<(), AppError> {
         if let Some(path) = self.directory {
             remove_cache(&path).await?;

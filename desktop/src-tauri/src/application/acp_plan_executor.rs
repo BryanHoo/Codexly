@@ -224,7 +224,6 @@ where
     }
 }
 
-#[cfg(not(test))]
 pub(super) async fn execute(app: tauri::AppHandle, id: &str, run: &str) -> Result<Value, AppError> {
     let directory = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;

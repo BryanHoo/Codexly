@@ -146,6 +146,7 @@ pub fn run() {
         .manage(DesktopPetRuntime::default())
         .manage(NotificationRuntime::default())
         .manage(ScheduledTaskRuntime::default())
+        .manage(application::acp_plan_runtime::AcpPlanRuntime::default())
         .manage(MainWindowLifecycle::default())
         .manage(application::terminal_lifecycle::TerminalLifecycle::default())
         .setup(|app| {
@@ -165,6 +166,10 @@ pub fn run() {
             }
             app.state::<ScheduledTaskRuntime>()
                 .start(app.handle().clone());
+            tauri::async_runtime::block_on(
+                app.state::<application::acp_plan_runtime::AcpPlanRuntime>()
+                    .start(app.handle().clone()),
+            );
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -202,6 +207,7 @@ pub fn run() {
             },
         )
         .invoke_handler(tauri::generate_handler![
+            application::acp_plan_commands::acp_plan_request,
             application::acp_commands::read_acp_agent,
             application::acp_commands::acp_agent_request,
             application::acp_task_commands::acp_task_request,

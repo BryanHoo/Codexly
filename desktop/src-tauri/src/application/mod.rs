@@ -1,33 +1,11 @@
 pub mod acp_commands;
 mod acp_input;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "新计划后台执行装配前保留完成恢复端口")
-)]
 mod acp_plan_completion;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "计划交付层待原生命令及调度生命周期装配")
-)]
 mod acp_plan_delivery;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "新计划执行器接入前，仅提供调用式发现基础")
-)]
 mod acp_plan_discovery;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "新计划后台执行器装配前保留调用式端口")
-)]
 mod acp_plan_executor;
-#[cfg_attr(not(test), expect(dead_code, reason = "计划附件暂存尚待界面装配"))]
 mod acp_plan_resources;
-#[cfg_attr(not(test), expect(dead_code, reason = "新计划调度循环待生产入口装配"))]
 mod acp_plan_scheduler;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "计划服务待 HTTP 对等原生入口装配")
-)]
 mod acp_plan_service;
 mod acp_prompt_submission;
 pub mod acp_task_commands;
@@ -132,3 +110,7 @@ pub mod saved_prompts_commands;
 pub mod prompt_optimization_commands;
 
 pub mod network_proxy_commands;
+
+pub mod acp_plan_runtime;
+
+pub mod acp_plan_commands;

@@ -22,6 +22,7 @@ fn main() {
     let app_manifest = tauri_build::AppManifest::new().commands(&[
         "read_acp_agent",
         "acp_agent_request",
+        "acp_plan_request",
         "acp_task_request",
         "create_acp_task",
         "read_network_proxy",

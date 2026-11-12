@@ -104,7 +104,6 @@ pub async fn acp_task_request(
 }
 
 /// 仅执行器可以提供已经恢复的输入；原 params 决定提交身份，前端没有覆盖入口。
-#[cfg(not(test))]
 pub(super) async fn start_plan_prompt(
     app: AppHandle,
     project: String,

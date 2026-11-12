@@ -119,6 +119,13 @@ impl AppState {
         &self.file_search
     }
 
+    pub(super) async fn run_cooperative<T, F, Fut>(&self, id: Option<&str>, task: F) -> T
+    where
+        F: FnOnce(tokio_util::sync::CancellationToken) -> Fut,
+        Fut: Future<Output = T>,
+    {
+        self.request_cancellations.run_cooperative(id, task).await
+    }
     pub fn cancel_request(&self, request_id: &str) -> bool {
         self.request_cancellations.cancel(request_id)
     }

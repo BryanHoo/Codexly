@@ -220,7 +220,7 @@ it("ACP 启动成功但账本写入暂时失败时只补写结果，不因配置
   expect(s.harness.startTask).toHaveBeenCalledOnce();
   expect(s.configuredTurn).toHaveBeenCalledOnce();
   expect(s.configuredTurn).toHaveBeenCalledWith(expect.any(String), expect.any(Object), s.values);
-  expect(s.readConfig).toHaveBeenCalledOnce();
+  expect(s.readConfig.mock.calls.filter(([op]) => op === "acp.schedule.read")).toHaveLength(1);
 });
 
 it("重启收尾优先重放已知结果，配置已删除和项目不可用也不重新发起 ACP", async () => {
@@ -256,7 +256,7 @@ it("重启收尾优先重放已知结果，配置已删除和项目不可用也�
   expect((await s.status()).runs[0]?.taskId).toBe(before.runs[0]?.taskId);
   expect(s.harness.startTask).toHaveBeenCalledOnce();
   expect(s.configuredTurn).toHaveBeenCalledOnce();
-  expect(s.readConfig).not.toHaveBeenCalled();
+  expect(s.readConfig.mock.calls.filter(([op]) => op === "acp.schedule.read")).toHaveLength(0);
 });
 
 it("旧运行时保持原计划执行，不读取 ACP 私有配置", async () => {
@@ -268,7 +268,7 @@ it("旧运行时保持原计划执行，不读取 ACP 私有配置", async () =>
   });
   expect(s.configuredTurn).not.toHaveBeenCalled();
   expect(s.harness.startTurn).toHaveBeenCalledOnce();
-  expect(s.readConfig).not.toHaveBeenCalled();
+  expect(s.readConfig.mock.calls.filter(([op]) => op === "acp.schedule.read")).toHaveLength(0);
 });
 
 it("真实 SQLite 计划、配置和附件在服务重启后交给 ACP，上传缓存清理不影响持久附件", async () => {
@@ -353,6 +353,6 @@ it("旧运行时的已知结果可在切换 ACP 后收尾，无需转换原计�
   expect(s.harness.startTask).toHaveBeenCalledOnce();
   expect(s.harness.startTurn).toHaveBeenCalledOnce();
   expect(s.configuredTurn).not.toHaveBeenCalled();
-  expect(s.readConfig).not.toHaveBeenCalled();
+  expect(s.readConfig.mock.calls.filter(([op]) => op === "acp.schedule.read")).toHaveLength(0);
   expect((await s.status()).turnOptions).toEqual(s.saved.turnOptions);
 });

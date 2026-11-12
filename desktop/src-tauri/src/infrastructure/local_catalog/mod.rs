@@ -16,10 +16,6 @@ mod acp_plan_index;
 mod acp_plan_index_tests;
 #[cfg(test)]
 mod acp_plan_resource_tests;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "资源交付尚未装配类型化二进制端口")
-)]
 mod acp_plan_resources;
 #[cfg(test)]
 mod acp_plan_scan_tests;

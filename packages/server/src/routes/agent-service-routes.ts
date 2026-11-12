@@ -1,3 +1,4 @@
+import { registerAcpPlanRuntime } from "../acp-plan-runtime.js";
 import type { FastifyInstance } from "fastify";
 import type { AcpAgentServices } from "@codexly/core";
 import type { ServerRouteContext } from "./context.js";
@@ -11,6 +12,7 @@ export async function registerAgentServiceRoutes(
   context: ServerRouteContext,
   agents: AcpAgentServices | undefined,
 ) {
+  await registerAcpPlanRuntime(app, context, agents);
   await app.register(registerEngineRoutes, context);
   await app.register(registerAcpRoutes, { context, agents: agents ?? context.provider.acpAgents });
   await app.register(registerScheduledAcpConfigRoutes, {
