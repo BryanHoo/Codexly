@@ -102,3 +102,38 @@ export const AcpPlanPageSchema = Type.Object(
   { additionalProperties: false },
 );
 export type AcpPlanPage = Static<typeof AcpPlanPageSchema>;
+
+/** 阶段只描述启动交付；started 不能作为聊天任务已经完成的证据。 */
+export const AcpPlanRunSummarySchema = Type.Object(
+  {
+    runId: Id,
+    status: Type.Union([
+      Type.Literal("claimed"),
+      Type.Literal("unknown"),
+      Type.Literal("started"),
+      Type.Literal("failed"),
+    ]),
+    claimedAt: Type.Integer({
+      minimum: -Number.MAX_SAFE_INTEGER,
+      maximum: Number.MAX_SAFE_INTEGER,
+    }),
+    definitionRevision: Positive,
+    taskId: Type.Union([Id, Type.Null()]),
+    error: Type.Union([Type.String({ maxLength: 2048 }), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+export type AcpPlanRunSummary = Static<typeof AcpPlanRunSummarySchema>;
+export const AcpPlanHistorySchema = Type.Object(
+  {
+    projectId: Type.String({ minLength: 1, maxLength: 128 }),
+    data: Type.Array(AcpPlanRunSummarySchema, { maxItems: 20 }),
+  },
+  { additionalProperties: false },
+);
+export type AcpPlanHistory = Static<typeof AcpPlanHistorySchema>;
+/** 独立于旧工作台事件，避免旧客户端接收到它无法解码的新联合成员。 */
+export const AcpPlanChangeSchema = Type.Object(
+  { type: Type.Literal("acp-plans.changed") },
+  { additionalProperties: false },
+);

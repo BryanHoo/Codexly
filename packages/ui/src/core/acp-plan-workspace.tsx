@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNod
 import { v4 as createUuid } from "uuid";
 import type { AcpPlanPage, AcpPlanView } from "@codexly/protocol/acp-plan-api";
 import { Button } from "./button.js";
+import type { OpenAcpPlanTask } from "./acp-plan-history.js";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +20,16 @@ import {
 const AcpPlanEditor = lazy(() =>
   import("./acp-plan-editor.js").then((module) => ({ default: module.AcpPlanEditor })),
 );
+const AcpPlanHistory = lazy(() =>
+  import("./acp-plan-history.js").then((module) => ({ default: module.AcpPlanHistory })),
+);
 interface Props {
   client: AcpPlanUiClient;
   projectId: string;
   projects: readonly { id: string; name: string }[];
   language?: string;
   ScheduleField: AcpPlanScheduleField;
+  onOpenTask: OpenAcpPlanTask;
   children?: ReactNode;
 }
 /** 新私有计划与旧计划分开读取；显式打开历史入口才挂载旧查询，不为新列表读取全部正文。 */
@@ -34,25 +39,39 @@ export function AcpPlanWorkspace({
   projects,
   language,
   ScheduleField,
+  onOpenTask,
   children,
 }: Props) {
   const l = language === "en" ? planLabels.en : planLabels["zh-CN"];
   const [page, setPage] = useState<AcpPlanPage>({ data: [], nextCursor: null });
-  const [pending, setPending] = useState(false);
+  const [listPending, setListPending] = useState(false);
+  const [operationPending, setOperationPending] = useState(false);
+  const pending = listPending || operationPending;
+  const [listError, setListError] = useState("");
   const [error, setError] = useState("");
   const [editor, setEditor] = useState<{ id: string; view?: AcpPlanView }>();
   const [removing, setRemoving] = useState<AcpPlanPage["data"][number]>();
   const [old, setOld] = useState(false);
+  const [history, setHistory] = useState<{ id: string; name: string }>();
   const controller = useRef<AbortController | undefined>(undefined);
+  const listController = useRef<AbortController | undefined>(undefined);
+  const refreshQueued = useRef(false);
   const active = useRef(true);
   const lock = useRef(false);
   const load = useCallback(
-    async (after?: string) => {
-      controller.current?.abort();
+    async function readList(after?: string, background = false): Promise<void> {
+      if (background && listController.current) {
+        refreshQueued.current = true;
+        return;
+      }
+      // await 期间外部事件可能重新置位；读取函数获取最新的失效信号。
+      const needsRefresh = () => refreshQueued.current;
+      refreshQueued.current = false;
+      listController.current?.abort();
       const request = new AbortController();
-      controller.current = request;
-      setPending(true);
-      setError("");
+      listController.current = request;
+      setListPending(true);
+      setListError("");
       try {
         const result = await client.listAcpPlans(
           { limit: 100, ...(after === undefined ? {} : { after }) },
@@ -74,28 +93,40 @@ export function AcpPlanWorkspace({
           );
       } catch (cause) {
         if (active.current && !request.signal.aborted)
-          setError(cause instanceof Error ? cause.message : String(cause));
+          setListError(cause instanceof Error ? cause.message : String(cause));
       } finally {
-        if (active.current && controller.current === request) setPending(false);
+        if (active.current && listController.current === request) {
+          listController.current = undefined;
+          setListPending(false);
+          // 连续失效最多补读一次；不打断编辑加载，也不把列表数据写入草稿。
+          if (needsRefresh()) void readList(undefined, true);
+        }
       }
     },
     [client],
   );
   useEffect(() => {
     active.current = true;
-    void load();
+    const unsubscribe = client.subscribeAcpPlans(() => {
+      void load(undefined, true);
+    });
+    void load(undefined, true);
     return () => {
       active.current = false;
+      listController.current?.abort();
+      listController.current = undefined;
+      refreshQueued.current = false;
       controller.current?.abort();
+      unsubscribe();
     };
-  }, [load]);
+  }, [client, load]);
   const edit = async (id: string) => {
     if (lock.current) return;
     lock.current = true;
     controller.current?.abort();
     const request = new AbortController();
     controller.current = request;
-    setPending(true);
+    setOperationPending(true);
     setError("");
     try {
       const view = await client.readAcpPlan(id, { signal: request.signal });
@@ -105,13 +136,13 @@ export function AcpPlanWorkspace({
         setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       lock.current = false;
-      if (active.current && !request.signal.aborted) setPending(false);
+      if (active.current && !request.signal.aborted) setOperationPending(false);
     }
   };
   const remove = async () => {
     if (!removing || lock.current) return;
     lock.current = true;
-    setPending(true);
+    setOperationPending(true);
     const request = new AbortController();
     controller.current = request;
     try {
@@ -130,7 +161,7 @@ export function AcpPlanWorkspace({
       }
     } finally {
       lock.current = false;
-      if (active.current) setPending(false);
+      if (active.current) setOperationPending(false);
     }
   };
   const names = new Map(projects.map((project) => [project.id, project.name]));
@@ -157,9 +188,9 @@ export function AcpPlanWorkspace({
         </Button>
       </header>
       {pending ? <p role="status">{l.loading}</p> : null}
-      {error ? (
+      {error || listError ? (
         <p role="alert" className="break-words text-destructive">
-          {error}
+          {error || listError}
         </p>
       ) : null}
       {!pending && !page.data.length ? (
@@ -187,6 +218,15 @@ export function AcpPlanWorkspace({
                   : new Date(row.nextRunAt).toLocaleString(language)}
               </span>
             </button>
+            <Button
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                setHistory({ id: row.scheduleId, name: row.name });
+              }}
+            >
+              {l.history}
+            </Button>
             <Button
               variant="ghost"
               disabled={pending}
@@ -240,6 +280,22 @@ export function AcpPlanWorkspace({
             }}
             onSaved={() => {
               void load();
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {history ? (
+        <Suspense fallback={<p role="status">{l.loading}</p>}>
+          <AcpPlanHistory
+            key={history.id}
+            client={client}
+            id={history.id}
+            name={history.name}
+            labels={l}
+            {...(language === undefined ? {} : { language })}
+            onOpenTask={onOpenTask}
+            onClose={() => {
+              setHistory(undefined);
             }}
           />
         </Suspense>

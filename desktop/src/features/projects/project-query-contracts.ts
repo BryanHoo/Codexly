@@ -122,7 +122,7 @@ export type NativeMutationClient = Pick<
   | "updateTaskGoal"
 >;
 export type NativePendingRequestClient = Pick<NativeClient, "resolvePendingRequest">;
-export type NativeWorkbenchClient = Pick<NativeClient, "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment" | "listClaudeExtensions" | "mutateClaudeExtension"> & NativeReadClient &
+export type NativeWorkbenchClient = Pick<NativeClient, "subscribeAcpPlans" | "readAcpPlanHistory" | "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment" | "listClaudeExtensions" | "mutateClaudeExtension"> & NativeReadClient &
   NativeScheduledTaskClient &
   NativeBackgroundTerminalClient &
   NativeGitStatusClient &

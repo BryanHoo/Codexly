@@ -6,11 +6,18 @@ import type {
   AgentMessageAttachment,
   ScheduledTaskSchedule,
 } from "@codexly/protocol";
-import type { AcpPlanPage, AcpPlanView, ListAcpPlans } from "@codexly/protocol/acp-plan-api";
+import type {
+  AcpPlanHistory,
+  AcpPlanPage,
+  AcpPlanView,
+  ListAcpPlans,
+} from "@codexly/protocol/acp-plan-api";
 import type { AcpPlanEditorPorts } from "@codexly/frontend-core/acp-plan-editor";
 export interface AcpPlanUiClient extends AcpPlanEditorPorts {
+  subscribeAcpPlans(listener: () => void): () => void;
   listAcpPlans(query?: ListAcpPlans, options?: { signal?: AbortSignal }): Promise<AcpPlanPage>;
   readAcpPlan(id: string, options?: { signal?: AbortSignal }): Promise<AcpPlanView>;
+  readAcpPlanHistory(id: string, options?: { signal?: AbortSignal }): Promise<AcpPlanHistory>;
   deleteAcpPlan(
     id: string,
     revision: number,
@@ -56,7 +63,7 @@ export const planLabels = {
     empty: "暂无定时计划",
     remove: "删除计划",
     removeTitle: "删除此计划？",
-    removeHint: "已生成的任务及历史记录会保留。",
+    removeHint: "此计划及其运行记录将被删除，已生成的聊天任务和会话记录会保留。",
     discard: "放弃修改",
     discardTitle: "放弃未保存的修改？",
     discardHint: "未保存的草稿将丢失。",
@@ -74,6 +81,15 @@ export const planLabels = {
     settingsSaved: "已保留此计划保存的智能体配置。",
     next: "下次运行",
     ended: "暂无下次运行",
+    history: "运行记录",
+    refreshHistory: "刷新记录",
+    noRuns: "暂无运行记录",
+    openTask: "打开任务",
+    claimed: "准备启动",
+    unknown: "待确认",
+    started: "已启动",
+    failed: "启动失败",
+    definitionRevision: "计划修订",
   },
   en: {
     title: "Schedules",
@@ -97,7 +113,8 @@ export const planLabels = {
     empty: "No schedules",
     remove: "Delete schedule",
     removeTitle: "Delete this schedule?",
-    removeHint: "Created tasks and history will be kept.",
+    removeHint:
+      "This schedule and its run history will be deleted. Created chat tasks and conversations will be kept.",
     discard: "Discard changes",
     discardTitle: "Discard unsaved changes?",
     discardHint: "The unsaved draft will be lost.",
@@ -115,6 +132,15 @@ export const planLabels = {
     settingsSaved: "The saved agent configuration is preserved.",
     next: "Next run",
     ended: "No next run",
+    history: "Run history",
+    refreshHistory: "Refresh history",
+    noRuns: "No runs yet",
+    openTask: "Open task",
+    claimed: "Preparing to start",
+    unknown: "Awaiting confirmation",
+    started: "Started",
+    failed: "Failed to start",
+    definitionRevision: "Schedule revision",
   },
 };
 export type PlanLabels = { [K in keyof typeof planLabels.en]: string };

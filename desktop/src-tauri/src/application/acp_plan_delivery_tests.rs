@@ -38,6 +38,27 @@ async fn acp_plan_delivery_should_fix_source_and_reject_unknown_fields() {
     .unwrap();
     assert_eq!(page["data"][0]["scheduleId"], "plan");
     assert!(page["data"][0].get("prompt").is_none());
+    let history = deliver(
+        &service,
+        &catalog,
+        json!({"type":"history","planId":"plan"}),
+        |_, _, _| async { panic!("history must not preview") },
+        &cancel,
+    )
+    .await
+    .unwrap();
+    assert_eq!(history, json!({"projectId":"temporary","data":[]}));
+    assert!(matches!(
+        deliver(
+            &service,
+            &catalog,
+            json!({"type":"history","planId":"missing"}),
+            |_, _, _| async { panic!("history must not preview") },
+            &cancel
+        )
+        .await,
+        Err(AppError::ScheduledTaskNotFound)
+    ));
     for request in [
         json!({"type":"list","source":"web"}),
         json!({"type":"list","limit":101}),
@@ -45,6 +66,7 @@ async fn acp_plan_delivery_should_fix_source_and_reject_unknown_fields() {
         json!({"type":"list","after":null}),
         json!({"type":"read","planId":"plan","cwd":"/injected"}),
         json!({"type":"read","planId":""}),
+        json!({"type":"history","planId":"plan","source":"web"}),
     ] {
         assert!(matches!(
             deliver(

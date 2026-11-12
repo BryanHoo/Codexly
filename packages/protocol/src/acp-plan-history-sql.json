@@ -1,0 +1,4 @@
+{
+  "history": "SELECT json_object('projectId',json_extract(p.definition_json,'$.projectId'),'data',json(COALESCE((SELECT json_group_array(json(item)) FROM (SELECT json_object('runId',run_id,'status',status,'claimedAt',claimed_at,'definitionRevision',definition_revision,'taskId',task_id,'error',error) AS item FROM acp_plan_runs WHERE source=p.source AND schedule_id=p.schedule_id ORDER BY claimed_at DESC,run_id DESC LIMIT 20)),'[]'))) AS result FROM acp_scheduled_plans p WHERE source=? AND schedule_id=?",
+  "summary": "SELECT json_object('runId',run_id,'status',status,'claimedAt',claimed_at,'definitionRevision',definition_revision,'taskId',task_id,'error',error) AS result FROM acp_plan_runs WHERE source=? AND schedule_id=? AND run_id=?"
+}

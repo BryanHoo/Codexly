@@ -4,6 +4,7 @@ import type { FastifyPluginCallback, FastifySchema, FastifySchemaCompiler } from
 import type { LocalCatalogStore } from "@codexly/core";
 import {
   AcpPlanPageSchema,
+  AcpPlanHistorySchema,
   AcpPlanViewSchema,
   AcpPlanResourceSchema,
   SaveAcpPlanSchema,
@@ -101,6 +102,23 @@ export const registerAcpPlanRoutes: FastifyPluginCallback<AcpPlanRoutePorts> = (
         limit: request.query.limit ?? 20,
         ...(request.query.after === undefined ? {} : { after: request.query.after }),
       }),
+  );
+  app.get<{ Params: { id: string } }>(
+    "/v1/acp/plans/:id/history",
+    {
+      validatorCompiler,
+      serializerCompiler,
+      schema: { params: Params, response: { 200: AcpPlanHistorySchema } },
+    },
+    async (request) => {
+      // 项目删除后仍能读既有运行；只查有界元数据，不加载配置和资源快照。
+      const history = await catalog.catalog("acp.plan.history", {
+        source: "web",
+        scheduleId: request.params.id,
+      });
+      if (!history) throw new MutationHttpError("TASK_NOT_FOUND", "ACP plan not found", 404);
+      return history;
+    },
   );
   app.get<{ Params: { id: string } }>(
     "/v1/acp/plans/:id",

@@ -10,7 +10,7 @@ import {changeAppLanguage as webLanguage} from "../../../apps/web/src/i18n/i18n.
 import {changeAppLanguage as nativeLanguage} from "../../src/i18n/i18n.js";
 function fixture(){
  const save=vi.fn(async(id:string,input:Record<string,unknown>)=>({source:"web",scheduleId:id,revision:Number(input.expectedRevision)+1,definition:input.definition,state:{revision:Number(input.expectedStateRevision)+1,definitionRevision:Number(input.expectedRevision)+1,nextRunAt:null},canEdit:true,resources:[]}));
- const client={listScheduledTasks:vi.fn(async()=>({data:[]})),subscribeScheduledTasks:vi.fn(()=>()=>{}),listAcpPlans:vi.fn(async()=>({data:[],nextCursor:null})),saveAcpPlan:save,uploadAttachment:vi.fn(),stageAcpPlanAttachment:vi.fn(),readAcpPlan:vi.fn(),deleteAcpPlan:vi.fn(),previewAcpConfig:vi.fn(async()=>({values:{flag:false},configOptions:[{id:"flag",name:"允许写入",type:"boolean",currentValue:false}]}))};
+ const client={subscribeAcpPlans:vi.fn(()=>()=>{}),listScheduledTasks:vi.fn(async()=>({data:[]})),subscribeScheduledTasks:vi.fn(()=>()=>{}),listAcpPlans:vi.fn(async()=>({data:[],nextCursor:null})),saveAcpPlan:save,uploadAttachment:vi.fn(),stageAcpPlanAttachment:vi.fn(),readAcpPlan:vi.fn(),deleteAcpPlan:vi.fn(),previewAcpConfig:vi.fn(async()=>({values:{flag:false},configOptions:[{id:"flag",name:"允许写入",type:"boolean",currentValue:false}]}))};
  return {client,save,context:{client,capabilities:{runtime:"acp"},projects:[{id:"p",name:"项目甲"}],models:[],modelsQuery:{},skillsQuery:{data:{data:[]}},gitStatusQuery:{},globalSettings:{},t:(key:string)=>key,navigate:vi.fn()}};
 }
 beforeEach(async()=>{await page.viewport(1100,850);await webLanguage("zh-CN");await nativeLanguage("zh-CN");});
@@ -89,3 +89,23 @@ it("StrictMode 与英文界面保持编辑会话可用，关闭后迟到预览�
  await screen.getByRole("button",{name:"New schedule",exact:true}).click();await expect.element(screen.getByRole("textbox",{name:"Schedule name",exact:true})).toHaveValue("");
  await expect.element(screen.getByRole("combobox",{name:"Agent",exact:true})).toHaveValue("");await screen.unmount();
 });
+
+for(const [name,Container] of [["Web",Web],["Native",Native]] as const){
+ it(`${name} 连续通知合并读取且不取消编辑加载或覆盖草稿`,async()=>{
+  const h=fixture();const listeners=new Set<()=>void>();h.client.subscribeAcpPlans=vi.fn((listener:()=>void)=>{listeners.add(listener);return()=>{listeners.delete(listener);};});
+  const definition={name:"已有计划",projectId:"p",engine:"claude",values:{flag:false},enabled:false,prompt:{type:"prompt",text:"原正文",skills:[],attachments:[]},schedule:{type:"once",atUnixMs:1}};
+  const view={source:"web",scheduleId:"saved",revision:1,definition,state:{revision:1,definitionRevision:1,nextRunAt:null},canEdit:true,resources:[]};
+  const row={...view,...definition,nextRunAt:null,stateRevision:1,scheduledRevision:1};const data={data:[row],nextCursor:null};h.client.listAcpPlans.mockResolvedValue(data as never);
+  let editDone!:(value:never)=>void;let editSignal:AbortSignal|undefined;
+  h.client.readAcpPlan.mockImplementationOnce((_id:string,options:{signal:AbortSignal})=>{editSignal=options.signal;return new Promise(resolve=>{editDone=resolve;});});
+  const screen=await render(<QueryClientProvider client={new QueryClient()}><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
+  await screen.getByRole("button",{name:/已有计划/}).click();
+  let listDone!:(value:never)=>void;h.client.listAcpPlans.mockImplementationOnce(()=>new Promise(resolve=>{listDone=resolve;}));
+  for(let i=0;i<20;i++)for(const listener of listeners)listener();
+  expect(h.client.listAcpPlans).toHaveBeenCalledTimes(2);expect(editSignal?.aborted).toBe(false);
+  editDone(view as never);await screen.getByRole("textbox",{name:"计划名称",exact:true}).fill("保持此草稿");
+  listDone(data as never);await expect.poll(()=>h.client.listAcpPlans.mock.calls.length).toBe(3);
+  await expect.element(screen.getByRole("textbox",{name:"计划名称",exact:true})).toHaveValue("保持此草稿");expect(h.client.readAcpPlan).toHaveBeenCalledOnce();
+  await screen.unmount();
+ });
+}

@@ -7,6 +7,7 @@ import { AcpPlanService } from "./acp-plan-service.js";
 import { registerAcpPlanRoutes } from "./routes/acp-plan-routes.js";
 import { createIdempotencyRunner } from "./idempotency-runner.js";
 import { MutationHttpError } from "./routes/context.js";
+import { project } from "./app-all.test-support.js";
 it("HTTP 新计划保存、读取、分页、幂等和删除保留旧目录与精简索引", async () => {
   const h = await fixture();
   const wake = vi.fn();
@@ -53,6 +54,12 @@ it("HTTP 新计划保存、读取、分页、幂等和删除保留旧目录与�
     const read = await app.inject({ url: "/v1/acp/plans/edit" });
     expect(read.json()).toEqual(view);
     expect(read.headers["cache-control"]).toBe("no-store");
+    const history = await app.inject({ url: "/v1/acp/plans/plan/history" });
+    expect(history.statusCode, history.body).toBe(200);
+    expect(history.json()).toMatchObject({ projectId: project.id, data: [{ status: "claimed" }] });
+    expect(history.body).not.toContain('"definition":');
+    expect(history.headers["cache-control"]).toBe("no-store");
+    expect((await app.inject({ url: "/v1/acp/plans/missing/history" })).statusCode).toBe(404);
     const page = await app.inject({ url: "/v1/acp/plans?limit=1" });
     expect(page.statusCode, page.body).toBe(200);
     expect(page.json<AcpPlanPage>().data[0]).not.toHaveProperty("prompt");

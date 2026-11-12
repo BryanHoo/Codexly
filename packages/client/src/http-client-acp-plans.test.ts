@@ -113,3 +113,31 @@ it("共享附件端口只转交项目和上传 ID，不传递本机路径字段�
   );
   expect(fetch.mock.calls[0]?.[1]?.body).toBe('{"projectId":"p","uploadId":"upload"}');
 });
+
+it("运行历史保留原任务引用及取消信号，并拒绝包含正文的响应", async () => {
+  const history = {
+    projectId: "p",
+    data: [
+      {
+        runId: "run",
+        status: "unknown",
+        claimedAt: 1,
+        definitionRevision: 2,
+        taskId: "task/id",
+        error: "unconfirmed",
+      },
+    ],
+  };
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(new Response(JSON.stringify(history)))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ...history, definition: fixture })));
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  const controller = new AbortController();
+  expect(await client.readAcpPlanHistory("plan/id", { signal: controller.signal })).toEqual(
+    history,
+  );
+  expect(fetch.mock.calls[0]?.[0]).toBe("https://example.test/v1/acp/plans/plan%2Fid/history");
+  expect(fetch.mock.calls[0]?.[1]?.signal).toBeDefined();
+  await expect(client.readAcpPlanHistory("plan/id")).rejects.toThrow();
+});

@@ -30,7 +30,11 @@ pub async fn acp_plan_request(
                 app_data::directory(&app).map_err(|_| AppError::FilesystemRequestFailed)?;
             let catalog = LocalCatalog::at(&directory)?;
             let notify = runtime.inner().clone();
-            let service = AcpPlanService::new(&directory, catalog.clone(), move || notify.wake());
+            let events = app.clone();
+            let service = AcpPlanService::new(&directory, catalog.clone(), move || {
+                notify.wake();
+                super::acp_plan_changes::publish(&events);
+            });
             let preview_app = app.clone();
             let preview_cancel = cancel.clone();
             super::acp_plan_delivery::deliver(

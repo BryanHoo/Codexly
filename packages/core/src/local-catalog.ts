@@ -1,3 +1,4 @@
+import type { AcpPlanHistory, AcpPlanRunSummary } from "@codexly/protocol/acp-plan-api";
 import type { AcpScheduledPlanDefinition } from "@codexly/protocol/acp-scheduled-plan";
 import type {
   AgentMessageAttachment,
@@ -113,6 +114,8 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  "acp.plan.history": [AcpScheduledConfigKey, AcpPlanHistory | null];
+  "acp.plan.summary": [AcpScheduledConfigKey & { runId: string }, AcpPlanRunSummary | null];
   "acp.plan.view": [AcpScheduledConfigKey, AcpPlanView | null];
   "acp.plan.commit": [
     CatalogOperations["acp.plan.save"][0] & {

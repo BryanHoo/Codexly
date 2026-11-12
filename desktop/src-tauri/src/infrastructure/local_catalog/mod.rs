@@ -11,6 +11,8 @@ mod acp_plan_commit_tests;
 mod acp_plan_completion;
 #[cfg(test)]
 mod acp_plan_completion_tests;
+#[cfg(test)]
+mod acp_plan_history_tests;
 mod acp_plan_index;
 #[cfg(test)]
 mod acp_plan_index_tests;

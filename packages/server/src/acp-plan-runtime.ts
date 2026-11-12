@@ -6,6 +6,8 @@ import { AcpPlanService } from "./acp-plan-service.js";
 import { AcpPlanResourceManager } from "./acp-plan-resource-transfer.js";
 import { createAcpPlanExecutor } from "./acp-plan-executor.js";
 import { registerAcpPlanRoutes } from "./routes/acp-plan-routes.js";
+import { registerResourceChangeEvents } from "./routes/resource-change-events.js";
+import { AcpPlanChanges } from "./acp-plan-events.js";
 
 /** 入口和执行器同批装配；缺少持久提交端口时不开放可启用的新计划。 */
 export async function registerAcpPlanRuntime(
@@ -22,6 +24,7 @@ export async function registerAcpPlanRuntime(
   )
     return;
   const resources = new AcpPlanResourceManager(catalog, context.attachmentStore);
+  const changes = new AcpPlanChanges();
   const execute = createAcpPlanExecutor({
     catalog,
     submissions: context.submissionRepository,
@@ -29,7 +32,7 @@ export async function registerAcpPlanRuntime(
     resolveInput: context.resolveProviderTurnInput,
     resources,
   });
-  const scheduler = new AcpPlanScheduler({ catalog, execute });
+  const scheduler = new AcpPlanScheduler({ catalog, execute: changes.observe(catalog, execute) });
   const service = new AcpPlanService({
     catalog,
     getProjectContext: context.getProjectContext,
@@ -37,6 +40,7 @@ export async function registerAcpPlanRuntime(
     resources,
     wake: () => {
       scheduler.wake();
+      changes.publish();
     },
   });
   // 路由和配对权限均就绪后才扫描；关闭先等待调度，随后全局 onClose 释放项目 / agent / 存储。
@@ -45,6 +49,16 @@ export async function registerAcpPlanRuntime(
     done();
   });
   app.addHook("preClose", () => scheduler.close());
+  registerResourceChangeEvents(
+    app,
+    context,
+    "/v1/acp/plans/events",
+    { type: "acp-plans.changed" },
+    (listener) =>
+      changes.subscribe(() => {
+        listener({ type: "acp-plans.changed" });
+      }),
+  );
   await app.register(registerAcpPlanRoutes, {
     catalog,
     service,

@@ -30,3 +30,13 @@ it("取消新计划请求只发送该请求的取消身份",async()=>{
  controller.abort();await expect(request).rejects.toMatchObject({name:"AbortError"});
  expect(invoke).toHaveBeenCalledWith("cancel_native_request",expect.objectContaining({requestId:expect.any(String)}));
 });
+
+it("历史走固定白名单且不初始化旧引擎，保留未知状态和原任务引用",async()=>{
+ const history={projectId:"p",data:[{runId:"run",status:"unknown",claimedAt:1,definitionRevision:2,taskId:"task/id",error:"unconfirmed"}]};
+ const invoke=vi.fn().mockResolvedValueOnce(history).mockResolvedValueOnce({...history,prompt:"forbidden"});
+ const ensureRuntime=vi.fn();const client=new TauriCatalogClient({invoke:invoke as InvokeImplementation,ensureRuntime});
+ expect(await client.readAcpPlanHistory("plan/id")).toEqual(history);
+ expect(invoke).toHaveBeenCalledWith("acp_plan_request",{request:{type:"history",planId:"plan/id"}});
+ await expect(client.readAcpPlanHistory("plan/id")).rejects.toThrow("Invalid ACP plan response");
+ expect(ensureRuntime).not.toHaveBeenCalled();
+});

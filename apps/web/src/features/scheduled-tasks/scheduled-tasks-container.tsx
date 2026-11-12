@@ -202,6 +202,7 @@ export function ScheduledTasksContainer(
   props: Parameters<typeof ExistingScheduledTasksContainer>[0],
 ) {
   const { i18n } = useTranslation("workbench");
+  const queryClient = useQueryClient();
   if (props.context.capabilities?.runtime !== "acp")
     return <ExistingScheduledTasksContainer {...props} />;
   return (
@@ -211,6 +212,22 @@ export function ScheduledTasksContainer(
       projects={props.context.projects}
       language={i18n.resolvedLanguage ?? "zh-CN"}
       ScheduleField={AcpPlanScheduleFieldAdapter}
+      onOpenTask={async (runProjectId, taskId, signal) => {
+        const response = await props.context.client.readNavigableTask(runProjectId, taskId, {
+          signal,
+        });
+        if (signal.aborted) return;
+        if (response.task === null)
+          throw new Error(props.context.t("scheduledTasks.runUnavailable"));
+        // 复用已核对归属及归档状态的快照，目标任务页可以继续原会话。
+        queryClient.setQueryData(["projects", runProjectId, "tasks", taskId], response.task);
+        if (requestSplitTaskNavigation({ projectId: runProjectId, taskId })) return;
+        await props.context.navigate(
+          runProjectId === TEMPORARY_TASK_SCOPE_ID
+            ? { params: { taskId }, to: "/temporary/t/$taskId" }
+            : { params: { projectId: runProjectId, taskId }, to: "/p/$projectId/t/$taskId" },
+        );
+      }}
     >
       <ExistingScheduledTasksContainer {...props} />
     </AcpPlanWorkspace>

@@ -1,5 +1,6 @@
 pub mod acp_commands;
 mod acp_input;
+mod acp_plan_changes;
 mod acp_plan_completion;
 mod acp_plan_delivery;
 mod acp_plan_discovery;

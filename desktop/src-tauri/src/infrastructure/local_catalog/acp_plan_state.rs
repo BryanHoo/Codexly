@@ -50,8 +50,28 @@ fn optional<'a>(p: &'a Value, key: &str, max: usize) -> Result<Option<&'a str>, 
     Ok(Some(s))
 }
 fn read(db: &Connection, name: &str, args: impl rusqlite::Params) -> Result<Value, CatalogError> {
+    read_query(db, sql(name)?, args)
+}
+fn history_sql(name: &str) -> Result<&'static str, CatalogError> {
+    static SQL: OnceLock<Result<Value, serde_json::Error>> = OnceLock::new();
+    string(
+        SQL.get_or_init(|| {
+            serde_json::from_str(include_str!(
+                "../../../../../packages/protocol/src/acp-plan-history-sql.json"
+            ))
+        })
+        .as_ref()
+        .map_err(|_| CatalogError::InvalidMessage)?,
+        name,
+    )
+}
+fn read_query(
+    db: &Connection,
+    query: &str,
+    args: impl rusqlite::Params,
+) -> Result<Value, CatalogError> {
     let value: Option<String> = db
-        .prepare_cached(sql(name)?)
+        .prepare_cached(query)
         .map_err(db_error)?
         .query_row(args, |r| r.get(0))
         .optional()
@@ -76,6 +96,13 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         return Err(CatalogError::InvalidMessage);
     }
     match op {
+        // 历史只读取有限元数据，不能把仍被占用运行的完整快照送出目录层。
+        "acp.plan.history" => read_query(db, history_sql("history")?, params![source, id]),
+        "acp.plan.summary" => read_query(
+            db,
+            history_sql("summary")?,
+            params![source, id, text(p, "runId", 256)?],
+        ),
         "acp.plan.readState" => read(db, "readState", params![source, id]),
         "acp.plan.readRun" => read(db, "readRun", params![source, id, text(p, "runId", 256)?]),
         "acp.plan.arm" => arm(db, p),

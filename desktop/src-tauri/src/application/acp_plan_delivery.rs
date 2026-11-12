@@ -21,6 +21,9 @@ enum Request {
     Read {
         plan_id: String,
     },
+    History {
+        plan_id: String,
+    },
     Save {
         plan_id: String,
         input: Value,
@@ -88,6 +91,20 @@ where
                 return Err(AppError::ScheduledTaskNotFound);
             }
             Ok(view)
+        }
+        Request::History { plan_id } => {
+            identity(&plan_id)?;
+            // 历史不要求项目仍存在，也不启动 agent 或读取完整计划快照。
+            let history = catalog
+                .call(
+                    "acp.plan.history",
+                    json!({"source":"desktop","scheduleId":plan_id}),
+                )
+                .await?;
+            if history.is_null() {
+                return Err(AppError::ScheduledTaskNotFound);
+            }
+            Ok(history)
         }
         Request::Save { plan_id, input } => {
             identity(&plan_id)?;

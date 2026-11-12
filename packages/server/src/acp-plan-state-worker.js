@@ -1,3 +1,4 @@
+import historySql from "../../protocol/src/acp-plan-history-sql.json" with { type: "json" };
 import { Value } from "@sinclair/typebox/value";
 import definitionSchema from "../../protocol/src/acp-scheduled-plan-schema.js";
 import sql from "../../protocol/src/acp-plan-state-sql.json" with { type: "json" };
@@ -56,6 +57,9 @@ export function createAcpPlanStateOperations(db) {
     return read("readRun", [source, id, runId]);
   });
   return {
+    "acp.plan.history": (p) => result(db.prepare(historySql.history).get(...key(p))),
+    "acp.plan.summary": (p) =>
+      result(db.prepare(historySql.summary).get(...key(p), text(p.runId, 256))),
     "acp.plan.readState": (p) => read("readState", key(p)),
     "acp.plan.readRun": (p) => read("readRun", [...key(p), text(p.runId, 256)]),
     "acp.plan.arm": (p) => {

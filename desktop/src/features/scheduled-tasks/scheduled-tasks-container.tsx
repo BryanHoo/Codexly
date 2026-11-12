@@ -238,6 +238,15 @@ function ExistingScheduledTasksContainer({
 // ACP 使用共享私有计划工作区；旧计划保留原容器，非 ACP 不改变原入口。
 export function ScheduledTasksContainer(props:Parameters<typeof ExistingScheduledTasksContainer>[0]) {
  const {i18n}=useTranslation("workbench");
+ const queryClient=useQueryClient();
  if(props.context.capabilities?.runtime!=="acp")return <ExistingScheduledTasksContainer {...props}/>;
- return <AcpPlanWorkspace client={props.context.client} projectId={props.projectId} projects={props.context.projects} language={i18n.resolvedLanguage??"zh-CN"} ScheduleField={AcpPlanScheduleFieldAdapter}><ExistingScheduledTasksContainer {...props}/></AcpPlanWorkspace>;
+ return <AcpPlanWorkspace client={props.context.client} projectId={props.projectId} projects={props.context.projects} language={i18n.resolvedLanguage??"zh-CN"} ScheduleField={AcpPlanScheduleFieldAdapter} onOpenTask={async(runProjectId,taskId,signal)=>{
+  const response=await readScheduledTaskRun(props.context.client,runProjectId,taskId);
+  if(signal.aborted)return;
+  if(response===null)throw new Error(props.context.t("scheduledTasks.runUnavailable"));
+  // 复用原生任务及归档校验；不把运行引用改成新任务身份。
+  queryClient.setQueryData(["projects",runProjectId,"tasks",taskId],response);
+  if(requestSplitTaskNavigation({projectId:runProjectId,taskId}))return;
+  await props.context.navigate(runProjectId===TEMPORARY_TASK_SCOPE_ID?{params:{taskId},to:"/temporary/t/$taskId"}:{params:{projectId:runProjectId,taskId},to:"/p/$projectId/t/$taskId"});
+ }}><ExistingScheduledTasksContainer {...props}/></AcpPlanWorkspace>;
 }

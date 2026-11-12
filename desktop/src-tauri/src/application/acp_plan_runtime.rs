@@ -69,11 +69,23 @@ impl AcpPlanRuntime {
                 let directory = crate::infrastructure::app_data::directory(&app)
                     .map_err(|_| super::error::AppError::FilesystemRequestFailed)?;
                 let store = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
+                let observer = store.clone();
                 super::acp_plan_scheduler::run(
                     &store,
                     |id, run| {
                         let app = app.clone();
-                        async move { super::acp_plan_executor::execute(app, &id, &run).await }
+                        let catalog = observer.clone();
+                        async move {
+                            let events = app.clone();
+                            super::acp_plan_changes::observe(
+                                &catalog,
+                                &id,
+                                &run,
+                                super::acp_plan_executor::execute(app, &id, &run),
+                                || super::acp_plan_changes::publish(&events),
+                            )
+                            .await
+                        }
                     },
                     &wake,
                     &stop,

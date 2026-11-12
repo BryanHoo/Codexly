@@ -86,7 +86,9 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             super::acp_plan_index::execute(db, op, p)
         }
         "acp.plan.arm" | "acp.plan.readState" | "acp.plan.readRun" | "acp.plan.claim"
-        | "acp.plan.claimRef" | "acp.plan.finish" => super::acp_plan_state::execute(db, op, p),
+        | "acp.plan.claimRef" | "acp.plan.finish" | "acp.plan.history" | "acp.plan.summary" => {
+            super::acp_plan_state::execute(db, op, p)
+        }
         "acp.plan.read" | "acp.plan.set" | "acp.plan.delete" => {
             super::acp_scheduled_plans::execute(db, op, p)
         }
