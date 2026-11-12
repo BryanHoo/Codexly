@@ -309,8 +309,13 @@ export class TauriSidebarClient extends TauriTaskManagementClient {
     projectId: string,
     taskId: string,
     turnId: string,
-    _options: MutationOptions = {},
+    options: MutationOptions = {},
   ): Promise<InterruptAgentTurnResponse> {
+    if (await this.applicationRuntime() === "acp") {
+      // 只确认此任务/回合的中断请求；终态继续由共享 ACP 流事件接管。
+      await this.interruptAcpTurn(projectId, taskId, turnId, options);
+      return { status: "interrupting", taskId, turnId };
+    }
     return this.call("interrupt_turn", { projectId, taskId, turnId });
   }
 

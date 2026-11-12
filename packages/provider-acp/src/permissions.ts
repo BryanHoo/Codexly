@@ -19,6 +19,7 @@ interface Waiting {
 /** 原始 ACP 选项是授权依据；旧审批按钮仅兼容一次性选择，不能自动扩大授权。 */
 export class AcpPermissions {
   readonly #waiting = new Map<string, Waiting>();
+  readonly #cancelledTurns = new Map<string, string>();
   #closed = false;
   constructor(
     readonly projectId: string,
@@ -35,7 +36,7 @@ export class AcpPermissions {
     input: RequestPermissionRequest,
     signal: AbortSignal,
   ): Promise<RequestPermissionResponse> {
-    if (this.#closed || signal.aborted)
+    if (this.#closed || signal.aborted || this.#cancelledTurns.get(taskId) === turnId)
       return Promise.resolve({ outcome: { outcome: "cancelled" } });
     if (this.#waiting.size >= 64 || input.options.length > 128)
       return Promise.reject(new Error("ACP 审批请求超过容量限制"));
@@ -71,6 +72,17 @@ export class AcpPermissions {
         payload: { request: structuredClone(request) },
       });
     });
+  }
+  /** 仅取消目标回合，迟到请求也返回 cancelled；标记受运行中会话容量限制。 */
+  cancelTurn(taskId: string, turnId: string): void {
+    this.#cancelledTurns.set(taskId, turnId);
+    for (const [id, entry] of this.#waiting) {
+      if (entry.request.taskId === taskId && entry.request.turnId === turnId)
+        this.#settle(id, { outcome: { outcome: "cancelled" } }, "expired");
+    }
+  }
+  finishTurn(taskId: string, turnId: string): void {
+    if (this.#cancelledTurns.get(taskId) === turnId) this.#cancelledTurns.delete(taskId);
   }
   resolve(input: ResolvePendingRequestInput): PendingRequest {
     const entry = this.#waiting.get(input.requestId);
@@ -138,5 +150,6 @@ export class AcpPermissions {
     this.#closed = true;
     for (const id of this.#waiting.keys())
       this.#settle(id, { outcome: { outcome: "cancelled" } }, "expired");
+    this.#cancelledTurns.clear();
   }
 }

@@ -31,6 +31,11 @@ export class AcpEventProjection {
     readonly emit: AgentProviderEventListener,
   ) {}
 
+  /** 状态检查不构造整份回合快照，避免审批和退订复制历史正文。 */
+  get running(): boolean {
+    return this.#status === "running";
+  }
+
   userMessage(id: string, text: string, attachments: AgentMessageAttachment[]): void {
     const item: AgentItem = {
       id,

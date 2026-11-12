@@ -154,7 +154,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         requestPermission: (request, signal) => {
           const task = [...this.#sessions].find(([, id]) => id === request.sessionId)?.[0];
           const active = task ? this.#active.get(task) : undefined;
-          return task && active && !this.#ephemeral.has(task)
+          return task && active?.running && !this.#ephemeral.has(task)
             ? this.#permissions.request(task, active.turnId, request, signal)
             : Promise.resolve({ outcome: { outcome: "cancelled" as const } });
         },
@@ -368,6 +368,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         this.#settlements.add(settlement);
         this.#taskSettlements.set(id, settlement);
         void settlement.finally(() => {
+          this.#permissions.finishTurn(id, turn.id);
           this.#settlements.delete(settlement);
           this.#taskSettlements.delete(id);
         });
@@ -449,7 +450,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   async unsubscribeTask(id: string) {
     return this.#serial(id, async () => {
       if (!this.#ephemeral.has(id) && !this.#sessions.has(id)) return "notLoaded" as const;
-      if (this.#active.get(id)?.snapshot().status === "running") return "busy" as const;
+      if (this.#active.get(id)?.running) return "busy" as const;
       await this.#taskSettlements.get(id);
       const session = this.#sessions.get(id);
       if (session) await (await this.#agent()).closeSession(session);
@@ -460,12 +461,17 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       return "unsubscribed" as const;
     });
   }
-  async interruptTurn(id: string, turnId: string): Promise<void> {
-    await this.#task(id);
-    const active = this.#active.get(id);
-    if (!active || active.turnId !== turnId) return;
-    const session = this.#sessions.get(id);
-    if (session) await (await this.#agent()).cancel(session);
+  interruptTurn(id: string, turnId: string): Promise<void> {
+    // 中断与新输入串行，防止旧取消通知落到后来回合。
+    return this.#serial(id, async () => {
+      await this.#task(id);
+      const session = this.#sessions.get(id);
+      if (!session || this.#active.get(id)?.turnId !== turnId) return;
+      const agent = await this.#agent();
+      if (this.#active.get(id)?.turnId !== turnId) return;
+      this.#permissions.cancelTurn(id, turnId);
+      await agent.cancel(session);
+    });
   }
   async startConfiguredTurn(
     id: string,

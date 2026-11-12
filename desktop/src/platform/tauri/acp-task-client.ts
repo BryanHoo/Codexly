@@ -157,8 +157,8 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
       options,
     );
   }
-  interruptAcpTurn(projectId: string, taskId: string, turnId: string): Promise<null> {
-    return this.mutateAcpTask(projectId, "turn.interrupt", { taskId, turnId }, {});
+  interruptAcpTurn(projectId: string, taskId: string, turnId: string, options: MutationOptions = {}): Promise<null> {
+    return this.mutateAcpTask(projectId, "turn.interrupt", { taskId, turnId }, options);
   }
   resolveAcpRequest(
     projectId: string,
