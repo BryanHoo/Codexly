@@ -15,6 +15,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
   const replies: Record<string, unknown>[] = [];
   let permission: acp.RequestPermissionResponse | undefined;
   const prompts: acp.ContentBlock[][] = [];
+  const closeSession = vi.fn(() => ({}));
   const launch = vi.fn<AcpAgentLauncher>(() => Promise.reject(new Error("目录操作不启动 agent")));
   const output = new Writable({
     write(chunk: Buffer, _encoding, callback) {
@@ -65,6 +66,15 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
       });
     });
     expect(launch).not.toHaveBeenCalled();
+    host.receive(
+      Buffer.from(
+        `${JSON.stringify({ id: 8, method: "task.retain", scope, params: { taskId: task.id, leaseId: "view" } })}\n`,
+      ),
+    );
+    await vi.waitFor(() => {
+      expect(replies.find((reply) => reply["id"] === 8)).toMatchObject({ result: null });
+    });
+    expect(launch).not.toHaveBeenCalled();
     launch.mockImplementation(async (_engine, _scope, callbacks) => {
       const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>(),
         b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
@@ -72,7 +82,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
         .agent({ name: "host-test" })
         .onRequest(acp.methods.agent.initialize, () => ({
           protocolVersion: 1,
-          agentCapabilities: {},
+          agentCapabilities: _engine === "claude" ? { sessionCapabilities: { close: {} } } : {},
         }))
         .onRequest(acp.methods.agent.session.new, () => ({
           sessionId: "native",
@@ -96,6 +106,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
           ],
         }))
         .onRequest(acp.methods.agent.session.setConfigOption, () => ({ configOptions: [] }))
+        .onRequest(acp.methods.agent.session.close, closeSession)
         .onRequest(acp.methods.agent.session.prompt, async ({ client, params }) => {
           prompts.push(params.prompt);
           await client.notify(acp.methods.client.session.update, {
@@ -153,6 +164,15 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
       });
     });
     expect(prompts).toHaveLength(1);
+    // 有排队输入和待审批回合时关闭视图，不能丢失终态、队列接续或持久历史。
+    host.receive(
+      Buffer.from(
+        `${JSON.stringify({ id: 9, method: "task.release", scope, params: { taskId: task.id, leaseId: "view" } })}\n`,
+      ),
+    );
+    await vi.waitFor(() => {
+      expect(replies.find((reply) => reply["id"] === 9)).toMatchObject({ result: null });
+    });
     const resolution = {
       requestId: pending.requestId,
       taskId: pending.taskId,
@@ -201,6 +221,11 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
       });
     });
     expect(replies.filter((reply) => reply["id"] === 6)).toHaveLength(1);
+    const snapshot = replies.find((reply) => reply["id"] === 6)?.["result"] as { turns: unknown[] };
+    expect(snapshot.turns).toHaveLength(2);
+    await vi.waitFor(() => {
+      expect(closeSession).toHaveBeenCalledOnce();
+    });
   } finally {
     await host.close();
     output.destroy();

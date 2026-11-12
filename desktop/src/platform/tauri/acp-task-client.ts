@@ -19,7 +19,7 @@ import type {
   StartAgentQueuedSubmissionResponse,
   DeleteAgentQueuedSubmissionResponse,
 } from "@codexly/protocol";
-import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
+import type { MutationOptions, ReadOptions, ReadTaskOptions } from "@/platform/native-client-types.js";
 import { TauriWorkspaceClient } from "./workspace-client.js";
 
 /** ACP 快照保留真实 checkpoint 和本端条目扩展，不伪造旧 settings。 */
@@ -87,7 +87,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
   getAcpTask(
     projectId: string,
     taskId: string,
-    options: ReadOptions & { cursor?: string } = {},
+    options: ReadTaskOptions = {},
   ): Promise<AcpNativeTaskSnapshot> {
     // 先登记归属，再连接事件通道与读取快照，避免读取期间的首帧被项目过滤器丢弃。
     this.taskProjects.set(taskId, projectId);
@@ -96,7 +96,9 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
       {
         projectId,
         method: "task.read",
-        params: { taskId, ...(options.cursor ? { cursor: options.cursor } : {}) },
+        params: { taskId,
+          ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
+          ...(options.summary === undefined ? {} : { summary: options.summary }) },
       },
       options.signal,
     );

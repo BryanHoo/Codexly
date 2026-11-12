@@ -1,4 +1,5 @@
 import { AcpQueue } from "./queue.js";
+import { AcpTaskSubscriptions } from "./task-subscriptions.js";
 import { StringDecoder } from "node:string_decoder";
 import type { Writable } from "node:stream";
 import {
@@ -23,6 +24,7 @@ export class AcpHost {
   readonly #native = new Map<number, ReturnType<typeof Promise.withResolvers<unknown>>>();
   readonly #requests = new Map<number, AbortController>();
   readonly #subscriptions = new Map<AgentProvider, () => void>();
+  readonly #tasks = new AcpTaskSubscriptions();
   #buffer = "";
   #nextId = 1;
   #closed = false;
@@ -92,10 +94,20 @@ export class AcpHost {
       provider,
       provider.subscribeEvents((event) => {
         this.#output.send({ event, projectId });
-        if (!this.#closed && event.type === "turn.completed")
-          void this.queue.resume(provider, projectId, event.taskId).catch(() => {
-            process.stderr.write("ACP_QUEUE_DISPATCH_FAILED\n");
-          });
+        if (event.type === "task.removed" && event.payload.reason === "deleted")
+          this.#tasks.forget(projectId, event.taskId);
+        if (!this.#closed && event.type === "turn.completed") {
+          // 先让已排队回合接续，再回收无人查看的空闲会话，避免关闭后立即重载。
+          void this.queue
+            .resume(provider, projectId, event.taskId)
+            .catch(() => {
+              process.stderr.write("ACP_QUEUE_DISPATCH_FAILED\n");
+            })
+            .then(() => this.#tasks.completed(projectId, event.taskId))
+            .catch(() => {
+              process.stderr.write("ACP_TASK_RELEASE_FAILED\n");
+            });
+        }
       }),
     );
   };
@@ -150,6 +162,7 @@ export class AcpHost {
         this.#output.send({ id, result: snapshot, snapshotProjectId: projectId });
       },
       this.queue,
+      this.#tasks,
     )
       .then(
         (result) => {
@@ -186,7 +199,15 @@ export class AcpHost {
     for (const controller of this.#requests.values()) controller.abort();
     for (const dispose of this.#subscriptions.values()) dispose();
     this.#subscriptions.clear();
-    this.#closing = this.runtime.close();
+    this.#tasks.stop();
+    // 先关闭运行时解除在途请求，再等待订阅操作退出，避免落盘等待与关闭互锁。
+    this.#closing = (async () => {
+      try {
+        await this.runtime.close();
+      } finally {
+        await this.#tasks.settled();
+      }
+    })();
     void this.#closing.then(
       () => {
         this.#finished.resolve(undefined);

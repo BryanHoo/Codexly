@@ -1,4 +1,5 @@
 import type { AcpQueue } from "./queue.js";
+import type { AcpTaskSubscriptions } from "./task-subscriptions.js";
 import type { AgentTaskScope } from "@codexly/core";
 import { join } from "node:path";
 import { HistoricalTaskAttachments, exportTaskAttachment } from "@codexly/core/task-attachments";
@@ -84,6 +85,7 @@ export async function dispatchAcpHost(
   signal: AbortSignal,
   sendSnapshot: (snapshot: AgentProviderTaskSnapshot, projectId: string) => void,
   queue: AcpQueue,
+  subscriptions?: AcpTaskSubscriptions,
 ): Promise<unknown> {
   const params = hostRecord(message["params"] ?? {}),
     method = text(message, "method");
@@ -163,6 +165,20 @@ export async function dispatchAcpHost(
   }
   const id = text(params, "taskId");
   switch (method) {
+    case "task.retain":
+    case "task.release": {
+      const lease = text(params, "leaseId");
+      if (
+        !subscriptions ||
+        lease.length > 128 ||
+        !lease.trim() ||
+        Object.keys(params).some((key) => key !== "taskId" && key !== "leaseId")
+      )
+        throw new Error("Invalid task subscription");
+      return method === "task.retain"
+        ? subscriptions.retain(provider, scope.id, id, lease)
+        : subscriptions.release(scope.id, id, lease);
+    }
     case "prompt.start":
       if (!Value.Check(Input, params["input"]) || Object.hasOwn(params, "options"))
         throw new Error("Invalid configured ACP prompt");
@@ -283,6 +299,7 @@ export async function dispatchAcpHost(
         {
           signal,
           ...(typeof params["cursor"] === "string" ? { cursor: params["cursor"] } : {}),
+          ...(typeof params["summary"] === "boolean" ? { summary: params["summary"] } : {}),
         },
         (snapshot) => {
           // 响应与事件进入同一个 stdout 顺序队列，原生侧才能捕获准确的事件序号。

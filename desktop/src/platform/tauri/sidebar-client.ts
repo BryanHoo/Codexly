@@ -6,7 +6,6 @@ import {
   type ListTasksOptions,
   type ListFilesystemEntriesOptions,
   type PendingRequestResolution,
-  type ReadTaskOptions,
   type ReadOptions,
   type MutationOptions,
   type SubscribeAgentEventsOptions,
@@ -17,7 +16,6 @@ import type {
   AgentBackgroundTerminalPage,
   AgentPromptInput,
   AgentQueuedSubmissionSnapshot,
-  AgentTaskSnapshotResponse,
   AgentTaskPage,
   AgentTaskSettings,
   AgentTaskSettingsResponse,
@@ -58,13 +56,13 @@ import type {
 
 import type { PendingResolutionReference } from "@/protocol/pending-request.js";
 import { subscribeProjectEvents } from "./project-event-subscription.js";
-import { TauriRuntimeClient } from "./runtime-client.js";
+import { TauriTaskLifecycleClient } from "./task-lifecycle-client.js";
 import type { SubmitPromptOptions } from "./prompt-submission.js";
 import type { SubmitReviewOptions } from "./review-submission.js";
 
 export type { InvokeImplementation } from "./native-client.js";
 
-export class TauriSidebarClient extends TauriRuntimeClient {
+export class TauriSidebarClient extends TauriTaskLifecycleClient {
   public async submitPrompt(options: SubmitPromptOptions) {
     // 提交专用校验按需加载，避免增加工作台首次渲染的协议代码。
     const { submitPrompt } = await import("./prompt-submission.js");
@@ -242,25 +240,6 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     taskId: string,
   ): Promise<DeleteAgentTaskResponse> {
     return this.call("delete_task", { projectId, taskId });
-  }
-
-  public async readTask(
-    projectId: string,
-    taskId: string,
-    options: ReadTaskOptions = {},
-  ): Promise<AgentTaskSnapshotResponse> {
-    const response = await this.callCancellable<AgentTaskSnapshotResponse>(
-      "read_task",
-      {
-        projectId,
-        taskId,
-        cursor: options.cursor ?? null,
-        ...(options.summary === undefined ? {} : { summary: options.summary }),
-      },
-      options.signal,
-    );
-    this.taskProjects.set(response.snapshot.id, projectId);
-    return response;
   }
 
   public async startTask(
@@ -476,17 +455,6 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     });
     this.taskProjects.set(response.task.id, projectId);
     return response;
-  }
-
-  public async releaseTaskSubscription(
-    projectId: string,
-    taskId: string,
-  ): Promise<void> {
-    await this.call("release_task_subscription", { projectId, taskId });
-  }
-
-  public async retainTaskSubscription(projectId: string, taskId: string): Promise<void> {
-    await this.call("retain_task_subscription", { projectId, taskId });
   }
 
   public subscribeEvents(options: SubscribeAgentEventsOptions): () => void {

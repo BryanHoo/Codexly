@@ -46,12 +46,36 @@ async fn compiled_acp_host_should_roundtrip_the_native_catalog_and_exit() {
     let root_path = root.path().to_string_lossy();
     let result = transport.request("task.start", Some(json!({"id":"原生项目","kind":"project","rootPath":root_path,"runtimeWorkspaceRoots":[root_path]})), json!({"engine":"claude"}), Instant::now() + Duration::from_secs(10)).await;
     let rejected = transport.request_acp("prompt.start", Some(json!({"id":"原生项目","kind":"project","rootPath":root_path,"runtimeWorkspaceRoots":[root_path]})),json!({"taskId":"missing","input":{"text":"继续","files":[],"images":[],"skills":[],"textAttachments":[]}}),Instant::now()+Duration::from_secs(10)).await;
+    // 真实 SQLite 目录回调与编译宿主贯通；保留/释放本身不能启动 agent。
+    let mut subscriptions = Vec::new();
+    if let Ok(task) = &result {
+        for (project, method, lease) in [
+            ("原生项目", "task.retain", "view-one"),
+            ("原生项目", "task.retain", "view-one"),
+            ("原生项目", "task.retain", "view-two"),
+            ("原生项目", "task.release", "view-one"),
+            ("原生项目", "task.release", "view-two"),
+            ("原生项目", "task.release", "view-two"),
+            ("其他项目", "task.retain", "view-three"),
+        ] {
+            subscriptions.push(transport.request_acp(method, Some(json!({"id":project,"kind":"project","rootPath":root_path,"runtimeWorkspaceRoots":[root_path]})), json!({"taskId":task["id"],"leaseId":lease}), Instant::now()+Duration::from_secs(10)).await);
+        }
+    }
     // 无论断言结果如何先回收宿主和 worker，避免失败测试留下子进程。
     transport.fail("test finished");
     tasks.abort_all();
     while tasks.join_next().await.is_some() {}
     guard.shutdown(&mut child).await;
     assert_eq!(rejected.unwrap_err(), "ACP_HOST_PROMPT_NOT_SUBMITTED");
+    assert_eq!(subscriptions.len(), 7);
+    assert!(
+        subscriptions[..6].iter().all(Result::is_ok),
+        "{subscriptions:?}"
+    );
+    assert_eq!(
+        subscriptions[6].as_ref().unwrap_err(),
+        "ACP_HOST_REQUEST_FAILED"
+    );
     let result = result.unwrap();
     assert_eq!(result["engine"], "claude");
     let task = catalog

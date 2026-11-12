@@ -7,6 +7,8 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
     if !matches!(
         method,
         "task.read"
+            | "task.retain"
+            | "task.release"
             | "attachment.export"
             | "task.rename"
             | "task.archive"
@@ -29,6 +31,19 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
     ) || !params["taskId"].as_str().is_some_and(|id| !id.is_empty())
     {
         return Err(AppError::Acp("Invalid ACP task request".into()));
+    }
+    // 订阅只消费应用生成的稳定身份，不允许前端夹带执行目录或宿主作用域。
+    if matches!(method, "task.retain" | "task.release")
+        && (!params["leaseId"]
+            .as_str()
+            .is_some_and(|id| !id.trim().is_empty() && id.len() <= 128)
+            || !params.as_object().is_some_and(|values| {
+                values
+                    .keys()
+                    .all(|key| matches!(key.as_str(), "taskId" | "leaseId"))
+            }))
+    {
+        return Err(AppError::Acp("Invalid ACP subscription identity".into()));
     }
     if method == "prompt.start"
         && (!params["idempotencyKey"]
@@ -266,6 +281,27 @@ async fn request_with_input(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn task_subscription_should_accept_owned_identity_only() {
+        for method in ["task.retain", "task.release"] {
+            assert!(
+                super::validate_request(
+                    method,
+                    &serde_json::json!({"taskId":"t","leaseId":"view"})
+                )
+                .is_ok()
+            );
+            for invalid in [
+                serde_json::json!({"taskId":"t"}),
+                serde_json::json!({"taskId":"t","leaseId":" "}),
+                serde_json::json!({"taskId":"t","leaseId":"x".repeat(129)}),
+                serde_json::json!({"taskId":"t","leaseId":"view","scope":{"id":"other"}}),
+            ] {
+                assert!(super::validate_request(method, &invalid).is_err());
+            }
+        }
+    }
+
     #[test]
     fn configured_prompt_should_require_identity_and_reject_legacy_options() {
         let request = serde_json::json!({"taskId":"t","idempotencyKey":"once","input":{"text":"x","attachments":[],"skills":[]}});
