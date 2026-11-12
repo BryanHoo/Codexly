@@ -165,14 +165,15 @@ export function useWorkbenchShellRuntime({
   const codexEnabled = engines?.includes("codex") ?? true;
   const engineEnabled = engines === undefined || engines.length > 0;
   // ACP 使用原始会话配置；能力未确认前不预先启动旧模型和认证查询。
-  const legacyConfiguration = capabilities !== undefined && capabilities.runtime !== "acp";
+  const applicationRuntime = capabilities === undefined ? "pending" : capabilities.runtime ?? "legacy";
+  const legacyConfiguration = applicationRuntime === "legacy";
   const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled && legacyConfiguration });
   const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled && legacyConfiguration });
   const mcpServersQuery = useQuery(
-    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
+    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context, applicationRuntime),
   );
   const mcpServersReloadMutation = useMutation({
-    ...mcpServersReloadMutationOptions(projectId, taskId, client),
+    ...mcpServersReloadMutationOptions(projectId, taskId, client, applicationRuntime),
     onSuccess(response) {
       queryClient.setQueryData(
         ["projects", projectId, "tasks", taskId ?? null, "mcp-servers"],
@@ -220,7 +221,7 @@ export function useWorkbenchShellRuntime({
     },
   });
   const {globalSettingsQuery,globalSettingsMutation} = useApplicationSettings(
-    client, codexEnabled ? "codex" : "claude", capabilities === undefined ? "pending" : capabilities.runtime ?? "legacy", async changedFields => {
+    client, codexEnabled ? "codex" : "claude", applicationRuntime, async changedFields => {
       if (!shouldRefreshTaskDefaults(changedFields)) {
         return;
       }

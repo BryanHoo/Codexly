@@ -166,7 +166,8 @@ export function useWorkbenchShellRuntime({
     useWorkbenchAppUpdates(client);
   // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const legacyConfiguration = capabilities !== undefined && capabilities.runtime !== "acp";
+  const runtimeKind = capabilities === undefined ? "pending" : (capabilities.runtime ?? "legacy");
+  const legacyConfiguration = runtimeKind === "legacy";
   const modelsQuery = useQuery({
     ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"),
     enabled: legacyConfiguration,
@@ -176,10 +177,10 @@ export function useWorkbenchShellRuntime({
     enabled: codexEnabled && legacyConfiguration,
   });
   const mcpServersQuery = useQuery(
-    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
+    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context, runtimeKind),
   );
   const mcpServersReloadMutation = useMutation({
-    ...mcpServersReloadMutationOptions(projectId, taskId, client),
+    ...mcpServersReloadMutationOptions(projectId, taskId, client, runtimeKind),
     onSuccess(response) {
       queryClient.setQueryData(
         ["projects", projectId, "tasks", taskId ?? null, "mcp-servers"],
@@ -247,7 +248,7 @@ export function useWorkbenchShellRuntime({
   const { globalSettingsQuery, globalSettingsMutation } = useApplicationSettings(
     client,
     codexEnabled ? "codex" : "claude",
-    capabilities === undefined ? "pending" : (capabilities.runtime ?? "legacy"),
+    runtimeKind,
     async () => {
       // 局部显式设置仍由 Server 保持优先；刷新只让未配置的当前上下文重新解析全局回退。
       await queryClient.invalidateQueries({

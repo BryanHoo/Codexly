@@ -1,3 +1,4 @@
+import { legacyMcpQuery, legacyMcpReload } from "@codexly/frontend-core/legacy-mcp-query";
 import { savedPromptsStore } from "@codexly/ui/core/saved-prompts-store";
 import {
   engineModelsQuery,
@@ -8,8 +9,6 @@ import { isRootGitProject } from "@codexly/frontend-core/project-git-availabilit
 import type { CodexlyClient } from "@codexly/client";
 import type {
   AgentModelPage,
-  AgentMcpServerPage,
-  ReloadAgentMcpServersRequest,
   AgentProjectDefaults,
   AgentTaskSettings,
   CommitProjectChangesRequest,
@@ -185,38 +184,17 @@ export function mcpServersQueryOptions(
   taskId: string | undefined,
   client: CodexlyMcpServersClient = codexlyClient,
   enabled = true,
+  runtime: "pending" | "legacy" | "acp" = "legacy",
 ) {
-  return queryOptions<AgentMcpServerPage>({
-    enabled: enabled && taskId !== undefined,
-    queryFn: async ({ signal }): Promise<AgentMcpServerPage> => {
-      if (taskId === undefined) {
-        return { data: [] };
-      }
-      return client.listMcpServers(projectId, taskId, { signal });
-    },
-    queryKey: ["projects", projectId, "tasks", taskId ?? null, "mcp-servers"] as const,
-  });
+  return queryOptions(legacyMcpQuery(projectId, taskId, client, enabled, runtime));
 }
-
 export function mcpServersReloadMutationOptions(
   projectId: string,
   taskId: string | undefined,
   client: CodexlyMcpServersMutationClient = codexlyClient,
+  runtime: "pending" | "legacy" | "acp" = "legacy",
 ) {
-  return mutationOptions({
-    mutationFn: async (
-      action?: ReloadAgentMcpServersRequest["action"],
-    ): Promise<AgentMcpServerPage> => {
-      if (taskId === undefined) {
-        throw new Error("Cannot reload MCP servers without a task");
-      }
-      return action
-        ? client.retryMcpServers(projectId, taskId, { action })
-        : client.retryMcpServers(projectId, taskId);
-    },
-    mutationKey: ["projects", projectId, "tasks", taskId ?? null, "mcp-servers", "reload"] as const,
-    scope: { id: `task-mcp:${projectId}:${taskId ?? "none"}` },
-  });
+  return mutationOptions(legacyMcpReload(projectId, taskId, client, runtime));
 }
 
 export function projectDefaultsQueryOptions(

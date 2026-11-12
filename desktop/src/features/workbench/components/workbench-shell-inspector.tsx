@@ -59,10 +59,11 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
             gitStatusPending={gitStatusQuery.isPending}
             gitStatusRefreshing={gitStatusQuery.isFetching}
             gitClient={client}
-            mcpServers={mcpServersQuery.data?.data ?? []}
+            legacyContext={context.capabilities !== undefined && context.capabilities.runtime !== "acp"}
+      mcpServers={mcpServersQuery.data?.data ?? []}
             mcpStatusSource={mcpServersQuery.data?.statusSource}
             mcpObservedAt={mcpServersQuery.data?.observedAt}
-            mcpServersRetryAvailable={taskId !== undefined}
+            mcpServersRetryAvailable={taskId !== undefined && context.capabilities !== undefined && context.capabilities.runtime !== "acp"}
             mcpServersRefreshing={mcpServersQuery.isFetching && !mcpServersQuery.isPending}
             mcpServersRetrying={mcpServersReloadMutation.isPending}
             key={getWorkbenchInspectorMountKey({ projectId, taskId })}

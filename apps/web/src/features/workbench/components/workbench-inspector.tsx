@@ -71,6 +71,7 @@ type WorkbenchInspectorProps = Readonly<{
   backgroundTerminalsError?: Error | null;
   backgroundTerminalsPending?: boolean;
   contextOnly?: boolean;
+  legacyContext?: boolean;
   expandedFileTreePaths?: Set<string>;
   documents?: readonly InspectorDocument[];
   gitStatus?: ProjectGitStatus;
@@ -132,6 +133,7 @@ export function WorkbenchInspector({
   backgroundTerminalsError = null,
   backgroundTerminalsPending = false,
   contextOnly = false,
+  legacyContext = true,
   expandedFileTreePaths = emptyExpandedFileTreePaths,
   documents = [],
   gitStatus,
@@ -211,7 +213,10 @@ export function WorkbenchInspector({
   const projectRootName = projectPath.split(/[\\/]/u).filter(Boolean).at(-1) ?? projectName;
   const contextContent = (
     <div className="h-full space-y-5 overflow-y-auto p-2.5">
-      {activeTab === "context" && projectId !== undefined && taskId !== undefined ? (
+      {legacyContext &&
+      activeTab === "context" &&
+      projectId !== undefined &&
+      taskId !== undefined ? (
         <ThreadMemorySection
           client={gitClient ?? codexlyClient}
           projectId={projectId}
@@ -238,15 +243,17 @@ export function WorkbenchInspector({
       {subagents.length > 0 ? (
         <SubagentSection onOpenSubagent={onOpenSubagent} subagents={subagents} />
       ) : null}
-      <McpServerSection
-        canRetry={mcpServersRetryAvailable}
-        isRefreshing={mcpServersRefreshing}
-        isRetrying={mcpServersRetrying}
-        onRetry={onReloadMcpServers}
-        servers={mcpServers}
-        statusSource={mcpStatusSource}
-        observedAt={mcpObservedAt}
-      />
+      {legacyContext ? (
+        <McpServerSection
+          canRetry={mcpServersRetryAvailable}
+          isRefreshing={mcpServersRefreshing}
+          isRetrying={mcpServersRetrying}
+          onRetry={onReloadMcpServers}
+          servers={mcpServers}
+          statusSource={mcpStatusSource}
+          observedAt={mcpObservedAt}
+        />
+      ) : null}
       <InspectorSources
         onOpenAttachment={onOpenTaskAttachment}
         {...(projectId === undefined ? {} : { projectId })}

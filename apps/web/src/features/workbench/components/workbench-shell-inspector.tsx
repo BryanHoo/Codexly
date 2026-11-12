@@ -68,10 +68,15 @@ export function WorkbenchShellInspector({
       gitStatusPending={gitStatusQuery.isPending}
       gitStatusRefreshing={gitStatusQuery.isFetching}
       gitClient={client}
+      legacyContext={context.capabilities !== undefined && context.capabilities.runtime !== "acp"}
       mcpServers={mcpServersQuery.data?.data ?? []}
       mcpStatusSource={mcpServersQuery.data?.statusSource}
       mcpObservedAt={mcpServersQuery.data?.observedAt}
-      mcpServersRetryAvailable={taskId !== undefined}
+      mcpServersRetryAvailable={
+        taskId !== undefined &&
+        context.capabilities !== undefined &&
+        context.capabilities.runtime !== "acp"
+      }
       mcpServersRefreshing={mcpServersQuery.isFetching && !mcpServersQuery.isPending}
       mcpServersRetrying={mcpServersReloadMutation.isPending}
       key={`${projectId}:${taskId ?? "draft"}`}
