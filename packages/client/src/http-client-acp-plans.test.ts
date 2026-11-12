@@ -92,3 +92,24 @@ it("读取、删除与授权附件使用独立路径，坏响应不能进入编�
   expect(fetch.mock.calls[1]?.[0]).toBe("https://example.test/v1/acp/plans/p%2Fid/resources");
   await expect(client.readAcpPlan("p/id")).rejects.toThrow();
 });
+
+it("共享附件端口只转交项目和上传 ID，不传递本机路径字段或元数据", async () => {
+  const resource = {
+    token: "token",
+    attachment: { id: "ref", kind: "file", mediaType: "x", name: "a", size: 1 },
+    digest: "a".repeat(64),
+    written: 1,
+    boundRevision: null,
+  };
+  const fetch = vi.fn<typeof globalThis.fetch>(() =>
+    Promise.resolve(new Response(JSON.stringify(resource))),
+  );
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  await client.stageAcpPlanAttachment(
+    "plan",
+    "p",
+    { id: "upload", kind: "file", mediaType: "x", name: "a", size: 1 },
+    { idempotencyKey: "stage" },
+  );
+  expect(fetch.mock.calls[0]?.[1]?.body).toBe('{"projectId":"p","uploadId":"upload"}');
+});

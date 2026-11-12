@@ -7,6 +7,7 @@ import {
   type StageAcpPlanResource,
   type ListAcpPlans,
 } from "@codexly/protocol/acp-plan-api";
+import type { AgentMessageAttachment } from "@codexly/protocol";
 import { AcpHttpClient } from "./http-client-acp.js";
 import type { ReadOptions, MutationOptions } from "./http-client-transport.js";
 const path = (id: string) => `/v1/acp/plans/${encodeURIComponent(id)}`;
@@ -36,5 +37,14 @@ export class AcpPlanHttpClient extends AcpHttpClient {
   }
   stageAcpPlanResource(id: string, input: StageAcpPlanResource, options: MutationOptions = {}) {
     return this.mutation(`${path(id)}/resources`, input, AcpPlanResourceSchema, options, "POST");
+  }
+  stageAcpPlanAttachment(
+    id: string,
+    projectId: string,
+    attachment: AgentMessageAttachment,
+    options: MutationOptions = {},
+  ) {
+    // Web 只引用已有上传身份，原始文件路径和元数据不成为服务端读取权限。
+    return this.stageAcpPlanResource(id, { projectId, uploadId: attachment.id }, options);
   }
 }
