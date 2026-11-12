@@ -1,3 +1,4 @@
+import { RuntimeSettingsBoundary } from "@codexly/ui/core/runtime-settings-boundary";
 import { lazy, useEffect, useState } from "react";
 import { ExtensionCenter } from "@codexly/ui/core/extension-center";
 import { useProjectData } from "../projects/project-context.js";
@@ -26,8 +27,8 @@ export function SkillsMarketContainer({
   onSectionChange?: (section: ExtensionSection) => void;
   section?: string;
 }>) {
-  const { t } = useTranslation("workbench");
-  const { client, projects } = useProjectData();
+  const { t, i18n } = useTranslation("workbench");
+  const { client, projects, capabilities } = useProjectData();
   const [activeSection, setActiveSection] = useState(() => normalizeExtensionSection(section));
   useEffect(() => setActiveSection(normalizeExtensionSection(section)), [section]);
   const selectSection = (next: ExtensionSection) => {
@@ -36,6 +37,7 @@ export function SkillsMarketContainer({
   };
 
   return (
+    <RuntimeSettingsBoundary runtime={capabilities === undefined ? "pending" : capabilities.runtime === "acp" ? "acp" : "legacy"} language={i18n.language} title={t("skillsMarket.title")} feature="extensions">
     <ExtensionCenter
       client={client}
       projects={projects}
@@ -48,5 +50,6 @@ export function SkillsMarketContainer({
         {activeSection === "plugins" ? <OfficialPluginsPane /> : null}
       </>}
     />
+    </RuntimeSettingsBoundary>
   );
 }

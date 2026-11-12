@@ -32,6 +32,7 @@ vi.mock("@codexly/ui/core/notifications", () => ({
 vi.mock("../projects/project-context.js", () => ({
   useProjectData: () => ({
     client: mocks,
+    capabilities: {},
     projects: [
       { createdAt: "2026-01-01T00:00:00Z", id: "project-a", name: "Project A", roots: [{ id: "root-a", path: "/work" }] },
       { createdAt: "2026-01-01T00:00:00Z", id: "project-b", name: "Project B", roots: [{ id: "root-b", path: "/other" }] },

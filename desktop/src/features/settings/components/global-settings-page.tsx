@@ -1,3 +1,4 @@
+import { RuntimeSettingsBoundary } from "@codexly/ui/core/runtime-settings-boundary";
 import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
 import { v4 as createUuid } from "uuid";
@@ -200,7 +201,7 @@ export function GlobalSettingsPage<T extends AgentGlobalSettings | ApplicationPr
           <ProviderConnectionPanel autoSave />
         </section>
       ) : activeSection === "personalization" ? (
-        <PersonalizationSettingsPanel />
+        <RuntimeSettingsBoundary runtime={agentRuntime} language={language} title={t("sections.personalization")} feature="personalization"><PersonalizationSettingsPanel /></RuntimeSettingsBoundary>
       ) : activeSection === "git" ? (
         <section id="settings-panel-git" className="space-y-6">
           <h1 className="text-xl font-semibold">{t("sections.git")}</h1>

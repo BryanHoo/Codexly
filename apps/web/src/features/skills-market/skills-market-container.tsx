@@ -1,3 +1,4 @@
+import { RuntimeSettingsBoundary } from "@codexly/ui/core/runtime-settings-boundary";
 import { lazy, useEffect, useState } from "react";
 import { ExtensionCenter } from "@codexly/ui/core/extension-center";
 import { useProjectData } from "../projects/project-context.js";
@@ -23,8 +24,8 @@ export function SkillsMarketContainer({
   onSectionChange?: (section: ExtensionSection) => void;
   section?: string;
 }>) {
-  const { t } = useTranslation("workbench");
-  const { client, projects } = useProjectData();
+  const { t, i18n } = useTranslation("workbench");
+  const { client, projects, capabilities } = useProjectData();
   const [activeSection, setActiveSection] = useState(() => normalizeExtensionSection(section));
   useEffect(() => {
     setActiveSection(normalizeExtensionSection(section));
@@ -35,19 +36,28 @@ export function SkillsMarketContainer({
   };
 
   return (
-    <ExtensionCenter
-      client={client}
-      projects={projects}
-      section={activeSection}
-      onSectionChange={selectSection}
-      t={(key, options) => t(key, options ?? {})}
-      codexContent={
-        <>
-          {activeSection === "skills" ? <InstalledSkillsPane /> : null}
-          {activeSection === "mcp" ? <McpManagementPane /> : null}
-          {activeSection === "plugins" ? <OfficialPluginsPane /> : null}
-        </>
+    <RuntimeSettingsBoundary
+      runtime={
+        capabilities === undefined ? "pending" : capabilities.runtime === "acp" ? "acp" : "legacy"
       }
-    />
+      language={i18n.language}
+      title={t("skillsMarket.title")}
+      feature="extensions"
+    >
+      <ExtensionCenter
+        client={client}
+        projects={projects}
+        section={activeSection}
+        onSectionChange={selectSection}
+        t={(key, options) => t(key, options ?? {})}
+        codexContent={
+          <>
+            {activeSection === "skills" ? <InstalledSkillsPane /> : null}
+            {activeSection === "mcp" ? <McpManagementPane /> : null}
+            {activeSection === "plugins" ? <OfficialPluginsPane /> : null}
+          </>
+        }
+      />
+    </RuntimeSettingsBoundary>
   );
 }
