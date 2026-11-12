@@ -36,6 +36,7 @@ export class AcpHost {
     output: Writable,
     launch?: AcpAgentLauncher,
     legacySource?: AcpLegacySettingsSource,
+    readPreferences?: () => Promise<unknown>,
   ) {
     this.#output = new HostOutput(output, () => {
       void this.close().catch(() => undefined);
@@ -46,7 +47,7 @@ export class AcpHost {
         payload: CatalogOperations[K][0],
       ) => this.#catalog(operation, payload) as Promise<CatalogOperations[K][1]>,
     };
-    this.runtime = new AcpRuntime(directory, store, launch, legacySource);
+    this.runtime = new AcpRuntime(directory, store, launch, legacySource, readPreferences);
     this.queue = new AcpQueue(
       directory,
       async (project, task, input) => {

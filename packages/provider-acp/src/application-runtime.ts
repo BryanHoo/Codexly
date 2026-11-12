@@ -27,7 +27,7 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
     launch?: AcpAgentLauncher,
     legacySource?: AcpLegacySettingsSource,
   ) {
-    super(directory, store, launch, legacySource);
+    super(directory, store, launch, legacySource, readPreferences);
   }
   get acpAgents() {
     return this.agents;

@@ -5,7 +5,6 @@ import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpTaskManagement } from "./task-management.js";
 import { readAcpTaskSnapshot } from "./task-snapshot.js";
 import {
-  localTaskMetadata,
   AgentTurnNotSubmittedError,
   type AgentExecutionAdapter,
   type AgentTaskScope,
@@ -31,7 +30,7 @@ import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
 import { migrateAcpSettings } from "./migration.js";
 import { applyAcpConfig } from "./configuration.js";
 import { submitAcpTurn } from "./turn-submission.js";
-import { createAcpLocalTask } from "./task-creation.js";
+import { startAcpLocalTask } from "./task-creation.js";
 import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
 
@@ -52,6 +51,10 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #permissions: AcpPermissions;
   readonly attachments: HistoricalTaskAttachments;
   readonly #management: AcpTaskManagement;
+  prepareTaskTitle?: (task: LocalTask, input: AgentProviderTurnInput) => Promise<void>;
+  publishTaskTitle(id: string, title: string): void {
+    this.#emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
+  }
   constructor(
     readonly engine: AgentEngine,
     readonly scope: AgentTaskScope,
@@ -241,12 +244,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   }
   async startTask(options: StartAgentTaskOptions = {}) {
     if (this.#closed) throw new Error("ACP Provider 已关闭");
-    if (options.ephemeral && this.#ephemeral.size >= 32)
-      throw new Error("ACP 辅助会话达到容量限制");
-    const task = createAcpLocalTask(this.engine, this.scope, options);
-    if (options.ephemeral) this.#ephemeral.set(task.id, task);
-    else await this.store.catalog("task.put", task);
-    return localTaskMetadata(task);
+    return startAcpLocalTask(this.engine, this.scope, options, this.store, this.#ephemeral);
   }
   readTask(id: string, input: ReadAgentTaskInput = {}): Promise<AgentProviderTaskSnapshot> {
     return this.#serial(id, async () => {
@@ -326,6 +324,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           updatedAt: Math.floor(Date.now() / 1000),
         });
         signal?.throwIfAborted();
+        if (!this.#ephemeral.has(id)) await this.prepareTaskTitle?.(task, input);
         const projection = new AcpEventProjection(id, randomUUID(), this.#emit);
         this.#active.set(id, projection);
         projection.userMessage(`acp:message:user:${randomUUID()}`, input.text, attachments);

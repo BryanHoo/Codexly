@@ -118,6 +118,11 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  "acp.title.claim": [
+    { id: string; token: string; engine: AgentEngine; projectId: string | null },
+    boolean,
+  ];
+  "acp.title.finish": [{ id: string; token: string; title: string | null }, string | null];
   "app.preferences.read": [Record<string, never>, ApplicationPreferences | null];
   "app.preferences.patch": [
     { baseline: ApplicationPreferences; changes: ApplicationPreferencesPatch },

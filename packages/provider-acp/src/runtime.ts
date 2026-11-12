@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
   EngineProjectRouter,
+  ApplicationPreferencesService,
+  generateApplicationText,
   type AgentProvider,
   type AgentProviderTurnInput,
   type AgentTaskScope,
@@ -19,6 +21,7 @@ import { AcpAgentService } from "./agent-service.js";
 import { prepareAcpDefaults } from "./configuration.js";
 import { AcpSettingsStore, type AcpLegacySettingsSource } from "./settings-store.js";
 import { AcpProviderRouting } from "./provider-routing.js";
+import { AcpTaskTitles } from "./task-titles.js";
 const require = createRequire(import.meta.url);
 /** 只解析官方包声明的可执行入口；不运行动态 npx、不拼接 shell，也不导入厂商 SDK。 */
 const launchOfficialAgent: AcpAgentLauncher = async (engine, scope, callbacks) => {
@@ -40,6 +43,7 @@ interface Entry {
   router: EngineProjectRouter;
   providers: AcpAgentProvider[];
   handles: Set<AcpAgentHandle>;
+  titles: AcpTaskTitles[];
 }
 /** Web 和桌面宿主共用项目装配与资源生命周期；全局配置 API 由后续交付接入。 */
 export class AcpRuntime {
@@ -47,6 +51,7 @@ export class AcpRuntime {
   readonly agents: Readonly<Record<AgentEngine, AcpAgentService>>;
   readonly #entries = new Map<string, Entry>();
   readonly #history: AcpHistory;
+  readonly #preferences: ApplicationPreferencesService;
   #closed = false;
   readonly #generations = new Set<Promise<string>>();
   constructor(
@@ -54,7 +59,9 @@ export class AcpRuntime {
     readonly store: LocalCatalogStore,
     readonly launch: AcpAgentLauncher = launchOfficialAgent,
     legacySource?: AcpLegacySettingsSource,
+    readPreferences: () => Promise<unknown> = () => Promise.resolve(undefined),
   ) {
+    this.#preferences = new ApplicationPreferencesService(store, readPreferences);
     this.#history = new AcpHistory(join(directory, "history"));
     this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource);
     this.agents = {
@@ -163,15 +170,41 @@ export class AcpRuntime {
       );
     const codex = create("codex"),
       claude = create("claude");
+    const titles = [codex, claude].map((provider) => {
+      const scheduler = new AcpTaskTitles(
+        this.store,
+        provider.engine,
+        scope.kind === "temporary" ? null : scope.id,
+        (id) => this.#history.hasTurns(id),
+        async (task, text, signal) =>
+          generateApplicationText(
+            await this.#preferences.read(),
+            task.cwd,
+            { purpose: "title", text },
+            signal,
+            this.generateText.bind(this),
+          ),
+        (id, title) => {
+          provider.publishTaskTitle(id, title);
+        },
+      );
+      provider.prepareTaskTitle = (task, input) => scheduler.prepare(task, input);
+      provider.subscribeEvents((event) => {
+        scheduler.receive(event);
+      });
+      return scheduler;
+    });
     const router = new EngineProjectRouter(scope, this.store, { codex, claude });
-    this.#entries.set(scope.id, { scope, router, providers: [codex, claude], handles });
+    this.#entries.set(scope.id, { scope, router, providers: [codex, claude], handles, titles });
     return router;
   }
   async releaseProject(id: string, expected?: AgentProvider): Promise<void> {
     const entry = this.#entries.get(id);
     if (!entry || (expected && entry.router !== expected)) return;
+    for (const scheduler of entry.titles) scheduler.cancel();
     // 先阻止旧引用继续提交，再等待终态写入；即使投影关闭失败也必须尝试回收所有 agent 进程。
     const providers = await Promise.allSettled(entry.providers.map((provider) => provider.close()));
+    await Promise.all(entry.titles.map((scheduler) => scheduler.settled()));
     const handles = await Promise.allSettled([...entry.handles].map((handle) => handle.close()));
     const failures = [...providers, ...handles].filter((result) => result.status === "rejected");
     if (failures.length)

@@ -25,6 +25,8 @@ mod acp_plan_state;
 #[cfg(test)]
 mod acp_plan_state_tests;
 mod acp_plan_validation;
+#[cfg(test)]
+mod acp_task_titles_tests;
 pub(crate) mod application_preferences;
 #[cfg(test)]
 mod application_preferences_tests;
@@ -37,6 +39,7 @@ mod acp_scheduled_configs;
 mod acp_scheduled_plan_tests;
 mod acp_scheduled_plans;
 mod acp_submissions;
+mod acp_task_titles;
 mod operations;
 #[cfg(test)]
 mod preview_tests;
@@ -261,6 +264,7 @@ impl LocalCatalog {
             .map_err(|_| CatalogError::InvalidMessage)?;
             saved_prompts::initialize(&db)?;
             application_preferences::initialize(&db)?;
+            acp_task_titles::initialize(&db)?;
             acp_submissions::initialize(&mut db)?;
             acp_scheduled_configs::initialize(&db)?;
             acp_scheduled_plans::initialize(&db)?;

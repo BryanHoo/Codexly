@@ -4,7 +4,10 @@ import type { Readable, Writable } from "node:stream";
 import { AcpHost } from "./host.js";
 import { AcpProcess } from "./process.js";
 import type { AcpAgentLauncher } from "./runtime.js";
-import { readAcpLegacyApplicationSettings } from "./legacy-settings.js";
+import {
+  readAcpLegacyApplicationSettings,
+  readAcpLegacyApplicationPreferences,
+} from "./legacy-settings.js";
 
 export const ACP_HOST_VERSION = "codexly-acp-host/1";
 /** 宿主与两个 agent 模式由同一独立程序供应；原生二进制仍由应用资源管理器校验。 */
@@ -48,6 +51,9 @@ export async function runAcpHost(
     applicationDirectory === undefined
       ? undefined
       : (engine) => readAcpLegacyApplicationSettings(applicationDirectory, engine),
+    applicationDirectory === undefined
+      ? undefined
+      : () => readAcpLegacyApplicationPreferences(applicationDirectory),
   );
   return new Promise<number>((resolve, reject) => {
     let finishing = false;

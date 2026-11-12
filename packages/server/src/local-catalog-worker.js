@@ -1,3 +1,4 @@
+import { createAcpTaskTitleOperations } from "./acp-task-title-worker.js";
 import { createApplicationPreferencesOperations } from "./application-preferences-worker.js";
 import { createAcpPlanResourceOperations } from "./acp-plan-resource-worker.js";
 import { createAcpPlanCompletionOperations } from "./acp-plan-completion-worker.js";
@@ -97,6 +98,7 @@ export function createLocalCatalogOperations(db) {
     return readTask(t.id);
   };
   const operations = {
+    ...createAcpTaskTitleOperations(db),
     ...createApplicationPreferencesOperations(db),
     ...createSavedPromptOperations(db),
     ...createAcpScheduledConfigOperations(db),
@@ -271,6 +273,9 @@ export function createLocalCatalogOperations(db) {
       db.prepare("INSERT INTO managed_catalog_migration VALUES (1)").run();
     }),
   };
+  // 读改写必须持有同一个写锁，否则状态补丁可能回写另一连接已经更新的旧名称。
+  const patchTask = db.transaction(operations["task.patch"]);
+  operations["task.patch"] = (input) => patchTask.immediate(input);
   return {
     localCatalog: ({ operation, payload }) => {
       if (!Object.hasOwn(operations, operation)) throw new Error("Unknown catalog operation");

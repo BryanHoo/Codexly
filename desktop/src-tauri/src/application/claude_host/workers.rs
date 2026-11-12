@@ -87,7 +87,15 @@ pub(super) async fn catalog_loop(
                 }
             }
             Some(
-                operation @ ("task.read" | "task.put" | "task.patch" | "task.list" | "task.remove"),
+                // ACP 标题自行通过共享运行时生成，只允许读取偏好及受令牌保护的目录写入。
+                operation @ ("task.read"
+                | "task.put"
+                | "task.patch"
+                | "task.list"
+                | "task.remove"
+                | "app.preferences.read"
+                | "acp.title.claim"
+                | "acp.title.finish"),
             ) => catalog
                 .call(operation, message["payload"].clone())
                 .await
@@ -216,6 +224,60 @@ pub(super) async fn stderr_loop<R: AsyncRead + Unpin>(mut reader: R, tail: Stder
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn acp_titles_should_roundtrip_catalog_without_legacy_generation() {
+        use super::super::transport::writer_loop;
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        let root = tempfile::tempdir().unwrap();
+        let catalog = LocalCatalog::at(root.path()).unwrap();
+        catalog.call("task.put", json!({"id":"new","provider":"codex","projectId":null,"title":"","cwd":"/workspace","sessionId":null,"updatedAt":1,"pinned":false,"archived":false,"status":"idle"})).await.unwrap();
+        let (transport, outbound) = Transport::new();
+        let (writer, reader) = tokio::io::duplex(8192);
+        let writing = tokio::spawn(writer_loop(writer, outbound, Arc::clone(&transport)));
+        let (sender, receiver) = mpsc::channel(1);
+        let serving = tokio::spawn(catalog_loop(
+            receiver,
+            catalog,
+            Arc::clone(&transport),
+            None,
+        ));
+        let mut lines = BufReader::new(reader).lines();
+        for (operation, payload, expected) in [
+            ("app.preferences.read", json!({}), serde_json::Value::Null),
+            (
+                "acp.title.claim",
+                json!({"id":"new","token":"one","engine":"codex","projectId":null}),
+                json!(true),
+            ),
+            (
+                "acp.title.finish",
+                json!({"id":"new","token":"one","title":"自动标题"}),
+                json!("自动标题"),
+            ),
+        ] {
+            sender
+                .send(Routed {
+                    message: json!({"catalogId":1,"operation":operation,"payload":payload}),
+                    _budget: Arc::clone(&transport.inbound_budget)
+                        .acquire_owned()
+                        .await
+                        .unwrap(),
+                })
+                .await
+                .unwrap();
+            let line = tokio::time::timeout(Duration::from_secs(3), lines.next_line())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            let response: serde_json::Value = serde_json::from_str(&line).unwrap();
+            assert!(response["error"].is_null(), "{response}");
+            assert_eq!(response["result"], expected);
+        }
+        drop(sender);
+        serving.await.unwrap();
+        writing.abort();
+    }
     #[tokio::test]
     async fn stderr_should_keep_only_bounded_redacted_error_codes() {
         let tail: StderrTail = Arc::default();

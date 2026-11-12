@@ -1,6 +1,7 @@
 import { open } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentEngine } from "@codexly/protocol";
+import { applicationPreferencesFromLegacy } from "@codexly/core";
 import type { AcpLegacySettingsSnapshot } from "./settings-store.js";
 // 与旧应用文件的公共偏好边界一致；这些字段继续由原偏好入口读取，不当作 agent 配置迁移。
 const preferences = new Set([
@@ -18,6 +19,20 @@ function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw Error("Invalid application settings");
   return value as Record<string, unknown>;
+}
+
+/** 自动标题只读取应用公共偏好；旧提交模型别名沿用原生迁移规则，文件不回写。 */
+export async function readAcpLegacyApplicationPreferences(applicationDirectory: string) {
+  const stored = await read(join(applicationDirectory, "agent-settings.json"));
+  if (!stored) return applicationPreferencesFromLegacy(undefined);
+  if (stored["version"] !== 1) throw Error("不支持的旧应用设置版本，原文件保持不变");
+  const global = object(stored["global"]);
+  return applicationPreferencesFromLegacy({
+    ...global,
+    ...(!Object.hasOwn(global, "defaultModel") && Object.hasOwn(global, "commitMessageModel")
+      ? { defaultModel: global["commitMessageModel"] }
+      : {}),
+  });
 }
 async function read(path: string): Promise<Record<string, unknown> | undefined> {
   let file;

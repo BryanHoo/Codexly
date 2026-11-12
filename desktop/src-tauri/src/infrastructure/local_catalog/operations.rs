@@ -76,6 +76,7 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "acp.title.claim" | "acp.title.finish" => super::acp_task_titles::execute(db, op, p),
         "app.preferences.read" | "app.preferences.patch" => {
             super::application_preferences::execute(db, op, p)
         }
@@ -198,39 +199,13 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             ))
         }
         "task.patch" => {
-            let mut next = read(db, "managed_tasks", string(p, "id")?)?;
-            if next.is_null() {
-                return Err(CatalogError::InvalidMessage);
-            }
-            assert_immutable_binding(&next, p)?;
-            if next["provider"] == "claude" && next["status"] == "active" && p["archived"] == true {
-                return Err(CatalogError::TaskRunning);
-            }
-            for key in [
-                "title",
-                "cwd",
-                "sessionId",
-                "updatedAt",
-                "pinned",
-                "archived",
-                "status",
-            ] {
-                if let Some(value) = p.get(key)
-                    && (key != "sessionId" || next[key].is_null())
-                {
-                    next[key] = value.clone();
-                }
-            }
-            if p.get("title").is_some() {
-                let title = string(&next, "title")?.trim().to_owned();
-                if title.is_empty() {
-                    return Err(CatalogError::InvalidMessage);
-                }
-                next["title"] = json!(title);
-            }
-            db.execute("UPDATE managed_tasks SET title=?,cwd=?,session_id=?,updated_at=?,pinned=?,archived=?,status=? WHERE id=?",
-                params![string(&next,"title")?,string(&next,"cwd")?,next["sessionId"].as_str(),next["updatedAt"].as_f64(),next["pinned"]==true,next["archived"]==true,string(&next,"status")?,string(&next,"id")?]).map_err(db_error)?;
-            Ok(next)
+            // 先持写锁再读取整行，避免状态补丁覆盖另一连接刚提交的名称或管理字段。
+            let transaction = db
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .map_err(db_error)?;
+            let result = patch_task(&transaction, p)?;
+            transaction.commit().map_err(db_error)?;
+            Ok(result)
         }
         "task.remove" => {
             if read(db, "managed_tasks", string(p, "id")?)?["status"] == "active" {
@@ -356,4 +331,40 @@ fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
         None
     };
     Ok(json!({"data":data,"nextCursor":cursor}))
+}
+
+fn patch_task(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
+    let mut next = read(db, "managed_tasks", string(p, "id")?)?;
+    if next.is_null() {
+        return Err(CatalogError::InvalidMessage);
+    }
+    assert_immutable_binding(&next, p)?;
+    if next["provider"] == "claude" && next["status"] == "active" && p["archived"] == true {
+        return Err(CatalogError::TaskRunning);
+    }
+    for key in [
+        "title",
+        "cwd",
+        "sessionId",
+        "updatedAt",
+        "pinned",
+        "archived",
+        "status",
+    ] {
+        if let Some(value) = p.get(key)
+            && (key != "sessionId" || next[key].is_null())
+        {
+            next[key] = value.clone();
+        }
+    }
+    if p.get("title").is_some() {
+        let title = string(&next, "title")?.trim().to_owned();
+        if title.is_empty() {
+            return Err(CatalogError::InvalidMessage);
+        }
+        next["title"] = json!(title);
+    }
+    db.execute("UPDATE managed_tasks SET title=?,cwd=?,session_id=?,updated_at=?,pinned=?,archived=?,status=? WHERE id=?",
+        params![string(&next,"title")?,string(&next,"cwd")?,next["sessionId"].as_str(),next["updatedAt"].as_f64(),next["pinned"]==true,next["archived"]==true,string(&next,"status")?,string(&next,"id")?]).map_err(db_error)?;
+    Ok(next)
 }
