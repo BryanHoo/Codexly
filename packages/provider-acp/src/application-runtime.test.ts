@@ -1,3 +1,4 @@
+import { withStorageCatalog } from "./storage-catalog.test-support.js";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -66,7 +67,7 @@ it("全局端口消费 ACP 模型与默认配置，辅助生成只连接偏好�
   );
   const runtime = new AcpApplicationRuntime(
     root,
-    { catalog },
+    withStorageCatalog({ catalog }),
     () => Promise.resolve({ defaultAgent: "claude", defaultModel: "model-a" }),
     launch,
   );

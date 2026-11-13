@@ -101,3 +101,39 @@ test("verifies target and all packaged bytes before signing", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("verifies a signed sidecar host separately without duplicating it in runtime resources", async () => {
+  const root = await mkdtemp(join(tmpdir(), "acp-sidecar-"));
+  try {
+    const resources = join(root, "runtime");
+    await mkdir(resources);
+    const sidecar = join(root, "acp-host");
+    await writeFile(sidecar, "host");
+    await writeFile(join(resources, "codex"), "codex");
+    await writeFile(join(resources, "claude"), "claude");
+    const { sha256 } = await import("./acp-runtime-layout.mjs");
+    const manifest = {
+      schemaVersion: 1,
+      platform: "darwin",
+      arch: "arm64",
+      host: {
+        path: "acp-host",
+        placement: "sidecar",
+        protocolVersion: 1,
+        sha256: await sha256(sidecar),
+      },
+      engines: { codex: { entrypoint: "codex" }, claude: { entrypoint: "claude" } },
+      files: await runtimeInventory(resources),
+    };
+    await writeFile(join(resources, "manifest.json"), JSON.stringify(manifest));
+    await verifyAcpRuntime(resources, { platform: "darwin", arch: "arm64" }, sidecar);
+    await assert.rejects(verifyAcpRuntime(resources, { platform: "darwin", arch: "arm64" }));
+    await writeFile(sidecar, "damaged");
+    await assert.rejects(
+      verifyAcpRuntime(resources, { platform: "darwin", arch: "arm64" }, sidecar),
+      /digest|integrity/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

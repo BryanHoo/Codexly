@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { AppInfoResponseSchema, DEFAULT_GENERATION_MODEL } from "@codexly/protocol";
+import { AppInfoResponseSchema } from "@codexly/protocol";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { runCli } from "./cli-command.js";
@@ -55,7 +55,7 @@ describe("runCli startup", () => {
     expect(harness.stderr).toEqual([]);
   });
 
-  it("checks Node.js, Codex, and SQLite diagnostics in doctor", async () => {
+  it("checks Node.js, both ACP agents and SQLite diagnostics in doctor", async () => {
     const harness = createHarness();
 
     await expect(
@@ -64,21 +64,16 @@ describe("runCli startup", () => {
         harness.options,
       ),
     ).resolves.toBe(0);
-    expect(harness.dependencies.locateCodexBinary).toHaveBeenCalledWith({
-      explicitPath: "/custom/codex",
-    });
-    expect(harness.dependencies.checkCodexVersion).toHaveBeenCalledWith("/fake/codex");
+    expect(harness.dependencies.inspectAcpAgents).toHaveBeenCalledWith(
+      expect.objectContaining({ CODEX_PATH: "/custom/codex", CODEX_HOME: "/custom/home" }),
+    );
     expect(harness.stdout.join("")).toContain("[成功] Node.js 24.19.0");
-    expect(harness.stdout.join("")).toContain("[成功] Codex 0.163.0 (/fake/codex)");
+    expect(harness.stdout.join("")).toContain("[成功] ACP codex 协议 v1 (codex-acp)");
+    expect(harness.stdout.join("")).toContain("[成功] ACP claude 协议 v1 (claude-acp)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join(homedir(), ".codexly", "state.sqlite3"),
       "/custom/home",
     );
-    expect(harness.dependencies.readCodexStartupConfig).toHaveBeenCalledWith("/fake/codex", {
-      appVersion: "1.2.3",
-      env: expect.objectContaining({ CODEX_HOME: "/custom/home" }) as NodeJS.ProcessEnv,
-    });
-    expect(harness.stdout.join("")).toContain("Codex 配置预检通过");
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     expect(harness.stdout.join("")).toContain("[成功] SQLite 可写");
     expect(harness.stdout.join("")).toContain("[成功] SQLite migration 4");
@@ -89,7 +84,7 @@ describe("runCli startup", () => {
 
   it("reports configuration failures before opening SQLite", async () => {
     const harness = createHarness({
-      readCodexStartupConfig: vi.fn(() =>
+      inspectAcpAgents: vi.fn(() =>
         Promise.reject(new Error("configLoad /home/config.toml:3:5 TOML parse error")),
       ),
     });
@@ -117,7 +112,7 @@ describe("runCli startup", () => {
     expect(harness.stderr.join("")).toContain("integrity unavailable");
   });
 
-  it("starts HTTP first and starts Codex on its first RPC then closes on abort", async () => {
+  it("starts HTTP with the shared ACP runtime without launching either agent and closes on abort", async () => {
     const harness = createHarness();
     const readSettings = vi.spyOn(harness.stateRepository, "readGlobalSettings");
     const controller = new AbortController();
@@ -130,27 +125,17 @@ describe("runCli startup", () => {
       expect(harness.dependencies.createServer).toHaveBeenCalledOnce();
     });
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-    const runtimeInput = vi.mocked(harness.dependencies.createRuntimeProvider).mock.calls[0]?.[0];
-    await runtimeInput?.client.request("config/read");
-    const [startOptions] = vi.mocked(harness.dependencies.startCodexAppServer).mock.calls[0] ?? [];
-    expect(startOptions).toMatchObject({
-      appVersion: "1.2.3",
-      binaryPath: "/custom/codex",
+    const runtimeInput = vi.mocked(harness.dependencies.createAcpRuntime).mock.calls[0]?.[0];
+    expect(runtimeInput).toMatchObject({
+      store: harness.stateRepository,
+      environment: expect.objectContaining({
+        CODEX_HOME: "/custom/home",
+        CODEX_PATH: "/custom/codex",
+      }) as unknown,
     });
-    expect(startOptions?.cwd).toBe(homedir());
-    expect(startOptions?.env?.["CODEX_HOME"]).toBe("/custom/home");
-    expect(harness.dependencies.createRuntimeProvider).toHaveBeenCalledWith({
-      client: runtimeInput?.client,
-      codexHome: "/custom/home",
-      modelCatalogRuntimeFactory: expect.any(Function) as unknown,
-      readTaskTitleModel: expect.any(Function) as unknown,
-    });
-    const [runtimeOptions] =
-      vi.mocked(harness.dependencies.createRuntimeProvider).mock.calls[0] ?? [];
+    expect(harness.dependencies.createRuntimeProvider).not.toHaveBeenCalled();
     expect(readSettings).not.toHaveBeenCalled();
-    await expect(runtimeOptions?.readTaskTitleModel()).resolves.toBe(DEFAULT_GENERATION_MODEL);
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
-      client: runtimeInput?.client,
       projection: harness.stateRepository,
     });
     expect(harness.projectRepository.synchronize).toHaveBeenCalledOnce();

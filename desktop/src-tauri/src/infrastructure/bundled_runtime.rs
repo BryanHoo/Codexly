@@ -28,3 +28,12 @@ pub(crate) fn claude_host() -> Result<PathBuf, AppError> {
         .ok_or(AppError::FilesystemRequestFailed)?;
     Ok(directory.join(format!("claude-host{}", std::env::consts::EXE_SUFFIX)))
 }
+
+/// 共享 ACP 宿主由 Tauri 作为 sidecar 签名；资源目录只保留原厂程序，避免宿主重复打包。
+pub(crate) fn acp_host() -> Result<PathBuf, AppError> {
+    let executable = std::env::current_exe().map_err(|_| AppError::FilesystemRequestFailed)?;
+    let directory = executable
+        .parent()
+        .ok_or(AppError::FilesystemRequestFailed)?;
+    Ok(directory.join(format!("acp-host{}", std::env::consts::EXE_SUFFIX)))
+}

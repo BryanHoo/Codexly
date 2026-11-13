@@ -101,7 +101,7 @@ try {
     "docs/web-autostart.md",
     "docs/web-autostart.zh-CN.md",
     "dist/cli.js",
-    "dist/codex-jsonl-frame-worker.js",
+    "dist/providers/acp/index.js",
     "dist/historical-attachment-worker.js",
     "dist/server/index.js",
     "dist/sqlite-state-worker.js",

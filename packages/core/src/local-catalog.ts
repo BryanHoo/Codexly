@@ -118,6 +118,13 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  /** 内部写锁：owner 每次领取都生成新令牌；非空 expectedOwner 必须仍存在且匹配。 */
+  "acp.storage.read": [{ key: string }, { owner: string; pid: number } | null];
+  "acp.storage.claim": [
+    { key: string; owner: string; pid: number; expectedOwner: string | null },
+    boolean,
+  ];
+  "acp.storage.release": [{ key: string; owner: string }, boolean];
   "acp.title.claim": [
     { id: string; token: string; engine: AgentEngine; projectId: string | null },
     boolean,

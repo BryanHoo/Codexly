@@ -21,8 +21,8 @@ export {
   type CodeBlockTitleProps,
 } from "@codexly/ui/agent/code-block";
 
-export type CodeBlockProps = Omit<SharedCodeBlockProps, "legacyTheme">;
-export type CodeBlockContentProps = Omit<SharedCodeBlockContentProps, "legacyTheme">;
+export type CodeBlockProps = SharedCodeBlockProps;
+export type CodeBlockContentProps = SharedCodeBlockContentProps;
 export type CodeBlockCopyButtonProps = Omit<SharedCodeBlockCopyButtonProps, "labels">;
 
 export function CodeBlock(props: CodeBlockProps) {

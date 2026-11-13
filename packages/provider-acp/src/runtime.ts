@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import { createRequire } from "node:module";
-import { readFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { join } from "node:path";
 import {
   EngineProjectRouter,
+  CatalogSearchService,
+  checkSearchCancellation,
   ApplicationPreferencesService,
   generateApplicationText,
   type AgentProvider,
@@ -14,7 +14,7 @@ import {
 import type { AgentEngine, Project } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 export type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
-import { AcpProcess } from "./process.js";
+import { createOfficialAcpLauncher } from "./official-agent.js";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
 import { AcpAgentService } from "./agent-service.js";
@@ -22,22 +22,9 @@ import { prepareAcpDefaults } from "./configuration.js";
 import { AcpSettingsStore, type AcpLegacySettingsSource } from "./settings-store.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { AcpTaskTitles } from "./task-titles.js";
-const require = createRequire(import.meta.url);
-/** 只解析官方包声明的可执行入口；不运行动态 npx、不拼接 shell，也不导入厂商 SDK。 */
-const launchOfficialAgent: AcpAgentLauncher = async (engine, scope, callbacks) => {
-  const name =
-    engine === "codex" ? "@agentclientprotocol/codex-acp" : "@agentclientprotocol/claude-agent-acp";
-  const manifest = require.resolve(`${name}/package.json`);
-  const metadata = JSON.parse(await readFile(manifest, "utf8")) as {
-    bin: string | Record<string, string>;
-  };
-  const entry = typeof metadata.bin === "string" ? metadata.bin : Object.values(metadata.bin)[0];
-  if (!entry) throw new Error("ACP agent 未声明可执行入口");
-  return AcpProcess.start(
-    { command: process.execPath, args: [resolve(dirname(manifest), entry)], cwd: scope.rootPath },
-    callbacks,
-  );
-};
+import { AcpStorageLeases } from "./storage-lease.js";
+import { searchAcpHistory } from "./history-search.js";
+import { AcpSessionInitialization } from "./session-initialization.js";
 interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
@@ -47,27 +34,104 @@ interface Entry {
 }
 /** Web 和桌面宿主共用项目装配与资源生命周期；全局配置 API 由后续交付接入。 */
 export class AcpRuntime {
+  readonly search: CatalogSearchService;
   readonly settings: AcpSettingsStore;
   readonly agents: Readonly<Record<AgentEngine, AcpAgentService>>;
   readonly #entries = new Map<string, Entry>();
   readonly #history: AcpHistory;
   readonly #preferences: ApplicationPreferencesService;
+  readonly #initialization: AcpSessionInitialization;
   #closed = false;
   readonly #generations = new Set<Promise<string>>();
+  readonly #searches = new Map<Promise<unknown>, () => void>();
   constructor(
     readonly directory: string,
     readonly store: LocalCatalogStore,
-    readonly launch: AcpAgentLauncher = launchOfficialAgent,
+    readonly launch: AcpAgentLauncher = createOfficialAcpLauncher(),
     legacySource?: AcpLegacySettingsSource,
     readPreferences: () => Promise<unknown> = () => Promise.resolve(undefined),
   ) {
     this.#preferences = new ApplicationPreferencesService(store, readPreferences);
-    this.#history = new AcpHistory(join(directory, "history"));
-    this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource);
+    const leases = new AcpStorageLeases(store);
+    this.#history = new AcpHistory(join(directory, "history"), leases);
+    this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource, leases);
+    this.#initialization = new AcpSessionInitialization(
+      join(directory, "session-initialization"),
+      this.settings,
+      leases,
+    );
+    this.search = new CatalogSearchService(store, async (task, input, signal, limit) => {
+      if (this.#closed) throw new Error("ACP Runtime 已关闭");
+      checkSearchCancellation(signal);
+      const pending = this.#entries
+        .get(task.projectId ?? "temporary")
+        ?.providers.some((provider) => provider.hasPendingTurn(task.id));
+      if (!input.cursor && task.sessionId && !pending && !(await this.#history.hasTurns(task.id))) {
+        this.#checkOpen();
+        if (task.provider !== "codex" && task.provider !== "claude")
+          throw new Error("未知 ACP 搜索引擎");
+        if (this.#searches.size >= 4) throw new Error("ACP 冷历史搜索达到并发限制");
+        // 冷搜索使用独立短连接，不能修改已经打开的项目根、订阅或会话容量。
+        const scope: AgentTaskScope = {
+          id: task.projectId ?? "temporary",
+          kind: task.projectId === null ? "temporary" : "project",
+          rootPath: task.cwd,
+          runtimeWorkspaceRoots: [task.cwd],
+        };
+        let handle: AcpAgentHandle | undefined;
+        const controller = new AbortController();
+        const stop = () => {
+          controller.abort();
+          void handle?.close().catch(() => undefined);
+        };
+        const provider = new AcpAgentProvider(
+          task.provider,
+          scope,
+          store,
+          this.#history,
+          async (callbacks) => {
+            handle = await launch(task.provider as AgentEngine, scope, callbacks);
+            // 取消可能发生在启动等待期间；迟到的新连接必须立即回收，不能继续加载历史。
+            if (controller.signal.aborted) {
+              await handle.close();
+              controller.signal.throwIfAborted();
+            }
+            await new AcpProviderRouting(task.provider as AgentEngine, this.settings).restore(
+              handle.connection,
+            );
+            return handle.connection;
+          },
+        );
+        const pending = (async () => {
+          try {
+            await provider.readTask(task.id, { signal: controller.signal });
+          } finally {
+            try {
+              await provider.close();
+            } finally {
+              await handle?.close();
+            }
+          }
+        })();
+        this.#searches.set(pending, stop);
+        signal?.addEventListener("abort", stop, { once: true });
+        if (signal?.aborted) stop();
+        try {
+          await pending;
+        } finally {
+          signal?.removeEventListener("abort", stop);
+          this.#searches.delete(pending);
+        }
+      }
+      return searchAcpHistory(this.#history, task.id, input, signal, limit);
+    });
     this.agents = {
-      codex: new AcpAgentService("codex", directory, this.settings, launch),
-      claude: new AcpAgentService("claude", directory, this.settings, launch),
+      codex: new AcpAgentService("codex", directory, this.settings, launch, store),
+      claude: new AcpAgentService("claude", directory, this.settings, launch, store),
     };
+  }
+  #checkOpen(): void {
+    if (this.#closed) throw new Error("ACP Runtime 已关闭");
   }
   async generateText(
     engine: AgentEngine,
@@ -163,10 +227,11 @@ export class AcpRuntime {
             .catch(() => undefined);
           return handle.connection;
         },
-        async (connection, sessionId, options) => {
-          const saved = await this.settings.read(engine);
+        async (connection, sessionId, options, frozen) => {
+          const saved = frozen ?? (await this.settings.read(engine));
           return (await prepareAcpDefaults(connection, sessionId, options, saved)).configOptions;
         },
+        this.#initialization,
       );
     const codex = create("codex"),
       claude = create("claude");
@@ -216,11 +281,13 @@ export class AcpRuntime {
   }
   async close(): Promise<void> {
     this.#closed = true;
+    for (const stop of this.#searches.values()) stop();
     const results = await Promise.allSettled([
       ...[...this.#entries.keys()].map((id) => this.releaseProject(id)),
       ...Object.values(this.agents).map((service) => service.close()),
     ]);
     await Promise.allSettled(this.#generations);
+    await Promise.allSettled(this.#searches.keys());
     const errors = results.filter((result) => result.status === "rejected");
     if (errors.length)
       throw new AggregateError(

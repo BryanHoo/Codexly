@@ -1,7 +1,7 @@
 import { expect, tasks, test } from "./fixtures/app-shell.js";
 
 for (const width of [1280, 320]) {
-  test(`通知中心收集活动、分组已读并跳转任务 ${String(width)}px @cross-browser`, async ({
+  test(`活动快照展示任务完成和待审批状态并可跳转 ${String(width)}px @cross-browser`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 });
@@ -31,47 +31,17 @@ for (const width of [1280, 320]) {
     );
     await page.goto("/p/codexly");
     if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
-    const trigger = page.getByRole("button", { name: "通知，2 未读", exact: true });
-    await trigger.click();
-    const panel = page.getByRole("dialog", { name: "通知", exact: true });
-    await expect(panel).toBeVisible();
-    await expect(panel.getByRole("tab", { name: "未读 2" })).toBeVisible();
-    await expect(page.locator('[data-slot="dialog-overlay"]')).toHaveCount(0);
-    const box = await panel.boundingBox();
-    if (!box) throw new Error("通知面板缺少布局边界");
-    expect(box.width).toBeLessThanOrEqual(320);
-    expect(box.height).toBeLessThanOrEqual(360);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(width);
-    await panel.getByRole("button", { name: /构建 macOS 工作台.*任务已完成/ }).click();
+    const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
+    const completed = sidebar.locator('a[href="/p/codexly/t/task-1"]').first();
+    await expect(completed.getByRole("status")).toHaveAccessibleName("AI 回复已完成");
+    await completed.click();
     await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/u);
-    if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
-    await page.getByRole("button", { name: "通知，1 未读", exact: true }).click();
-    await panel.getByRole("tab", { name: "已读 1" }).click();
-    await panel.getByRole("button", { name: "全部删除", exact: true }).click();
-    await expect(panel.getByText("暂无已读通知", { exact: true })).toBeVisible();
-    await expect(panel.getByRole("tab", { name: "未读 1" })).toBeVisible();
-    await expect(panel.getByRole("button", { name: "全部删除", exact: true })).toHaveCount(0);
-    // Web 和移动端在已读页都可通过标题栏完成全部已读。
-    await panel.locator("header").getByRole("button", { name: "全部已读", exact: true }).click();
-    await expect(panel.getByRole("button", { name: "全部已读", exact: true })).toHaveCount(0);
-    await expect(panel.getByRole("tab", { name: "已读 1" })).toBeVisible();
     await page.reload();
     if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
-    await page.getByRole("button", { name: "通知，0 未读", exact: true }).click();
-    await expect(panel.getByRole("tab", { name: "已读 1" })).toBeVisible();
-    await panel.getByRole("tab", { name: "已读 1" }).click();
-    await expect(panel.getByRole("button", { name: /等待审核.*等待审批/ })).toBeVisible();
-    await expect(panel.getByRole("button", { name: "全部已读", exact: true })).toHaveCount(0);
-    await panel.getByRole("button", { name: "全部删除", exact: true }).click();
-    await expect(panel.getByRole("tab", { name: "已读 0" })).toBeVisible();
-    await expect(panel.getByRole("button", { name: "全部删除", exact: true })).toHaveCount(0);
-    // 刷新并恢复相同活动快照后，已删除的通知不能重新出现。
-    await page.reload();
-    if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
-    await page.getByRole("button", { name: "通知，0 未读", exact: true }).click();
-    await expect(panel.getByRole("tab", { name: "已读 0" })).toBeVisible();
-    await panel.getByRole("tab", { name: "已读 0" }).click();
-    await expect(panel.getByText("暂无已读通知", { exact: true })).toBeVisible();
+    const pending = sidebar.locator('a[href="/p/codexly/t/input-design"]').first();
+    await expect(pending.getByRole("status")).toBeVisible();
+    await expect(pending.getByRole("status")).toHaveAccessibleName(/审批|批准/u);
+    await pending.click();
+    await expect(page).toHaveURL(/\/p\/codexly\/t\/input-design$/u);
   });
 }

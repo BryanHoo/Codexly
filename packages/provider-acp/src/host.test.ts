@@ -1,3 +1,4 @@
+import { storageCatalog } from "./storage-catalog.test-support.js";
 import { Writable } from "node:stream";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -17,6 +18,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
   const prompts: acp.ContentBlock[][] = [];
   const closeSession = vi.fn(() => ({}));
   const launch = vi.fn<AcpAgentLauncher>(() => Promise.reject(new Error("目录操作不启动 agent")));
+  const storage = storageCatalog();
   const output = new Writable({
     write(chunk: Buffer, _encoding, callback) {
       const message = JSON.parse(chunk.toString()) as Record<string, unknown>;
@@ -24,13 +26,14 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
         const operation = message["operation"],
           task = message["payload"] as LocalTask;
         const result =
-          operation === "task.put"
+          storage(operation, message["payload"]) ??
+          (operation === "task.put"
             ? task
             : operation === "task.patch"
               ? { ...tasks.get(task.id), ...task }
-              : (tasks.get(task.id) ?? null);
+              : (tasks.get(task.id) ?? null));
         if (operation === "task.put") tasks.set(task.id, task);
-        if (operation === "task.patch" && result) tasks.set(task.id, result);
+        if (operation === "task.patch") tasks.set(task.id, { ...tasks.get(task.id), ...task });
         queueMicrotask(() => {
           host.receive(
             Buffer.from(`${JSON.stringify({ catalogId: message["catalogId"], result })}\n`),

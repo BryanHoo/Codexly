@@ -192,22 +192,22 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
     throw new Error("项目侧栏导航项缺失");
   }
   expect(newAgentBox.height).toBe(32);
-  expect(extensionCenterBox.y + extensionCenterBox.height).toBeLessThanOrEqual(pinnedBox.y);
-  // 定时任务与扩展中心位于搜索左侧，任务看板保留在新建任务下方。
+  expect(newAgentBox.y + newAgentBox.height).toBeLessThanOrEqual(pinnedBox.y);
+  // 定时任务与扩展中心已移至共享底栏；搜索仍在顶部，任务看板紧随新建任务。
   expect(scheduledTasksBox.x + scheduledTasksBox.width).toBeLessThanOrEqual(extensionCenterBox.x);
-  expect(extensionCenterBox.x + extensionCenterBox.width).toBeLessThanOrEqual(searchButtonBox.x);
-  expect(scheduledTasksBox.y).toBe(searchButtonBox.y);
+  expect(extensionCenterBox.y).toBeGreaterThan(searchButtonBox.y);
+  expect(scheduledTasksBox.y).toBe(extensionCenterBox.y);
   expect(taskBoardBox.y).toBeGreaterThanOrEqual(newAgentBox.y + newAgentBox.height);
   expect(taskBoardBox.height).toBe(32);
-  expect(extensionCenterBox.y).toBe(searchButtonBox.y);
+  expect(extensionCenterBox.height).toBeLessThanOrEqual(32);
   await expect(taskBoard).toHaveAttribute("href", "/p/codexly/board");
   await expect(extensionCenter).toHaveAttribute("href", "/p/codexly/extensions/skills");
   await expect(scheduledTasks).toHaveAttribute("href", "/p/codexly/scheduled");
   await expect(scheduledTasks).toHaveText("");
   await expect(taskBoard).toHaveText("任务看板");
   await expect(extensionCenter).toHaveText("");
-  expect(extensionCenterBox.y).toBeLessThan(newAgentBox.y);
-  expect(extensionCenterBox.y).toBeLessThan(pinnedBox.y);
+  expect(extensionCenterBox.y).toBeGreaterThan(newAgentBox.y);
+  expect(extensionCenterBox.y).toBeGreaterThan(pinnedBox.y);
   expect(pinnedBox.y).toBeLessThan(projectsBox.y);
   expect(firstProjectBox.y - (temporaryGroupBox.y + temporaryGroupBox.height)).toBe(0);
   await expect(pinnedSection.getByRole("link", { name: /补充 Protocol 契约/u })).toBeVisible();

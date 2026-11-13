@@ -89,8 +89,33 @@ pub async fn open_task_attachment(
     project_id: String,
     task_id: String,
     attachment_id: String,
+    agent_runtime: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    if super::search_commands::use_acp(agent_runtime.as_deref())? {
+        let directory = crate::infrastructure::app_data::directory(&app)
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
+        let task = catalog.owned_task(&project_id, &task_id).await?;
+        // 导出由共享宿主再次校验附件归属，只向系统 opener 交付受控临时副本。
+        let exported = state
+            .acp
+            .host
+            .request(
+                &app,
+                "attachment.export",
+                Some(super::search_commands::acp_scope(&task)?),
+                json!({"taskId":task_id,"attachmentId":attachment_id}),
+            )
+            .await?;
+        let path = exported["path"]
+            .as_str()
+            .ok_or(AppError::FilesystemRequestFailed)?;
+        workspace::open_path("system-default", Path::new(path))
+            .await
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        return Ok(json!({"attachmentId":attachment_id,"status":"opened"}));
+    }
     let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
     if task["provider"] == "claude" {
         let exported =

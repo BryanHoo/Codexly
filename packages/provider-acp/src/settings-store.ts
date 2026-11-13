@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
+import { mkdir, open, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { Value } from "@sinclair/typebox/value";
 import type { AgentEngine } from "@codexly/protocol";
@@ -9,8 +9,9 @@ import {
   AcpProviderConfigSchema,
 } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
+import type { AcpStorageLeases } from "./storage-lease.js";
 
-const StoredSchema = Type.Object({
+export const StoredSchema = Type.Object({
   version: Type.Literal(1),
   configured: Type.Boolean(),
   values: AcpConfigValuesSchema,
@@ -39,6 +40,7 @@ export class AcpSettingsStore {
   constructor(
     readonly directory: string,
     readonly legacySource?: AcpLegacySettingsSource,
+    readonly leases?: AcpStorageLeases,
   ) {}
   async read(engine: AgentEngine): Promise<AcpStoredSettings> {
     const current = await this.#read(engine);
@@ -81,7 +83,12 @@ export class AcpSettingsStore {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     const path = join(this.directory, `${engine}.json`);
     // 两个宿主同时修改时明确报忙；持锁期间重新读取，避免用旧快照覆盖另一端选择。
-    const lock = await open(`${path}.lock`, "wx", 0o600);
+    // 生产宿主共用数据库原子锁；规范化目录，符号链接入口不能绕过同一资源锁。
+    const release = this.leases
+      ? await this.leases.acquire(
+          `settings:${join(await realpath(this.directory), `${engine}.json`)}`,
+        )
+      : await this.#fileLock(path);
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
       // 持锁重读原记录，不递归触发首读导入；保留另一宿主已保存的新选择或旧快照。
@@ -98,10 +105,23 @@ export class AcpSettingsStore {
       await rename(temporary, path);
       return next;
     } finally {
-      await rm(temporary, { force: true });
-      await lock.close();
-      await rm(`${path}.lock`, { force: true });
+      try {
+        await rm(temporary, { force: true });
+      } finally {
+        await release();
+      }
     }
+  }
+  /** 独立文件存储调用仍保留原互斥语义；生产 Runtime 必须注入共享目录锁。 */
+  async #fileLock(path: string): Promise<() => Promise<void>> {
+    const lock = await open(`${path}.lock`, "wx", 0o600);
+    return async () => {
+      try {
+        await lock.close();
+      } finally {
+        await rm(`${path}.lock`, { force: true });
+      }
+    };
   }
   async importLegacy(
     engine: AgentEngine,

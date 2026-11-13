@@ -11,7 +11,7 @@
 
 ## 可复用示例
 
-`apps/web/src/shared/components/agent/code-block.tsx` 与 `desktop/src/shared/components/agent/code-block.tsx` 都包装 `@codexly/ui/agent/code-block`，各自注入翻译，桌面再注入 Legacy 主题。跨端渲染优化应优先修改 `packages/ui/src/agent/code-block.tsx`。
+`apps/web/src/shared/components/agent/code-block.tsx` 与 `desktop/src/shared/components/agent/code-block.tsx` 都包装 `@codexly/ui/agent/code-block`，各自注入翻译。跨端渲染优化应优先修改 `packages/ui/src/agent/code-block.tsx`。
 
 ## 检查项
 

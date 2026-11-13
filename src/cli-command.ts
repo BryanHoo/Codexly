@@ -1,31 +1,26 @@
 import { initializeNetworkProxy } from "@codexly/provider-acp/network-proxy";
 import { runDoctor, type CliDoctorDependencies } from "./cli-doctor.js";
-import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
-import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
 import { appStorageDirectory, legacyStorageDirectories } from "@codexly/core/app-storage-paths";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
-  AgentRuntimeProvider,
   LocalCatalogStore,
   ProjectProjectionStore,
   ProjectRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
-import { DEFAULT_GENERATION_MODEL, type AppUpdateProgress } from "@codexly/protocol";
+import type { AppUpdateProgress } from "@codexly/protocol";
+import { readAcpEngineVersions, inspectOfficialAcpAgents } from "@codexly/provider-acp";
 import {
-  checkCodexVersion,
-  readCodexStartupConfig,
-  createCodexRuntimeProvider,
+  createCliAcpRuntime,
+  type CliAcpRuntime,
+  type CreateCliAcpRuntimeInput,
+} from "./cli-acp-runtime.js";
+import {
   createCodexWorkbenchPetProvider,
-  locateCodexBinary,
-  startCodexAppServer,
-  SUPPORTED_CODEX_VERSION,
   type CreateCodexWorkbenchPetProviderOptions,
-  type CodexRpcClient,
-  type StartCodexAppServerOptions,
 } from "@codexly/provider-codex";
 import {
   createCodexlyServer,
@@ -34,7 +29,7 @@ import {
   LocalProjectRepository,
 } from "@codexly/server";
 import packageManifest from "../package.json" with { type: "json" };
-import { createAppUpdateService, readClaudeCodeVersion } from "./app-update.js";
+import { createAppUpdateService } from "./app-update.js";
 import {
   parseStartOptions,
   CLI_COMMAND_HELP,
@@ -43,7 +38,7 @@ import {
 } from "./cli-command-options.js";
 import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
-import type { CreateServerInput, CreateRuntimeProviderInput } from "./cli-server-input.js";
+import type { CreateServerInput } from "./cli-server-input.js";
 import type { CliManagedStateRepository } from "./cli-state-repository.js";
 import {
   confirmTerminalAppUpdate,
@@ -75,13 +70,11 @@ export interface CliDependencies extends CliDoctorDependencies {
   checkAppUpdate: () => Promise<StartupAppUpdateCheck>;
   confirmAppUpdate: (currentVersion: string, latestVersion: string) => Promise<boolean>;
   createProjectRepository: (input: {
-    client: CodexRpcClient;
     projection: ProjectProjectionStore;
   }) => CliManagedProjectRepository;
   createPetProvider: (input: CreateCodexWorkbenchPetProviderOptions) => WorkbenchPetProvider;
-  createRuntimeProvider: (
-    input: CreateRuntimeProviderInput,
-  ) => AgentRuntimeProvider | Promise<AgentRuntimeProvider>;
+  createAcpRuntime: (input: CreateCliAcpRuntimeInput) => CliAcpRuntime | Promise<CliAcpRuntime>;
+  readEngineVersions: typeof readAcpEngineVersions;
   createServer: (input: CreateServerInput) => Promise<CliManagedServer>;
   generateLanPairingCode: () => string;
   listLanAccessUrls: (port: number) => readonly string[];
@@ -91,7 +84,6 @@ export interface CliDependencies extends CliDoctorDependencies {
     onProgress?: (progress: AppUpdateProgress) => void,
   ) => Promise<void>;
   restartAfterUpdate: (args: readonly string[]) => Promise<number>;
-  startCodexAppServer: (options?: StartCodexAppServerOptions) => Promise<CliManagedRuntime>;
   webRoot: string;
 }
 
@@ -108,7 +100,7 @@ const startupAppUpdate = createStartupAppUpdateOperations(packageManifest.versio
 const defaultDependencies: CliDependencies = {
   appVersion: packageManifest.version,
   checkAppUpdate: startupAppUpdate.check,
-  checkCodexVersion,
+  inspectAcpAgents: inspectOfficialAcpAgents,
   confirmAppUpdate: confirmTerminalAppUpdate,
   createProjectRepository: ({ projection }) =>
     new LocalProjectRepository(
@@ -120,7 +112,8 @@ const defaultDependencies: CliDependencies = {
     SqliteStateRepository.open(databasePath, {
       legacyDirectories: legacyStorageDirectories(codexHome ?? resolveCodexHome({})),
     }),
-  createRuntimeProvider: createCodexRuntimeProvider,
+  createAcpRuntime: createCliAcpRuntime,
+  readEngineVersions: readAcpEngineVersions,
   createServer: async (input) => {
     const server = await createCodexlyServer({
       ...input,
@@ -132,13 +125,10 @@ const defaultDependencies: CliDependencies = {
   },
   generateLanPairingCode,
   listLanAccessUrls,
-  locateCodexBinary,
-  readCodexStartupConfig,
   nodeVersion: process.versions.node,
   openBrowser: openSystemBrowser,
   installAppUpdate: startupAppUpdate.install,
   restartAfterUpdate: restartCliAfterUpdate,
-  startCodexAppServer,
   webRoot: fileURLToPath(new URL("../dist/web", import.meta.url)),
 };
 
@@ -209,42 +199,24 @@ export async function runStart(
       throw new Error("Shutdown signal is unavailable");
     }
 
-    let runtime: ReturnType<typeof createLazyCodexRuntime> | undefined;
+    let runtime: CliAcpRuntime | undefined;
     let server: CliManagedServer | undefined;
     let stateRepository: CliManagedStateRepository | undefined;
 
     try {
-      const codexHome = resolveCodexHome(options);
+      const codexHome = options.codexHome ?? environment["CODEX_HOME"] ?? join(homedir(), ".codex");
       // 启动位置不参与内部运行：多个 Web 实例共用应用数据目录，由端口和业务事务处理并发。
       const runtimeCwd = homedir();
       const env = {
         ...environment,
-        ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
+        CODEX_HOME: codexHome,
+        ...(options.codexBin ? { CODEX_PATH: options.codexBin } : {}),
       };
       stateRepository = await dependencies.createStateRepository(
         join(applicationDirectory, "state.sqlite3"),
         codexHome,
       );
-      const startupStateRepository = stateRepository;
-      const startRuntime = () => {
-        const initialize = () =>
-          dependencies.startCodexAppServer({
-            appVersion: dependencies.appVersion,
-            cwd: runtimeCwd,
-            env,
-            ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
-          });
-        // 上游首次创建 SQLite 状态也存在竞争；只串行化握手，运行期间不持有目录锁。
-        return startupStateRepository.withScheduledTaskLock === undefined
-          ? initialize()
-          : startupStateRepository.withScheduledTaskLock(initialize);
-      };
-      runtime = createLazyCodexRuntime(startRuntime, (client) =>
-        importLocalCatalog(client, startupStateRepository),
-      );
-      const catalogClient = await prepareLocalCatalog(runtime.client, stateRepository);
       const projectRepository = dependencies.createProjectRepository({
-        client: catalogClient,
         projection: stateRepository,
       });
       const projectSourceMigration = await stateRepository.readProjectSourceMigration();
@@ -257,34 +229,18 @@ export async function runStart(
       if (!projectSourceMigration.completed) {
         await stateRepository.completeProjectSourceMigration();
       }
-      const codexProvider = await dependencies.createRuntimeProvider({
-        ...(dependencies.appDataDirectory === undefined
-          ? {}
-          : { appDataDirectory: applicationDirectory }),
-        codexHome,
-        client: catalogClient,
-        modelCatalogRuntimeFactory: startRuntime,
-        // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
-        readTaskTitleModel: async () =>
-          (await startupStateRepository.readGlobalSettings())?.defaultModel ??
-          DEFAULT_GENERATION_MODEL,
-      });
-      const provider = enableClaudeRuntime(
-        codexProvider,
-        stateRepository,
-        codexHome,
+      // 默认生产装配只创建共享 ACP Runtime；首次请求之前不启动任何智能体。
+      runtime = await dependencies.createAcpRuntime({
         applicationDirectory,
-      );
+        store: stateRepository,
+        environment: env,
+      });
+      const provider = runtime;
       const petProvider = dependencies.createPetProvider({ codexHome });
+      const versions = await dependencies.readEngineVersions();
       const appUpdateService = createAppUpdateService({
         appVersion: dependencies.appVersion,
-        // 启动时只读一次小型清单，后续关于页请求复用当前进程实际使用的版本。
-        claudeVersion: await readClaudeCodeVersion(),
-        get codexVersion() {
-          // 冷启动时沿用桌面端的支持版本回退，避免空字符串导致整个版本响应校验失败。
-          const version = runtime?.version ?? SUPPORTED_CODEX_VERSION;
-          return version === "" ? SUPPORTED_CODEX_VERSION : version;
-        },
+        ...versions,
       });
       server = await dependencies.createServer({
         networkProxyDirectory: applicationDirectory,
@@ -307,7 +263,7 @@ export async function runStart(
         asyncQuestionRepository: stateRepository,
         projectTodoRepository: stateRepository,
         settingsRepository: stateRepository,
-        localCatalogStore: stateRepository as CliManagedStateRepository & LocalCatalogStore,
+        localCatalogStore: stateRepository,
         staticRoot: dependencies.webRoot,
         // 显式工作区仍控制临时任务边界；未配置时使用稳定的用户目录，不继承终端目录。
         standaloneCwd: options.workspaceRoots?.[0] ?? runtimeCwd,
@@ -357,17 +313,8 @@ export async function runStart(
         }
       }
 
-      // 同时观察退出信号和子进程，避免 App Server 崩溃后 CLI 继续空等。
-      const outcome = await Promise.race([
-        runtime.waitForExit().then((exit) => ({ exit, type: "process-exit" as const })),
-        waitForAbort(shutdownSignal).then(() => ({ type: "shutdown" as const })),
-      ]);
-      if (outcome.type === "process-exit") {
-        const reason = outcome.exit.signal
-          ? `信号 ${outcome.exit.signal}`
-          : `退出码 ${String(outcome.exit.code)}`;
-        throw new Error(`Codex App Server 在 Codexly 关闭前意外退出，${reason}`);
-      }
+      // ACP 进程故障由所属会话交付；Web 服务保持可用，让用户修复认证或重新连接。
+      await waitForAbort(shutdownSignal);
       return 0;
     } finally {
       // 每层 finally 都保证后续资源被回收，避免单个关闭错误遗留长驻进程。
@@ -452,4 +399,3 @@ export async function runCli(
     return 1;
   }
 }
-import { enableClaudeRuntime } from "./cli-engine-runtime.js";

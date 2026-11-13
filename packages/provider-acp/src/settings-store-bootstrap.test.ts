@@ -1,3 +1,4 @@
+import { withStorageCatalog, storageCatalog } from "./storage-catalog.test-support.js";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -64,15 +65,30 @@ it("Web 运行时和桌面宿主共用旧来源注入，不启动 agent 或读�
   );
   const launch = vi.fn(() => Promise.reject(Error("no agent")));
   const catalog = vi.fn(() => Promise.reject(Error("no catalog")));
+  const storage = storageCatalog();
   const output = new Writable({
-    write(_chunk, _encoding, callback) {
+    write(chunk: Buffer, _encoding, callback) {
+      const frame = JSON.parse(chunk.toString()) as Record<string, unknown>;
+      if (typeof frame["catalogId"] === "number") {
+        const result = storage(frame["operation"], frame["payload"]);
+        queueMicrotask(() => {
+          host.receive(
+            Buffer.from(`${JSON.stringify({ catalogId: frame["catalogId"], result })}\n`),
+          );
+        });
+      }
       callback();
     },
   });
-  const runtime = new AcpRuntime(join(root, "runtime"), { catalog }, launch, source);
+  const runtime = new AcpRuntime(
+    join(root, "runtime"),
+    withStorageCatalog({ catalog }),
+    launch,
+    source,
+  );
   const application = new AcpApplicationRuntime(
     join(root, "application"),
-    { catalog },
+    withStorageCatalog({ catalog }),
     () => Promise.resolve(undefined),
     launch,
     source,

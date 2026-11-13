@@ -32,12 +32,11 @@ function LegacyComposerWithSettings(props: WorkbenchComposerProps & { settings: 
   const profileQueryKey = ["engine-profile", "claude", props.projectId] as const;
   const readProfile = useCallback(
     (engine: AgentEngine) => {
-      if (import.meta.env.VITE_MACOS_LEGACY === "true") return Promise.reject(new Error(t("engine.unsupportedLegacy")));
       const getProfile = client.getEngineProfile?.bind(client);
       if (!getProfile) return Promise.reject(new Error("Engine service unavailable"));
       return getProfile(engine, props.projectId);
     },
-    [client, props.projectId, t],
+    [client, props.projectId],
   );
   const load = useCallback(
     (engine: AgentEngine) => queryClient.fetchQuery(engineProfileQuery(readProfile, engine, props.projectId)),
@@ -50,7 +49,7 @@ function LegacyComposerWithSettings(props: WorkbenchComposerProps & { settings: 
   }, [queryClient]);
   const state = useEngineComposerState({ scope, profileScope: props.projectId,
     cachedProfile: queryClient.getQueryData(profileQueryKey), invalidateProfile, taskId: props.taskId, taskEngine: props.runtime?.metadata?.engine,
-    ...(props.initialEngine === undefined ? {} : { initialEngine: props.initialEngine }), codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected", claudeSupported: import.meta.env.VITE_MACOS_LEGACY !== "true", load });
+    ...(props.initialEngine === undefined ? {} : { initialEngine: props.initialEngine }), codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected", claudeSupported: true, load });
   const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings } | undefined>(() =>
     props.onCaptureSubmission && props.settings.engineOptions?.engine === "claude"
       ? { scope, settings: props.settings }

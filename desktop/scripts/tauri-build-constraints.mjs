@@ -30,11 +30,8 @@ export function resolveTauriArguments(
   profile = "modern",
 ) {
   const resolved = [...argumentsList];
-  if (profile !== "modern" && profile !== "legacy") {
+  if (profile !== "modern") {
     throw new Error(`Unknown macOS build profile: ${profile}`);
-  }
-  if (profile === "legacy" && (platform !== "darwin" || resolved[0] !== "build")) {
-    throw new Error("Legacy only supports macOS production builds");
   }
   if (resolved[0] !== "build") {
     return resolved;
@@ -53,21 +50,14 @@ export function resolveTauriArguments(
   }
 
   const explicitTarget = findTarget(resolved);
-  if (profile === "legacy" && explicitTarget && explicitTarget !== MACOS_TARGETS.x64) {
-    throw new Error("Legacy requires x86_64-apple-darwin");
-  }
   if (explicitTarget && !Object.values(MACOS_TARGETS).includes(explicitTarget)) {
     throw new Error(`Unsupported macOS target: ${explicitTarget}`);
   }
   if (!explicitTarget) {
-    const target = profile === "legacy" ? MACOS_TARGETS.x64 : MACOS_TARGETS[arch];
+    const target = MACOS_TARGETS[arch];
     if (!target) throw new Error(`Unsupported macOS architecture: ${arch}`);
     // 本机构建匹配宿主架构；CI 可以显式选择另一架构交叉编译。
     resolved.splice(1, 0, "--target", target);
-  }
-  if (profile === "legacy") {
-    // 最后合并兼容配置，确保前端目录、最低系统与更新端点属于同一档构建。
-    resolved.push("--config", "src-tauri/tauri.macos-legacy.conf.json");
   }
   return resolved;
 }
@@ -75,7 +65,7 @@ export function resolveTauriArguments(
 export function resolveTauriEnvironment(
   argumentsList,
   platform = process.platform,
-  profile = "modern",
+  _profile = "modern",
 ) {
   if (platform !== "darwin" || argumentsList[0] !== "build") {
     return {};
@@ -84,6 +74,6 @@ export function resolveTauriEnvironment(
   return {
     // macOS 27 会拒绝 Rust strip 产生的异常 proc-macro Mach-O，仅禁用宿主构建依赖的 strip。
     CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_STRIP: "false",
-    MACOSX_DEPLOYMENT_TARGET: profile === "legacy" ? "12.4" : "14.5",
+    MACOSX_DEPLOYMENT_TARGET: "14.5",
   };
 }

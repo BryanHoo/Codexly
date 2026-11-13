@@ -4,10 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  CodexAppServerProcess,
-  createCodexRuntimeProvider,
-} from "../../dist/providers/codex/index.js";
+import { CodexAppServerProcess, createCodexRuntimeProvider } from "../../.artifacts/e2e/codex.js";
 import { createCodexlyServer, SqliteStateRepository } from "../../dist/server/index.js";
 
 const projectRoot = "/workspace/Codexly";

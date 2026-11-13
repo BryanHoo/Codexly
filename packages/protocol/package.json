@@ -48,6 +48,10 @@
     "./application-generation": {
       "types": "./src/application-generation.ts",
       "default": "./src/application-generation.ts"
+    },
+    "./acp-capabilities": {
+      "types": "./src/acp-capabilities.ts",
+      "default": "./src/acp-capabilities.ts"
     }
   },
   "dependencies": {

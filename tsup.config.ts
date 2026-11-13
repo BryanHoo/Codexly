@@ -5,12 +5,10 @@ export default defineConfig({
     cli: "src/cli.ts",
     "scheduled-task-recurrence-worker": "packages/server/src/scheduled-task-recurrence-worker.js",
     "historical-attachment-worker": "packages/core/src/historical-attachment-worker.js",
-    "codex-jsonl-frame-worker": "packages/provider-codex/src/codex-jsonl-frame-worker.js",
     "client/index": "packages/client/src/index.ts",
     "core/index": "packages/core/src/index.ts",
     "protocol/index": "packages/protocol/src/index.ts",
-    "providers/claude/index": "packages/provider-claude/src/index.ts",
-    "providers/codex/index": "packages/provider-codex/src/index.ts",
+    "providers/acp/index": "packages/provider-acp/src/index.ts",
     "server/index": "packages/server/src/index.ts",
     "sqlite-state-worker": "packages/server/src/sqlite-state-worker.js",
   },
@@ -25,11 +23,13 @@ export default defineConfig({
     };
     options.alias = {
       ...options.alias,
+      "@codexly/protocol/acp-capabilities": "./packages/protocol/src/acp-capabilities.ts",
       "@codexly/protocol/application-generation":
         "./packages/protocol/src/application-generation.ts",
       "@codexly/protocol/application-preferences":
         "./packages/protocol/src/application-preferences.ts",
       "@codexly/provider-acp/network-proxy": "./packages/provider-acp/src/network-proxy.ts",
+      "@codexly/provider-acp": "./packages/provider-acp/src/index.ts",
       "@codexly/protocol/acp-plan-api": "./packages/protocol/src/acp-plan-api.ts",
       "@codexly/protocol/acp-scheduled-plan": "./packages/protocol/src/acp-scheduled-plan.ts",
       "@codexly/protocol/task-queue-storage": "./packages/protocol/src/task-queue-storage.ts",

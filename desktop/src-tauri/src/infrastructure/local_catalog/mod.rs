@@ -38,6 +38,7 @@ mod acp_scheduled_configs;
 #[cfg(test)]
 mod acp_scheduled_plan_tests;
 mod acp_scheduled_plans;
+mod acp_storage_locks;
 mod acp_submissions;
 mod acp_task_titles;
 mod operations;
@@ -265,6 +266,7 @@ impl LocalCatalog {
             saved_prompts::initialize(&db)?;
             application_preferences::initialize(&db)?;
             acp_task_titles::initialize(&db)?;
+            acp_storage_locks::initialize(&db)?;
             acp_submissions::initialize(&mut db)?;
             acp_scheduled_configs::initialize(&db)?;
             acp_scheduled_plans::initialize(&db)?;

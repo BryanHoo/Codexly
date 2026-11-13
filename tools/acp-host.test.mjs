@@ -7,6 +7,26 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 const binary = process.env.CODEXLY_COMPILED_ACP_HOST;
+
+// 宿主已将设置写入协调交给原生目录；此处模拟精确锁端口，完整 SQLite 桥接另有集成测试。
+function storageCallbacks(child) {
+  const owners = new Map();
+  return (frame) => {
+    if (!frame.catalogId) return false;
+    const { key, owner, expectedOwner } = frame.payload;
+    let result;
+    if (frame.operation === "acp.storage.read") result = owners.get(key) ?? null;
+    else if (frame.operation === "acp.storage.claim") {
+      result = (owners.get(key)?.owner ?? null) === expectedOwner;
+      if (result) owners.set(key, frame.payload);
+    } else if (frame.operation === "acp.storage.release") {
+      result = owners.get(key)?.owner === owner;
+      if (result) owners.delete(key);
+    } else throw new Error(`Unexpected catalog operation: ${frame.operation}`);
+    child.stdin.write(JSON.stringify({ catalogId: frame.catalogId, result }) + "\n");
+    return true;
+  };
+}
 test(
   "compiled ACP host handles native catalog callbacks and exits on EOF",
   { skip: !binary, timeout: 15_000 },
@@ -167,6 +187,7 @@ test(
     });
     child.stderr.resume();
     const lines = createInterface({ input: child.stdout });
+    const respondStorage = storageCallbacks(child);
     let timer;
     const exited = new Promise((resolve) => child.once("exit", resolve));
     try {
@@ -176,7 +197,7 @@ test(
         lines.on("line", (line) => {
           try {
             const frame = JSON.parse(line);
-            if (frame.id === 1) resolve(frame);
+            if (!respondStorage(frame) && frame.id === 1) resolve(frame);
           } catch (error) {
             reject(error);
           }
@@ -225,10 +246,11 @@ test(
     const lines = createInterface({ input: child.stdout });
     const exited = new Promise((resolve) => child.once("exit", resolve));
     let timer;
+    const respondStorage = storageCallbacks(child);
     const pending = new Map();
     lines.on("line", (line) => {
       const frame = JSON.parse(line);
-      pending.get(frame.id)?.(frame);
+      if (!respondStorage(frame)) pending.get(frame.id)?.(frame);
     });
     const request = (id) =>
       new Promise((resolve, reject) => {

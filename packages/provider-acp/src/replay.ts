@@ -2,6 +2,7 @@ import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
 import type { AgentTurn } from "@codexly/protocol";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection } from "./event-projection.js";
+import { replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
 
 /** ACP v1 不提供历史回合分页；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
 export class AcpReplay {
@@ -19,19 +20,38 @@ export class AcpReplay {
     this.#writer = stream.writable.getWriter();
     const source = async function* () {
       const reader = stream.readable.getReader();
+      const previous = history.entries(taskId);
+      let aligned = true;
       try {
         for (;;) {
           const next = await reader.read();
           if (next.done) break;
-          yield next.value;
+          const old = aligned ? await previous.next() : undefined;
+          if (
+            old &&
+            !old.done &&
+            (old.value.replayFingerprint ?? replayFingerprint(old.value.turn)) ===
+              replayFingerprint(next.value)
+          ) {
+            // 只有同位置的完整内容匹配才保留应用身份和附件；一次错位后不猜测后续对应关系。
+            yield old.value;
+          } else {
+            aligned = false;
+            yield { turn: next.value } satisfies AcpHistoryEntry;
+          }
         }
       } finally {
+        // 消费者提前退出时解除写侧背压，磁盘/锁错误不能留下永久等待的 producer。
+        await reader.cancel();
         reader.releaseLock();
+        await previous.return(undefined);
       }
     };
     this.#saved = history.replace(taskId, source());
     // 写盘失败立即撤销生产者，避免磁盘故障后仍等待没人消费的重放队列。
-    void this.#saved.catch((error: unknown) => this.#writer.abort(error)).catch(() => undefined);
+    void this.#saved
+      .catch((error: unknown) => stream.readable.cancel(error))
+      .catch(() => undefined);
   }
   async update(update: SessionUpdate): Promise<void> {
     if (update.sessionUpdate === "user_message_chunk") {

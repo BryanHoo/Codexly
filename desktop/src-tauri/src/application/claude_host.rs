@@ -147,7 +147,10 @@ impl ClaudeHostManager {
                     let paths = if self.acp {
                         HostLaunch::Acp(
                             self.acp_runtime
-                                .prepare(&resources)
+                                .prepare_sidecar(
+                                    &resources,
+                                    &crate::infrastructure::bundled_runtime::acp_host()?,
+                                )
                                 .await
                                 .map_err(failure)?,
                         )

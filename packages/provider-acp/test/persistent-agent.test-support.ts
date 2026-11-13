@@ -1,8 +1,11 @@
+import type { AgentProvider } from "@codexly/core";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpConnection, type AcpAgentLauncher } from "../src/index.js";
 
 /** 保留会话的 SDK 对端，供应用重启测试复用；不调用真实账号或模型。 */
-export function createPersistentAgentPeer() {
+export function createPersistentAgentPeer(
+  onSetConfig?: (configId: string, value: string | boolean) => void,
+) {
   const loaded: string[] = [];
   const prompts: string[] = [];
   const transcripts = new Map<string, { user: boolean; text: string }[]>();
@@ -14,7 +17,10 @@ export function createPersistentAgentPeer() {
       category: "model",
       type: "select",
       currentValue: "model-a",
-      options: [{ value: "model-a", name: "模型 A" }],
+      options: [
+        { value: "model-a", name: "模型 A" },
+        { value: "model-b", name: "模型 B" },
+      ],
     },
   ];
   const launch: AcpAgentLauncher = async (_engine, _scope, callbacks) => {
@@ -47,7 +53,16 @@ export function createPersistentAgentPeer() {
         return { configOptions: options };
       })
       .onRequest(acp.methods.agent.session.close, () => ({}))
-      .onRequest(acp.methods.agent.session.setConfigOption, () => ({ configOptions: options }))
+      .onRequest(acp.methods.agent.session.setConfigOption, ({ params }) => {
+        onSetConfig?.(params.configId, params.value);
+        return {
+          configOptions: options.map((option) =>
+            option.id === params.configId
+              ? ({ ...option, currentValue: params.value } as acp.SessionConfigOption)
+              : option,
+          ),
+        };
+      })
       .onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
         const text = params.prompt
           .filter((part) => part.type === "text")
@@ -81,4 +96,13 @@ export function createPersistentAgentPeer() {
     };
   };
   return { launch, loaded, prompts, transcripts };
+}
+
+/** 验证可选端口存在后发送，避免测试用类型断言掩盖宿主能力缺失。 */
+export function startConfiguredAcpTurn(
+  provider: AgentProvider,
+  ...args: Parameters<NonNullable<AgentProvider["startConfiguredTurn"]>>
+) {
+  if (!provider.startConfiguredTurn) throw new Error("缺少 ACP 配置发送端口");
+  return provider.startConfiguredTurn(...args);
 }

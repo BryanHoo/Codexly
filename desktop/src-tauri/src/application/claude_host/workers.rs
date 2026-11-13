@@ -95,7 +95,10 @@ pub(super) async fn catalog_loop(
                 | "task.remove"
                 | "app.preferences.read"
                 | "acp.title.claim"
-                | "acp.title.finish"),
+                | "acp.title.finish"
+                | "acp.storage.read"
+                | "acp.storage.claim"
+                | "acp.storage.release"),
             ) => catalog
                 .call(operation, message["payload"].clone())
                 .await
@@ -243,6 +246,21 @@ mod tests {
         ));
         let mut lines = BufReader::new(reader).lines();
         for (operation, payload, expected) in [
+            (
+                "acp.storage.claim",
+                json!({"key":"history/t","owner":"one","pid":123,"expectedOwner":null}),
+                json!(true),
+            ),
+            (
+                "acp.storage.read",
+                json!({"key":"history/t"}),
+                json!({"owner":"one","pid":123}),
+            ),
+            (
+                "acp.storage.release",
+                json!({"key":"history/t","owner":"one"}),
+                json!(true),
+            ),
             ("app.preferences.read", json!({}), serde_json::Value::Null),
             (
                 "acp.title.claim",

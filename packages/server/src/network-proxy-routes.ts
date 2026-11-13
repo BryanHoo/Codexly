@@ -5,7 +5,7 @@ import {
   readNetworkProxy,
   saveNetworkProxy,
   testNetworkProxy,
-} from "@codexly/provider-claude/network-proxy";
+} from "@codexly/provider-acp/network-proxy";
 
 export function registerNetworkProxyRoutes(
   app: FastifyInstance,

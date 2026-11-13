@@ -1,3 +1,4 @@
+import { withStorageCatalog } from "./storage-catalog.test-support.js";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -334,7 +335,7 @@ it("无需先打开设置页，新会话直接应用迁移默认值", async () =
   const f = await fixture();
   const runtime = new AcpRuntime(
     f.root,
-    { catalog: () => Promise.reject(new Error("辅助会话不访问目录")) },
+    withStorageCatalog({ catalog: () => Promise.reject(new Error("辅助会话不访问目录")) }),
     f.launch,
   );
   try {
@@ -428,7 +429,7 @@ it("供应商设置经公共服务保存，新项目连接先恢复配置再创�
   const f = await fixture();
   const runtime = new AcpRuntime(
     f.root,
-    { catalog: () => Promise.reject(new Error("不访问目录")) },
+    withStorageCatalog({ catalog: () => Promise.reject(new Error("不访问目录")) }),
     f.launch,
   );
   const config = {

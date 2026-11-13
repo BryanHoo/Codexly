@@ -11,26 +11,7 @@ const root = new URL("../", import.meta.url);
 test("desktop bundles only the staged target runtime resources", async () => {
   const config = JSON.parse(await readFile(new URL("desktop/src-tauri/tauri.conf.json", root)));
   assert.deepEqual(config.bundle.resources, { "resources/runtime/": "runtime/" });
-  assert.deepEqual(config.bundle.externalBin, ["binaries/claude-host"]);
-  const legacy = JSON.parse(
-    await readFile(new URL("desktop/src-tauri/tauri.macos-legacy.conf.json", root)),
-  );
-  assert.deepEqual(legacy.bundle.externalBin, []);
-});
-test("generated distribution pins native and host dependencies independently", async () => {
-  const manifest = JSON.parse(
-    await readFile(new URL("desktop/src-tauri/resources/claude/manifest.json", root)),
-  );
-  assert.equal(manifest.schemaVersion, 1);
-  assert.equal(
-    manifest.claudeCodeVersion,
-    await readClaudeCodeVersion(import.meta.resolve("@anthropic-ai/claude-agent-sdk")),
-  );
-  assert.equal(manifest.native.version, manifest.sdkVersion);
-  assert.match(manifest.native.integrity, /^[A-Za-z0-9+/]{86}==$/u);
-  assert.match(manifest.native.url, /^https:\/\/registry.npmjs.org\//u);
-  assert.equal(manifest.host.url, undefined);
-  assert.match(manifest.host.sha256, /^[a-f0-9]{64}$/u);
+  assert.deepEqual(config.bundle.externalBin, ["binaries/acp-host"]);
 });
 
 test("Claude Code version comes from SDK metadata rather than the native package version", async () => {

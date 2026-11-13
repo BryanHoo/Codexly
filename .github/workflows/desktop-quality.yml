@@ -14,6 +14,7 @@ on:
       - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
       - "tools/*claude*"
+      - "tools/*acp*"
       - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -28,6 +29,7 @@ on:
       - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
       - "tools/*claude*"
+      - "tools/*acp*"
       - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -125,7 +127,7 @@ jobs:
 
       - name: Check standalone Claude host and distribution contract
         working-directory: .
-        run: pnpm test:claude-host
+        run: pnpm test:acp-host
 
       - name: Check web
         run: pnpm check:web
@@ -150,7 +152,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Check macOS build isolation and compiled Legacy theme
+      - name: Check supported macOS build output
         run: pnpm test:macos-build-output
 
       - name: Check source open performance

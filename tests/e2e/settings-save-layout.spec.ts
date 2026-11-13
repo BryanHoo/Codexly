@@ -5,8 +5,8 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
   const saving = new Promise<void>((resolve) => {
     releaseSave = resolve;
   });
-  await page.route("**/v1/settings", async (route) => {
-    if (route.request().method() === "PUT") await saving;
+  await page.route("**/v1/acp/agents/codex/defaults", async (route) => {
+    if (route.request().method() === "PATCH") await saving;
     await route.fallback();
   });
   await page.goto("/p/codexly/t/task-1");
@@ -24,7 +24,9 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
   const scrollBefore = await region.getByRole("main").evaluate((element) => element.scrollTop);
   try {
     await control.selectOption("never");
-    await expect(page.locator('[data-slot="toast"]').filter({ hasText: "保存中…" })).toBeVisible();
+    await expect(
+      page.locator('[data-slot="toast"]').filter({ hasText: "正在保存…" }),
+    ).toBeVisible();
     expect(await node.evaluate((element) => element.isConnected)).toBe(true);
     expect((await panel.boundingBox())?.y).toBe(before?.y);
     expect(await region.getByRole("main").evaluate((element) => element.scrollTop)).toBe(
@@ -33,7 +35,7 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
   } finally {
     releaseSave();
   }
-  await expect(page.locator('[data-slot="toast"]').filter({ hasText: "保存中…" })).toHaveCount(0);
+  await expect(page.locator('[data-slot="toast"]').filter({ hasText: "正在保存…" })).toHaveCount(0);
   expect(await node.evaluate((element) => element.isConnected)).toBe(true);
   expect((await panel.boundingBox())?.y).toBe(before?.y);
   await expect(control).toHaveValue("never");

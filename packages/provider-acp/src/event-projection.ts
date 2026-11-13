@@ -213,7 +213,7 @@ export class AcpEventProjection {
   }
 }
 
-function contentText(content: ContentBlock): string {
+export function contentText(content: ContentBlock): string {
   switch (content.type) {
     case "text":
       return content.text;

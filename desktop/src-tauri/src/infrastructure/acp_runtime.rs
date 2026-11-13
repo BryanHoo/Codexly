@@ -16,6 +16,7 @@ struct Manifest {
 struct Host {
     path: String,
     protocol_version: u32,
+    placement: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -86,6 +87,11 @@ async fn read_manifest(resources: &Path) -> Result<Option<Manifest>, ()> {
         || manifest.arch != arch
         || manifest.host.protocol_version != 1
         || !local_path(&manifest.host.path)
+        || manifest
+            .host
+            .placement
+            .as_deref()
+            .is_some_and(|placement| placement != "sidecar")
     {
         return Err(());
     }
@@ -139,16 +145,31 @@ async fn controlled_executable(root: &Path, relative: &str) -> Result<PathBuf, &
 
 #[derive(Default)]
 pub(crate) struct AcpRuntimeManager {
-    prepared: tokio::sync::Mutex<Option<(PathBuf, AcpRuntimePaths)>>,
+    prepared: tokio::sync::Mutex<Option<(PathBuf, Option<PathBuf>, AcpRuntimePaths)>>,
 }
 impl AcpRuntimeManager {
+    #[cfg(test)]
     pub async fn prepare(&self, resources: &Path) -> Result<AcpRuntimePaths, &'static str> {
+        self.prepare_inner(resources, None).await
+    }
+    pub async fn prepare_sidecar(
+        &self,
+        resources: &Path,
+        host: &Path,
+    ) -> Result<AcpRuntimePaths, &'static str> {
+        self.prepare_inner(resources, Some(host)).await
+    }
+    async fn prepare_inner(
+        &self,
+        resources: &Path,
+        sidecar: Option<&Path>,
+    ) -> Result<AcpRuntimePaths, &'static str> {
         let root = tokio::fs::canonicalize(resources)
             .await
             .map_err(|_| "ACP resources missing")?;
         let mut prepared = self.prepared.lock().await;
-        if let Some((previous, paths)) = prepared.as_ref() {
-            if previous != &root {
+        if let Some((previous, previous_host, paths)) = prepared.as_ref() {
+            if previous != &root || previous_host.as_deref() != sidecar {
                 return Err("ACP resources changed");
             }
             return Ok(paths.clone());
@@ -158,12 +179,29 @@ impl AcpRuntimeManager {
             .map_err(|_| "Invalid ACP manifest")?
             .ok_or("ACP runtime is not installed")?;
         // 签名可能修改 Mach-O 字节；只校验安装路径和完整性条件，不重扫大文件摘要。
+        let host = if manifest.host.placement.as_deref() == Some("sidecar") {
+            let path = sidecar.ok_or("ACP signed sidecar missing")?;
+            let metadata = tokio::fs::symlink_metadata(path)
+                .await
+                .map_err(|_| "ACP signed sidecar missing")?;
+            if !metadata.is_file() || metadata.len() == 0 {
+                return Err("Invalid ACP signed sidecar");
+            }
+            tokio::fs::canonicalize(path)
+                .await
+                .map_err(|_| "Invalid ACP signed sidecar")?
+        } else {
+            if sidecar.is_some() {
+                return Err("ACP manifest must declare signed sidecar placement");
+            }
+            controlled_executable(&root, &manifest.host.path).await?
+        };
         let paths = AcpRuntimePaths {
-            host: controlled_executable(&root, &manifest.host.path).await?,
+            host,
             codex: controlled_executable(&root, &manifest.engines.codex.entrypoint).await?,
             claude: controlled_executable(&root, &manifest.engines.claude.entrypoint).await?,
         };
-        *prepared = Some((root, paths.clone()));
+        *prepared = Some((root, sidecar.map(Path::to_path_buf), paths.clone()));
         Ok(paths)
     }
 }

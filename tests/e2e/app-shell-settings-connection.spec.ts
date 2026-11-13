@@ -383,7 +383,8 @@ test("automatically saves browser preferences", async ({ page }) => {
     .getByRole("group", { name: "Codex", exact: true })
     .getByRole("button", { name: "Agent configuration" })
     .click();
-  await expect(page.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
+  // ACP 选项名称由 agent 提供，切换应用语言不能改写原始标签。
+  await expect(page.getByRole("combobox", { name: "思考强度" })).toBeVisible();
   await page.getByRole("button", { name: "Back to app" }).click();
   await expect(page.locator("h1").filter({ hasText: "构建 macOS 工作台" })).toBeVisible();
 });

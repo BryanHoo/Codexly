@@ -6,7 +6,7 @@
 
 ## 选择使用端
 
-- **桌面应用**：从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载安装包，按[安装指南](../desktop/docs/installation.md)打开。运行时已内置，无需另装 Node.js、Bun 或 CLI；macOS Legacy 仅支持 Codex。
+- **桌面应用**：从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载安装包，按[安装指南](../desktop/docs/installation.md)打开。运行时已内置，无需另装 Node.js、Bun 或 CLI。
 - **电脑浏览器**：安装 Node.js 24+，运行下方命令，打开终端显示的本机地址。
 - **手机和平板**：在电脑上使用下方命令并加上 `--lan`，再用移动浏览器访问终端显示的局域网地址、输入密码。完整步骤见 [Web 与移动端](web.md)。
 

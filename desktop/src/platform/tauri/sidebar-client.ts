@@ -68,13 +68,17 @@ export class TauriSidebarClient extends TauriTaskManagementClient {
   }
 
   public async searchTasks(input: TaskSearchInput, options: ReadOptions = {}) {
-    const response = await this.callCancellable<unknown>("search_tasks", { input }, options.signal);
+    options.signal?.throwIfAborted();
+    const runtime = await this.applicationRuntime();
+    const response = await this.callCancellable<unknown>("search_tasks", { input, ...(runtime === "acp" ? { agentRuntime: "acp" } : {}) }, options.signal);
     const { parseTaskSearchPage } = await import("./search-response.js");
     return parseTaskSearchPage(response);
   }
 
   public async searchTaskOccurrences(taskId: string, query: string, cursor?: string, options: ReadOptions = {}) {
-    const response = await this.callCancellable<unknown>("search_task_occurrences", { taskId, query, cursor }, options.signal);
+    options.signal?.throwIfAborted();
+    const runtime = await this.applicationRuntime();
+    const response = await this.callCancellable<unknown>("search_task_occurrences", { taskId, query, cursor, ...(runtime === "acp" ? { agentRuntime: "acp" } : {}) }, options.signal);
     const { parseSearchOccurrencesPage } = await import("./search-response.js");
     return parseSearchOccurrencesPage(response);
   }

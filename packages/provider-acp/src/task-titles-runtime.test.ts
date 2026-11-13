@@ -1,3 +1,4 @@
+import { storageCatalog } from "./storage-catalog.test-support.js";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { PassThrough, Writable } from "node:stream";
@@ -27,8 +28,10 @@ async function fixture() {
   const cancelled = Promise.withResolvers<undefined>();
   const prompts: { engine: string; text: string }[] = [];
   const closed: string[] = [];
+  const storage = storageCatalog();
   const catalog = vi.fn((operation: string, payload: unknown): Promise<unknown> =>
     Promise.resolve().then(() => {
+      if (operation.startsWith("acp.storage.")) return storage(operation, payload);
       const p = payload as LocalTask & { token: string };
       switch (operation) {
         case "task.put":

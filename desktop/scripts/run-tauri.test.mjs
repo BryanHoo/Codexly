@@ -93,19 +93,8 @@ void test("macOS builds should preserve an explicit Intel target", () => {
   assert.deepEqual(resolveTauriArguments(args, "darwin", "arm64"), args);
 });
 
-void test("Legacy builds should select Intel and append the isolated configuration", () => {
-  assert.deepEqual(resolveTauriArguments(["build"], "darwin", "arm64", "legacy"), [
-    "build", "--target", "x86_64-apple-darwin",
-    "--config", "src-tauri/tauri.macos-legacy.conf.json",
-  ]);
-});
-
-void test("Legacy builds should reject unsupported platforms and targets", () => {
-  assert.throws(() => resolveTauriArguments(["build"], "linux", "x64", "legacy"), /Legacy/);
-  assert.throws(() => resolveTauriArguments(
-    ["build", "--target=aarch64-apple-darwin"], "darwin", "arm64", "legacy",
-  ), /Legacy/);
-  assert.throws(() => resolveTauriArguments(["build"], "darwin", "arm64", "typo"), /profile/);
+void test("removed macOS build profiles should be rejected", () => {
+  for (const profile of ["legacy", "typo"]) assert.throws(() => resolveTauriArguments(["build"], "darwin", "arm64", profile), /profile/);
 });
 
 void test("Intel hosts should build an Intel app by default", () => {
@@ -163,7 +152,7 @@ void test("platform and local bundle configurations should preserve bundled runt
   const base = JSON.parse(
     await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
   );
-  for (const name of ["windows", "macos", "linux", "macos-legacy", "local"]) {
+  for (const name of ["windows", "macos", "linux", "local"]) {
     const overlay = await readFile(
       new URL(`../src-tauri/tauri.${name}.conf.json`, import.meta.url),
       "utf8",
@@ -198,7 +187,7 @@ void test("Windows releases should publish portable and updater NSIS artifacts",
   )?.[0];
   assert.ok(portablePackage, "portable releases must package the application and its runtimes");
   assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/target/release/codexly.exe $portableRoot"));
-  assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/binaries/claude-host-x86_64-pc-windows-msvc.exe (Join-Path $portableRoot 'claude-host.exe')"));
+  assert.ok(!portablePackage.includes("claude-host"));
   assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/resources/runtime (Join-Path $portableRoot 'runtime') -Recurse"));
   assert.ok(portablePackage.includes('Compress-Archive -Path "$portableRoot/*"'));
   assert.match(workflow, /- name: Preserve Windows portable archive\s+if: matrix\.portable[\s\S]*?name: windows-x64-portable[\s\S]*?path: \$\{\{ runner\.temp \}\}\/Codexly_\*_x64_portable\.zip/);

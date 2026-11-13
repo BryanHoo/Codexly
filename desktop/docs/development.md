@@ -32,7 +32,7 @@ pnpm tauri:local
 
 正式签名构建仍使用 `pnpm tauri build`，需要提供与项目更新公钥匹配的 `TAURI_SIGNING_PRIVATE_KEY`。`--no-sign` 只跳过代码签名，不会关闭自动更新签名；不要为本地测试替换正式更新公钥。两类签名的用途见 [Tauri CLI](https://v2.tauri.app/reference/cli/) 与[更新插件文档](https://v2.tauri.app/plugin/updater/)。
 
-macOS 架构选择与 Legacy 构建见 [macOS 分档构建](./macos-build-profiles.md)。版本管理与发布流程见[发布指南](./releasing.md)。
+macOS 架构选择和最低系统要求见 [macOS 构建支持范围](./macos-build-profiles.md)。版本管理与发布流程见[发布指南](./releasing.md)。
 
 [返回 README](../README.md) · [English](./development.en.md)
 

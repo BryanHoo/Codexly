@@ -133,7 +133,7 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     taskId: string,
     attachmentId: string,
   ): string {
-    return buildNativeTaskAttachmentUrl(projectId, taskId, attachmentId);
+    return buildNativeTaskAttachmentUrl(projectId, taskId, attachmentId, "legacy");
   }
 
   public async openTaskAttachment(
@@ -142,7 +142,8 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     attachmentId: string,
     _options: MutationOptions = {},
   ): Promise<OpenAgentTaskAttachmentResponse> {
-    return this.invokeCommand("open_task_attachment", { attachmentId, projectId, taskId });
+    const runtime = await this.applicationRuntime();
+    return this.invokeCommand("open_task_attachment", { attachmentId, projectId, taskId, ...(runtime === "acp" ? { agentRuntime: "acp" } : {}) });
   }
 
   public async getProjectOpenCapabilities(

@@ -135,5 +135,5 @@ void test("只有本地打包入口默认启用清理，正式发布入口保持
   const { scripts } = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
   assert.ok(scripts["tauri:local"].includes("--clean-target"));
   assert.equal(scripts.tauri, "node scripts/run-tauri.mjs");
-  assert.ok(!scripts["tauri:legacy"].includes("--clean-target"));
+  assert.equal(scripts["tauri:legacy"], undefined);
 });

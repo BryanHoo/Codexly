@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it, expect } from "vitest";
@@ -115,5 +115,26 @@ describe("ACP 历史分页", () => {
     await h.deleteTask("a");
     expect((await h.read("a")).turns).toEqual([]);
     expect((await h.read("b")).turns).toHaveLength(1);
+  });
+  it("重复重放有界保留版本，近期游标继续可读而淘汰游标明确失效", async () => {
+    const h = await fixture();
+    await h.replace("task", turns(25));
+    const oldest = (await h.read("task")).cursor;
+    for (let i = 0; i < 10; i++) await h.replace("task", turns(25));
+    const recent = (await h.read("task")).cursor;
+    await h.replace("task", turns(26));
+    expect((await h.read("task", recent ?? undefined)).turns.map((entry) => entry.id)).toEqual([
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+    ]);
+    await expect(h.read("task", oldest ?? undefined)).rejects.toThrow("失效");
+    const [taskDirectory] = await readdir(h.directory);
+    if (!taskDirectory) throw new Error("历史目录未创建");
+    expect(
+      (await readdir(join(h.directory, taskDirectory))).filter((name) => name.endsWith(".jsonl")),
+    ).toHaveLength(8);
   });
 });

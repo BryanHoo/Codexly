@@ -7,6 +7,8 @@ import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { AcpAgentService } from "./agent-service.js";
+import { AcpSettingsStore } from "./settings-store.js";
 
 async function fixture() {
   const tasks = new Map<string, LocalTask>();
@@ -63,9 +65,11 @@ async function fixture() {
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
       protocolVersion: 1,
-      agentCapabilities: { sessionCapabilities: { list: {} } },
+      agentCapabilities: { sessionCapabilities: { list: {}, close: {} } },
     }))
     .onRequest(acp.methods.agent.session.list, list)
+    .onRequest(acp.methods.agent.session.new, () => ({ sessionId: "settings", configOptions: [] }))
+    .onRequest(acp.methods.agent.session.close, () => ({}))
     .connect({ readable: a.readable, writable: b.writable });
   const connection = await AcpConnection.connect({ readable: b.readable, writable: a.writable });
   return {
@@ -99,6 +103,35 @@ it("分页发现历史保持既有身份和管理状态，重复导入不创建�
     ).toBe("project");
   } finally {
     f.close();
+  }
+});
+
+it("首次成功读取 ACP 配置后自动发现目录，后续读取不重复扫描且不创建应用任务", async () => {
+  const f = await fixture();
+  const root = await mkdtemp(join(tmpdir(), "acp-ready-catalog-"));
+  const service = new AcpAgentService(
+    "claude",
+    root,
+    new AcpSettingsStore(root),
+    () =>
+      Promise.resolve({
+        connection: f.connection,
+        close: () => {
+          f.close();
+          return Promise.resolve();
+        },
+      }),
+    f.store,
+  );
+  try {
+    await service.readDefaults();
+    expect(f.tasks.size).toBe(3);
+    expect(f.list).toHaveBeenCalledTimes(2);
+    await service.readDefaults();
+    expect(f.list).toHaveBeenCalledTimes(2);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
   }
 });
 it("分页循环、异常与取消不删除已有绑定，允许从头安全重试", async () => {

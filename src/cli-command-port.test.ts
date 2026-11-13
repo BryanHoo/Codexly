@@ -81,42 +81,24 @@ describe("runCli ports", () => {
     }
   });
 
-  it("returns a non-zero code when App Server exits before shutdown", async () => {
-    const harness = createHarness({
-      startCodexAppServer: vi.fn(() =>
-        Promise.resolve({
-          close: () => Promise.resolve(),
-          client: {
-            notify: vi.fn(),
-            onNotification: vi.fn(() => () => undefined),
-            onServerRequest: vi.fn(() => () => undefined),
-            rejectServerRequest: vi.fn(() => Promise.resolve()),
-            request: vi.fn(),
-            respondToServerRequest: vi.fn(),
-          },
-          pid: 4321,
-          version: { raw: "codex-cli 0.163.0", version: "0.163.0" },
-          waitForExit: () => Promise.resolve({ code: 23, signal: null }),
-        }),
-      ),
-    });
+  it("keeps HTTP available when an individual ACP agent request fails", async () => {
+    const harness = createHarness();
     const controller = new AbortController();
     const run = runCli(["start"], { ...harness.options, signal: controller.signal });
     try {
       await vi.waitFor(() => {
         expect(harness.serverListen).toHaveBeenCalledOnce();
       });
-      await vi
-        .mocked(harness.dependencies.createRuntimeProvider)
-        .mock.calls[0]?.[0].client.request("config/read");
-      await expect(run).resolves.toBe(1);
+      vi.spyOn(harness.runtimeProvider, "listModels").mockRejectedValueOnce(
+        new Error("agent disconnected"),
+      );
+      await expect(harness.runtimeProvider.listModels()).rejects.toThrow("agent disconnected");
+      expect(harness.serverClose).not.toHaveBeenCalled();
+      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     } finally {
       controller.abort();
-      await run;
     }
-    expect(harness.stderr.join("")).toContain(
-      "Codex App Server 在 Codexly 关闭前意外退出，退出码 23",
-    );
+    await expect(run).resolves.toBe(0);
   });
 
   it("opens a new browser page without waiting for an existing page", async () => {

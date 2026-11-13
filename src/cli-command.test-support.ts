@@ -1,9 +1,28 @@
+import type { AgentRuntimeProvider, CatalogOperations } from "@codexly/core";
+import type {
+  checkCodexVersion,
+  locateCodexBinary,
+  readCodexStartupConfig,
+  StartCodexAppServerOptions,
+} from "@codexly/provider-codex";
+import type { CliManagedRuntime } from "./cli-lazy-codex-client.js";
+import type { CreateRuntimeProviderInput } from "./cli-server-input.js";
 import { rm } from "node:fs/promises";
 import type { Project } from "@codexly/protocol";
 import { afterEach, beforeEach, vi, type Mock } from "vitest";
-import type { CliDependencies, RunCliOptions } from "./cli-command.js";
+import type { CliDependencies as ProductionCliDependencies, RunCliOptions } from "./cli-command.js";
 import { STARTUP_UPDATE_APPLIED_ENV } from "./cli-startup-update.js";
 
+// 冻结旧版读取与工具单测仍可单独注入旧端口，生产 CliDependencies 已无旧执行工厂。
+type CliDependencies = ProductionCliDependencies & {
+  checkCodexVersion: typeof checkCodexVersion;
+  locateCodexBinary: typeof locateCodexBinary;
+  readCodexStartupConfig: typeof readCodexStartupConfig;
+  createRuntimeProvider: (
+    input: CreateRuntimeProviderInput,
+  ) => AgentRuntimeProvider | Promise<AgentRuntimeProvider>;
+  startCodexAppServer: (options?: StartCodexAppServerOptions) => Promise<CliManagedRuntime>;
+};
 // 集中维护拆分测试共享的样本、mock 与生命周期钩子。
 export const temporaryDirectories: string[] = [];
 
@@ -122,6 +141,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     uploadFeedback: vi.fn(),
   };
   const runtimeProvider = {
+    close,
     cancelProviderLogin: vi.fn(() =>
       Promise.resolve({
         status: {
@@ -203,6 +223,10 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     }),
   };
   const stateRepository = {
+    catalog: <K extends keyof CatalogOperations>(
+      _operation: K,
+      _payload: CatalogOperations[K][0],
+    ) => Promise.resolve(null as CatalogOperations[K][1]),
     listAsyncQuestions: vi.fn(() => Promise.resolve([])),
     discoverAsyncQuestions: vi.fn(() => Promise.resolve()),
     updateAsyncQuestion: vi.fn(() => Promise.resolve(true)),
@@ -260,6 +284,12 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
   };
   const dependencies: CliDependencies = {
     appVersion: "1.2.3",
+    inspectAcpAgents: vi.fn(() =>
+      Promise.resolve([
+        { engine: "codex" as const, name: "codex-acp", protocolVersion: 1 },
+        { engine: "claude" as const, name: "claude-acp", protocolVersion: 1 },
+      ]),
+    ),
     checkAppUpdate: vi.fn(() =>
       Promise.resolve({ latestVersion: "1.2.3", status: "current" as const }),
     ),
@@ -277,6 +307,13 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       openPetAsset: vi.fn(() => Promise.resolve(undefined)),
     })),
     createStateRepository: vi.fn(() => Promise.resolve(stateRepository)),
+    createAcpRuntime: vi.fn(() => {
+      lifecycle.push("provider.create");
+      return runtimeProvider;
+    }),
+    readEngineVersions: vi.fn(() =>
+      Promise.resolve({ codexVersion: "0.166.0", claudeVersion: "2.1.316" }),
+    ),
     createRuntimeProvider: vi.fn(() => {
       lifecycle.push("provider.create");
       return runtimeProvider;

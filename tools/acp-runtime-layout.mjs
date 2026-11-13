@@ -74,7 +74,7 @@ export async function runtimeInventory(directory) {
   return entries;
 }
 /** 签名前核对完整布局与字节；签名可能改写二进制，安装后的校验不能复用原始摘要。 */
-export async function verifyAcpRuntime(directory, target) {
+export async function verifyAcpRuntime(directory, target, sidecar) {
   const manifest = JSON.parse(await readFile(join(directory, "manifest.json"), "utf8"));
   if (
     manifest.schemaVersion !== 1 ||
@@ -83,8 +83,11 @@ export async function verifyAcpRuntime(directory, target) {
     manifest.host?.protocolVersion !== 1
   )
     throw new Error("ACP runtime target mismatch");
+  const hostPath = localPath(manifest.host.path);
+  if (manifest.host.placement !== undefined && manifest.host.placement !== "sidecar")
+    throw new Error("Invalid ACP host placement");
   const executables = [
-    localPath(manifest.host.path),
+    ...(manifest.host.placement === "sidecar" ? [] : [hostPath]),
     localPath(manifest.engines.codex.entrypoint),
     localPath(manifest.engines.claude.entrypoint),
   ];
@@ -92,8 +95,13 @@ export async function verifyAcpRuntime(directory, target) {
     (entry) => entry.path !== "manifest.json",
   );
   if (!isDeepStrictEqual(files, manifest.files)) throw new Error("ACP runtime integrity mismatch");
-  if (files.find((file) => file.path === manifest.host.path)?.sha256 !== manifest.host.sha256)
-    throw new Error("ACP host digest mismatch");
+  const hostDigest =
+    manifest.host.placement === "sidecar"
+      ? sidecar && (await lstat(sidecar)).isFile()
+        ? await sha256(sidecar)
+        : undefined
+      : files.find((file) => file.path === hostPath)?.sha256;
+  if (hostDigest !== manifest.host.sha256) throw new Error("ACP host digest mismatch");
   for (const path of executables)
     if (!files.some((file) => file.path === path && file.type === "file"))
       throw new Error("ACP runtime executable missing");

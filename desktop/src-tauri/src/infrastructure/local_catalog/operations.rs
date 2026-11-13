@@ -76,6 +76,9 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "acp.storage.read" | "acp.storage.claim" | "acp.storage.release" => {
+            super::acp_storage_locks::execute(db, op, p)
+        }
         "acp.title.claim" | "acp.title.finish" => super::acp_task_titles::execute(db, op, p),
         "app.preferences.read" | "app.preferences.patch" => {
             super::application_preferences::execute(db, op, p)

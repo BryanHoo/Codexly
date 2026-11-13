@@ -22,8 +22,11 @@ import type { AcpConfigValues, AgentEngine, AgentTurnOptions, AgentTurn } from "
 import type { SessionNotification, SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import type { AcpConnection, AcpClientCallbacks } from "./connection.js";
 import type { AcpHistory } from "./history.js";
-import { AcpReplay } from "./replay.js";
-import { AcpEventProjection } from "./event-projection.js";
+import type { AcpReplay } from "./replay.js";
+import { loadAcpSession } from "./session-loading.js";
+import type { AcpSessionInitialization } from "./session-initialization.js";
+import type { AcpStoredSettings } from "./settings-store.js";
+import { AcpEventProjection, contentText } from "./event-projection.js";
 import { AcpPermissions } from "./permissions.js";
 import { createAcpPrompt } from "./turn-input.js";
 import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
@@ -55,6 +58,10 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   publishTaskTitle(id: string, title: string): void {
     this.#emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
   }
+  /** 运行中及终态待落盘回合仍归原连接所有，搜索不能另开重放覆盖它。 */
+  hasPendingTurn(id: string): boolean {
+    return this.#active.has(id);
+  }
   constructor(
     readonly engine: AgentEngine,
     readonly scope: AgentTaskScope,
@@ -65,7 +72,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       connection: AcpConnection,
       sessionId: string,
       options: SessionConfigOption[],
+      saved?: AcpStoredSettings,
     ) => Promise<SessionConfigOption[]>,
+    readonly initialization?: AcpSessionInitialization,
   ) {
     this.attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
     this.#permissions = new AcpPermissions(scope.id, this.#emit);
@@ -92,6 +101,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         this.#needsDefaults.delete(task.id);
       },
       async (id) => {
+        await this.initialization?.deleteTask(id);
         await history.deleteTask(id);
         await this.attachments.deleteTask(id);
       },
@@ -191,56 +201,21 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     const task = [...this.#sessions].find(([, native]) => native === sessionId)?.[0];
     if (task) this.#emit({ type: "acp.session.updated", taskId: task, payload: { state } });
   }
-  async #load(task: LocalTask, explicitConfig = false): Promise<AcpConnection> {
-    const connection = await this.#agent();
-    const bound = this.#sessions.get(task.id);
-    if (bound) {
-      // 创建成功但目录写入失败时，重试先确认同一绑定，禁止重新创建或提交未绑定会话。
-      if (task.sessionId !== bound) await this.#patch(task.id, { sessionId: bound });
-      if (!explicitConfig) await this.#initialize(task.id, connection, bound);
-      return connection;
-    }
-    if (this.#sessions.size >= 64) throw new Error("ACP 活跃会话达到容量限制");
-    if (
-      this.#ephemeral.has(task.id) &&
-      !connection.initialization.agentCapabilities?.sessionCapabilities?.close
-    )
-      throw new Error("ACP agent 不支持辅助会话关闭");
-    if (task.sessionId === null) {
-      const session = await connection.newSession({ cwd: task.cwd, mcpServers: [] });
-      this.#sessions.set(task.id, session.sessionId);
-      this.#needsDefaults.add(task.id);
-      await this.#patch(task.id, { sessionId: session.sessionId });
-      if (!explicitConfig) await this.#initialize(task.id, connection, session.sessionId);
-      this.#emitSessionState(session.sessionId, connection.readSessionState(session.sessionId));
-    } else {
-      const replay = new AcpReplay(this.history, task.id);
-      this.#replays.set(task.sessionId, replay);
-      try {
-        await connection.loadSession({
-          sessionId: task.sessionId,
-          cwd: task.cwd,
-          mcpServers: [],
-        });
-        await replay.complete();
-        this.#sessions.set(task.id, task.sessionId);
-        this.#emitSessionState(task.sessionId, connection.readSessionState(task.sessionId));
-      } catch (error) {
-        await replay.abort(error);
-        throw error;
-      } finally {
-        this.#replays.delete(task.sessionId);
-      }
-    }
-    return connection;
-  }
-  async #initialize(id: string, connection: AcpConnection, sessionId: string): Promise<void> {
-    if (!this.#needsDefaults.has(id)) return;
-    // 绑定先落盘；失败保留待应用标记，当前进程内安全重试同一会话。
-    const options = connection.readSessionState(sessionId).configOptions;
-    const initialized = await this.initializeSession?.(connection, sessionId, options);
-    if (initialized) await connection.cacheSessionConfiguration(sessionId, initialized);
-    this.#needsDefaults.delete(id);
+  #load(task: LocalTask, explicitConfig = false): Promise<AcpConnection> {
+    return loadAcpSession(task, explicitConfig, {
+      sessions: this.#sessions,
+      needsDefaults: this.#needsDefaults,
+      replays: this.#replays,
+      ephemeral: this.#ephemeral.has(task.id),
+      history: this.history,
+      ...(this.initialization ? { initialization: this.initialization } : {}),
+      ...(this.initializeSession ? { initialize: this.initializeSession } : {}),
+      agent: () => this.#agent(),
+      patch: (patch) => this.#patch(task.id, patch),
+      updated: (connection, session) => {
+        this.#emitSessionState(session, connection.readSessionState(session));
+      },
+    });
   }
   async startTask(options: StartAgentTaskOptions = {}) {
     if (this.#closed) throw new Error("ACP Provider 已关闭");
@@ -306,6 +281,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
             agent.readSessionState(sessionId).configOptions,
             initialConfig,
           );
+          if (!this.#ephemeral.has(id)) await this.initialization?.complete(task, sessionId);
           this.#needsDefaults.delete(id);
         }
         const selected = migrateAcpSettings(
@@ -347,7 +323,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
               projection.fail(error instanceof Error ? error.message : "ACP 连接失败"),
           )
           .then(async (final) => {
-            if (!this.#ephemeral.has(id)) await this.history.append(id, final);
+            if (!this.#ephemeral.has(id))
+              await this.history.append(id, final, prompt.map(contentText).join(""));
             await this.#patch(id, {
               status: "idle",
               updatedAt: Math.floor(Date.now() / 1000),

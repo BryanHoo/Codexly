@@ -27,11 +27,10 @@ describe("CLI multiple Web instances", () => {
       });
       for (const harness of [first, second]) {
         expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-        await vi
-          .mocked(harness.dependencies.createRuntimeProvider)
-          .mock.calls[0]?.[0].client.request("config/read");
-        expect(harness.dependencies.startCodexAppServer).toHaveBeenCalledWith(
-          expect.objectContaining({ cwd: homedir() }),
+        expect(harness.dependencies.createAcpRuntime).toHaveBeenCalledWith(
+          expect.objectContaining({
+            environment: expect.objectContaining({ CODEX_HOME: "/shared/codex-home" }) as unknown,
+          }),
         );
         expect(harness.dependencies.createServer).toHaveBeenCalledWith(
           expect.objectContaining({ standaloneCwd: homedir() }),

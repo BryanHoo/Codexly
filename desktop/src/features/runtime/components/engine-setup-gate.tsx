@@ -9,7 +9,7 @@ const LegacyGate = lazy(() =>
 
 export function EngineSetupGate({ children }: Readonly<{ children: ReactNode }>) {
   return <AgentRuntimeSetupGate client={nativeClient} language={getCurrentLanguage()}
-    claudeSupported={import.meta.env.VITE_MACOS_LEGACY !== "true"}
+    claudeSupported={true}
     legacy={<LegacyGate>{children}</LegacyGate>}>
     {children}
   </AgentRuntimeSetupGate>;

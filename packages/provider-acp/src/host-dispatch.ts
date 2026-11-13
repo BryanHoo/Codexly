@@ -21,6 +21,7 @@ import {
   ReorderAgentQueuedSubmissionsRequestSchema,
   PinAgentTaskRequestSchema,
   RenameAgentTaskRequestSchema,
+  SearchOccurrencesQuerySchema,
 } from "@codexly/protocol";
 import {
   readTaskWithCheckpoint,
@@ -158,6 +159,36 @@ export async function dispatchAcpHost(
     }
   }
   if (!Value.Check(Scope, message["scope"])) throw new Error("Invalid host scope");
+  if (method === "attachment.export") {
+    const id = text(params, "taskId"),
+      scope = message["scope"];
+    const task = await runtime.store.catalog("task.read", { id });
+    if (!task || task.projectId !== (scope.kind === "temporary" ? null : scope.id))
+      throw new Error("Task not found");
+    // 附件导出不建立项目运行时，避免工作树任务 cwd 与已打开项目根产生作用域冲突。
+    return exportTaskAttachment(
+      new HistoricalTaskAttachments(join(runtime.directory, "history", "task-attachments")),
+      id,
+      text(params, "attachmentId"),
+    );
+  }
+  if (method === "search.occurrences") {
+    if (
+      !Value.Check(SearchOccurrencesQuerySchema, params["input"]) ||
+      (params["limit"] !== 1 && params["limit"] !== 30) ||
+      Object.keys(params).some((key) => !["taskId", "input", "limit"].includes(key))
+    )
+      throw new Error("Invalid ACP search input");
+    const scope = message["scope"];
+    // 搜索只返回有界摘要；由共享目录核对任务归属，不创建项目订阅或改变当前项目根。
+    return runtime.search.searchTaskOccurrences(
+      text(params, "taskId"),
+      params["input"],
+      scope,
+      signal,
+      params["limit"],
+    );
+  }
   const scope = message["scope"],
     provider = runtime.forScope(scope);
   subscribe(provider, scope);
@@ -264,14 +295,6 @@ export async function dispatchAcpHost(
         moved: await queue.move(provider, scope.id, id, text(params, "queuedSubmissionId"), offset),
         queue: { data: await queue.list(provider, scope.id, id) },
       };
-    }
-    case "attachment.export": {
-      if (!(await provider.readTaskMetadata?.(id))) throw new Error("Task not found");
-      return exportTaskAttachment(
-        new HistoricalTaskAttachments(join(runtime.directory, "history", "task-attachments")),
-        id,
-        text(params, "attachmentId"),
-      );
     }
     case "request.resolve": {
       const { requestId, ...input } = params;

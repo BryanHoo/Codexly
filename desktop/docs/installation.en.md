@@ -2,7 +2,7 @@
 
 1. Download the release artifact for your platform from [Releases](https://github.com/BryanHoo/Codexly/releases).
 2. Follow the platform-specific steps below to install and launch Codexly.
-3. The app opens directly into the workspace. Configure Codex, Claude, or both in Settings, then add a project and create a task. Supported existing local configurations can be reused. Runtimes are bundled: no separate Node.js or Bun installation or first-launch download is needed. macOS Legacy supports Codex only. See [getting started](../../docs/getting-started.en.md).
+3. The app opens directly into the workspace. Configure Codex, Claude, or both in Settings, then add a project and create a task. Supported existing local configurations can be reused. Runtimes are bundled: no separate Node.js or Bun installation or first-launch download is needed. See [getting started](../../docs/getting-started.en.md).
 
 This guide covers desktop installation. For computer and mobile browsers, see [Web and mobile](../../docs/web.en.md).
 
@@ -13,7 +13,6 @@ Older macOS releases and Windows or Ubuntu packages may display source or securi
 | Windows 10/11        | x86_64                      | NSIS installer, portable ZIP   |
 | Ubuntu 24.04+        | x86_64                      | DEB, AppImage                  |
 | macOS 14.5+ (Modern) | Apple Silicon, Intel x86_64 | app, DMG                       |
-| macOS 12.4+ (Legacy) | Intel x86_64                | app, DMG (`_legacy` filenames) |
 
 ## Install, Permissions, and Uninstall
 
@@ -23,7 +22,7 @@ Download only from this repository's [Releases](https://github.com/BryanHoo/Code
 
 Windows offers an NSIS installer and a portable ZIP. Choose the installer for automatic updates, run the downloaded `setup.exe`, and follow the prompts. Uninstall it through Windows Settings > Apps. To update a portable build, close the app and replace the complete extracted directory with the new version.
 
-For the portable build, rename the ZIP to `Codexly.zip` and open PowerShell in the download directory. Unblock the archive before extracting it completely; keep `codexly.exe`, its sibling `claude-host.exe`, and the `runtime` directory together:
+For the portable build, rename the ZIP to `Codexly.zip` and open PowerShell in the download directory. Unblock the archive before extracting it completely; keep `codexly.exe`, its sibling `acp-host.exe`, and the `runtime` directory together:
 
 ```powershell
 Unblock-File -Path ".\Codexly.zip"
@@ -94,7 +93,7 @@ rm -rf "$HOME/.cache/com.codexly.desktop"
 
 ### macOS
 
-Choose Modern for macOS 14.5+ on Apple Silicon or Intel, or Legacy for Intel on macOS 12.4+. Legacy uses simplified surfaces and a virtualized plain-text diff. Monterey hardware validation is still required; see [build profiles](./macos-build-profiles.md). After downloading it, rename the file to `Codexly.dmg`:
+Choose the Apple Silicon or Intel package for macOS 14.5+. See [build support](./macos-build-profiles.md). After downloading it, rename the file to `Codexly.dmg`:
 
 ```bash
 hdiutil attach "./Codexly.dmg"
@@ -129,7 +128,7 @@ Delete that directory manually only if you intend to clear data for all local Co
 
 Starting with 0.44.1, the Windows installer stops leftover agent runtimes in the current installation directory before updating or uninstalling, preventing file locks from blocking installation. Save your work and finish running tasks before updating. If an older version stalls during an in-app update, quit the app, download the new installer from official Releases, and run it again.
 
-Installed builds check for updates through the app. Portable Windows builds require manual replacement. Modern and Legacy macOS builds use separate update manifests; upgrading macOS does not switch profiles automatically. To switch to Modern, install its package manually. Both profiles use the same local data directory.
+Installed builds check for updates through the app. Portable Windows builds require manual replacement. Legacy macOS builds and their update channel are discontinued. Upgrade to macOS 14.5+ and install the current package manually; the local data directory is unchanged.
 
 An updater signature verifies the update artifact; it is separate from operating-system code signing and macOS notarization. Download only from [official Releases](https://github.com/BryanHoo/Codexly/releases).
 

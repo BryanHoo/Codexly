@@ -28,7 +28,8 @@
     "simple-git": "catalog:",
     "ws": "catalog:",
     "yazl": "catalog:",
-    "@codexly/provider-claude": "workspace:*"
+    "@codexly/provider-claude": "workspace:*",
+    "@codexly/provider-acp": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "catalog:",

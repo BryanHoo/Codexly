@@ -33,7 +33,6 @@ export type MessageSourceAttachmentProps = Readonly<{
   triggerChildren: ReactNode;
   triggerClassName: string;
   url: string;
-  legacyTheme?: boolean;
   labels: Readonly<{
     open: string;
     close: string;
@@ -50,7 +49,6 @@ export function MessageSourceAttachment({
   triggerChildren,
   triggerClassName,
   url,
-  legacyTheme = false,
   labels,
   readSource,
 }: MessageSourceAttachmentProps) {
@@ -110,7 +108,6 @@ export function MessageSourceAttachment({
             className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-none bg-content shadow-none"
             code={sourceQuery.data}
             language={getCodeLanguage(name)}
-            legacyTheme={legacyTheme}
             showLineNumbers
           >
             <CodeBlockHeader className="min-h-toolbar gap-3 bg-raised px-3 shadow-toolbar sm:px-4">

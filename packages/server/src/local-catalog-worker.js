@@ -1,4 +1,5 @@
 import { createAcpTaskTitleOperations } from "./acp-task-title-worker.js";
+import { createAcpStorageLockOperations } from "./acp-storage-lock-worker.js";
 import { createApplicationPreferencesOperations } from "./application-preferences-worker.js";
 import { createAcpPlanResourceOperations } from "./acp-plan-resource-worker.js";
 import { createAcpPlanCompletionOperations } from "./acp-plan-completion-worker.js";
@@ -98,6 +99,7 @@ export function createLocalCatalogOperations(db) {
     return readTask(t.id);
   };
   const operations = {
+    ...createAcpStorageLockOperations(db),
     ...createAcpTaskTitleOperations(db),
     ...createApplicationPreferencesOperations(db),
     ...createSavedPromptOperations(db),

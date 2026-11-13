@@ -12,7 +12,6 @@ const AgentSettingsPanel = lazy(() => import("./agent-settings-panel.js").then((
 export function ClaudeSettingsPanel({ section, onConnected, continueLabel }: Readonly<{ section: ClaudeSettingsSectionId; onConnected?: (() => void) | undefined; continueLabel?: string | undefined }>) {
   const { t } = useTranslation("settings");
   const labels = getCurrentLanguage() === "zh-CN" ? engineChinese : engineEnglish;
-  if (import.meta.env.VITE_MACOS_LEGACY === "true") return <p role="status">{getCurrentLanguage() === "zh-CN" ? engineChinese.unsupportedLegacy : engineEnglish.unsupportedLegacy}</p>;
   if (section === "claude-agent") return <AgentSettingsPanel engine="claude" />;
   return <SharedClaudeSettingsPanel onConnected={onConnected} continueLabel={continueLabel} client={nativeClient satisfies ClaudeSettingsClient} section={section} title={t(`sections.${section}`)} labels={labels} Group={SettingsGroup} Field={SettingsField} Select={SettingsSelect} />;
 }

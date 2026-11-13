@@ -20,8 +20,6 @@ export function LegacyEngineSetupGate({ children }: Readonly<{ children: ReactNo
     staleTime: 0,
     refetchOnWindowFocus: true,
     retry: false,
-    select: (engines) => import.meta.env.VITE_MACOS_LEGACY === "true"
-      ? engines.filter((engine) => engine !== "claude") : engines,
   });
   useEffect(() => {
     // API 保存、退出登录及原生登录完成后刷新一次；不轮询、不重挂载工作区。

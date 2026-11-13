@@ -230,14 +230,6 @@ jobs:
             uploadPlainBinary: false
             uploadUpdaterArtifacts: true
             releaseAssetNamePattern: ""
-          - name: macOS Intel Legacy
-            platform: macos-latest
-            args: --target x86_64-apple-darwin --config src-tauri/tauri.macos-legacy.conf.json --bundles app,dmg --ci
-            rustTargets: x86_64-apple-darwin
-            macosProfile: legacy
-            uploadPlainBinary: false
-            uploadUpdaterArtifacts: false
-            releaseAssetNamePattern: "[name]_[version]_[arch]_legacy[ext]"
     steps:
       - name: Checkout verified commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -286,9 +278,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          CODEAGENT_MACOS_PROFILE: ${{ matrix.macosProfile || 'modern' }}
-          CARGO_TARGET_DIR: ${{ matrix.macosProfile == 'legacy' && format('{0}/desktop/src-tauri/target/legacy', github.workspace) || format('{0}/desktop/src-tauri/target', github.workspace) }}
-          # Tauri 原生导入 p12、使用 Developer ID 签名并公证、装订票据；三种 macOS 产物共用配置。
+          # Tauri 原生导入 p12、使用 Developer ID 签名并公证、装订票据；两种 macOS 产物共用配置。
           # Apple 凭据仅传给 macOS 构建，Windows 和 Linux 不接收这些密钥。
           APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
@@ -307,7 +297,6 @@ jobs:
           uploadUpdaterSignatures: ${{ matrix.uploadUpdaterArtifacts }}
           uploadPlainBinary: ${{ matrix.uploadPlainBinary }}
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: ${{ matrix.macosProfile == 'legacy' && '[platform]-[arch]-[bundle]-legacy' || '' }}
           releaseAssetNamePattern: ${{ matrix.releaseAssetNamePattern }}
           args: ${{ matrix.args }}
       - name: Build Windows portable application
@@ -323,7 +312,7 @@ jobs:
           $portableRoot = Join-Path $env:RUNNER_TEMP 'codexly-portable'
           New-Item -ItemType Directory -Path $portableRoot -Force | Out-Null
           Copy-Item desktop/src-tauri/target/release/codexly.exe $portableRoot
-          Copy-Item desktop/src-tauri/binaries/claude-host-x86_64-pc-windows-msvc.exe (Join-Path $portableRoot 'claude-host.exe')
+          Copy-Item desktop/src-tauri/binaries/acp-host-x86_64-pc-windows-msvc.exe (Join-Path $portableRoot 'acp-host.exe')
           Copy-Item desktop/src-tauri/resources/runtime (Join-Path $portableRoot 'runtime') -Recurse
           $archive = Join-Path $env:RUNNER_TEMP "Codexly_${version}_x64_portable.zip"
           Compress-Archive -Path "$portableRoot/*" -DestinationPath $archive -CompressionLevel Optimal
@@ -338,29 +327,13 @@ jobs:
         shell: bash
         env:
           MACOS_TARGET: ${{ matrix.rustTargets }}
-          MACOS_PROFILE: ${{ matrix.macosProfile || 'modern' }}
         run: |
           # 验证实际产物；票据或 Gatekeeper 校验失败时，联合 Release 必须保持草稿。
           bundle_root="desktop/src-tauri/target"
-          if [[ "${MACOS_PROFILE}" == 'legacy' ]]; then
-            bundle_root="${bundle_root}/legacy"
-          fi
           app_path="${bundle_root}/${MACOS_TARGET}/release/bundle/macos/Codexly.app"
           codesign --verify --deep --strict --verbose=2 "${app_path}"
           xcrun stapler validate "${app_path}"
           spctl --assess --type execute --verbose=4 "${app_path}"
-      - name: Publish isolated Legacy updater metadata
-        if: matrix.macosProfile == 'legacy'
-        shell: bash
-        working-directory: desktop
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ARTIFACT_PATHS: ${{ steps.build.outputs.artifactPaths }}
-          APP_VERSION: ${{ steps.build.outputs.appVersion }}
-          JOINT_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          node scripts/legacy-release.mjs
-          gh release upload "${JOINT_RELEASE_TAG}" "${RUNNER_TEMP}/latest-legacy.json" --clobber
 
   release:
     name: Publish joint GitHub release

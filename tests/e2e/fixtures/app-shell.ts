@@ -1,3 +1,4 @@
+import { mockAcpDefaults } from "./acp-defaults.js";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect, test as base, type Page, type Route } from "@playwright/test";
@@ -141,4 +142,5 @@ export async function mockAppShellApi(
   await page.route("**/v1/**", handleApiRoute);
   // temporary 契约即使解除通用 mock 也必须保持测试内隔离。
   await page.route("**/v1/temporary/**", handleApiRoute);
+  await mockAcpDefaults(page);
 }

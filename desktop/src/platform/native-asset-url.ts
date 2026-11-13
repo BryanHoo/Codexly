@@ -9,7 +9,7 @@ export function buildNativeTaskAttachmentUrl(
   projectId: string,
   taskId: string,
   attachmentId: string,
-  transport: "legacy" | "acp" = "legacy",
+  transport: "legacy" | "acp" = "acp",
 ): string {
   if (!attachmentId.startsWith("history-")) return buildNativeAssetUrl(attachmentId);
   return `${convertFileSrc("read", "task-attachment")}?${new URLSearchParams({ projectId, taskId, attachmentId, ...(transport === "acp" ? { acp: "1" } : {}) })}`;

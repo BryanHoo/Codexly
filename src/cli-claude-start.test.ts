@@ -2,61 +2,43 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import { query, type Query } from "@anthropic-ai/claude-agent-sdk";
+import { ApplicationPreferencesService } from "@codexly/core";
 import type { TaskSearchPage, SearchOccurrencesPage } from "@codexly/protocol";
-import { createCodexRuntimeProvider } from "@codexly/provider-codex";
 import {
   createCodexlyServer,
   LocalProjectRepository,
   SqliteStateRepository,
 } from "@codexly/server";
+import { createPersistentAgentPeer } from "../packages/provider-acp/test/persistent-agent.test-support.js";
+import { createCliAcpRuntime } from "./cli-acp-runtime.js";
 import { runCli } from "./cli-command.js";
 import { createHarness, temporaryDirectories } from "./cli-command.test-support.js";
 
-vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  query: vi.fn(
-    () =>
-      ({
-        async *[Symbol.asyncIterator]() {
-          yield await Promise.resolve({
-            type: "result",
-            subtype: "success",
-            result: "done",
-            is_error: false,
-          });
-        },
-        supportedModels: () => Promise.resolve([{ value: "sonnet", displayName: "Claude" }]),
-        supportedCommands: () => Promise.resolve([]),
-        accountInfo: () => Promise.resolve({ tokenSource: "none" }),
-        close: vi.fn(),
-      }) as unknown as Query,
-  ),
-  getSessionMessages: vi.fn(() => Promise.resolve([])),
-  getSessionInfo: vi.fn(() => Promise.resolve(undefined)),
-  deleteSession: vi.fn(() => Promise.resolve()),
-  forkSession: vi.fn(),
-}));
-
-it("starts real HTTP, reads Claude history and chats while Codex is unavailable", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codexly-claude-start-"));
+it("真实 CLI / HTTP / SQLite 使用共享 ACP，Codex 离线不阻断 Claude 聊天、搜索和重启恢复", async () => {
+  const root = await mkdtemp(join(tmpdir(), "codexly-acp-start-"));
   temporaryDirectories.push(root);
-  vi.stubEnv("CLAUDE_CONFIG_DIR", join(root, "claude-user"));
-  const store = await SqliteStateRepository.open(join(root, "state.sqlite3"));
-  // 模拟已完成初始化的用户；引擎原生目录不参与启动和本地历史管理。
-  await store.catalog("migration.import", { projects: [], tasks: [] });
-  const projects = new LocalProjectRepository(store, store);
-  const project = await projects.register({
-    name: "Claude project",
+  let store = await SqliteStateRepository.open(join(root, "state.sqlite3"));
+  const project = await new LocalProjectRepository(store, store).register({
+    name: "Claude 项目",
     roots: [{ path: root }],
     idempotencyKey: "project",
   });
+  await new ApplicationPreferencesService(store, () => Promise.resolve(undefined)).patch({
+    defaultAgent: "claude",
+    defaultModel: "model-a",
+  });
+  const peer = createPersistentAgentPeer();
+  let codexOnline = false;
+  const launch = vi.fn<typeof peer.launch>((...args) => {
+    if (args[0] === "codex" && !codexOnline) return Promise.reject(new Error("Codex unavailable"));
+    return peer.launch(...args);
+  });
   let address: string | undefined;
   const harness = createHarness({
-    createStateRepository: () => Promise.resolve(store),
-    createProjectRepository: () => projects,
     appDataDirectory: root,
-    createRuntimeProvider: createCodexRuntimeProvider,
-    startCodexAppServer: vi.fn(() => Promise.reject(new Error("Codex executable unavailable"))),
+    createStateRepository: () => Promise.resolve(store),
+    createProjectRepository: () => new LocalProjectRepository(store, store),
+    createAcpRuntime: (input) => createCliAcpRuntime({ ...input, launch }),
     createServer: async (input) => {
       const app = await createCodexlyServer({ ...input, loggerEnabled: false });
       return {
@@ -68,12 +50,6 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
       };
     },
   });
-  const controller = new AbortController();
-  const run = runCli(["start", "--no-open", "--codex-home", root], {
-    ...harness.options,
-    signal: controller.signal,
-  });
-  let historyPath = "";
   const request = async (path: string, payload?: unknown) => {
     const response = await fetch(
       `${address ?? ""}${path}`,
@@ -89,162 +65,108 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
     expect(response.ok, JSON.stringify({ path, body })).toBe(true);
     return body;
   };
-  try {
-    await vi.waitFor(
-      () => {
-        expect(address).toBeDefined();
+  const start = () => {
+    const controller = new AbortController();
+    const run = runCli(["start", "--no-open", "--codex-home", root], {
+      ...harness.options,
+      signal: controller.signal,
+    });
+    return {
+      run,
+      stop: async () => {
+        controller.abort();
+        await expect(run).resolves.toBe(0);
       },
-      { timeout: 10_000 },
-    );
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-    await request("/v1/projects");
+    };
+  };
+  let running = start(),
+    historyPath = "";
+  try {
+    await vi.waitFor(() => {
+      expect(address).toBeDefined();
+    });
+    expect(launch).not.toHaveBeenCalled();
     const created = (await request(`/v1/projects/${project.id}/tasks`, { engine: "claude" })) as {
       task: { id: string };
     };
-    const path = `/v1/projects/${project.id}/tasks/${created.task.id}`;
-    historyPath = path;
-    expect(await request(path)).toMatchObject({ snapshot: { engine: "claude" } });
-    await request(`${path}/turns`, {
+    await store.catalog("task.patch", { id: created.task.id, title: "保留手动标题" });
+    historyPath = `/v1/projects/${project.id}/tasks/${created.task.id}`;
+    await request(`/v1/projects/${project.id}/submissions`, {
+      type: "acp-prompt",
+      taskId: created.task.id,
       input: { type: "prompt", text: "hello", attachments: [], skills: [] },
-      options: {
-        model: "sonnet",
-        reasoningEffort: "",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        sandboxMode: "workspace-write",
-        engineOptions: { engine: "claude", permissionMode: "default" },
-      },
     });
+    // HTTP 提交仅确认受理；等待异步队列和落盘完成，不能把默认 1 秒轮询期限当成执行预算。
     await vi.waitFor(
       async () => {
-        expect(await store.catalog("task.read", { id: created.task.id })).toMatchObject({
-          status: "idle",
+        expect(await request(historyPath)).toMatchObject({
+          snapshot: {
+            runtime: "acp",
+            engine: "claude",
+            turns: [expect.objectContaining({ status: "completed" })],
+          },
         });
       },
       { timeout: 10_000 },
     );
-    expect(await request(path)).toMatchObject({
-      snapshot: { engine: "claude", turns: [expect.objectContaining({ status: "completed" })] },
-    });
-    await request(`/v1/projects/${project.id}/tasks`);
-    // 仅有 Claude 任务时，搜索标题、正文和精确命中均不得初始化 Codex。
+    await vi.waitFor(
+      async () => {
+        expect((await store.catalog("task.read", { id: created.task.id }))?.status).toBe("idle");
+      },
+      { timeout: 10_000 },
+    );
     const hits = (await request(
       "/v1/search/tasks?query=hello&kind=history&archived=false",
     )) as TaskSearchPage;
     expect(hits.data[0]?.task).toMatchObject({ id: created.task.id, engine: "claude" });
-    expect(hits.data[0]?.occurrence?.itemId).toBeTypeOf("string");
-    const occurrences = (await request(
-      `${path}/search-occurrences?query=hello`,
-    )) as SearchOccurrencesPage;
-    expect(occurrences.data[0]?.turnId).toBeTypeOf("string");
-    expect(query).toHaveBeenCalled();
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-
-    // 用户显式读取 Codex 才尝试启动；失败只影响该请求，Claude 历史仍可用。
-    expect((await fetch(`${address ?? ""}/v1/engines/codex`)).ok).toBe(false);
-    expect(harness.dependencies.startCodexAppServer).toHaveBeenCalledOnce();
-    expect(await request(path)).toMatchObject({ snapshot: { engine: "claude" } });
-    expect(harness.dependencies.startCodexAppServer).toHaveBeenCalledOnce();
-
-    // 修复 Codex 后直接重试，模型、认证与扩展继续通过原 Provider 路径提供。
-    vi.mocked(harness.dependencies.startCodexAppServer).mockImplementation(() => {
-      const exit = Promise.withResolvers<{ code: number | null; signal: NodeJS.Signals | null }>();
-      return Promise.resolve({
-        client: {
-          ...harness.client,
-          request: vi.fn((method: string) => {
-            if (method === "config/read") return Promise.resolve({ config: {} });
-            if (method === "account/read")
-              return Promise.resolve({ account: null, requiresOpenaiAuth: false });
-            if (method === "model/list")
-              return Promise.resolve({
-                data: [
-                  {
-                    model: "codex-test",
-                    multiAgentVersion: "v2",
-                    displayName: "Codex",
-                    description: "",
-                    hidden: false,
-                    isDefault: true,
-                    defaultReasoningEffort: "high",
-                    supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
-                  },
-                ],
-                nextCursor: null,
-              });
-            if (method === "skills/list") return Promise.resolve({ data: [] });
-            if (method === "plugin/list") return Promise.resolve({ marketplaces: [] });
-            if (method === "thread/search") return Promise.resolve({ data: [], nextCursor: null });
-            throw new Error(`Unexpected RPC ${method}`);
-          }),
-        },
-        close: () => {
-          exit.resolve({ code: 0, signal: null });
-          return Promise.resolve();
-        },
-        version: { version: "0.163.0", raw: "codex-cli 0.163.0" },
-        waitForExit: () => exit.promise,
-      });
+    expect(
+      ((await request(`${historyPath}/search-occurrences?query=hello`)) as SearchOccurrencesPage)
+        .data[0]?.turnId,
+    ).toBeTypeOf("string");
+    expect(launch.mock.calls.every(([engine]) => engine === "claude")).toBe(true);
+    expect((await fetch(`${address ?? ""}/v1/acp/agents/codex`)).ok).toBe(false);
+    expect(await request(historyPath)).toMatchObject({ snapshot: { engine: "claude" } });
+    codexOnline = true;
+    expect(await request("/v1/acp/agents/codex/defaults")).toMatchObject({
+      configOptions: [expect.objectContaining({ id: "model" })],
     });
-    expect(await request("/v1/engines/codex")).toMatchObject({
-      engine: "codex",
-      capabilities: { provider: "codex" },
-      models: { data: [{ id: "codex-test" }] },
-    });
-    await request("/v1/skills/installed");
-    await request("/v1/plugins/official");
-    await request("/v1/search/tasks?query=hello&kind=history&archived=false");
     const codexTask = (await request(`/v1/projects/${project.id}/tasks`, { engine: "codex" })) as {
       task: { id: string };
     };
-    expect(await store.catalog("task.read", { id: codexTask.task.id })).toMatchObject({
-      provider: "codex",
+    await store.catalog("task.patch", {
+      id: codexTask.task.id,
+      sessionId: "external-codex-history",
     });
-    expect(await request(path)).toMatchObject({ snapshot: { engine: "claude" } });
-  } finally {
-    controller.abort();
-    await run;
-  }
-  await expect(run).resolves.toBe(0);
-
-  // 重启后从真实 SQLite 与历史文件恢复，确保验收覆盖已有 Claude 用户。
-  const restoredStore = await SqliteStateRepository.open(join(root, "state.sqlite3"));
-  harness.dependencies.createStateRepository = () => Promise.resolve(restoredStore);
-  harness.dependencies.createProjectRepository = () =>
-    new LocalProjectRepository(restoredStore, restoredStore);
-  harness.dependencies.startCodexAppServer = vi.fn(() =>
-    Promise.reject(new Error("Codex unavailable after restart")),
-  );
-  address = undefined;
-  const restartedController = new AbortController();
-  const restarted = runCli(["start", "--no-open", "--codex-home", root], {
-    ...harness.options,
-    signal: restartedController.signal,
-  });
-  try {
-    await vi.waitFor(
-      () => {
-        expect(address).toBeDefined();
-      },
-      { timeout: 10_000 },
-    );
+    // 尚无本地投影的离线引擎必须明确报不可用，不能把旧 SDK 当作回退搜索源。
+    await running.stop();
+    store = await SqliteStateRepository.open(join(root, "state.sqlite3"));
+    address = undefined;
+    codexOnline = false;
+    launch.mockClear();
+    running = start();
+    await vi.waitFor(() => {
+      expect(address).toBeDefined();
+    });
     expect(await request(historyPath)).toMatchObject({
-      snapshot: { engine: "claude", turns: [expect.objectContaining({ status: "completed" })] },
+      snapshot: {
+        runtime: "acp",
+        engine: "claude",
+        turns: [expect.objectContaining({ status: "completed" })],
+      },
     });
+    expect(launch).not.toHaveBeenCalled();
     expect(
       await request("/v1/search/tasks?query=hello&kind=history&archived=false&engines=claude"),
     ).toMatchObject({ data: [{ task: { engine: "claude" } }] });
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-    // 两个引擎都启用时综合查询；Codex 离线只标记失败源，Claude 仍完整交付。
+    expect(launch).not.toHaveBeenCalled();
     expect(
       await request(
         "/v1/search/tasks?query=hello&kind=history&archived=false&engines=codex,claude",
       ),
     ).toMatchObject({ data: [{ task: { engine: "claude" } }], unavailableEngines: ["codex"] });
-    expect(harness.dependencies.startCodexAppServer).toHaveBeenCalledOnce();
+    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
+    expect(harness.dependencies.createRuntimeProvider).not.toHaveBeenCalled();
   } finally {
-    restartedController.abort();
-    await restarted;
+    await running.stop();
   }
-  await expect(restarted).resolves.toBe(0);
 });

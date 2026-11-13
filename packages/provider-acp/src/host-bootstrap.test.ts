@@ -1,3 +1,4 @@
+import { storageCatalog } from "./storage-catalog.test-support.js";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
 import { PassThrough, Writable } from "node:stream";
@@ -18,10 +19,18 @@ for (const explicit of [false, true])
     await writeFile(join(app, "agent-settings.json"), old);
     const input = new PassThrough();
     const frames: Record<string, unknown>[] = [];
+    const storage = storageCatalog();
     const output = new Writable({
       write(chunk: Buffer, _encoding, done) {
-        for (const line of chunk.toString().trim().split("\n"))
-          frames.push(JSON.parse(line) as Record<string, unknown>);
+        for (const line of chunk.toString().trim().split("\n")) {
+          const frame = JSON.parse(line) as Record<string, unknown>;
+          if (typeof frame["catalogId"] === "number") {
+            const result = storage(frame["operation"], frame["payload"]);
+            queueMicrotask(() =>
+              input.write(`${JSON.stringify({ catalogId: frame["catalogId"], result })}\n`),
+            );
+          } else frames.push(frame);
+        }
         done();
       },
     });

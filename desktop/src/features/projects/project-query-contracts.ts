@@ -2,7 +2,7 @@ import type { NativeClient } from "@/platform/native-client-contract.js";
 import type { AgentTaskPage, AgentTaskSnapshot } from "@/protocol/index.js";
 import type { InfiniteData } from "@tanstack/react-query";
 
-import { TauriSidebarClient } from "../../platform/tauri/sidebar-client.js";
+import { TauriApplicationClient } from "../../platform/tauri/application-client.js";
 
 export type NativeReadClient = Pick<
   NativeClient,
@@ -167,7 +167,7 @@ export const COMPLETED_TASK_PAGE_SIZE = 10;
 export const PROJECT_PINNED_TASK_PAGE_SIZE = 100;
 
 // 左栏运行时直接调用 Rust/Tauri，保留现有视图 Client 契约以避免组件交互漂移。
-export const nativeClient = new TauriSidebarClient();
+export const nativeClient = new TauriApplicationClient();
 
 export type ProjectTaskInfiniteData = InfiniteData<AgentTaskPage, string | undefined>;
 export type TaskTitleSnapshot = Pick<

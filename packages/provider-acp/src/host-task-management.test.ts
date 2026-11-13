@@ -1,3 +1,4 @@
+import { storageCatalog } from "./storage-catalog.test-support.js";
 import { Writable } from "node:stream";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,13 +14,14 @@ async function fixture() {
   const tasks = new Map<string, LocalTask>();
   const frames: Record<string, unknown>[] = [];
   const launch = vi.fn<AcpAgentLauncher>(() => Promise.reject(new Error("agent 不可用")));
+  const storage = storageCatalog();
   const output = new Writable({
     write(chunk: Buffer, _encoding, done) {
       const frame = JSON.parse(chunk.toString()) as Record<string, unknown>;
       if (typeof frame["catalogId"] === "number") {
         const op = frame["operation"],
           input = frame["payload"] as LocalTask;
-        let result: unknown = null;
+        let result: unknown = storage(op, frame["payload"]) ?? null;
         if (op === "task.read") result = tasks.get(input.id) ?? null;
         else if (op === "task.put" || op === "task.patch") {
           const task = op === "task.put" ? input : { ...tasks.get(input.id), ...input };

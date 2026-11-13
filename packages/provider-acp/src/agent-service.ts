@@ -17,11 +17,13 @@ export class AcpAgentService implements AcpAgentSettingsService {
   #handle: Promise<AcpAgentHandle> | undefined;
   #queue: Promise<unknown> = Promise.resolve();
   #closed = false;
+  #catalogImported = false;
   constructor(
     readonly engine: AgentEngine,
     readonly cwd: string,
     readonly store: AcpSettingsStore,
     readonly launch: AcpAgentLauncher,
+    readonly catalogStore?: LocalCatalogStore,
   ) {
     const routing = new AcpProviderRouting(engine, store);
     this.providers = {
@@ -118,6 +120,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
           signal ? { cancellationSignal: signal, stopWaitingOnCancel: true } : undefined,
         );
         signal?.throwIfAborted();
+        await this.#discover(connection, signal);
         return {};
       } finally {
         // 认证使用独立连接；取消仅回收这个服务进程，不中断项目中的聊天。
@@ -135,6 +138,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
       try {
         const result = await previewAcpConfig(connection, cwd, saved, input.values, input.change);
         signal?.throwIfAborted();
+        await this.#discover(connection, signal);
         return result;
       } catch (error) {
         // 预览关闭失败或取消后释放独立设置连接，不影响项目中的聊天连接。
@@ -150,6 +154,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
     return this.#run(async () => {
       signal?.throwIfAborted();
       await importAcpCatalog(this.engine, await this.#agent(), catalog, signal);
+      if (catalog === this.catalogStore) this.#catalogImported = true;
     });
   }
   updateDefaults(values: AcpConfigValues): Promise<AcpDefaults> {
@@ -191,6 +196,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
       }
     })();
     const { configOptions, defaults, migration, invalidDefaults } = validated;
+    await this.#discover(connection);
     // agent 拒绝、连接或关闭失败时不会写默认值；legacy 只在私有记录中留存。
     await this.store.update(this.engine, (latest) => ({
       ...latest,
@@ -212,6 +218,17 @@ export class AcpAgentService implements AcpAgentSettingsService {
       ],
       invalidDefaults,
     };
+  }
+  async #discover(connection: AcpConnection, signal?: AbortSignal): Promise<void> {
+    // 只有实际认证/配置会话成功后才发现目录；空首屏不探测未配置引擎，成功后本进程只扫描一次。
+    if (
+      !this.catalogStore ||
+      this.#catalogImported ||
+      !connection.initialization.agentCapabilities?.sessionCapabilities?.list
+    )
+      return;
+    await importAcpCatalog(this.engine, connection, this.catalogStore, signal);
+    this.#catalogImported = true;
   }
   async close(): Promise<void> {
     this.#closed = true;

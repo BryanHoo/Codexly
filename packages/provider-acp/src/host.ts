@@ -76,6 +76,8 @@ export class AcpHost {
     this.#native.set(id, deferred);
     const timer = setTimeout(() => {
       deferred.reject(new Error("ACP host catalog timeout"));
+      // 写锁回执丢失后不能保持原 PID 接收新写入；结束宿主，让下一进程核实死亡后接管。
+      if (operation === "acp.storage.claim" || operation === "acp.storage.release") this.#fail();
     }, 30_000);
     try {
       if (!this.#output.send({ catalogId: id, operation, payload }))

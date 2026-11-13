@@ -143,6 +143,7 @@ export class CatalogSearchService implements AgentSearchProvider {
     input: SearchOccurrencesQuery,
     scope: AgentSearchScope,
     signal?: AgentCancellationSignal,
+    limit: 1 | 30 = 30,
   ): Promise<SearchOccurrencesPage> {
     checkSearchCancellation(signal);
     searchQuery(input.query);
@@ -150,6 +151,6 @@ export class CatalogSearchService implements AgentSearchProvider {
     checkSearchCancellation(signal);
     if (!task || task.projectId !== (scope.kind === "temporary" ? null : scope.id))
       throw new Error("Search task does not belong to the requested project");
-    return this.occurrences(task, input, signal);
+    return this.occurrences(task, input, signal, limit);
   }
 }

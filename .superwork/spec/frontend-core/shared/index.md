@@ -134,3 +134,8 @@
 - Codex 流式消息在收到 `item.completed` 前可能尚未进入原生历史；中断终态与历史快照中的空消息不能撤销此前已显示的正文。两端复用 `interrupted-replies.ts`，在中断终态按项目、任务、回合和消息 ID 保存非过程助手正文，正常流式输出不逐 Token 写盘。
 - 首屏创建、hydrate、reconcile 和历史续页均应用同一恢复规则，仅补充匹配的中断回合；正常完成回合以及已有非空权威消息保持原样。Web 使用当前浏览器存储，桌面注入原生 `appPreferenceStorage`；恢复记录不替代原生历史，不提供跨浏览器同步。
 - 验证入口为两端 `task-store-interrupted-replies.test.ts`（真实 Store 重建、新 session、空终态及重复恢复）、共享 `interrupted-replies.test.ts`，以及 Web `app-shell-interrupted-replies.spec.ts`（Chromium / Firefox / WebKit、390px / 1280px、停止后切换与页面重启）。
+
+## 虚拟列表焦点
+
+- 键盘请求的离屏目标应在虚拟行挂载后完成聚焦，不能依赖库内短时轮询或增加超时掩盖挂载竞态。初次渲染、普通滚动不得抢占输入焦点；等待期间用户移到其他输入区时取消焦点交接。
+- Web 与桌面复用 `virtual-tree-focus`；回归覆盖一万文件 End 键跳转和真实 Chromium / WebKit 渲染。

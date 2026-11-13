@@ -12,16 +12,15 @@
 | Windows      | x86_64                      | ZIP（免安装）、NSIS   | Windows 10/11，使用系统 WebView2 Runtime |
 | Ubuntu       | x86_64                      | DEB、AppImage         | Ubuntu 24.04 LTS+                        |
 | macOS Modern | Apple Silicon、Intel x86_64 | app、DMG              | macOS 14.5+                              |
-| macOS Legacy | Intel x86_64                | app、DMG（`_legacy`） | macOS 12.4+，需真机验收                  |
 
-Windows 同时发布两种产物：按 `tauri build --no-bundle --no-sign` 构建主程序，再与 Claude
+Windows 同时发布两种产物：按 `tauri build --no-bundle --no-sign` 构建主程序，再与共享 ACP
 宿主及完整 `runtime` 目录一起压缩为 `Codexly_<version>_x64_portable.zip`；NSIS 安装器作为
 Tauri updater 的 Windows 更新目标。两者都不包含 Authenticode 代码签名；NSIS updater
 artifact 仍必须通过 Tauri updater 私钥签名。portable ZIP 不参与自动更新，不发布无法独立
 运行的裸 EXE；仍使用系统 WebView2 Runtime，应用数据写入系统应用数据目录。
 Linux 和 macOS 的平台覆盖配置分别位于 `src-tauri/tauri.linux.conf.json` 和
 `src-tauri/tauri.macos.conf.json`。
-Legacy 在此基础上合并 `src-tauri/tauri.macos-legacy.conf.json`，构建与真机验收要求见 [macOS 分档构建](./macos-build-profiles.md)。
+macOS 仅构建 Modern，最低支持 14.5，详见 [macOS 构建支持范围](./macos-build-profiles.md)。
 
 ## Ubuntu 安装
 
@@ -50,8 +49,7 @@ chmod +x Codexly.AppImage
 - 根目录 `Release`：Web 版本标签触发联合发布，通过两端门禁后构建桌面安装包、签名更新清单，并与 Web 制品一起公开。
 
 Windows portable 构建显式使用 `--no-sign` 且不进入自动更新链路；Windows NSIS、Ubuntu 与
-macOS Modern 构建生成 Tauri updater artifact、`.sig` 和 `latest.json`。macOS Legacy 单独上传
-带 `_legacy` 的归档和 `latest-legacy.json`，不参与 Modern 平台键合并。Tauri updater 签名只校验更新
+macOS 构建生成 Tauri updater artifact、`.sig` 和 `latest.json`，不再发布 Legacy 清单。Tauri updater 签名只校验更新
 来源与完整性，不等同于操作系统代码签名。
 
 ## 发布步骤
@@ -59,7 +57,7 @@ macOS Modern 构建生成 Tauri updater artifact、`.sig` 和 `latest.json`。ma
 1. 仅在根目录 `CHANGELOG.md` 添加两端合并的新版本日志，共用功能写一次，并将 `desktop/package.json`、Tauri 配置、Cargo 包版本及 lock 与根目录版本对齐。
 2. 在 `desktop/` 执行 `pnpm version:check`、`pnpm codex:protocol:check` 和 `pnpm check`。
 3. 按根目录 [联合发布指南](../../docs/releasing.md)推送统一版本标签；桌面端不另推标签。
-4. 核对同一 Release 中桌面安装包、`latest.json`、`latest-legacy.json` 和签名。
+4. 核对同一 Release 中桌面安装包、`latest.json` 和签名。
 
 安装时的系统提示和历史版本处理见[安装指南](./installation.md)。正式发布必须通过产物验证、
 Provider 运行时供应链校验和原生系统实机回归，不应引导用户关闭系统安全机制。
@@ -72,7 +70,7 @@ Codexly 桌面发布包内置目标平台的 Codex 和 Claude 运行时。正式
 - Codex 保留官方 vendor 布局与签名；Claude CLI 保留原厂签名，自建宿主作为 Tauri sidecar 参与签名及公证。
 - 发行版直接运行只读安装目录中的文件，不复制到用户目录，不在每次启动时重算大文件摘要，也不联网安装运行时。
 - 运行时缺失或损坏时提示修复安装，不回退到全局程序；只启用 Claude 时公共功能不隐式启动 Codex。
-- macOS Legacy 只打包 Codex；Windows ZIP 必须同时包含主程序、Claude 宿主和 `runtime`，并在对应平台验证真实启动。
+- Windows ZIP 必须同时包含主程序、ACP 宿主和 `runtime`，并在对应平台验证真实启动。
 
 完整流程见 [Provider Runtime Manager](./provider-runtime-management.md)。
 

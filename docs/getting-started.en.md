@@ -6,7 +6,7 @@ Choose a client, connect Codex or Claude, and start your first task in a local p
 
 ## Choose a client
 
-- **Desktop**: download from [Releases](https://github.com/BryanHoo/Codexly/releases) and follow [installation](../desktop/docs/installation.en.md). Runtimes are bundled; no separate Node.js, Bun, or CLI is needed. macOS Legacy supports Codex only.
+- **Desktop**: download from [Releases](https://github.com/BryanHoo/Codexly/releases) and follow [installation](../desktop/docs/installation.en.md). Runtimes are bundled; no separate Node.js, Bun, or CLI is needed.
 - **Computer browser**: install Node.js 24+, run the command below, and open the printed local address.
 - **Phone or tablet**: add `--lan` to the command on your computer, then open the printed LAN address on your mobile device and enter the password. See [Web and mobile](web.en.md).
 

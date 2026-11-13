@@ -2,7 +2,7 @@
 
 1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载适合当前平台的发布包。
 2. 按照下方对应平台的步骤安装并启动 Codexly。
-3. 应用直接进入工作台，在设置中配置 Codex、Claude 或两者，再添加项目并创建任务；已有受支持的本机配置可直接复用。安装包内置运行时，无需另装 Node.js、Bun 或首次下载；macOS Legacy 仅支持 Codex。详见[首次使用](../../docs/getting-started.md)。
+3. 应用直接进入工作台，在设置中配置 Codex、Claude 或两者，再添加项目并创建任务；已有受支持的本机配置可直接复用。安装包内置运行时，无需另装 Node.js、Bun 或首次下载。详见[首次使用](../../docs/getting-started.md)。
 
 本文仅介绍桌面安装。电脑浏览器与手机访问请阅读 [Web 与移动端指南](../../docs/web.md)。
 
@@ -13,9 +13,8 @@
 | Windows 10/11         | x86_64                      | NSIS 安装器、ZIP（免安装）     |
 | Ubuntu 24.04+         | x86_64                      | DEB、AppImage                  |
 | macOS 14.5+（Modern） | Apple Silicon、Intel x86_64 | app、DMG                       |
-| macOS 12.4+（Legacy） | Intel x86_64                | app、DMG（文件名含 `_legacy`） |
 
-Legacy 使用独立构建和更新清单，部分视觉效果与 Diff 高亮简化；最低系统的真机验收要求见 [macOS 分档构建](./macos-build-profiles.md)。
+macOS 最低支持 14.5；构建目标与真机验收要求见 [macOS 构建支持范围](./macos-build-profiles.md)。
 
 ## 安装、放行与卸载
 
@@ -25,7 +24,7 @@ Legacy 使用独立构建和更新清单，部分视觉效果与 Diff 高亮简�
 
 Windows 提供 NSIS 安装器和免安装 ZIP。需要自动更新时选择安装器，运行下载的 `setup.exe` 并按提示安装；卸载时使用 Windows“设置 > 应用”。免安装版本不参与自动更新，升级时关闭应用并用新版完整解压目录替换旧目录。
 
-使用免安装版本时，将下载的 ZIP 重命名为 `Codexly.zip`，在下载目录打开 PowerShell。先解除压缩包的下载标记，再完整解压；保留 `codexly.exe`、同级 `claude-host.exe` 与 `runtime` 目录：
+使用免安装版本时，将下载的 ZIP 重命名为 `Codexly.zip`，在下载目录打开 PowerShell。先解除压缩包的下载标记，再完整解压；保留 `codexly.exe`、同级 `acp-host.exe` 与 `runtime` 目录：
 
 ```powershell
 Unblock-File -Path ".\Codexly.zip"
@@ -96,7 +95,7 @@ rm -rf "$HOME/.cache/com.codexly.desktop"
 
 ### macOS
 
-按系统版本和芯片选择安装包：Modern 支持 macOS 14.5+ 的 Apple Silicon / Intel，Legacy 面向 macOS 12.4+ 的 Intel。升级系统后可手动安装 Modern，保留相同的本地数据目录。下载后将文件重命名为 `Codexly.dmg`：
+按芯片选择 macOS 14.5+ 的 Apple Silicon 或 Intel 安装包。下载后将文件重命名为 `Codexly.dmg`：
 
 ```bash
 hdiutil attach "./Codexly.dmg"
@@ -131,7 +130,7 @@ rm -rf "$HOME/Library/Caches/com.codexly.desktop"
 
 Windows 安装版从 0.44.1 起会在更新和卸载前清理当前安装目录内残留的智能体运行时，避免旧进程占用文件导致安装停滞。更新前请先保存工作并结束运行中的任务；如果旧版应用内更新停滞，可退出应用后从官方 Releases 下载新版安装包并重新运行。
 
-通过应用内更新入口检查新版本；Windows 免安装版本需要关闭应用后用新版 ZIP 的完整解压目录替换旧目录，保留主程序、Claude 宿主与 `runtime`，不能只替换 EXE。macOS Modern 与 Legacy 使用独立更新清单，升级系统不会自动切换档位。需要切换到 Modern 时，手动安装对应版本即可，两档共用本地数据目录。
+通过应用内更新入口检查新版本；Windows 免安装版本需要关闭应用后用新版 ZIP 的完整解压目录替换旧目录，保留主程序、ACP 宿主与 `runtime`，不能只替换 EXE。macOS 不再发布 Legacy 安装包或 Legacy 更新清单；旧版用户须升级至 macOS 14.5+ 后手动安装当前版本，本地数据目录保持相同。
 
 自动更新签名用于校验更新包，不等同于操作系统代码签名或 macOS 公证。下载入口统一使用[官方 Releases](https://github.com/BryanHoo/Codexly/releases)。
 

@@ -60,7 +60,7 @@ const localCommands = new Set([
 ]);
 
 function isLocalCommand(command: string, args?: Record<string, unknown>): boolean {
-  return localCommands.has(command) || (command === "generate_commit_message" && args?.["agentRuntime"] === "acp");
+  return localCommands.has(command) || (["generate_commit_message", "search_tasks", "search_task_occurrences", "open_task_attachment"].includes(command) && args?.["agentRuntime"] === "acp");
 }
 
 export class TauriNativeClient {

@@ -1,20 +1,14 @@
 import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 
-test("智能体选项独立更新，排队保存不会覆盖另一项", async ({ page }) => {
-  let settings = { webSearch: "cached", modelVerbosity: null as string | null };
+test("ACP 保存期间阻止并发覆盖，完整回执保留兄弟选项", async ({ page }) => {
   const writes: Record<string, unknown>[] = [];
-  let release!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route("**/v1/personalization/agent", async (route) => {
-    if (route.request().method() === "PUT") {
-      const input = parseRequestRecord(route.request().postData());
-      writes.push(input);
-      if (writes.length === 1) await pending;
-      settings = { ...settings, ...input };
+  const pending = Promise.withResolvers<undefined>();
+  await page.route("**/v1/acp/agents/codex/defaults", async (route) => {
+    if (route.request().method() === "PATCH") {
+      writes.push(parseRequestRecord(route.request().postData()));
+      if (writes.length === 1) await pending.promise;
     }
-    await route.fulfill({ json: settings });
+    await route.fallback();
   });
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "设置", exact: true }).click();
@@ -30,21 +24,21 @@ test("智能体选项独立更新，排队保存不会覆盖另一项", async ({
   try {
     await search.selectOption("live");
     await expect.poll(() => writes.length).toBe(1);
-    await expect(verbosity).toBeEnabled();
+    await expect(verbosity).toBeDisabled();
     await expect(verbosity).toHaveValue("");
-    await expect(search).toHaveValue("live");
     expect(await sibling.evaluate((element) => element.isConnected)).toBe(true);
-    await verbosity.selectOption("high");
-    await expect(verbosity).toHaveValue("high");
   } finally {
-    release();
+    pending.resolve(undefined);
   }
-  await expect.poll(() => writes.length).toBe(2);
   await expect(search).toBeEnabled();
-  await expect(verbosity).toBeEnabled();
-  expect(writes[1]).toEqual({ webSearch: "live", modelVerbosity: "high" });
   await expect(search).toHaveValue("live");
+  await verbosity.selectOption("high");
   await expect(verbosity).toHaveValue("high");
+  expect(writes).toEqual([
+    { configId: "webSearch", value: "live" },
+    { configId: "verbosity", value: "high" },
+  ]);
+  await expect(search).toHaveValue("live");
 });
 
 test("记忆开关保存期间不改变其他开关和删除按钮，失败仅回退当前项", async ({ page }) => {

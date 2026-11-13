@@ -18,7 +18,7 @@ test("disables composer mutations that the provider does not support", async ({ 
       json: {
         feedback: { upload: false },
         goals: { clear: true, read: true, update: true },
-        provider: "readonly",
+        provider: "codex",
         skills: { list: false, use: false },
         tasks: { fork: false, list: true, read: true, start: false },
         turns: {
@@ -26,6 +26,7 @@ test("disables composer mutations that the provider does not support", async ({ 
           interrupt: false,
           review: false,
           start: false,
+          steer: false,
         },
       },
     });

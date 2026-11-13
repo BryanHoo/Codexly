@@ -19,7 +19,7 @@ import {
 } from "./code-block-pages.js";
 import type { TokenizedCode } from "./code-tokens.js";
 
-function getTokenStyle(token: ThemedToken, legacyTheme: boolean): CSSProperties {
+function getTokenStyle(token: ThemedToken): CSSProperties {
   const sourceStyle = token.htmlStyle as
     (CSSProperties & { "--shiki-dark"?: string; "--shiki-dark-bg"?: string }) | undefined;
   const lightColor = token.color ?? sourceStyle?.color;
@@ -27,10 +27,6 @@ function getTokenStyle(token: ThemedToken, legacyTheme: boolean): CSSProperties 
   const lightBackground = token.bgColor ?? sourceStyle?.backgroundColor;
   const darkBackground = sourceStyle?.["--shiki-dark-bg"];
 
-  if (legacyTheme) {
-    // 旧 WebKit 的亮暗色由兼容样式选择；现代构建会移除此分支。
-    return { ...sourceStyle, color: lightColor, backgroundColor: lightBackground };
-  }
   // 项目通过 color-scheme 切换主题，light-dark() 可直接消费 Shiki 的双主题 token。
   return {
     ...sourceStyle,
@@ -95,7 +91,6 @@ export type CodeBlockContentProps = Readonly<{
   onHighlightedLineUnavailable?: () => void;
   pages: readonly CodeBlockPage[];
   tokenizeCode: (code: string, language: HighlightLanguage) => Promise<TokenizedCode>;
-  legacyTheme?: boolean;
   showLineNumbers?: boolean;
 }> &
   HTMLAttributes<HTMLDivElement>;
@@ -107,7 +102,6 @@ export function CodeBlockContent({
   onHighlightedLineUnavailable,
   pages,
   tokenizeCode,
-  legacyTheme = false,
   showLineNumbers = false,
   style,
   ...props
@@ -185,8 +179,7 @@ export function CodeBlockContent({
                         return (
                           <span
                             key={`${String(lineNumber)}-${String(tokenIndex)}`}
-                            style={getTokenStyle(token, legacyTheme)}
-                            className={legacyTheme ? "legacy-code-token" : undefined}
+                            style={getTokenStyle(token)}
                           >
                             {token.content}
                           </span>
