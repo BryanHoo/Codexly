@@ -39,7 +39,7 @@
 
 - `imageGeneration` 同时含 `fileId` 与旧 `result` 时采用文件引用语义；Worker 不解码或暂存旧正文。优先读取有效 `savedPath`，仅有引用且无可读取正文的完成项显示 `[图片]`，运行中或失败项保留工具状态。
 - 引用不得解释成本地路径或猜测远程下载地址；`inputImages` 的路径、摘要和内部 fileId 不进入公开消息。图片附件继续由任务授权和既有容量限制管理。
-- 回归入口为 `codex-164-contract.test.ts`，原生消费端对应 `desktop/src-tauri/src/infrastructure/codex/codex_164_contract_tests.rs`；升级依据见 [0.164.0 升级评估](../../../../docs/codex-0.164.0-upgrade.md)。
+- 回归入口为 `codex-164-contract.test.ts`，原生消费端对应 `desktop/src-tauri/src/infrastructure/codex/codex_164_contract_tests.rs`。
 
 ## 按需配置预检与启动诊断
 
@@ -53,7 +53,7 @@
 
 - Codex 0.166 的 `ThreadItem.startedAtMs` / `completedAtMs` 映射到既有 `itemTimings`，历史和回合事件使用同一边界；条目字段优先，null / 缺失按字段回退旧分页计时，不能伪造成零。零值有效，负值、非整数和超出 JavaScript 安全整数范围的值均拒绝。
 - 只检查已加载的条目，不为计时追读过程分页或完整历史；Rust 借用原始正文，公开事件与 UI 不携带额外上游元数据。
-- 两端共用 `packages/provider-codex/test/fixtures/codex-166-item-timings.json`，测试入口为 `codex-166-contract.test.ts` 和原生 `codex_166_contract_tests.rs`；升级依据与验证见 [0.166.0 升级评估](../../../../docs/codex-0.166.0-upgrade.md)。
+- 两端共用 `packages/provider-codex/test/fixtures/codex-166-item-timings.json`，测试入口为 `codex-166-contract.test.ts` 和原生 `codex_166_contract_tests.rs`。
 
 ## 插件发现按需查询
 

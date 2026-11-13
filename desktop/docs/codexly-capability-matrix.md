@@ -2,7 +2,7 @@
 
 [文档导航](../../docs/README.md) · [工作台使用](../../docs/usage.md) · [智能体配置](../../docs/agent-engines.md)
 
-本文维护当前产品边界。Codex 协议升级细节见根目录 `docs/codex-*-upgrade.md`，带日期的测试记录只说明当时的验证范围。
+本文维护当前产品边界。版本变化见[更新日志](../../CHANGELOG.md)，协议约束见[Codex 适配器规范](../../.superwork/spec/provider-codex/backend/index.md)。
 
 ## 使用端
 

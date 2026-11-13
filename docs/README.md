@@ -47,7 +47,6 @@ Web、移动浏览器和桌面均可在「设置 → 关于」导出整合诊断
 - [桌面源码开发](../desktop/docs/development.md) · [English](../desktop/docs/development.en.md)。
 - [三端与双引擎能力参考](../desktop/docs/codexly-capability-matrix.md)。
 - [桌面运行时分发](../desktop/docs/provider-runtime-management.md)。
-- [Codex 0.166.0 升级评估](codex-0.166.0-upgrade.md)：官方源码差异、两端适配与验证边界。
 - [联合发布](releasing.md)。
 
-`codex-*-upgrade.md`、带日期的测试报告、架构调研及迁移记录保留当时的背景和验证结果，不作为当前安装或能力说明。当前行为以使用指南、能力参考与对应版本的更新日志为准。
+当前行为以使用指南、工程规范与对应版本的更新日志为准；历史实现过程和测试产物可从 Git 历史追溯。

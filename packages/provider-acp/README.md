@@ -38,7 +38,7 @@ CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-acp/src/offic
 
 HTTP 契约：`/v1/acp/agents/:engine`、`/authenticate`、`/defaults`、`/providers` 及 `/v1/projects/:projectId/tasks/:taskId/acp/config`。写入沿用配对认证和幂等键；原始布尔值不经过类型强制转换。桌面将消费同一 Core 服务端口，不能绕行这些 HTTP 路由。
 
-执行计划见 [ACP 迁移计划](../../.superwork/plans/2026-11-09-acp.md)，官方依据及目标架构见 [迁移设计](../../.superwork/prd/2026-11-09-acp-design.md)。
+当前存储与恢复约束见[领域工程规范](../../.superwork/spec/core/shared/index.md#acp-生产存储与恢复)和[桌面后端工程规范](../../.superwork/spec/desktop/backend/index.md#acp-分发与-macos-支持)。
 
 ## 独立宿主开发验证
 

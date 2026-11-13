@@ -22,6 +22,10 @@ test-results/
 blob-report/
 *.lcov
 
+# 本地审计、试验输出和浏览器失败截图（当前没有截图比对基线）
+/output/
+__screenshots__/
+
 # 日志与进程状态
 logs/
 *.log

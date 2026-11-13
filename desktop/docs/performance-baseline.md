@@ -53,30 +53,6 @@ PR 运行 Chromium 基准；原生 WebView release 基准在每周定时任务�
 | Chunk | 生产构建的原始字节数；初始依赖图总量与所有非初始 JS 单 Chunk 最大值 |
 | 场景加载量 | 从 Vite manifest 入口递归收集静态依赖并去重后的生产资源原始字节数 |
 
-## 历史基线
-
-下表保留此前采样，旧 `performance:rust` 未显式启用 Release，Rust 数值不能直接与新的 Release 结果对比。新的同口径结果见文末。
-
-采样环境：macOS 26.6.2 arm64、Node.js 24.19.0、Rust 1.97.1、Playwright 1.62.1。
-
-| 场景 | P50 | P95 | 其他 |
-|---|---:|---:|---:|
-| 文件搜索冷启动 | 20.960 ms | 22.486 ms | 5,000 文件 |
-| 文件搜索热启动 | 0.040 ms | 0.048 ms | 内存索引 |
-| 文件搜索取消 | 0.083 ms | 0.195 ms | 10 次 |
-| Rust 读取 256 KiB | 0.127 ms | 0.294 ms | 单页 |
-| Rust 读取 2 MiB | 1.078 ms | 1.415 ms | 8 页 |
-| Chromium 打开 256 KiB | 4.400 ms | 28.600 ms | 168 DOM，Longest Task 0 ms |
-| Chromium 打开 2 MiB | 7.600 ms | 24.600 ms | 168 DOM，Longest Task 0 ms |
-| Profiler 256 KiB | - | 9.300 ms | `actualDuration` |
-| Profiler 2 MiB | - | 11.900 ms | `actualDuration` |
-| WKWebView 启动到首次可交互 | 88.000 ms | - | release 构建 |
-| WKWebView delta commit/render | 12.000 ms | 23.000 ms | 10 次，release 构建 |
-
-构建体积基线：初始加载 `385,261 B`，最大异步 Chunk `501,239 B`；工作台、Markdown、
-C++ 高亮依赖闭包分别为 `1,340,287 B`、`1,801,989 B`、`2,398,532 B`。对应 CI 预算均
-定义在 `performance-budget.json`。
-
 ## 采集实时链路
 
 以 `?performance-profile=1` 启动主窗口后，在 WebView DevTools 执行：
@@ -100,20 +76,3 @@ window.__CODEAGENT_PERFORMANCE__?.snapshot()
 `pnpm performance:rust` 现在显式使用 `--release --lib` 和 `--test-threads=1`，与 Debug 功能测试分离，并避免多个基准相互竞争 CPU 与磁盘。
 除 5,000 文件场景外，增加 50,000 文件、8 个并发查询、5 轮持续搜索场景，输出客户端延迟、索引保留字节及 Unix Rust 测试进程 RSS 前后值。
 RSS 为采样值而非峰值，也不包含 WebView、Codex 或真实模型任务；桌面端到端与长期运行仍使用原生 WebView 基准验证。
-
-### 2026-09-14 Release 实测
-
-环境：macOS 26.6.2 arm64、Rust 1.97.1、Node.js 24.19.0；使用项目默认 Release 优化配置，基准串行执行，四项均通过。
-
-| 场景 | P50 | P95 | 采样说明 |
-|---|---:|---:|---|
-| 5,000 文件搜索冷启动 | 6.851 ms | 7.465 ms | 20 次，每次清空索引 |
-| 5,000 文件搜索热启动 | 0.014 ms | 0.024 ms | 50 次，复用索引 |
-| 搜索取消 | 0.093 ms | 0.170 ms | 10 次 |
-| 50,000 文件并发搜索 | 0.085 ms | 66.528 ms | 8 客户端、5 轮，共 40 次；包含首次冷启动及等待 |
-| Rust 读取 256 KiB | 0.114 ms | 0.271 ms | 50 次 |
-| Rust 读取 2 MiB | 0.754 ms | 1.008 ms | 50 次，完整读取所有分页 |
-
-大目录场景索引保留 `6,950,000 B`；Rust 测试进程 RSS 从 `17,648 KiB` 到 `29,248 KiB`。
-这是搜索前后的采样，不能作为进程峰值、长期稳定占用或整个桌面应用的内存结论。
-另有 50 MiB 图片处理基准，其进程峰值 RSS 为 `84,443,136 B`；该值与搜索 RSS 采样的口径不同。

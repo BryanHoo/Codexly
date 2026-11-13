@@ -93,4 +93,4 @@ HTTP 边界回归为 `packages/server/src/routes/project-text-file-routes.test.t
 
 共享状态回归：`text-editor-autosave.test.ts`、`text-editor-session-cache.test.ts`、`document-editor-registry.test.ts`。真实 Chromium/WebKit 回归：`text-editor-workbench.browser.test.tsx`、`text-editor-layout.browser.test.tsx`、`text-editor-manual-save.browser.test.tsx`、`text-editor-recovery.browser.test.tsx`、`document-workspace.browser.test.tsx`、`document-workspace-tabs.browser.test.tsx`。布局回归覆盖保存文字按钮位置、320/360/680px 容器、真实 Tooltip、非法正则、替换、关闭与焦点恢复、英文与旧版 WebView 回退。Web 三浏览器工作流见 `tests/e2e/app-shell-document-workspace.spec.ts` 等。
 
-浏览器测试使用真实共享组件和主题，文件服务为受控替身；原子写入、路径/编码和权限仍由既有 Node/Rust 边界测试覆盖。实体 IME、移动键盘和各系统原生 WebView 需单独真机验证。执行结果见 `.superwork/plans/2026-10-30-editor-manual-save.md`。
+浏览器测试使用真实共享组件和主题，文件服务为受控替身；原子写入、路径/编码和权限仍由既有 Node/Rust 边界测试覆盖。实体 IME、移动键盘和各系统原生 WebView 需单独真机验证。回归入口见[桌面前端工程规范](../.superwork/spec/desktop/frontend/index.md)。
