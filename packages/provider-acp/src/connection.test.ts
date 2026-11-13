@@ -397,3 +397,32 @@ describe("共享 ACP 连接", () => {
     await expect(unsupported.closeSession("old")).rejects.toThrow("session/close");
   });
 });
+
+it("握手期间自动接收原生认证状态，仅保留公开身份字段", async () => {
+  const f = fixture({ _meta: { authStatus: {} } });
+  f.initialize.mockImplementation(async ({ client }) => {
+    await client.notify("_auth/status_update", {
+      authStatus: {
+        kind: "account",
+        label: "ChatGPT Pro",
+        account: { email: "user@example.com", token: "must-not-leak" },
+        vendor: { secret: "must-not-leak" },
+      },
+    });
+    return { protocolVersion: 1, agentCapabilities: { _meta: { authStatus: {} } } };
+  });
+  const connection = await connect(f);
+  expect(await connection.readAuthStatus()).toEqual({
+    kind: "account",
+    label: "ChatGPT Pro",
+    account: { email: "user@example.com" },
+  });
+  expect(f.create).not.toHaveBeenCalled();
+});
+
+it("未声明认证状态能力时保持未知，不创建会话推测登录", async () => {
+  const f = fixture();
+  const connection = await connect(f);
+  expect(await connection.readAuthStatus()).toBeUndefined();
+  expect(f.create).not.toHaveBeenCalled();
+});

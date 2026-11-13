@@ -1,26 +1,45 @@
 import type {
-  AcpConfigPreview, AcpConfigPreviewRequest,
+  AcpConfigPreview,
+  AcpConfigPreviewRequest,
   AcpAgentProfile,
+  AcpAuthCredentials,
   AcpConfigValues,
   AcpDefaults,
   AcpProviderConfig,
   AcpProviderPage,
   AgentEngine,
-  AcpScheduledConfigView,SetAcpScheduledConfig,
+  AcpScheduledConfigView,
+  SetAcpScheduledConfig,
 } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
 import { TauriAcpTaskClient } from "./acp-task-client.js";
 
 /** ACP 全局端口直接走本地 IPC，与 Web 使用相同数据契约，不初始化旧厂商运行时。 */
 export class TauriAcpClient extends TauriAcpTaskClient {
-  getAcpScheduledConfig(taskId:string,options:ReadOptions={}):Promise<AcpScheduledConfigView> {
-    return this.call("read_acp_scheduled_config",{taskId},options.signal);
+  getAcpScheduledConfig(
+    taskId: string,
+    options: ReadOptions = {},
+  ): Promise<AcpScheduledConfigView> {
+    return this.call("read_acp_scheduled_config", { taskId }, options.signal);
   }
-  setAcpScheduledConfig(taskId:string,input:SetAcpScheduledConfig,options:MutationOptions={}):Promise<AcpScheduledConfigView> {
-    return this.call("set_acp_scheduled_config",{taskId,input},options.signal);
+  setAcpScheduledConfig(
+    taskId: string,
+    input: SetAcpScheduledConfig,
+    options: MutationOptions = {},
+  ): Promise<AcpScheduledConfigView> {
+    return this.call("set_acp_scheduled_config", { taskId, input }, options.signal);
   }
-  previewAcpConfig(projectId:string,engine:AgentEngine,input:AcpConfigPreviewRequest,options:ReadOptions={}):Promise<AcpConfigPreview> {
-    return this.callCancellable("acp_agent_request",{engine,method:"settings.preview",params:{...input,projectId}},options.signal);
+  previewAcpConfig(
+    projectId: string,
+    engine: AgentEngine,
+    input: AcpConfigPreviewRequest,
+    options: ReadOptions = {},
+  ): Promise<AcpConfigPreview> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine, method: "settings.preview", params: { ...input, projectId } },
+      options.signal,
+    );
   }
   getAcpAgent(engine: AgentEngine, options: ReadOptions = {}): Promise<AcpAgentProfile> {
     return this.callCancellable(
@@ -46,11 +65,15 @@ export class TauriAcpClient extends TauriAcpTaskClient {
   authenticateAcpAgent(
     engine: AgentEngine,
     methodId: string,
-    options: MutationOptions = {},
+    options: MutationOptions & { credentials?: AcpAuthCredentials } = {},
   ): Promise<Record<string, never>> {
     return this.callCancellable(
       "acp_agent_request",
-      { engine, method: "agent.authenticate", params: { methodId } },
+      {
+        engine,
+        method: "agent.authenticate",
+        params: { methodId, ...(options.credentials ? { credentials: options.credentials } : {}) },
+      },
       options.signal,
     );
   }

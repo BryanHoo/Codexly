@@ -1,4 +1,5 @@
 import * as acp from "@agentclientprotocol/sdk/unstable";
+import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 
 export interface AcpClientCallbacks {
@@ -21,6 +22,7 @@ export class AcpConnection {
     readonly initialization: acp.InitializeResponse,
     readonly transport: acp.ClientConnection,
     readonly drainUpdates: () => Promise<void>,
+    private readonly authStatus: AcpAuthStatusTracker,
     private readonly metadata: AcpSessionMetadataStore,
     private readonly updateConfiguration: (
       sessionId: string,
@@ -35,6 +37,7 @@ export class AcpConnection {
   ): Promise<AcpConnection> {
     let updates = Promise.resolve();
     const metadata = new AcpSessionMetadataStore();
+    const authStatus = new AcpAuthStatusTracker();
     const enqueue = (operation: () => void | Promise<void>) => {
       updates = updates.then(operation);
       void updates.catch((error: unknown) => {
@@ -60,6 +63,13 @@ export class AcpConnection {
     );
     const transport = acp
       .client({ name: "codexly" })
+      .onNotification(
+        "_auth/status_update",
+        (value: unknown) => value,
+        ({ params }) => {
+          authStatus.update(params);
+        },
+      )
       .onNotification(acp.methods.client.session.update, ({ params }) => {
         return enqueue(async () => {
           const state = metadata.update(params);
@@ -91,9 +101,11 @@ export class AcpConnection {
         throw new Error(`不支持 ACP 协议版本 ${String(initialization.protocolVersion)}`);
       void transport.closed.then(
         () => {
+          authStatus.close();
           metadata.clear();
         },
         () => {
+          authStatus.close();
           metadata.clear();
         },
       );
@@ -101,6 +113,7 @@ export class AcpConnection {
         initialization,
         transport,
         () => updates,
+        authStatus,
         metadata,
         (id, options) =>
           enqueue(async () => {
@@ -118,6 +131,10 @@ export class AcpConnection {
 
   get closed(): Promise<void> {
     return this.transport.closed;
+  }
+  readAuthStatus() {
+    const marker = this.initialization.agentCapabilities?._meta?.["authStatus"];
+    return this.authStatus.read(marker !== undefined && marker !== null);
   }
   readSessionState(sessionId: string): AcpSessionMetadata {
     return this.metadata.read(sessionId);
@@ -224,6 +241,7 @@ export class AcpConnection {
   }
 
   close(error?: unknown): void {
+    this.authStatus.close();
     this.transport.close(error);
     this.#sessions.clear();
     this.metadata.clear();

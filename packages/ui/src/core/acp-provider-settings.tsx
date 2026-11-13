@@ -27,13 +27,13 @@ export interface AcpProviderSettingsClient {
 
 const labels = {
   "zh-CN": {
-    title: "供应商配置",
+    title: "自定义供应商",
     loading: "正在读取供应商…",
     readError: "无法读取供应商配置。",
     retry: "重试",
-    empty: "智能体未公布可配置的供应商。",
+    empty: "暂无自定义供应商",
     unavailable: "供应商设置接口不可用。",
-    disabled: "已停用",
+    disabled: "未配置",
     required: "必需",
     edit: "编辑",
     disable: "停用",
@@ -53,16 +53,16 @@ const labels = {
     saved: "已保存",
     saveError: "保存失败，请重试。",
     invalid: "请检查服务地址和请求头。服务地址必须使用 HTTP 或 HTTPS，请求头名称不能重复。",
-    restart: "重启应用或服务后，所有会话将使用更新后的供应商配置。",
+    restart: "重启后生效",
   },
   en: {
-    title: "Provider configuration",
+    title: "Custom providers",
     loading: "Loading providers…",
     readError: "Could not load providers.",
     retry: "Retry",
     empty: "The agent did not advertise any configurable providers.",
     unavailable: "Provider settings are unavailable.",
-    disabled: "Disabled",
+    disabled: "Not configured",
     required: "Required",
     edit: "Edit",
     disable: "Disable",
@@ -222,7 +222,7 @@ export function AcpProviderSettings({
   };
   return (
     <section className="space-y-4">
-      <h2 className="text-base font-semibold">{copy.title}</h2>
+      <h2 className="text-body-small font-semibold">{copy.title}</h2>
       <SettingsSaveStatus
         status={status}
         labels={copy}

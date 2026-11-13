@@ -1,3 +1,4 @@
+import { Switch } from "@codexly/ui/core/switch";
 import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import { ConversationDisplaySwitch } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../conversation-display-preferences.js";
@@ -202,22 +203,11 @@ export function GeneralSettingsPanel({
             label={t("general.taskNotifications")}
             description={t("general.notificationsDescription")}
           >
-            <Button
-              role="switch"
+            <Switch
               aria-label={t("general.taskNotifications")}
-              aria-checked={notificationsEnabled}
-              className={`h-6 w-10 rounded-pill p-0.5 ${notificationsEnabled ? "bg-brand hover:bg-brand" : "bg-control-hover"}`}
-              variant="ghost"
-              type="button"
-              onClick={() => {
-                onNotificationsChange(!notificationsEnabled);
-              }}
-            >
-              <span
-                aria-hidden="true"
-                className={`block size-5 rounded-pill bg-brand-contrast shadow-control transition-transform motion-reduce:transition-none ${notificationsEnabled ? "translate-x-2" : "-translate-x-2"}`}
-              />
-            </Button>
+              checked={notificationsEnabled}
+              onCheckedChange={onNotificationsChange}
+            />
           </SettingsField>
         </SettingsGroup>
       </div>

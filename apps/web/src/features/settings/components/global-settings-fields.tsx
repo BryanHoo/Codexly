@@ -1,3 +1,4 @@
+import { SettingsCard } from "@codexly/ui/core/settings-group";
 import type { AgentModel } from "@codexly/protocol";
 import {
   Bookmark,
@@ -7,12 +8,10 @@ import {
   Info,
   Network,
   PawPrint,
-  SlidersHorizontal,
   Settings,
-  ServerCog,
   type LucideIcon,
 } from "lucide-react";
-import { useId, type ReactNode, type SelectHTMLAttributes } from "react";
+import type { ReactNode, SelectHTMLAttributes } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { PromptInputSelect } from "../../../shared/components/agent/prompt-input.js";
@@ -29,12 +28,7 @@ export const settingsSections: readonly Readonly<{
   { icon: Bookmark, id: "prompts" },
   { icon: PawPrint, id: "pets" },
   { icon: Sparkles, id: "git" },
-  { icon: ServerCog, id: "provider" },
-  { icon: ServerCog, id: "claude-provider" },
-  { icon: Bot, id: "claude-agent" },
-  { icon: SlidersHorizontal, id: "claude-personalization" },
-  { icon: Bot, id: "agent" },
-  { icon: SlidersHorizontal, id: "personalization" },
+  { icon: Bot, id: "acp" },
   { icon: Network, id: "access" },
   { icon: Network, id: "network" },
   { icon: Info, id: "about" },
@@ -60,35 +54,7 @@ export function SettingsPanel({
   );
 }
 
-export function SettingsGroup({
-  children,
-  title,
-  description,
-}: Readonly<{ children: ReactNode; title: string; description?: string }>) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id}>
-      <h2
-        className={`${description === undefined ? "mb-2" : "mb-1"} text-body font-semibold`}
-        id={id}
-      >
-        {title}
-      </h2>
-      {description === undefined ? null : (
-        <p className="mb-3 text-body-small text-muted-foreground">{description}</p>
-      )}
-      <SettingsCard>{children}</SettingsCard>
-    </section>
-  );
-}
-
-function SettingsCard({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <div className="divide-y divide-separator rounded-surface border border-separator bg-panel px-4">
-      {children}
-    </div>
-  );
-}
+export { SettingsGroup } from "@codexly/ui/core/settings-group";
 
 export function SettingsField({
   alignStart = false,

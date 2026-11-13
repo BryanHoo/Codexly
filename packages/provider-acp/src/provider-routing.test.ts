@@ -108,3 +108,40 @@ it("未协商、不存在的供应商与协议不触发配置请求", async () =
     await f.close();
   }
 });
+
+it("表单密钥留空优先保留已保存凭据，没有应用凭据时复用原生密钥", async () => {
+  const f = await fixture();
+  try {
+    const routing = new AcpProviderRouting("claude", f.store, () =>
+      Promise.resolve({
+        apiType: "openai",
+        headers: { Authorization: "Bearer native-key" },
+      }),
+    );
+    const first = await routing.configure(f.connection, {
+      providerId: "gateway",
+      apiType: "openai",
+      baseUrl: "https://first.example",
+    });
+    expect(f.set.mock.calls.at(-1)?.[0].params.headers).toEqual({
+      Authorization: "Bearer native-key",
+    });
+    expect(JSON.stringify(first)).not.toContain("native-key");
+    await routing.configure(f.connection, {
+      providerId: "gateway",
+      apiType: "openai",
+      baseUrl: "https://second.example",
+      headers: { Authorization: "Bearer replaced-key" },
+    });
+    await routing.configure(f.connection, {
+      providerId: "gateway",
+      apiType: "openai",
+      baseUrl: "https://third.example",
+    });
+    expect(f.set.mock.calls.at(-1)?.[0].params.headers).toEqual({
+      Authorization: "Bearer replaced-key",
+    });
+  } finally {
+    await f.close();
+  }
+});

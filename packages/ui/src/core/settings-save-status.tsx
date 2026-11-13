@@ -18,13 +18,23 @@ type Feedback = Readonly<{
   beforeLeave?: () => Promise<boolean>;
 }>;
 const FeedbackContext = createContext<((id: string, value?: Feedback) => void) | null>(null);
+const NavigationContext = createContext<(navigate: () => void) => void>((navigate) => {
+  navigate();
+});
+
+/** Agent 切换与页面返回共用保存屏障，不额外创建保存状态或请求。 */
+export function useSettingsNavigation() {
+  return useContext(NavigationContext);
+}
 
 /** 汇总保存状态并保留离页保护；视觉反馈统一交给全局通知容器。 */
 export function SettingsSaveFeedbackProvider({
   children,
   onBack,
 }: Readonly<{
-  children: ReactNode | ((requestBack: () => void) => ReactNode);
+  children:
+    | ReactNode
+    | ((requestBack: () => void, requestNavigation: (navigate: () => void) => void) => ReactNode);
   onBack?: () => void;
 }>) {
   const [entries, setEntries] = useState<ReadonlyMap<string, Feedback>>(new Map());
@@ -45,7 +55,7 @@ export function SettingsSaveFeedbackProvider({
     values.find((value) => value.status === "error") ??
     values.find((value) => value.status === "saving") ??
     values[0];
-  const requestBack = () => {
+  const requestNavigation = (navigate: () => void) => {
     if (leaving.current) return;
     leaving.current = true;
     const pendingSources = [...sources.current.values()];
@@ -56,7 +66,7 @@ export function SettingsSaveFeedbackProvider({
       ),
     )
       .then((results) => {
-        if (results.every(Boolean)) onBack?.();
+        if (results.every(Boolean)) navigate();
         else {
           // 错误通知可以按时消失，但返回被阻止时必须重新给出原因和可用的重试入口。
           const failed = pendingSources[results.findIndex((saved) => !saved)];
@@ -73,7 +83,13 @@ export function SettingsSaveFeedbackProvider({
   };
   return (
     <FeedbackContext value={report}>
-      {typeof children === "function" ? children(requestBack) : children}
+      <NavigationContext value={requestNavigation}>
+        {typeof children === "function"
+          ? children(() => {
+              requestNavigation(() => onBack?.());
+            }, requestNavigation)
+          : children}
+      </NavigationContext>
       {active ? <SaveStatusView {...active} /> : null}
     </FeedbackContext>
   );

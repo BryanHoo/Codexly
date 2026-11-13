@@ -1,3 +1,4 @@
+import { Switch } from "@codexly/ui/core/switch";
 import { ConversationDisplaySwitch } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../conversation-display-preferences.js";
 import type { AgentGlobalSettings, ProjectOpenApp } from "@/protocol/index.js";
@@ -7,9 +8,18 @@ import { MonitorCog, Moon, Sun } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import type { SupportedLanguage } from "../../../i18n/language-preference.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../../../shared/components/core/tooltip.js";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../../shared/components/core/tooltip.js";
 import type { ThemePreference } from "../theme-preference.js";
-import { SettingsField, SettingsGroup, SettingsSelect, type SettingsSectionId } from "./global-settings-fields.js";
+import {
+  SettingsField,
+  SettingsGroup,
+  SettingsSelect,
+  type SettingsSectionId,
+} from "./global-settings-fields.js";
 
 import { BackgroundSettingsField } from "./background-settings-field.js";
 import { TemporaryWorkspaceSettingsField } from "./temporary-workspace-settings-field.js";
@@ -24,9 +34,16 @@ const themeOptions = [
 
 export function GeneralSettingsPanel({
   activeSection,
-  apps, settings, language, notificationsEnabled, theme,
-  onFollowUpChange, onDefaultOpenAppChange,
-  onLanguageChange, onNotificationsChange, onThemeChange,
+  apps,
+  settings,
+  language,
+  notificationsEnabled,
+  theme,
+  onFollowUpChange,
+  onDefaultOpenAppChange,
+  onLanguageChange,
+  onNotificationsChange,
+  onThemeChange,
 }: Readonly<{
   activeSection: SettingsSectionId;
   apps: readonly ProjectOpenApp[];
@@ -50,25 +67,68 @@ export function GeneralSettingsPanel({
           <AutostartSettingsField />
           <TraySettingsField />
           <TemporaryWorkspaceSettingsField />
-          <SettingsField label={t("fields.defaultOpenWith")} description={t("general.openAppDescription")}>
-            <SettingsSelect aria-label={t("fields.defaultOpenWith")} value={settings.defaultOpenAppId ?? ""} onChange={(event) => onDefaultOpenAppChange((event.currentTarget.value || null) as AgentGlobalSettings["defaultOpenAppId"])}>
+          <SettingsField
+            label={t("fields.defaultOpenWith")}
+            description={t("general.openAppDescription")}
+          >
+            <SettingsSelect
+              aria-label={t("fields.defaultOpenWith")}
+              value={settings.defaultOpenAppId ?? ""}
+              onChange={(event) =>
+                onDefaultOpenAppChange(
+                  (event.currentTarget.value || null) as AgentGlobalSettings["defaultOpenAppId"],
+                )
+              }
+            >
               <option value="">{t("appearance.defaultOpenAutomatic")}</option>
-              {settings.defaultOpenAppId && !apps.some(app => app.id === settings.defaultOpenAppId) ? <option disabled value={settings.defaultOpenAppId}>{settings.defaultOpenAppId}</option> : null}
-              {apps.filter((app) => app.kind !== "system-default").map((app) => <option key={app.id} value={app.id}>{app.name}</option>)}
+              {settings.defaultOpenAppId &&
+              !apps.some((app) => app.id === settings.defaultOpenAppId) ? (
+                <option disabled value={settings.defaultOpenAppId}>
+                  {settings.defaultOpenAppId}
+                </option>
+              ) : null}
+              {apps
+                .filter((app) => app.kind !== "system-default")
+                .map((app) => (
+                  <option key={app.id} value={app.id}>
+                    {app.name}
+                  </option>
+                ))}
             </SettingsSelect>
           </SettingsField>
-          <SettingsField label={t("appearance.language")} description={t("general.languageDescription")}>
-            <SettingsSelect aria-label={t("appearance.language")} value={language} onChange={(event) => onLanguageChange(event.currentTarget.value as SupportedLanguage)}>
+          <SettingsField
+            label={t("appearance.language")}
+            description={t("general.languageDescription")}
+          >
+            <SettingsSelect
+              aria-label={t("appearance.language")}
+              value={language}
+              onChange={(event) => onLanguageChange(event.currentTarget.value as SupportedLanguage)}
+            >
               <option value="zh-CN">{t("languages.zhCN")}</option>
               <option value="en">{t("languages.en")}</option>
             </SettingsSelect>
           </SettingsField>
-          <SettingsField label={t("appearance.colorMode")} description={t("general.themeDescription")}>
-            <div className="grid w-40 grid-cols-3 rounded-control bg-control p-0.5" role="group" aria-label={t("appearance.colorMode")}>
+          <SettingsField
+            label={t("appearance.colorMode")}
+            description={t("general.themeDescription")}
+          >
+            <div
+              className="grid w-40 grid-cols-3 rounded-control bg-control p-0.5"
+              role="group"
+              aria-label={t("appearance.colorMode")}
+            >
               {themeOptions.map(({ value, icon: Icon, label, aria }) => (
                 <Tooltip key={value}>
                   <TooltipTrigger asChild>
-                    <Button aria-label={t(`appearance.${aria}`)} aria-pressed={theme === value} className={`h-7 min-w-0 px-2 ${theme === value ? "bg-raised text-foreground shadow-control" : "text-muted-foreground"}`} variant="ghost" type="button" onClick={() => onThemeChange(value)}>
+                    <Button
+                      aria-label={t(`appearance.${aria}`)}
+                      aria-pressed={theme === value}
+                      className={`h-7 min-w-0 px-2 ${theme === value ? "bg-raised text-foreground shadow-control" : "text-muted-foreground"}`}
+                      variant="ghost"
+                      type="button"
+                      onClick={() => onThemeChange(value)}
+                    >
                       <Icon aria-hidden="true" />
                     </Button>
                   </TooltipTrigger>
@@ -80,28 +140,70 @@ export function GeneralSettingsPanel({
           <BackgroundSettingsField />
         </SettingsGroup>
         <SettingsGroup title={t("general.editor")}>
-          <SettingsField label={t("general.stickyPrompt")} description={t("general.stickyPromptDescription")}>
-            <ConversationDisplaySwitch store={conversationDisplayPreferences} preference="stickyPrompt" label={t("general.stickyPrompt")} />
+          <SettingsField
+            label={t("general.stickyPrompt")}
+            description={t("general.stickyPromptDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="stickyPrompt"
+              label={t("general.stickyPrompt")}
+            />
           </SettingsField>
-          <SettingsField label={t("general.messageNavigation")} description={t("general.messageNavigationDescription")}>
-            <ConversationDisplaySwitch store={conversationDisplayPreferences} preference="navigation" label={t("general.messageNavigation")} />
+          <SettingsField
+            label={t("general.messageNavigation")}
+            description={t("general.messageNavigationDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="navigation"
+              label={t("general.messageNavigation")}
+            />
           </SettingsField>
-          <SettingsField label={t("general.independentFileDiffs")} description={t("general.independentFileDiffsDescription")}>
-            <ConversationDisplaySwitch store={conversationDisplayPreferences} preference="independentFileDiffs" label={t("general.independentFileDiffs")} />
+          <SettingsField
+            label={t("general.independentFileDiffs")}
+            description={t("general.independentFileDiffsDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="independentFileDiffs"
+              label={t("general.independentFileDiffs")}
+            />
           </SettingsField>
-          <SettingsField label={t("fields.followUpMessages")} description={t("general.followUpDescription")}>
-            <div className="grid w-40 grid-cols-2 rounded-control bg-control p-0.5" role="group" aria-label={t("fields.followUpMessages")}>
+          <SettingsField
+            label={t("fields.followUpMessages")}
+            description={t("general.followUpDescription")}
+          >
+            <div
+              className="grid w-40 grid-cols-2 rounded-control bg-control p-0.5"
+              role="group"
+              aria-label={t("fields.followUpMessages")}
+            >
               {(["queue", "steer"] as const).map((value) => (
-                <Button key={value} aria-pressed={settings.followUpBehavior === value} className={`h-7 px-3 text-body-small ${settings.followUpBehavior === value ? "bg-raised text-foreground shadow-control" : "text-muted-foreground"}`} variant="ghost" type="button" onClick={() => onFollowUpChange(value)}>{t(`followUp.${value}`)}</Button>
+                <Button
+                  key={value}
+                  aria-pressed={settings.followUpBehavior === value}
+                  className={`h-7 px-3 text-body-small ${settings.followUpBehavior === value ? "bg-raised text-foreground shadow-control" : "text-muted-foreground"}`}
+                  variant="ghost"
+                  type="button"
+                  onClick={() => onFollowUpChange(value)}
+                >
+                  {t(`followUp.${value}`)}
+                </Button>
               ))}
             </div>
           </SettingsField>
         </SettingsGroup>
         <SettingsGroup title={t("appearance.notifications")}>
-          <SettingsField label={t("general.taskNotifications")} description={t("general.notificationsDescription")}>
-            <Button role="switch" aria-label={t("general.taskNotifications")} aria-checked={notificationsEnabled} className={`h-6 w-10 rounded-pill p-0.5 ${notificationsEnabled ? "bg-brand hover:bg-brand" : "bg-control-hover"}`} variant="ghost" type="button" onClick={() => onNotificationsChange(!notificationsEnabled)}>
-              <span aria-hidden="true" className={`block size-5 rounded-pill bg-brand-contrast shadow-control transition-transform motion-reduce:transition-none ${notificationsEnabled ? "translate-x-2" : "-translate-x-2"}`} />
-            </Button>
+          <SettingsField
+            label={t("general.taskNotifications")}
+            description={t("general.notificationsDescription")}
+          >
+            <Switch
+              aria-label={t("general.taskNotifications")}
+              checked={notificationsEnabled}
+              onCheckedChange={onNotificationsChange}
+            />
           </SettingsField>
         </SettingsGroup>
       </div>

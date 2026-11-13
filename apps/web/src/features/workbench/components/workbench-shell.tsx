@@ -10,7 +10,7 @@ import {
   SplitPaneContext,
 } from "@codexly/ui/core/split-workspace";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
-import { Activity, useCallback, useContext, memo } from "react";
+import { useCallback, useContext, memo } from "react";
 import { useWorkbenchShellController } from "./workbench-shell-controller.js";
 import { WorkbenchShellLayout } from "./workbench-shell-layout.js";
 import { WorkbenchSettingsPage } from "./workbench-settings-page.js";
@@ -37,8 +37,8 @@ function WorkbenchShellContent({
   }, [setSidebarOpen]);
   return (
     <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
-      {/* 与桌面一致：隐藏时清理界面订阅和快捷键，保留草稿、滚动位置及边界外的运行时连接。 */}
-      <Activity mode={context.globalSettingsSection === null ? "visible" : "hidden"}>
+      {/* 设置以模态浮层覆盖工作台，背景和会话状态保持原位。 */}
+      <>
         <WorkbenchShellLayout
           board={board}
           context={context}
@@ -77,7 +77,7 @@ function WorkbenchShellContent({
           temporary={temporary}
           {...(todoId === undefined ? {} : { todoId })}
         />
-      </Activity>
+      </>
       <WorkbenchSettingsPage context={context} projectToolsEnabled={!temporary} />
     </SplitInspectorProvider>
   );

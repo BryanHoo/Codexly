@@ -73,14 +73,9 @@ describe("GlobalSettingsPage", () => {
     await changeAppLanguage("zh-CN");
   });
 
-  it.each([
-    ["agent", "ACP 模型", "全局指令"],
-    ["claude-provider", "API 地址", "默认模型"],
-    ["claude-agent", "模型", "全局指令"],
-    ["claude-personalization", "全局指令", "API 地址"],
-  ] as const)(
-    "Claude 子菜单 %s 在 Codex 设置加载失败时仍可独立打开",
-    async (initialSection, field, excluded) => {
+  it.each(["agent", "claude-provider", "claude-agent", "claude-personalization"] as const)(
+    "旧入口 %s 重定向 ACP，且不依赖旧全局设置加载",
+    async (initialSection) => {
       const markup = await renderSettingsDialog(
         <GlobalSettingsPage
           client={new CodexlyClient()}
@@ -94,9 +89,9 @@ describe("GlobalSettingsPage", () => {
           onSave={vi.fn()}
         />,
       );
-      expect(markup).toContain(`id="settings-panel-${initialSection}"`);
-      expect(markup).toContain(field);
-      expect(markup).not.toContain(`aria-label="${excluded}"`);
+      expect(markup).toContain('aria-label="ACP"');
+      expect(markup).toContain("会话默认配置");
+      expect(markup).toContain("ACP 模型");
       expect(markup).not.toContain("Codex unavailable");
     },
   );
@@ -190,14 +185,16 @@ describe("GlobalSettingsPage", () => {
       />,
     );
 
-    expect(markup).not.toContain('role="dialog"');
+    expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-label="搜索设置"');
     expect(markup).toContain("常规");
-    expect(markup).toContain("个性化");
+    expect(markup).toContain("ACP");
     expect(markup).toContain('aria-label="默认打开方式"');
     for (const label of ["消息吸顶", "消息目录锚点"]) {
       expect(markup).toMatch(
-        new RegExp(`role="switch"[^>]*aria-label="${label}"[^>]*aria-checked="false"`),
+        new RegExp(
+          `<button(?=[^>]*role="switch")(?=[^>]*aria-label="${label}")(?=[^>]*aria-checked="false")[^>]*>`,
+        ),
       );
     }
     expect(markup).not.toContain("__SYSTEM_DEFAULT__");
@@ -492,7 +489,7 @@ describe("GlobalSettingsPage", () => {
 
       expect(markup).toContain("Global settings");
       expect(markup).toContain("General");
-      expect(markup).toContain("Personalization");
+      expect(markup).toContain("ACP");
       expect(markup).toContain("Follow-up messages");
       expect(markup).toContain('aria-label="Language"');
     } finally {

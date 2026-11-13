@@ -6,6 +6,7 @@ import { createProvider, createServerOptions, closeCallbacks } from "./app-all.t
 const profile = {
   engine: "claude" as const,
   protocolVersion: 1,
+  authStatus: { kind: "api_key" as const, label: "Anthropic API key", detail: "ANTHROPIC_API_KEY" },
   authMethods: [{ id: "login", name: "登录" }],
 };
 const defaults = {
@@ -287,4 +288,31 @@ it("供应商 HTTP 配置使用通用 ACP 契约并保持幂等，不回显密�
     ).statusCode,
   ).toBe(200);
   expect(providers.disable).toHaveBeenCalledExactlyOnceWith("main");
+});
+
+it("认证表单凭据通过 HTTP 到达服务，响应不回显秘密", async () => {
+  const authenticate = vi.fn(() => Promise.resolve({}));
+  const service = {
+    inspect: () => Promise.resolve(profile),
+    readDefaults: () => Promise.resolve(defaults),
+    updateDefaults: () => Promise.resolve(defaults),
+    setDefaultConfig: () => Promise.resolve(defaults),
+    authenticate,
+  };
+  const app = await createCodexlyServer({
+    ...createServerOptions(createProvider().provider),
+    acpAgents: { codex: service, claude: service },
+  });
+  closeCallbacks.push(() => app.close());
+  const response = await app.inject({
+    method: "POST",
+    url: "/v1/acp/agents/codex/authenticate",
+    headers: { "idempotency-key": "form-key" },
+    payload: { methodId: "api-key", credentials: { apiKey: "private-form-key" } },
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  expect(authenticate).toHaveBeenCalledWith("api-key", expect.any(AbortSignal), {
+    apiKey: "private-form-key",
+  });
+  expect(response.body).not.toContain("private-form-key");
 });

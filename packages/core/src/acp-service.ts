@@ -1,4 +1,5 @@
 import type {
+  AcpAuthCredentials,
   AcpConfigPreview,
   AcpConfigPreviewRequest,
   AcpAgentProfile,
@@ -15,13 +16,18 @@ export interface AcpAgentSettingsService {
     configure(config: AcpProviderConfig): Promise<AcpProviderPage>;
     disable(providerId: string): Promise<AcpProviderPage>;
   };
+
   previewConfig?(
     cwd: string,
     input: AcpConfigPreviewRequest,
     signal?: AbortSignal,
   ): Promise<AcpConfigPreview>;
   inspect(): Promise<AcpAgentProfile>;
-  authenticate(methodId: string, signal?: AbortSignal): Promise<Record<string, never>>;
+  authenticate(
+    methodId: string,
+    signal?: AbortSignal,
+    credentials?: AcpAuthCredentials,
+  ): Promise<Record<string, never>>;
   readDefaults(): Promise<AcpDefaults>;
   updateDefaults(values: AcpConfigValues): Promise<AcpDefaults>;
   setDefaultConfig(configId: string, value: string | boolean): Promise<AcpDefaults>;

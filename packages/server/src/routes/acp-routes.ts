@@ -16,6 +16,7 @@ import {
   AcpProviderConfigSchema,
   AcpProviderPageSchema,
   type AcpProviderConfig,
+  type AcpAuthCredentials,
   type AgentEngine,
   type AcpConfigValues,
 } from "@codexly/protocol";
@@ -231,7 +232,7 @@ export const registerAcpRoutes: FastifyPluginCallback<{
   );
   app.post<{
     Params: { engine: AgentEngine };
-    Body: { methodId: string };
+    Body: { methodId: string; credentials?: AcpAuthCredentials };
     Headers: { "idempotency-key": string };
   }>(
     "/v1/acp/agents/:engine/authenticate",
@@ -250,7 +251,14 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         ["acp-authenticate", request.params.engine],
         request.headers["idempotency-key"],
         request.body,
-        () => service(request.params.engine).authenticate(request.body.methodId, request.signal),
+        () =>
+          request.body.credentials
+            ? service(request.params.engine).authenticate(
+                request.body.methodId,
+                request.signal,
+                request.body.credentials,
+              )
+            : service(request.params.engine).authenticate(request.body.methodId, request.signal),
       ),
   );
   app.get<{ Params: { projectId: string; taskId: string } }>(

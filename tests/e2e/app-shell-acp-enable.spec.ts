@@ -45,10 +45,8 @@ for (const width of [390, 1280]) {
     if (width < 600) await page.getByRole("button", { name: "展开项目侧栏", exact: true }).click();
     await page.getByRole("button", { name: "设置", exact: true }).click();
     const settings = page.getByRole("region", { name: "全局设置" });
-    await settings
-      .getByRole("group", { name: "Claude", exact: true })
-      .getByRole("button", { name: "模型服务", exact: true })
-      .click();
+    await settings.getByRole("button", { name: "ACP", exact: true }).click();
+    await settings.getByRole("button", { name: /Claude Code/ }).click();
     const enable = settings.getByRole("button", { name: "启用 Claude", exact: true });
     await expect(enable).toBeEnabled();
     expect(inspections).toBe(0);
@@ -58,7 +56,9 @@ for (const width of [390, 1280]) {
       marker,
     );
     await settings.getByRole("button", { name: "重试", exact: true }).click();
-    await expect(settings.getByRole("button", { name: "原生登录", exact: true })).toBeEnabled();
+    await expect(
+      settings.getByRole("button", { name: "在浏览器中登录", exact: true }),
+    ).toBeEnabled();
     expect(inspections).toBe(2);
     expect(
       await page.evaluate(

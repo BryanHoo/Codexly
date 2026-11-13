@@ -27,6 +27,7 @@ export const settings = {
     updating: "正在准备更新",
   },
   actions: {
+    close: "关闭",
     saving: "保存中…",
     saved: "已保存",
     backToApp: "返回应用",
@@ -105,13 +106,14 @@ export const settings = {
     queue: "排队",
     steer: "引导",
   },
- languages: {
+  languages: {
     en: "English",
     zhCN: "简体中文",
   },
   loading: "加载中…",
   navigationLabel: "设置分类",
   groups: {
+    agents: "智能体",
     personal: "公共配置",
     codex: "Codex",
     claude: "Claude",
@@ -178,6 +180,7 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
+    acp: "ACP",
     network: "网络",
     prompts: "常用提示词",
     git: "辅助生成",
@@ -193,13 +196,15 @@ export const settings = {
   },
   title: "全局设置",
   sectionKeywords: {
+    acp: "ACP Agent Codex Claude 认证 供应商 模型 推理 模式 权限 默认配置",
     network: "代理 网关 端口 认证 密码 HTTP HTTPS SOCKS5",
     prompts: "常用提示词 标题 斜杠 井号命令 本地存储 新建 编辑 删除",
     git: "辅助生成 默认 Agent 默认模型 Git 提交信息 任务标题 提示词 生成规则",
     "claude-provider": "Claude Anthropic API Key API 地址 连接 可用模型",
     "claude-agent": "Claude 默认模型 默认思考强度 工具权限 按需确认 允许编辑 计划模式 完全访问",
     "claude-personalization": "Claude CLAUDE.md 全局指令 项目配置 工具授权规则 自动允许 禁止使用",
-    appearance: "颜色模式 语言 通知 消息吸顶 消息目录锚点 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩 无项目 聊天 文件夹 存储位置",
+    appearance:
+      "颜色模式 语言 通知 消息吸顶 消息目录锚点 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩 无项目 聊天 文件夹 存储位置",
     personalization: "Codex 说明 AGENTS.md 全局指令 记忆 MCP 网页搜索",
     pets: "启用 宠物 选择",
     provider: "API 密钥 Base URL 模型 官方 自定义",

@@ -1,11 +1,22 @@
 /** 设置归属由两端共用；平台只过滤自身不支持的入口，不挂载面板来建立搜索索引。 */
 export const settingsSectionGroups = [
   { id: "personal", sections: ["appearance", "prompts", "pets", "git"] },
-  { id: "codex", sections: ["provider", "agent", "personalization"] },
-  { id: "claude", sections: ["claude-provider", "claude-agent", "claude-personalization"] },
+  { id: "agents", sections: ["acp"] },
   { id: "app", sections: ["network", "access", "about"] },
 ] as const;
-export type SettingsSectionId = (typeof settingsSectionGroups)[number]["sections"][number];
+/** 旧入口仅用于兼容已有跳转，实际导航统一落到 ACP。 */
+export type SettingsSectionId =
+  | (typeof settingsSectionGroups)[number]["sections"][number]
+  | "provider"
+  | "agent"
+  | "personalization"
+  | "claude-provider"
+  | "claude-agent"
+  | "claude-personalization";
+
+export function resolveSettingsSection(section: SettingsSectionId): SettingsSectionId {
+  return settingsSectionEngine(section) ? "acp" : section;
+}
 
 export type ClaudeSettingsSectionId = Extract<SettingsSectionId, `claude-${string}`>;
 
@@ -17,6 +28,16 @@ export function isClaudeSettingsSection(
 }
 
 export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly string[]> = {
+  acp: [
+    "sectionKeywords.acp",
+    "fields.fastMode",
+    "fields.model",
+    "fields.reasoningEffort",
+    "fields.approvalPolicy",
+    "fields.sandbox",
+    "agent.webSearch.label",
+    "agent.modelVerbosity.label",
+  ],
   "claude-provider": [],
   "claude-agent": [],
   "claude-personalization": [],

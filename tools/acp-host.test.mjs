@@ -167,7 +167,7 @@ test(
 );
 
 test(
-  "compiled host imports app legacy settings before starting an unavailable agent",
+  "compiled host inspects legacy settings without writing when the agent is unavailable",
   { skip: !binary, timeout: 20000 },
   async () => {
     const { mkdir, writeFile, readFile } = await import("node:fs/promises");
@@ -206,9 +206,8 @@ test(
       child.stdin.write('{"id":1,"method":"agent.inspect","params":{"engine":"codex"}}\n');
       const result = await response;
       assert.ok(result.error);
-      const settings = JSON.parse(await readFile(join(directory, "settings/codex.json"), "utf8"));
-      assert.deepEqual(settings.legacy, { model: "old", future: false });
-      assert.deepEqual(settings.values, {});
+      // 检测失败或尚未保存时，不允许创建迁移文件。
+      await assert.rejects(readFile(join(directory, "settings/codex.json")), { code: "ENOENT" });
       assert.equal(await readFile(join(root, "agent-settings.json"), "utf8"), original);
       child.stdin.end();
       assert.equal(await exited, 0);
@@ -273,9 +272,11 @@ test(
         '{"version":1,"global":{"model":"old"},"projects":{}}',
       );
       await request(2);
-      const stored = JSON.parse(await readFile(join(directory, "settings/codex.json"), "utf8"));
-      assert.deepEqual(stored.legacy, { model: "old" });
-      assert.equal(stored.legacyPolicy, "preserve");
+      await assert.rejects(readFile(join(directory, "settings/codex.json")), { code: "ENOENT" });
+      assert.equal(
+        await readFile(join(root, "agent-settings.json"), "utf8"),
+        '{"version":1,"global":{"model":"old"},"projects":{}}',
+      );
       child.stdin.end();
       assert.equal(await exited, 0);
     } finally {

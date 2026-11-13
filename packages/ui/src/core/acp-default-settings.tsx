@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
 import type { AcpDefaults, AgentEngine } from "@codexly/protocol";
@@ -23,7 +23,6 @@ export const acpDefaultSettingsLabels = {
     saving: "正在保存…",
     saved: "已保存",
     saveError: "设置保存失败",
-    retained: "以下设置的原值已保留，等待复核：",
     empty: "智能体未提供可配置选项。",
   },
   en: {
@@ -32,7 +31,6 @@ export const acpDefaultSettingsLabels = {
     saving: "Saving…",
     saved: "Saved",
     saveError: "Could not save settings",
-    retained: "Original values are retained for review:",
     empty: "The agent did not provide configurable options.",
   },
 };
@@ -43,17 +41,19 @@ interface Attempt {
   key: string;
 }
 
-/** 两端只呈现原始 ACP 控件；每次保存用完整响应替换缓存，不猜测模型依赖。 */
+/** 两端只呈现原始 ACP 控件；失焦后逐项保存，用完整响应更新依赖选项；原始迁移标识只保留在宿主。 */
 export function AcpDefaultSettings({
   client,
   engine,
   Field,
   Select,
   labels,
+  language,
 }: Readonly<{
   client: AcpDefaultsClient;
   engine: AgentEngine;
   labels: Labels;
+  language?: string;
 }> &
   Pick<AcpConfigOptionsProps, "Field" | "Select">) {
   const queryClient = useQueryClient();
@@ -62,9 +62,11 @@ export function AcpDefaultSettings({
     () => ({
       pending: undefined as Promise<boolean> | undefined,
       attempt: undefined as Attempt | undefined,
+      draft: undefined as { id: string; value: string | boolean } | undefined,
     }),
     [client, engine],
   );
+  const [draft, setDraft] = useState<{ scope: object; id: string; value: string | boolean }>();
   const query = useQuery({
     queryKey,
     queryFn: ({ signal }) => client.getAcpDefaults(engine, { signal }),
@@ -95,12 +97,14 @@ export function AcpDefaultSettings({
     const attempt =
       previous?.id === id && previous.value === value ? previous : { id, value, key: createUuid() };
     scope.attempt = attempt;
+    scope.draft = undefined;
     // 同步互斥覆盖 React 尚未更新的窗口；失败重试保持同一幂等身份。
     scope.pending = mutation
       .mutateAsync({ client, engine, scope, attempt })
       .then(
         () => {
           scope.attempt = undefined;
+          setDraft((current) => (current?.scope === scope ? undefined : current));
           return true;
         },
         () => false,
@@ -131,11 +135,16 @@ export function AcpDefaultSettings({
         status={status}
         labels={labels}
         onRetry={retry}
-        beforeLeave={() => scope.pending ?? Promise.resolve(status !== "error")}
+        beforeLeave={() =>
+          scope.pending ??
+          (scope.draft
+            ? run(scope.draft.id, scope.draft.value)
+            : Promise.resolve(status !== "error"))
+        }
       />
       {error ? (
         <div role="alert" className="mb-3 space-y-2 text-label text-danger">
-          <p>{error.message}</p>
+          <p>{labels.saveError}</p>
           <Button type="button" variant="ghost" onClick={retry}>
             {labels.retry}
           </Button>
@@ -143,21 +152,31 @@ export function AcpDefaultSettings({
       ) : null}
       {query.data ? (
         <>
-          {query.data.unmappedLegacy.length || query.data.invalidDefaults.length ? (
-            <p role="status" className="mb-3 break-words text-label text-muted-foreground">
-              {labels.retained}{" "}
-              {[...new Set([...query.data.unmappedLegacy, ...query.data.invalidDefaults])].join(
-                ", ",
-              )}
-            </p>
-          ) : null}
           <AcpConfigOptions
-            options={query.data.configOptions}
+            options={query.data.configOptions.map((option) =>
+              draft?.scope === scope && draft.id === option.id
+                ? { ...option, currentValue: draft.value }
+                : option,
+            )}
+            language={language ?? (labels === acpDefaultSettingsLabels["zh-CN"] ? "zh-CN" : "en")}
+            settingsControls
+            onCommit={(id) => {
+              const current = scope.draft;
+              if (current?.id === id) void run(current.id, current.value);
+            }}
             Field={Field}
             Select={Select}
             disabled={currentMutation && mutation.isPending}
             onChange={(id, value) => {
-              void run(id, value);
+              if (scope.pending) return;
+              // 新编辑取代失败的旧提交；回到已保存值后，重试不能再次写入已放弃的值。
+              scope.attempt = undefined;
+              mutation.reset();
+              const baseline = query.data.configOptions.find(
+                (option) => option.id === id,
+              )?.currentValue;
+              scope.draft = baseline === value ? undefined : { id, value };
+              setDraft(scope.draft ? { scope, ...scope.draft } : undefined);
             }}
           />
           {query.data.configOptions.length === 0 ? (
@@ -167,7 +186,7 @@ export function AcpDefaultSettings({
           ) : null}
         </>
       ) : query.isPending ? (
-        <LoadingSkeleton variant="settings" label={labels.loading} className="p-0" />
+        <LoadingSkeleton variant="settings-fields" label={labels.loading} className="px-0 py-1" />
       ) : null}
     </>
   );

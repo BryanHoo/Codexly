@@ -2,6 +2,7 @@ import {
   AcpConfigPreviewSchema,
   AcpScheduledConfigViewSchema,
   type SetAcpScheduledConfig,
+  type AcpAuthCredentials,
   type AcpConfigPreviewRequest,
   AcpAgentProfileSchema,
   AcpAuthenticateResponseSchema,
@@ -135,10 +136,14 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
       "PATCH",
     );
   }
-  authenticateAcpAgent(engine: AgentEngine, methodId: string, options: MutationOptions = {}) {
+  authenticateAcpAgent(
+    engine: AgentEngine,
+    methodId: string,
+    options: MutationOptions & { credentials?: AcpAuthCredentials } = {},
+  ) {
     return this.mutation(
       `/v1/acp/agents/${engine}/authenticate`,
-      { methodId },
+      { methodId, ...(options.credentials ? { credentials: options.credentials } : {}) },
       AcpAuthenticateResponseSchema,
       options,
       "POST",

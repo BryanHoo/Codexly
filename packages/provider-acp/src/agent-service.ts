@@ -1,3 +1,5 @@
+import { readNativeConnection, type NativeConnection } from "./native-connection.js";
+import type { AcpAuthCredentials } from "@codexly/protocol";
 import { previewAcpConfig } from "./config-preview.js";
 import type { AcpConfigPreviewRequest } from "@codexly/protocol";
 import * as acp from "@agentclientprotocol/sdk/unstable";
@@ -18,14 +20,17 @@ export class AcpAgentService implements AcpAgentSettingsService {
   #queue: Promise<unknown> = Promise.resolve();
   #closed = false;
   #catalogImported = false;
+  #inspected = false;
   constructor(
     readonly engine: AgentEngine,
     readonly cwd: string,
     readonly store: AcpSettingsStore,
     readonly launch: AcpAgentLauncher,
     readonly catalogStore?: LocalCatalogStore,
+    readonly readNative: () => Promise<NativeConnection | undefined> = () =>
+      readNativeConnection(engine),
   ) {
-    const routing = new AcpProviderRouting(engine, store);
+    const routing = new AcpProviderRouting(engine, store, this.readNative);
     this.providers = {
       list: () => this.#run(async () => routing.list(await this.#agent())),
       configure: (config) => this.#run(async () => routing.configure(await this.#agent(), config)),
@@ -46,7 +51,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
   async #agent(): Promise<AcpConnection> {
     if (!this.#handle) {
       // 迁移来源只读校验先于启动；失败不启动 agent，已保存的 ACP 配置由存储层优先保留。
-      if (this.store.legacySource) await this.store.read(this.engine);
+      if (this.store.legacySource) await this.store.inspect(this.engine);
       const pending = this.launch(
         this.engine,
         {
@@ -58,7 +63,9 @@ export class AcpAgentService implements AcpAgentSettingsService {
         {},
       ).then(async (handle) => {
         try {
-          await new AcpProviderRouting(this.engine, this.store).restore(handle.connection);
+          await new AcpProviderRouting(this.engine, this.store, this.readNative).restore(
+            handle.connection,
+          );
           return handle;
         } catch (error) {
           await handle.close();
@@ -77,10 +84,35 @@ export class AcpAgentService implements AcpAgentSettingsService {
   }
   inspect(): Promise<AcpAgentProfile> {
     return this.#run(async () => {
-      const { initialization } = await this.#agent();
+      // 显式刷新重建专用设置连接，让 adapter 重新读取外部 CLI 的登录和原生供应商配置。
+      // 此连接不承载聊天，不会打断已有项目会话，也不读取或复制用户密钥。
+      if (this.#inspected) await this.#closeHandle();
+      const connection = await this.#agent();
+      const { initialization } = connection;
+      const authStatus = await connection.readAuthStatus();
+      this.#inspected = true;
+      const saved = await this.store.inspect(this.engine);
+      const active = Object.values(saved.providers ?? {}).find(
+        (provider) => !saved.disabledProviders?.includes(provider.providerId),
+      );
+      const native = active ? undefined : await this.readNative();
+      const source = active ?? native;
+      const connectionSettings = source
+        ? {
+            source: active ? ("application" as const) : ("native" as const),
+            ...(source.baseUrl ? { baseUrl: source.baseUrl } : {}),
+            apiType: source.apiType,
+            hasCredentials: Object.keys(source.headers ?? {}).some((name) =>
+              ["authorization", "x-api-key", "api-key"].includes(name.toLowerCase()),
+            ),
+            ...(active ? { providerId: active.providerId } : {}),
+          }
+        : undefined;
       return {
         engine: this.engine,
         protocolVersion: initialization.protocolVersion,
+        ...(authStatus ? { authStatus } : {}),
+        ...(connectionSettings ? { connection: connectionSettings } : {}),
         // 仅转发握手已公布的能力，界面不靠厂商名称猜测供应商接口。
         ...(initialization.agentCapabilities?.providers
           ? { providerConfiguration: true as const }
@@ -105,7 +137,11 @@ export class AcpAgentService implements AcpAgentSettingsService {
       };
     });
   }
-  authenticate(methodId: string, signal?: AbortSignal): Promise<Record<string, never>> {
+  authenticate(
+    methodId: string,
+    signal?: AbortSignal,
+    credentials?: AcpAuthCredentials,
+  ): Promise<Record<string, never>> {
     return this.#run(async () => {
       signal?.throwIfAborted();
       const connection = await this.#agent();
@@ -116,11 +152,15 @@ export class AcpAgentService implements AcpAgentSettingsService {
       try {
         await connection.transport.agent.request(
           acp.methods.agent.authenticate,
-          { methodId },
+          {
+            methodId,
+            ...(credentials?.apiKey
+              ? { _meta: { "api-key": { apiKey: credentials.apiKey } } }
+              : {}),
+          },
           signal ? { cancellationSignal: signal, stopWaitingOnCancel: true } : undefined,
         );
         signal?.throwIfAborted();
-        await this.#discover(connection, signal);
         return {};
       } finally {
         // 认证使用独立连接；取消仅回收这个服务进程，不中断项目中的聊天。
@@ -133,12 +173,11 @@ export class AcpAgentService implements AcpAgentSettingsService {
     return this.#run(async () => {
       signal?.throwIfAborted();
       const connection = await this.#agent();
-      const saved = await this.store.read(this.engine);
+      const saved = await this.store.inspect(this.engine);
       signal?.throwIfAborted();
       try {
         const result = await previewAcpConfig(connection, cwd, saved, input.values, input.change);
         signal?.throwIfAborted();
-        await this.#discover(connection, signal);
         return result;
       } catch (error) {
         // 预览关闭失败或取消后释放独立设置连接，不影响项目中的聊天连接。
@@ -181,7 +220,10 @@ export class AcpAgentService implements AcpAgentSettingsService {
     const session = await connection.newSession({ cwd: this.cwd, mcpServers: [] });
     const validated = await (async () => {
       try {
-        const current = await this.store.read(this.engine);
+        const current =
+          values === undefined
+            ? await this.store.inspect(this.engine)
+            : await this.store.read(this.engine);
         const prepared = await prepareAcpDefaults(
           connection,
           session.sessionId,
@@ -198,15 +240,14 @@ export class AcpAgentService implements AcpAgentSettingsService {
     const { configOptions, defaults, migration, invalidDefaults } = validated;
     await this.#discover(connection);
     // agent 拒绝、连接或关闭失败时不会写默认值；legacy 只在私有记录中留存。
-    await this.store.update(this.engine, (latest) => ({
-      ...latest,
-      ...(migration ? { migration } : {}),
-      ...(values
-        ? { values: defaults, configured: true }
-        : !latest.configured
-          ? { values: defaults }
-          : {}),
-    }));
+    // 查看和草稿预览不落盘；只有明确提交完整默认值后才写用户配置。
+    if (values !== undefined)
+      await this.store.update(this.engine, (latest) => ({
+        ...latest,
+        ...(migration ? { migration } : {}),
+        values: defaults,
+        configured: true,
+      }));
     return {
       configOptions,
       defaults,

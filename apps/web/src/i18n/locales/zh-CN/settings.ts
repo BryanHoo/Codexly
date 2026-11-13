@@ -1,5 +1,6 @@
 export const settings = {
   sectionKeywords: {
+    acp: "ACP Agent Codex Claude 认证 供应商 模型 推理 模式 权限 默认配置",
     network: "代理 网关 端口 认证 密码 HTTP HTTPS SOCKS5",
     prompts: "常用提示词 标题 斜杠 井号命令 本地存储 新建 编辑 删除",
     git: "辅助生成 默认 Agent 默认模型 Git 提交信息 任务标题 提示词 生成规则",
@@ -21,6 +22,7 @@ export const settings = {
     empty: "未找到相关设置",
   },
   groups: {
+    agents: "智能体",
     personal: "公共配置",
     codex: "Codex",
     claude: "Claude",
@@ -211,6 +213,7 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
+    acp: "ACP",
     network: "网络",
     prompts: "常用提示词",
     git: "辅助生成",

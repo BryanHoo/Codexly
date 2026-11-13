@@ -68,11 +68,49 @@ export const AcpDefaultsSchema = Type.Object(
   },
   { additionalProperties: false },
 );
+/** 原生 Agent 公布的认证身份摘要；禁止携带 token、请求头或厂商私有元数据。 */
+export const AcpAuthStatusSchema = Type.Object(
+  {
+    kind: Type.Union(
+      (["account", "api_key", "gateway", "external", "none"] as const).map((kind) =>
+        Type.Literal(kind),
+      ),
+    ),
+    label: Type.String({ maxLength: 512 }),
+    detail: Type.Optional(Type.String({ maxLength: 512 })),
+    account: Type.Optional(
+      Type.Object(
+        {
+          email: Type.Optional(Type.String({ maxLength: 512 })),
+          organization: Type.Optional(Type.String({ maxLength: 512 })),
+          plan: Type.Optional(Type.String({ maxLength: 512 })),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+  },
+  { additionalProperties: false },
+);
+export type AcpAuthStatus = Static<typeof AcpAuthStatusSchema>;
+
 export const AcpAgentProfileSchema = Type.Object(
   {
     engine: AgentEngineSchema,
     protocolVersion: Type.Integer(),
     providerConfiguration: Type.Optional(Type.Literal(true)),
+    authStatus: Type.Optional(AcpAuthStatusSchema),
+    connection: Type.Optional(
+      Type.Object(
+        {
+          source: Type.Union([Type.Literal("native"), Type.Literal("application")]),
+          baseUrl: Type.Optional(Type.String({ maxLength: 16384 })),
+          apiType: Type.String(),
+          hasCredentials: Type.Boolean(),
+          providerId: Type.Optional(Type.String()),
+        },
+        { additionalProperties: false },
+      ),
+    ),
     agentInfo: Type.Optional(Type.Object({ name: Text, version: Text, title: NullableText })),
     authMethods: Type.Array(
       Type.Object({
@@ -85,8 +123,20 @@ export const AcpAgentProfileSchema = Type.Object(
   },
   { additionalProperties: false },
 );
+export const AcpAuthCredentialsSchema = Type.Object(
+  {
+    apiKey: Type.Optional(
+      Type.String({ minLength: 1, maxLength: 16384, pattern: "^[^\\r\\n\\u0000]+$" }),
+    ),
+  },
+  { additionalProperties: false },
+);
+export type AcpAuthCredentials = Static<typeof AcpAuthCredentialsSchema>;
 export const AcpAuthenticateRequestSchema = Type.Object(
-  { methodId: Type.String({ minLength: 1, maxLength: 256 }) },
+  {
+    methodId: Type.String({ minLength: 1, maxLength: 256 }),
+    credentials: Type.Optional(AcpAuthCredentialsSchema),
+  },
   { additionalProperties: false },
 );
 export const AcpAuthenticateResponseSchema = Type.Object({}, { additionalProperties: false });

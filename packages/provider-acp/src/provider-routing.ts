@@ -1,3 +1,4 @@
+import { readNativeConnection, type NativeConnection } from "./native-connection.js";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { Value } from "@sinclair/typebox/value";
 import {
@@ -15,6 +16,8 @@ export class AcpProviderRouting {
   constructor(
     readonly engine: AgentEngine,
     readonly store: AcpSettingsStore,
+    readonly readNative: () => Promise<NativeConnection | undefined> = () =>
+      readNativeConnection(engine),
   ) {}
   async list(connection: AcpConnection): Promise<AcpProviderPage> {
     if (!connection.initialization.agentCapabilities?.providers)
@@ -23,20 +26,30 @@ export class AcpProviderRouting {
       acp.methods.agent.providers.list,
       {},
     );
+    const saved = await this.store.inspect(this.engine);
+    const native = await this.readNative();
     return {
       restartRequired: this.#restartRequired,
       providers: providers.map((provider) => ({
         providerId: provider.providerId,
         supported: provider.supported,
         required: provider.required,
-        ...(provider.current
-          ? { current: { apiType: provider.current.apiType, baseUrl: provider.current.baseUrl } }
-          : { current: null }),
+        ...(!saved.providers?.[provider.providerId] &&
+        ["openai", "anthropic"].includes(provider.providerId) &&
+        native?.baseUrl
+          ? { current: { apiType: native.apiType, baseUrl: native.baseUrl } }
+          : provider.current
+            ? { current: { apiType: provider.current.apiType, baseUrl: provider.current.baseUrl } }
+            : { current: null }),
       })),
     };
   }
   async #set(connection: AcpConnection, config: AcpProviderConfig): Promise<void> {
     if (!Value.Check(AcpProviderConfigSchema, config)) throw new Error("ACP 供应商配置无效");
+    for (const [name, value] of Object.entries(config.headers ?? {})) {
+      if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) || /[\r\n\0]/u.test(value))
+        throw new Error("ACP 认证请求头无效");
+    }
     const url = new URL(config.baseUrl);
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
       throw new Error("ACP 供应商地址无效");
@@ -49,6 +62,11 @@ export class AcpProviderRouting {
   }
   async configure(connection: AcpConnection, config: AcpProviderConfig): Promise<AcpProviderPage> {
     const saved = structuredClone(config);
+    // 密钥留空表示保留；先用应用私有配置，再复用原生凭据，绝不回传给浏览器。
+    if (saved.headers === undefined) {
+      const previous = (await this.store.read(this.engine)).providers?.[saved.providerId];
+      saved.headers = previous?.headers ?? (await this.readNative())?.headers ?? {};
+    }
     await this.#set(connection, saved);
     await this.store.update(this.engine, (current) => ({
       ...current,
@@ -80,7 +98,7 @@ export class AcpProviderRouting {
     await connection.transport.agent.request(acp.methods.agent.providers.disable, { providerId });
   }
   async restore(connection: AcpConnection): Promise<void> {
-    const saved = await this.store.read(this.engine);
+    const saved = await this.store.inspect(this.engine);
     for (const config of Object.values(saved.providers ?? {})) await this.#set(connection, config);
     for (const id of saved.disabledProviders ?? []) await this.#disable(connection, id);
   }

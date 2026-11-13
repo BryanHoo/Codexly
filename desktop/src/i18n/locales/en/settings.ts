@@ -27,6 +27,7 @@ export const settings = {
     updating: "Preparing update",
   },
   actions: {
+    close: "Close",
     saving: "Saving…",
     saved: "Saved",
     backToApp: "Back to app",
@@ -105,13 +106,14 @@ export const settings = {
     queue: "Queue",
     steer: "Steer",
   },
- languages: {
+  languages: {
     en: "English",
     zhCN: "简体中文",
   },
   loading: "Loading global settings",
   navigationLabel: "Settings categories",
   groups: {
+    agents: "Agents",
     personal: "Shared",
     codex: "Codex",
     claude: "Claude",
@@ -178,6 +180,7 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
+    acp: "ACP",
     network: "Network",
     prompts: "Saved prompts",
     git: "AI generation",
@@ -193,13 +196,17 @@ export const settings = {
   },
   title: "Global settings",
   sectionKeywords: {
+    acp: "ACP Agent Codex Claude authentication provider model reasoning mode permissions defaults",
     network: "proxy gateway authentication HTTP HTTPS SOCKS5",
     prompts: "saved prompts titles slash hash commands local storage create edit delete",
     git: "AI generation default agent model Git commit message task title prompt rules",
     "claude-provider": "Claude Anthropic API key API URL endpoint connection available models",
-    "claude-agent": "Claude Default model Default reasoning effort Tool permissions Ask when needed Accept edits Plan mode Full access",
-    "claude-personalization": "Claude CLAUDE.md Global instructions Load project settings Tool permission rules Automatically allow Disallow",
-    appearance: "Color mode language notifications sticky messages message navigation anchors editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
+    "claude-agent":
+      "Claude Default model Default reasoning effort Tool permissions Ask when needed Accept edits Plan mode Full access",
+    "claude-personalization":
+      "Claude CLAUDE.md Global instructions Load project settings Tool permission rules Automatically allow Disallow",
+    appearance:
+      "Color mode language notifications sticky messages message navigation anchors editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
     personalization: "Codex instructions AGENTS.md global memory MCP web search",
     pets: "Enable pet selection",
     provider: "API key Base URL models official custom",

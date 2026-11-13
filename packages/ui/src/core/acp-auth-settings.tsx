@@ -1,9 +1,11 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { SettingsGroup } from "./settings-group.js";
+import { useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
-import type { AcpAgentProfile, AgentEngine } from "@codexly/protocol";
+import type { AcpAgentProfile, AcpAuthCredentials, AgentEngine } from "@codexly/protocol";
 import { Button } from "./button.js";
-import { AcpProviderSettings, type AcpProviderSettingsClient } from "./acp-provider-settings.js";
+import { AcpConnectionForm, type AcpConnectionDraft } from "./acp-connection-form.js";
+import type { AcpProviderSettingsClient } from "./acp-provider-settings.js";
 import { LoadingSkeleton } from "./loading-skeleton.js";
 
 export interface AcpAuthClient extends Partial<AcpProviderSettingsClient> {
@@ -14,135 +16,160 @@ export interface AcpAuthClient extends Partial<AcpProviderSettingsClient> {
   authenticateAcpAgent: (
     engine: AgentEngine,
     methodId: string,
-    options?: { idempotencyKey?: string; signal?: AbortSignal },
+    options?: { idempotencyKey?: string; signal?: AbortSignal; credentials?: AcpAuthCredentials },
   ) => Promise<unknown>;
 }
+const emptyProviders = [] as const;
 
-const labels = {
-  "zh-CN": {
-    loading: "正在读取认证方式…",
-    unavailable: "无法读取智能体认证方式。",
-    retry: "重试",
-    empty: "智能体未公布可用的认证方式。",
-    terminal: "当前宿主不支持交互式终端认证。",
-    pending: "等待智能体完成认证…",
-    success: "认证请求已完成。",
-    error: "认证失败，请重试。",
-  },
-  en: {
-    loading: "Loading sign-in methods…",
-    unavailable: "Could not load sign-in methods.",
-    retry: "Retry",
-    empty: "The agent did not advertise any sign-in methods.",
-    terminal: "This host does not support interactive terminal sign-in.",
-    pending: "Waiting for the agent to finish signing in…",
-    success: "Authentication request completed.",
-    error: "Authentication failed. Try again.",
-  },
-};
-
-interface Attempt {
-  id: string;
-  key: string;
-}
-
+/** 原生账号只表示账号身份；实际 API 连接以应用覆盖 / 本机配置的优先级独立展示。 */
 export function AcpAuthSettings({
   client,
   engine,
   language,
 }: Readonly<{ client: Partial<AcpAuthClient>; engine: AgentEngine; language: "zh-CN" | "en" }>) {
-  const copy = labels[language];
+  const chinese = language === "zh-CN";
   const cache = useQueryClient();
-  const inspect = client.getAcpAgent;
-  const authenticate = client.authenticateAcpAgent;
-  const scope = useMemo(
-    () => ({
-      controller: undefined as AbortController | undefined,
-      attempt: undefined as Attempt | undefined,
-    }),
-    [client, engine],
-  );
-  const [result, setResult] = useState<{
-    scope: object;
-    status: "pending" | "success" | "error";
-  }>();
-  const status = result?.scope === scope ? result.status : undefined;
+  const attempt = useRef<{ input: string; key: string } | undefined>(undefined);
   const profile = useQuery({
     queryKey: ["acp-agent-profile", engine],
-    enabled: inspect !== undefined && authenticate !== undefined,
+    enabled: !!client.getAcpAgent,
     queryFn: async ({ signal }) => {
-      if (!inspect) throw new Error(copy.unavailable);
-      const value = await inspect.call(client, engine, { signal });
-      if (value.engine !== engine) throw new Error(copy.unavailable);
+      if (!client.getAcpAgent) throw new Error("ACP unavailable");
+      const value = await client.getAcpAgent(engine, { signal });
+      if (value.engine !== engine) throw new Error("ACP engine mismatch");
       return value;
     },
+    staleTime: 30_000,
     retry: false,
     refetchOnWindowFocus: false,
   });
-  useLayoutEffect(() => () => scope.controller?.abort(), [scope]);
-  const run = async (method: AcpAgentProfile["authMethods"][number]) => {
-    // 只有用户点击的已公布协议方法可以发起认证；同步锁挡住重复点击。
-    if (!authenticate || method.type === "terminal" || scope.controller) return;
-    const controller = new AbortController();
-    const attempt =
-      scope.attempt?.id === method.id ? scope.attempt : { id: method.id, key: createUuid() };
-    scope.controller = controller;
-    scope.attempt = attempt;
-    setResult({ scope, status: "pending" });
-    try {
-      await authenticate.call(client, engine, attempt.id, {
-        idempotencyKey: attempt.key,
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      scope.attempt = undefined;
-      setResult({ scope, status: "success" });
-      // 登录由智能体处理；只刷新同引擎默认值，不能写入旧登录或连接记录。
-      void cache.invalidateQueries({ queryKey: ["acp-defaults", engine], exact: true });
-    } catch {
-      if (!controller.signal.aborted) setResult({ scope, status: "error" });
-    } finally {
-      scope.controller = undefined;
-    }
+  const providers = useQuery({
+    queryKey: ["acp-providers", engine],
+    enabled: profile.data?.providerConfiguration === true && !!client.getAcpProviders,
+    queryFn: ({ signal }) =>
+      client.getAcpProviders?.(engine, { signal }) ??
+      Promise.reject(new Error("ACP providers unavailable")),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const refresh = async () => {
+    const next = await profile.refetch({ cancelRefetch: false });
+    if (next.isError) throw new Error("Unable to refresh connection");
+    if (next.data?.providerConfiguration && client.getAcpProviders)
+      await providers.refetch({ cancelRefetch: false });
   };
-
-  if (!inspect || !authenticate) return <p role="alert">{copy.unavailable}</p>;
-  if (profile.isError)
+  const submit = async (draft: AcpConnectionDraft, signal: AbortSignal) => {
+    const input = JSON.stringify(draft);
+    const key = attempt.current?.input === input ? attempt.current.key : createUuid();
+    attempt.current = { input, key };
+    signal.throwIfAborted();
+    if (draft.mode === "custom") {
+      if (!client.configureAcpProvider) throw new Error("ACP providers unavailable");
+      const url = new URL(draft.baseUrl.trim());
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password)
+        throw new Error("Invalid URL");
+      const headers = draft.apiKey
+        ? draft.apiType === "anthropic"
+          ? { "x-api-key": draft.apiKey }
+          : { Authorization: `Bearer ${draft.apiKey}` }
+        : undefined;
+      const page = await client.configureAcpProvider(
+        engine,
+        {
+          providerId: draft.providerId,
+          apiType: draft.apiType,
+          baseUrl: draft.baseUrl.trim(),
+          ...(headers ? { headers } : {}),
+        },
+        { idempotencyKey: key },
+      );
+      cache.setQueryData(["acp-providers", engine], page);
+    } else {
+      if (draft.methodId && client.authenticateAcpAgent) {
+        if (draft.methodId === "api-key" && !draft.apiKey.trim())
+          throw new Error("API key is required");
+        await client.authenticateAcpAgent(engine, draft.methodId, {
+          idempotencyKey: key,
+          signal,
+          ...(draft.methodId === "api-key" ? { credentials: { apiKey: draft.apiKey } } : {}),
+        });
+        signal.throwIfAborted();
+      }
+      // 仅在用户明确切换到本机配置并完成登录后移除应用覆盖，不改写 CLI 全局配置。
+      if (
+        profile.data?.connection?.source === "application" &&
+        profile.data.connection.providerId &&
+        client.disableAcpProvider
+      ) {
+        const page = await client.disableAcpProvider(engine, profile.data.connection.providerId, {
+          idempotencyKey: `${key}:native`,
+        });
+        cache.setQueryData(["acp-providers", engine], page);
+      }
+    }
+    await refresh();
+    attempt.current = undefined;
+    void cache.invalidateQueries({ queryKey: ["acp-defaults", engine], exact: true });
+  };
+  if (!profile.data && (profile.isError || !client.getAcpAgent))
     return (
-      <div role="alert">
-        <p>{copy.unavailable}</p>
-        <Button type="button" variant="ghost" onClick={() => void profile.refetch()}>
-          {copy.retry}
+      <div role="alert" className="flex items-center justify-between text-label">
+        <span>{chinese ? "连接配置读取失败" : "Could not read connection"}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            void profile.refetch();
+          }}
+        >
+          {chinese ? "重试" : "Retry"}
         </Button>
       </div>
     );
-  if (!profile.data)
-    return <LoadingSkeleton variant="settings" label={copy.loading} className="p-0" />;
+  if (!profile.data || (providers.isPending && providers.fetchStatus !== "idle"))
+    return (
+      <LoadingSkeleton
+        variant="settings"
+        label={chinese ? "正在读取连接…" : "Loading connection…"}
+        className="p-0"
+      />
+    );
+  const identity = profile.data.authStatus;
+  const nativeLabel =
+    identity?.kind === "account"
+      ? [identity.label, identity.account?.email].filter(Boolean).join(" · ")
+      : identity?.kind === "api_key"
+        ? "API Key"
+        : identity?.kind === "gateway"
+          ? chinese
+            ? "自定义 API"
+            : "Custom API"
+          : identity?.kind === "none"
+            ? chinese
+              ? "未登录"
+              : "Not signed in"
+            : chinese
+              ? "未检测到账号状态"
+              : "Account status not reported";
   return (
-    <div className="space-y-4">
-      {profile.data.authMethods.length === 0 ? <p role="status">{copy.empty}</p> : null}
-      {profile.data.authMethods.map((method) => (
-        <div key={method.id} className="space-y-1">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={status === "pending" || method.type === "terminal"}
-            onClick={() => void run(method)}
-          >
-            {method.name}
-          </Button>
-          {method.description ? (
-            <p className="text-label text-muted-foreground">{method.description}</p>
-          ) : null}
-          {method.type === "terminal" ? (
-            <p className="text-label text-muted-foreground">{copy.terminal}</p>
-          ) : null}
-        </div>
-      ))}
-      {status ? <p role={status === "error" ? "alert" : "status"}>{copy[status]}</p> : null}
-      {profile.data.providerConfiguration ? (
-        <AcpProviderSettings key={engine} client={client} engine={engine} language={language} />
+    <SettingsGroup title={chinese ? "连接配置" : "Connection settings"}>
+      {!profile.data.connection?.baseUrl ? (
+        <p className="break-words py-3 text-label text-muted-foreground">{nativeLabel}</p>
       ) : null}
-    </div>
+      {providers.isError ? (
+        <p role="alert" className="py-2 text-label text-danger">
+          {chinese
+            ? "API 供应商读取失败，请重新检测。"
+            : "Could not read API providers. Detect again to retry."}
+        </p>
+      ) : null}
+      <AcpConnectionForm
+        profile={profile.data}
+        providers={providers.data?.providers ?? emptyProviders}
+        language={language}
+        submit={submit}
+        refresh={refresh}
+      />
+    </SettingsGroup>
   );
 }

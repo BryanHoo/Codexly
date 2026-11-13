@@ -9,6 +9,7 @@ import { ApplicationGenerationRequestSchema } from "@codexly/protocol/applicatio
 import { ApplicationPreferencesSchema } from "@codexly/protocol/application-preferences";
 import {
   AcpConfigValuesSchema,
+  AcpAuthCredentialsSchema,
   AcpConfigPreviewRequestSchema,
   AgentEngineSchema,
   AcpDefaultsRequestSchema,
@@ -116,8 +117,12 @@ export async function dispatchAcpHost(
     switch (method) {
       case "agent.inspect":
         return service.inspect();
-      case "agent.authenticate":
-        return service.authenticate(text(params, "methodId"), signal);
+      case "agent.authenticate": {
+        const credentials = params["credentials"];
+        if (credentials !== undefined && !Value.Check(AcpAuthCredentialsSchema, credentials))
+          throw new Error("Invalid authentication credentials");
+        return service.authenticate(text(params, "methodId"), signal, credentials);
+      }
       case "settings.preview": {
         if (Object.keys(params).some((key) => !["engine", "values", "change"].includes(key)))
           throw new Error("Invalid preview parameters");

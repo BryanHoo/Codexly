@@ -1,17 +1,17 @@
+import { page } from "vitest/browser";
 import { beforeEach, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import type { AcpDefaults } from "@codexly/protocol";
+import type { AcpDefaults, AcpConfigPreviewRequest } from "@codexly/protocol";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AgentSettingsPanel as WebPanel } from "../../../apps/web/src/features/settings/components/agent-settings-panel.js";
 import { AgentSettingsPanel as DesktopPanel } from "../../src/features/settings/components/agent-settings-panel.js";
-import { changeAppLanguage as changeWebLanguage } from "../../../apps/web/src/i18n/i18n.js";
-import { changeAppLanguage as changeDesktopLanguage } from "../../src/i18n/i18n.js";
+import { changeAppLanguage as webLanguage } from "../../../apps/web/src/i18n/i18n.js";
+import { changeAppLanguage as nativeLanguage } from "../../src/i18n/i18n.js";
 import "../../src/shared/styles/globals.css";
-
 const initial: AcpDefaults = {
   configOptions: [
     {
-      id: "native-model",
+      id: "model",
       name: "原生模型",
       type: "select",
       currentValue: "a",
@@ -20,111 +20,163 @@ const initial: AcpDefaults = {
         { value: "b", name: "模型乙" },
       ],
     },
-    { id: "native-switch", name: "原生开关", type: "boolean", currentValue: false },
+    { id: "fast-mode", name: "快速模式", type: "boolean", currentValue: false },
   ],
   defaults: {},
-  unmappedLegacy: ["旧偏好"],
+  unmappedLegacy: [],
   invalidDefaults: [],
 };
+function clientFixture() {
+  const previewAcpDefaults = vi.fn(async (_engine: string, input: AcpConfigPreviewRequest) => {
+    const values = {
+      ...input.values,
+      ...(input.change ? { [input.change.configId]: input.change.value } : {}),
+    };
+    return {
+      values,
+      configOptions: initial.configOptions.map((option) => ({
+        ...option,
+        currentValue: values[option.id] ?? option.currentValue,
+      })) as AcpDefaults["configOptions"],
+    };
+  });
+  const updateAcpDefaults = vi.fn(
+    async (_engine: string, values: Record<string, string | boolean>) => ({
+      ...initial,
+      defaults: values,
+      configOptions: initial.configOptions.map((option) => ({
+        ...option,
+        currentValue: values[option.id] ?? option.currentValue,
+      })) as AcpDefaults["configOptions"],
+    }),
+  );
+  return {
+    getAcpDefaults: vi.fn(async () => initial),
+    setAcpDefaultConfig: vi.fn(
+      async (
+        _engine: string,
+        id: string,
+        value: string | boolean,
+        _options?: { idempotencyKey?: string },
+      ) => ({
+        ...initial,
+        configOptions: initial.configOptions.map((option) => ({
+          ...option,
+          currentValue: option.id === id ? value : option.currentValue,
+        })) as AcpDefaults["configOptions"],
+      }),
+    ),
+    previewAcpDefaults,
+    updateAcpDefaults,
+  };
+}
 beforeEach(async () => {
-  await changeWebLanguage("zh-CN");
-  await changeDesktopLanguage("zh-CN");
+  await webLanguage("zh-CN");
+  await nativeLanguage("zh-CN");
 });
 for (const [platform, Panel] of [
   ["web", WebPanel],
   ["desktop", DesktopPanel],
 ] as const) {
-  it(`${platform}：实际设置页使用 ACP 单项变更与完整返回配置`, async () => {
-    let resolve!: (value: AcpDefaults) => void;
-    const client = {
-      getAcpDefaults: vi.fn(() => Promise.resolve(initial)),
-      setAcpDefaultConfig: vi.fn(
-        () =>
-          new Promise<AcpDefaults>((done) => {
-            resolve = done;
-          }),
-      ),
-    };
-    const screen = await render(
-      <QueryClientProvider client={new QueryClient()}>
-        <Panel client={client} />
-      </QueryClientProvider>,
-    );
-    const model = screen.getByRole("combobox", { name: "原生模型" });
-    await expect.element(model).toHaveValue("a");
-    await expect.element(screen.getByRole("checkbox", { name: "原生开关" })).not.toBeChecked();
-    await expect.element(screen.getByText(/旧偏好/)).toBeVisible();
-    await model.selectOptions("b");
-    await expect.element(model).toBeDisabled();
-    expect(client.setAcpDefaultConfig).toHaveBeenCalledWith(
-      "codex",
-      "native-model",
-      "b",
-      expect.objectContaining({ idempotencyKey: expect.any(String) }),
-    );
-    resolve({
+  it(`${platform}：会话默认值失焦保存，不显示内部字段与手动保存按钮`, async () => {
+    const client = clientFixture();
+    client.getAcpDefaults.mockResolvedValue({
       ...initial,
-      configOptions: [{ ...initial.configOptions[0]!, currentValue: "b" }],
-      defaults: { "native-model": "b" },
+      unmappedLegacy: ["loadProjectSettings"],
+      invalidDefaults: ["internal-key"],
     });
-    await expect.element(model).toHaveValue("b");
-    await expect.element(screen.getByRole("checkbox")).not.toBeInTheDocument();
-    await screen.unmount();
-  });
-  it(`${platform}：保存失败保留原配置，重试复用键`, async () => {
-    const client = {
-      getAcpDefaults: vi.fn(() => Promise.resolve(initial)),
-      setAcpDefaultConfig: vi
-        .fn()
-        .mockRejectedValueOnce(new Error("offline"))
-        .mockResolvedValue({ ...initial, configOptions: [] }),
-    };
     const screen = await render(
       <QueryClientProvider client={new QueryClient()}>
         <Panel client={client} />
       </QueryClientProvider>,
     );
-    const model = screen.getByRole("combobox", { name: "原生模型" });
-    await model.selectOptions("b");
-    await expect.element(screen.getByRole("alert")).toHaveTextContent("offline");
-    await expect.element(model).toHaveValue("a");
-    const first = client.setAcpDefaultConfig.mock.calls[0]![3];
-    await screen.getByRole("button", { name: "重试", exact: true }).click();
-    await expect.element(model).not.toBeInTheDocument();
-    expect(client.setAcpDefaultConfig.mock.calls[1]![3].idempotencyKey).toBe(first.idempotencyKey);
+    await screen.getByRole("switch", { name: "快速模式" }).click();
+    expect(client.setAcpDefaultConfig).not.toHaveBeenCalled();
+    await screen.getByRole("heading").click();
+    await expect.poll(() => client.setAcpDefaultConfig.mock.calls.length).toBe(1);
+    expect(client.setAcpDefaultConfig.mock.calls[0]?.slice(0, 3)).toEqual([
+      "codex",
+      "fast-mode",
+      true,
+    ]);
+    await expect.element(screen.getByText(/loadProjectSettings/)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "保存配置", exact: true }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "取消修改", exact: true }))
+      .not.toBeInTheDocument();
     await screen.unmount();
   });
-  it(`${platform}：切换引擎隔离旧保存响应`, async () => {
-    let resolve!: (value: AcpDefaults) => void;
-    const client = {
-      getAcpDefaults: vi.fn((engine: string) =>
-        Promise.resolve(engine === "codex" ? initial : { ...initial, configOptions: [] }),
-      ),
-      setAcpDefaultConfig: vi.fn(
-        () =>
-          new Promise<AcpDefaults>((done) => {
-            resolve = done;
-          }),
-      ),
-    };
-    const queryClient = new QueryClient();
-    const view = (engine: "codex" | "claude") => (
-      <QueryClientProvider client={queryClient}>
-        <Panel client={client} engine={engine} />
-      </QueryClientProvider>
+  it(`${platform}：保存失败保留草稿，重试复用提交身份`, async () => {
+    const client = clientFixture();
+    client.setAcpDefaultConfig.mockRejectedValueOnce(new Error("offline"));
+    const screen = await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Panel client={client} />
+      </QueryClientProvider>,
     );
-    const screen = await render(view("codex"));
-    const model = screen.getByRole("combobox", { name: "原生模型" });
-    await model.selectOptions("b");
-    await expect.element(model).toBeDisabled();
-    await screen.rerender(view("claude"));
-    await expect
-      .element(screen.getByText("智能体未提供可配置选项。", { exact: true }))
-      .toBeVisible();
-    const saved = { ...initial, defaults: { "native-model": "b" } };
-    resolve(saved);
-    await expect.poll(() => queryClient.getQueryData(["acp-defaults", "codex"])).toEqual(saved);
-    await expect.element(model).not.toBeInTheDocument();
+    await screen.getByRole("switch", { name: "快速模式" }).click();
+    await screen.getByRole("heading").click();
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+    await expect.element(screen.getByRole("switch", { name: "快速模式" })).toBeChecked();
+    await screen.getByRole("button", { name: "重试", exact: true }).click();
+    await expect.poll(() => client.setAcpDefaultConfig.mock.calls.length).toBe(2);
+    const calls = client.setAcpDefaultConfig.mock.calls as unknown as [
+      string,
+      string,
+      string | boolean,
+      { idempotencyKey: string },
+    ][];
+    expect(calls[0]?.[3].idempotencyKey).toBe(calls[1]?.[3].idempotencyKey);
     await screen.unmount();
+  });
+  it(`${platform}：默认选项允许空字符串，展示默认并原样保存`, async () => {
+    const client = clientFixture();
+    const option = {
+      id: "verbosity",
+      name: "回复详细程度",
+      type: "select" as const,
+      currentValue: "low",
+      options: [
+        { value: "", name: "" },
+        { value: "low", name: "Low" },
+      ],
+    };
+    const defaults = { ...initial, configOptions: [option] };
+    client.getAcpDefaults.mockResolvedValue(defaults);
+    client.setAcpDefaultConfig.mockImplementation(async () => ({
+      ...defaults,
+      configOptions: [{ ...option, currentValue: "" }],
+    }));
+    const screen = await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Panel client={client} />
+      </QueryClientProvider>,
+    );
+    await screen.getByRole("combobox", { name: "回复详细程度", exact: true }).click();
+    await page.getByRole("option", { name: "默认", exact: true }).click();
+    await screen.getByRole("heading").click();
+    await expect.poll(() => client.setAcpDefaultConfig.mock.calls.length).toBe(1);
+    expect(client.setAcpDefaultConfig.mock.calls[0]?.slice(0, 3)).toEqual([
+      "codex",
+      "verbosity",
+      "",
+    ]);
+    await expect
+      .element(screen.getByRole("combobox", { name: "回复详细程度", exact: true }))
+      .toHaveTextContent("默认");
+    await screen.unmount();
+  });
+  it(`${platform}：只读渲染不自动保存`, async () => {
+    const client = clientFixture();
+    const screen = await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Panel client={client} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByRole("switch", { name: "快速模式" })).toBeVisible();
+    await screen.unmount();
+    expect(client.setAcpDefaultConfig).not.toHaveBeenCalled();
   });
 }

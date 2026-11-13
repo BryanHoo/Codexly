@@ -42,6 +42,17 @@ export class AcpSettingsStore {
     readonly legacySource?: AcpLegacySettingsSource,
     readonly leases?: AcpStorageLeases,
   ) {}
+  /** 查看和预览仅构造快照，不导入旧配置、不创建或改写设置文件。 */
+  async inspect(engine: AgentEngine): Promise<AcpStoredSettings> {
+    const current = await this.#read(engine);
+    if (current.configured || current.legacy !== undefined || !this.legacySource) return current;
+    const snapshot = await this.legacySource(engine);
+    return {
+      ...current,
+      legacy: snapshot.settings,
+      ...(snapshot.policy === "preserve" ? { legacyPolicy: "preserve" as const } : {}),
+    };
+  }
   async read(engine: AgentEngine): Promise<AcpStoredSettings> {
     const current = await this.#read(engine);
     const source = this.legacySource;

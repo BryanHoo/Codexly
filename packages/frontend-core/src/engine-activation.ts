@@ -29,6 +29,20 @@ export function createEngineActivation(
         listeners.delete(listener);
       };
     },
+    disable(engine: AgentEngine) {
+      if (!snapshot.engines.includes(engine)) return;
+      if (snapshot.engines.length <= 1) throw new Error("至少启用一个 Agent");
+      if (pending.has(engine)) throw new Error("Agent 正在准备");
+      const engines = snapshot.engines.filter((value) => value !== engine);
+      // 只更新启用选择，不删除账号、供应商、默认值或已有会话。
+      try {
+        persist(engines);
+        update(engine, { phase: "idle", message: "" }, engines);
+      } catch (error) {
+        update(engine, { phase: "failed", message: "" });
+        throw error;
+      }
+    },
     enable(engine: AgentEngine, prepare: PrepareEngine): Promise<void> {
       if (snapshot.engines.includes(engine)) return Promise.resolve();
       const existing = pending.get(engine);

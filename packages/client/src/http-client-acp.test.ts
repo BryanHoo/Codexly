@@ -176,3 +176,17 @@ it("草稿预览使用项目 URL 和独立请求契约，不携带默认设置�
     }),
   );
 });
+
+it("认证表单将密钥放入请求体，不进入查询字符串或响应缓存", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(new Response("{}")));
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  await client.authenticateAcpAgent("codex", "api-key", {
+    idempotencyKey: "credentials",
+    credentials: { apiKey: "private-form-key" },
+  });
+  expect(fetch.mock.calls[0]?.[0]).toBe("https://example.test/v1/acp/agents/codex/authenticate");
+  expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+    method: "POST",
+    body: JSON.stringify({ methodId: "api-key", credentials: { apiKey: "private-form-key" } }),
+  });
+});

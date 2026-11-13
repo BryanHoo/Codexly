@@ -228,6 +228,9 @@ catalogs:
     simple-git:
       specifier: 4.0.1
       version: 4.0.1
+    smol-toml:
+      specifier: 1.9.1
+      version: 1.9.1
     streamdown:
       specifier: 2.5.0
       version: 2.5.0
@@ -697,6 +700,9 @@ importers:
       proxy-chain:
         specifier: 'catalog:'
         version: 3.0.1(supports-color@8.1.1)
+      smol-toml:
+        specifier: 'catalog:'
+        version: 1.9.1
       undici:
         specifier: 'catalog:'
         version: 8.12.3
@@ -6736,6 +6742,10 @@ packages:
 
   smol-toml@1.9.0:
     resolution: {integrity: sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ==}
+    engines: {node: '>= 18'}
+
+  smol-toml@1.9.1:
+    resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
     engines: {node: '>= 18'}
 
   socks-proxy-agent@10.1.0:
@@ -13746,6 +13756,8 @@ snapshots:
   smart-buffer@4.2.0: {}
 
   smol-toml@1.9.0: {}
+
+  smol-toml@1.9.1: {}
 
   socks-proxy-agent@10.1.0(supports-color@8.1.1):
     dependencies:

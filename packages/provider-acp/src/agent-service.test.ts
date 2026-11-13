@@ -32,7 +32,7 @@ const initial: acp.SessionConfigOption[] = [
     options: [{ value: "low", name: "低" }],
   },
 ];
-async function fixture() {
+async function fixture(nativeStatus?: () => Record<string, unknown>) {
   const root = await mkdtemp(join(tmpdir(), "acp-settings-"));
   const authenticate = vi.fn<
     (
@@ -53,15 +53,23 @@ async function fixture() {
     const sessions = new Map<string, acp.SessionConfigOption[]>();
     const peer = acp
       .agent({ name: "test" })
-      .onRequest(acp.methods.agent.initialize, () => ({
-        protocolVersion: 1,
-        authMethods: [
-          { id: "login", name: "登录" },
-          { id: "fail", name: "失败" },
-          { id: "terminal", name: "终端", type: "terminal" as const },
-        ],
-        agentCapabilities: { sessionCapabilities: { close: {} }, providers: {} },
-      }))
+      .onRequest(acp.methods.agent.initialize, async ({ client }) => {
+        const authStatus = nativeStatus?.();
+        if (authStatus) await client.notify("_auth/status_update", { authStatus });
+        return {
+          protocolVersion: 1,
+          authMethods: [
+            { id: "login", name: "登录" },
+            { id: "fail", name: "失败" },
+            { id: "terminal", name: "终端", type: "terminal" as const },
+          ],
+          agentCapabilities: {
+            sessionCapabilities: { close: {} },
+            providers: {},
+            ...(nativeStatus ? { _meta: { authStatus: {} } } : {}),
+          },
+        };
+      })
       .onRequest(acp.methods.agent.authenticate, authenticate)
       .onRequest(acp.methods.agent.providers.list, () => ({
         providers: [{ providerId: "main", supported: ["openai"], required: false, current: null }],
@@ -481,6 +489,104 @@ it("草稿服务协商完成后全局私有设置字节不变", async () => {
     ).rejects.toThrow();
     expect(f.closed).toHaveBeenCalledTimes(3);
     expect(write).not.toHaveBeenCalled();
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("自动检测原生 API Key，显式刷新重读外部登录状态且不创建会话", async () => {
+  const status = vi
+    .fn()
+    .mockReturnValueOnce({
+      kind: "api_key",
+      label: "Anthropic API key",
+      detail: "ANTHROPIC_API_KEY",
+    })
+    .mockReturnValue({ kind: "none", label: "Not logged in" });
+  const f = await fixture(status);
+  try {
+    expect((await f.service.inspect()).authStatus).toEqual({
+      kind: "api_key",
+      label: "Anthropic API key",
+      detail: "ANTHROPIC_API_KEY",
+    });
+    expect((await f.service.inspect()).authStatus?.kind).toBe("none");
+    expect(f.launch).toHaveBeenCalledTimes(2);
+    expect(f.authenticate).not.toHaveBeenCalled();
+    expect(f.closed).not.toHaveBeenCalled();
+    expect(f.applied).not.toHaveBeenCalled();
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("API Key 必须随提交传到官方认证扩展，不能只发送 methodId", async () => {
+  const f = await fixture();
+  try {
+    await f.service.authenticate("login", undefined, { apiKey: "test-key" });
+    expect(f.authenticate.mock.calls.at(-1)?.[0].params).toMatchObject({
+      methodId: "login",
+      _meta: { "api-key": { apiKey: "test-key" } },
+    });
+  } finally {
+    await f.dispose();
+  }
+});
+
+it("当前连接优先展示应用覆盖，不被原生账号状态误标，且不回传密钥", async () => {
+  const f = await fixture();
+  const service = new AcpAgentService("claude", f.root, f.store, f.launch, undefined, () =>
+    Promise.resolve({
+      baseUrl: "https://native.example",
+      apiType: "openai",
+      headers: { Authorization: "Bearer native-secret" },
+    }),
+  );
+  try {
+    const native = await service.inspect();
+    expect(native.connection).toMatchObject({
+      source: "native",
+      baseUrl: "https://native.example",
+      hasCredentials: true,
+    });
+    await service.providers.configure({
+      providerId: "main",
+      apiType: "openai",
+      baseUrl: "https://app.example",
+      headers: { Authorization: "Bearer app-secret" },
+    });
+    const active = await service.inspect();
+    expect(active.connection).toEqual({
+      source: "application",
+      providerId: "main",
+      apiType: "openai",
+      baseUrl: "https://app.example",
+      hasCredentials: true,
+    });
+    expect(JSON.stringify(active)).not.toContain("app-secret");
+  } finally {
+    await service.close();
+    await f.dispose();
+  }
+});
+
+it("读取与联动预览不落盘，只有显式保存才创建用户配置", async () => {
+  const f = await fixture();
+  try {
+    const path = join(f.store.directory, "claude.json");
+    await f.service.inspect();
+    await f.service.readDefaults();
+    const preview = await f.service.previewConfig(f.root, {
+      values: {},
+      change: { configId: "model", value: "b" },
+    });
+    expect(preview.values["model"]).toBe("b");
+    await expect(stat(path)).rejects.toMatchObject({ code: "ENOENT" });
+    await f.service.updateDefaults(preview.values);
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      configured: true,
+      values: { model: "b" },
+    });
   } finally {
     await f.dispose();
   }

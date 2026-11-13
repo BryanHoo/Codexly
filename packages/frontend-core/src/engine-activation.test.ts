@@ -54,3 +54,15 @@ it("does not mark enabled when persistence fails", async () => {
   await expect(store.enable("claude", () => Promise.resolve())).rejects.toThrow("storage failed");
   expect(store.getSnapshot().engines).toEqual(["codex"]);
 });
+
+it("关闭 Agent 只更新选择，保留另一个引擎且禁止关闭最后一个", () => {
+  const persist = vi.fn();
+  const store = createEngineActivation(["codex", "claude"], persist);
+  store.disable("claude");
+  expect(store.getSnapshot().engines).toEqual(["codex"]);
+  expect(persist).toHaveBeenCalledExactlyOnceWith(["codex"]);
+  expect(() => {
+    store.disable("codex");
+  }).toThrow();
+  expect(store.getSnapshot().engines).toEqual(["codex"]);
+});

@@ -15,13 +15,14 @@
     }
   },
   "dependencies": {
-    "@sinclair/typebox": "catalog:",
+    "@agentclientprotocol/claude-agent-acp": "catalog:",
+    "@agentclientprotocol/codex-acp": "catalog:",
     "@agentclientprotocol/sdk": "catalog:",
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
-    "@agentclientprotocol/codex-acp": "catalog:",
-    "@agentclientprotocol/claude-agent-acp": "catalog:",
+    "@sinclair/typebox": "catalog:",
     "proxy-chain": "catalog:",
+    "smol-toml": "catalog:",
     "undici": "catalog:"
   }
 }

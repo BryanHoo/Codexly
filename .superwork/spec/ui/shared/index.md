@@ -59,3 +59,41 @@
 - 切换回归入口为 `desktop/tests/browser/sidebar-page-toggle.browser.test.tsx`，覆盖两端、Chromium/WebKit、宽窄屏、扩展分类、相互切换及浏览器历史。
 - 帮助等跨容器 Portal 必须随所属 React Activity 同步隐藏，并在恢复后保留正常关闭和焦点行为；不能仅依赖触发器隐藏或外部点击关闭。布局清理须操作已捕获的宿主节点，不增加轮询或逐帧状态。
 - 回归入口为桌面 `sidebar-footer.browser.test.tsx`，覆盖共享底栏在 Chromium / WebKit、宽窄窗口中的入口顺序、独立点击、切换设置及帮助浮层隐藏与关闭。
+
+## ACP 统一配置入口
+
+- Web、移动浏览器与桌面设置导航统一使用 ACP；不再展示 Codex / Claude 的独立模型服务、智能体配置和个性化子菜单。旧 section 跳转通过 `resolveSettingsSection` 保留引擎归属并进入统一页面。
+- 共用 `core/acp-settings-panel.tsx`：左侧选择和开关 Agent，右侧以紧凑设置行展示原生认证、自定义供应商和新会话默认值，版本收进标题行。仅呈现实际支持的 Agent，不虚构安装、登录或注销状态。
+- 未启用 Agent 继续经过 ACP 准备边界；未选 Agent 不挂载查询或启动进程。配置按 Agent 返回的 `configOptions` 原始顺序、类型和选项呈现，不硬编码模型或权限。
+- Agent 切换和设置分类导航通过共享 `SettingsSaveFeedbackProvider` 管理正在提交的保存；连接草稿可直接丢弃，不得在失焦、切页、卸载或读取时写入；会话默认值失焦自动保存，离开前等待自动保存完成。浏览器登录未完成时取消独立认证请求，不解除原有应用覆盖。
+- 回归入口：共享 `settings-navigation.test.ts`，桌面浏览器 `acp-settings-panel.browser.test.tsx`、`acp-auth-settings.browser.test.tsx`、`acp-engine-enable.browser.test.tsx`，Web `app-shell-acp-auth.spec.ts` 与 `app-shell-acp-enable.spec.ts`（390px / 1280px，三浏览器）。
+- 官方依据：[ACP 会话配置](https://agentclientprotocol.com/protocol/v1/session-config-options)、[ACP 认证](https://agentclientprotocol.com/protocol/v1/authentication)、[shadcn AI Elements](https://ui.shadcn.com/docs/ai-elements)。
+
+### 原生认证状态
+
+- `authMethods` 仅表示可用动作，不能推导登录结果。共享 ACP 连接订阅官方适配器的 `_auth/status_update`，`AcpAgentProfile.authStatus` 只公开有界的 kind / label / detail 和账号展示信息，不转发 vendor、token 或请求头。
+- 首次检测最多等待 5.5 秒的原生通知；缺少能力或未报告状态保留未知，不当成未登录，也不创建模型会话、调用 prompt 或自动认证。登录成功后重新探测，刷新仅重建专用设置连接，不关闭聊天。
+- 连接来源按应用覆盖优先于 CLI 全局配置显示，原生账号身份与自定义 API 分开读取；不得以账号摘要或适配器默认端点覆盖实际生效的全局自定义地址。秘密仅留宿主，API Key 表单留空保留已有凭据，填写后通过认证请求体传递给适配器，不能进入查询缓存。
+- ACP 页面移除“指令与扩展”及重复说明，使用项目主题和紧凑主从布局。回归包含原生 account / api_key / gateway、外部登出后刷新、登录后重读，以及明暗主题和 390px / 1280px 截图。
+
+### 设置表单与保存边界
+
+- ACP 内容模块与其他设置页共用 `SettingsGroup` / `SettingsCard`，保留分组标题、单层细边框与内部分隔行；Agent 栏和设置导航通过细线区分，不嵌套独立页面或添加 ACP 页标题。
+- 连接方式、API 协议及会话选项复用共享 Select，快速模式等布尔项使用 Switch。中文展示翻译已知选项，模型名、ACP 标识与写入值不变。
+- 连接配置保留内存草稿，仅明确保存或完成登录才能提交，不显示取消修改按钮。会话默认值在控件失焦后逐项保存，使用完整响应更新模型等依赖选项，不显示手动保存按钮。读取与项目草稿预览不创建迁移或设置文件。
+- 原生 API Key 必须填写后提交；浏览器认证只有成功完成才能移除原应用覆盖，取消后迟到的响应不可继续写入。原生 CLI 文件始终由原生工具管理，应用不直接改写。
+- 回归包含双端完整表单、下拉键盘交互、布尔开关、连接草稿不自动保存、默认值失焦保存、取消登录及迟到响应；编译宿主测试同时断言失败检测和只读检测不落盘。
+
+- 整个设置使用共享 `SettingsDialog` 宽模态弹窗，背景工作台保留布局与状态，快捷键遵守模态边界；关闭按钮、Escape 和导航统一经过保存屏障，嵌套弹窗优先关闭并恢复焦点。
+- Agent 列表无搜索框；选择行与启用开关为独立控件。启用成功后才保存选择，失败保留关闭状态；停用只更新选择，保留已有配置及会话，至少保留一个引擎。
+- 迁移和无效默认项的内部键名（如 `loadProjectSettings`）不得进入设置提示或原始错误文案，原值继续保留在宿主供兼容恢复。
+
+- ACP 空字符串选项在界面显示“默认”，共享 Select 内部使用非空编码以兼容组件约束，传输和持久化必须保留原始空字符串。
+
+### 设置密度与滚动边界
+
+- 设置页开关共用 `core/switch.tsx` 的 20×36 紧凑规格，通知、开机启动、托盘、会话显示与 ACP 使用同一控件；设置下拉与连接输入框统一 32px。
+- Agent 选中态只在整行绘制，内部选择按钮透明，禁止与开关区域叠加不同底色。
+- `SettingsDialog` 固定顶部标题与关闭区，设置导航、Agent 栏、详情各自负责滚动，ACP 外层 main 不滚动；详情头部独立于正文，滚动采用 overscroll-contain，避免传递到整个弹窗。
+- 卡片加载使用 `LoadingSkeleton` 的 settings-fields 变体，只占位字段而非重复整页标题，保留上下留白，与实际行高一致。
+- 回归为 `desktop/tests/browser/acp-settings-layout.browser.test.tsx`，覆盖两端、Chromium/WebKit、390px/1280px：长内容滚动不移动 Agent 与关闭区，不导致横向溢出，骨架屏间距和控件尺寸符合公共规格。

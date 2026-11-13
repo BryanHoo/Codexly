@@ -1,3 +1,4 @@
+import { Switch } from "@codexly/ui/core/switch";
 import { SettingsMutationStatus } from "@codexly/ui/core/settings-mutation-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTrayIconVisible, setTrayIconVisible } from "@/platform/tauri/tray-client.js";
@@ -21,28 +22,44 @@ export function TraySettingsField() {
   });
   // 保存成功才更新开关；失败保留原值，重试使用上一次请求的目标值。
   const visible = settings.data ?? true;
-  return <>
-    <SettingsMutationStatus mutation={change} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => change.mutate(change.variables ?? !visible)} />
-    <SettingsField label={t("general.trayIcon")} description={t("general.trayIconDescription")}>
-      <div className="flex max-w-md flex-col items-end gap-1">
-        <Button
-          role="switch"
-          aria-label={t("general.trayIcon")}
-          aria-checked={visible}
-          aria-busy={settings.isFetching || change.isPending}
-          disabled={settings.isPending || settings.isError || change.isPending}
-          className={`h-6 w-10 rounded-pill p-0.5 ${visible ? "bg-brand hover:bg-brand" : "bg-control-hover"}`}
-          variant="ghost"
-          type="button"
-          onClick={() => change.mutate(!visible)}
-        >
-          <span aria-hidden="true" className={`block size-5 rounded-pill bg-brand-contrast shadow-control transition-transform motion-reduce:transition-none ${visible ? "translate-x-2" : "-translate-x-2"}`} />
-        </Button>
-        {settings.isError ? <div role="alert" className="text-body-small text-danger">
-          {t("general.trayIconLoadError")}
-          <Button variant="ghost" type="button" disabled={settings.isFetching} onClick={() => void settings.refetch()}>{t("common:actions.retry")}</Button>
-        </div> : null}
-      </div>
-    </SettingsField>
-  </>;
+  return (
+    <>
+      <SettingsMutationStatus
+        mutation={change}
+        labels={{
+          saving: t("actions.saving"),
+          saved: t("actions.saved"),
+          saveError: t("errors.save"),
+          retry: t("common:actions.retry"),
+        }}
+        onRetry={() => change.mutate(change.variables ?? !visible)}
+      />
+      <SettingsField label={t("general.trayIcon")} description={t("general.trayIconDescription")}>
+        <div className="flex max-w-md flex-col items-end gap-1">
+          <Switch
+            aria-label={t("general.trayIcon")}
+            checked={visible}
+            aria-busy={settings.isFetching || change.isPending}
+            disabled={settings.isPending || settings.isError || change.isPending}
+            onCheckedChange={(value) => {
+              change.mutate(value);
+            }}
+          />
+          {settings.isError ? (
+            <div role="alert" className="text-body-small text-danger">
+              {t("general.trayIconLoadError")}
+              <Button
+                variant="ghost"
+                type="button"
+                disabled={settings.isFetching}
+                onClick={() => void settings.refetch()}
+              >
+                {t("common:actions.retry")}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </SettingsField>
+    </>
+  );
 }

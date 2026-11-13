@@ -1,149 +1,345 @@
+import { page } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AgentEngine } from "@codexly/protocol";
+import type { AcpAgentProfile, AcpProviderConfig } from "@codexly/protocol";
 import { GlobalSettingsPage as WebPage } from "../../../apps/web/src/features/settings/components/global-settings-page.js";
 import type { SettingsClient } from "../../../apps/web/src/features/settings/components/global-settings-page-contracts.js";
 import { GlobalSettingsPage as NativePage } from "../../src/features/settings/components/global-settings-page.js";
 import { nativeClient } from "../../src/features/projects/project-queries.js";
-import { changeAppLanguage as changeWebLanguage } from "../../../apps/web/src/i18n/i18n.js";
-import { changeAppLanguage as changeDesktopLanguage } from "../../src/i18n/i18n.js";
+import { changeAppLanguage as webLanguage } from "../../../apps/web/src/i18n/i18n.js";
+import { changeAppLanguage as nativeLanguage } from "../../src/i18n/i18n.js";
 import "../../src/shared/styles/globals.css";
 
-vi.mock("../../../apps/web/src/features/provider-connection/components/provider-connection-panel.js", () => ({ ProviderConnectionPanel: () => <div>旧连接入口</div> }));
-vi.mock("../../../apps/web/src/features/settings/components/claude-settings-panel.js", () => ({ ClaudeSettingsPanel: () => <div>旧连接入口</div> }));
-vi.mock("../../src/features/provider-connection/components/provider-connection-panel.js", () => ({ ProviderConnectionPanel: () => <div>旧连接入口</div> }));
-vi.mock("../../src/features/settings/components/claude-settings-panel.js", () => ({ ClaudeSettingsPanel: () => <div>旧连接入口</div> }));
-
-for (const platform of ["web", "desktop"] as const) {
-  it.each(["codex", "claude"] as const)(`${platform}：按智能体公布的方法认证 %s`, async (engine) => {
-    await Promise.all([changeWebLanguage("zh-CN"), changeDesktopLanguage("zh-CN")]);
-    const inspect = vi.fn(async (requested: AgentEngine) => ({
-      engine: requested, protocolVersion: 1,
+async function fixture(
+  platform: "web" | "desktop",
+  language: "zh-CN" | "en" = "zh-CN",
+  source: "native" | "application" = "native",
+) {
+  await Promise.all([webLanguage(language), nativeLanguage(language)]);
+  let connection: AcpAgentProfile["connection"] = {
+    source,
+    providerId: "openai",
+    baseUrl: "https://global-custom.example/v1",
+    apiType: "openai",
+    hasCredentials: true,
+  };
+  let account: AcpAgentProfile["authStatus"] = {
+    kind: "gateway",
+    label: "Custom model gateway",
+    detail: "OpenAI",
+  };
+  const page = () => ({
+    providers: [
+      {
+        providerId: "openai",
+        supported: ["openai", "openai-chat-completions"],
+        required: false,
+        current: {
+          apiType: connection?.apiType ?? "openai",
+          baseUrl: connection?.baseUrl ?? "https://api.openai.com/v1",
+        },
+      },
+    ],
+    restartRequired: false,
+  });
+  const client = {
+    getAcpAgent: vi.fn(async (): Promise<AcpAgentProfile> => ({
+      engine: "codex",
+      protocolVersion: 1,
+      providerConfiguration: true,
+      ...(connection ? { connection } : {}),
+      ...(account ? { authStatus: account } : {}),
       authMethods: [
-        { id: "agent-selected", name: "智能体登录" },
-        { id: "interactive", name: "终端登录", type: "terminal" as const },
+        { id: "api-key", name: "API Key" },
+        { id: "chat-gpt", name: "ChatGPT" },
       ],
-    }));
-    const authenticate = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({});
-    const legacy = vi.fn();
-    const client = { getAcpAgent: inspect, authenticateAcpAgent: authenticate, getEngineProfile: legacy };
-    const spies = platform === "desktop" ? [
-      vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(inspect),
-      vi.spyOn(nativeClient, "authenticateAcpAgent").mockImplementation(authenticate),
-      vi.spyOn(nativeClient, "getEngineProfile").mockImplementation(legacy),
-    ] : [];
-    const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const otherEngine = engine === "codex" ? "claude" : "codex";
-    query.setQueryData(["acp-defaults", engine], { cached: true });
-    query.setQueryData(["acp-defaults", otherEngine], { cached: true });
-    const props = {
-      agentRuntime: "acp" as const, apps: [], models: [], error: null, isPending: false,
-      initialSection: engine === "codex" ? "provider" as const : "claude-provider" as const,
-      onClose: vi.fn(), onRetry: vi.fn(), onSave: vi.fn(),
-    };
-    const view = (agentRuntime: "pending" | "legacy" | "acp") => (
-      <QueryClientProvider client={query}>
-        {platform === "web" ? <WebPage {...props} agentRuntime={agentRuntime} client={client as unknown as SettingsClient} /> : <NativePage {...props} agentRuntime={agentRuntime} />}
-      </QueryClientProvider>
-    );
-    const screen = await render(view("pending"));
-    try {
-      expect(inspect).not.toHaveBeenCalled();
-      await screen.rerender(view("acp"));
-      await expect.element(screen.getByText("旧连接入口", { exact: true })).not.toBeInTheDocument();
-      const login = screen.getByRole("button", { name: "智能体登录", exact: true });
-      await expect.element(login).toBeEnabled();
-      await expect.element(screen.getByRole("button", { name: "终端登录", exact: true })).toBeDisabled();
-      expect(inspect.mock.calls[0]?.[0]).toBe(engine);
-      expect(authenticate).not.toHaveBeenCalled();
-      await expect.element(screen.getByRole("heading", { name: "供应商配置", exact: true })).not.toBeInTheDocument();
-      await login.click();
-      await expect.element(screen.getByRole("alert")).toHaveTextContent("认证失败");
-      await login.click();
-      await expect.element(screen.getByText("认证请求已完成。", { exact: true })).toBeVisible();
-      expect(authenticate.mock.calls.map((call) => call.slice(0, 2))).toEqual([[engine, "agent-selected"], [engine, "agent-selected"]]);
-      expect(authenticate.mock.calls[0]?.[2]?.idempotencyKey).toBe(authenticate.mock.calls[1]?.[2]?.idempotencyKey);
-      expect(query.getQueryState(["acp-defaults", engine])?.isInvalidated).toBe(true);
-      expect(query.getQueryState(["acp-defaults", otherEngine])?.isInvalidated).toBe(false);
-      let finish!: (receipt: Record<string, never>) => void;
-      authenticate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
-      await login.click();
-      await expect.element(login).toBeDisabled();
-      const inFlight = authenticate.mock.calls[2]?.[2];
-      await screen.rerender(view("legacy"));
-      await expect.element(screen.getByText("旧连接入口", { exact: true })).toBeVisible();
-      expect(inFlight?.signal.aborted).toBe(true);
-      finish({});
-      await screen.rerender(view("acp"));
-      await expect.element(login).toBeEnabled();
-      await expect.element(screen.getByText("认证请求已完成。", { exact: true })).not.toBeInTheDocument();
-      expect(authenticate).toHaveBeenCalledTimes(3);
-      expect(legacy).not.toHaveBeenCalled();
-    } finally {
+    })),
+    getAcpProviders: vi.fn(async () => page()),
+    configureAcpProvider: vi.fn(async (_engine: string, config: AcpProviderConfig) => {
+      connection = {
+        source: "application",
+        providerId: config.providerId,
+        apiType: config.apiType,
+        baseUrl: config.baseUrl,
+        hasCredentials: true,
+      };
+      return page();
+    }),
+    disableAcpProvider: vi.fn(async () => {
+      connection = undefined;
+      return page();
+    }),
+    authenticateAcpAgent: vi.fn(
+      async (
+        _engine: string,
+        method: string,
+        _options?: { signal?: AbortSignal; credentials?: { apiKey?: string } },
+      ) => {
+        connection = undefined;
+        account =
+          method === "api-key"
+            ? { kind: "api_key", label: "OpenAI API key" }
+            : { kind: "account", label: "ChatGPT Pro", account: { email: "user@example.com" } };
+        return {};
+      },
+    ),
+    getAcpDefaults: vi.fn(async () => ({
+      configOptions: [
+        {
+          id: "reasoning_effort",
+          name: "Reasoning effort",
+          category: "thought_level",
+          type: "select" as const,
+          currentValue: "high",
+          options: [
+            { value: "low", name: "Low" },
+            { value: "high", name: "High" },
+          ],
+        },
+      ],
+      defaults: {},
+      unmappedLegacy: [],
+      invalidDefaults: [],
+    })),
+    setAcpDefaultConfig: vi.fn(async (_engine: string, _id: string, value: string | boolean) => ({
+      configOptions: [
+        {
+          id: "reasoning_effort",
+          name: "Reasoning effort",
+          category: "thought_level",
+          type: "select" as const,
+          currentValue: String(value),
+          options: [
+            { value: "low", name: "Low" },
+            { value: "high", name: "High" },
+          ],
+        },
+      ],
+      defaults: {},
+      unmappedLegacy: [],
+      invalidDefaults: [],
+    })),
+  };
+  const fullClient = client;
+  const spies =
+    platform === "desktop"
+      ? [
+          vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(client.getAcpAgent),
+          vi.spyOn(nativeClient, "getAcpProviders").mockImplementation(client.getAcpProviders),
+          vi
+            .spyOn(nativeClient, "configureAcpProvider")
+            .mockImplementation(client.configureAcpProvider),
+          vi
+            .spyOn(nativeClient, "disableAcpProvider")
+            .mockImplementation(client.disableAcpProvider),
+          vi
+            .spyOn(nativeClient, "authenticateAcpAgent")
+            .mockImplementation(client.authenticateAcpAgent),
+          vi.spyOn(nativeClient, "getAcpDefaults").mockImplementation(client.getAcpDefaults),
+          vi
+            .spyOn(nativeClient, "setAcpDefaultConfig")
+            .mockImplementation(client.setAcpDefaultConfig),
+        ]
+      : [];
+  const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const props = {
+    agentRuntime: "acp" as const,
+    initialSection: "acp" as const,
+    apps: [],
+    models: [],
+    error: null,
+    isPending: false,
+    onClose: vi.fn(),
+    onRetry: vi.fn(),
+    onSave: vi.fn(),
+  };
+  const screen = await render(
+    <QueryClientProvider client={query}>
+      {platform === "web" ? (
+        <WebPage {...props} client={fullClient as unknown as SettingsClient} />
+      ) : (
+        <NativePage {...props} />
+      )}
+    </QueryClientProvider>,
+  );
+  return {
+    screen,
+    client: fullClient,
+    query,
+    async close() {
       await screen.unmount();
       query.clear();
       spies.forEach((spy) => spy.mockRestore());
-    }
-  });
+    },
+  };
 }
-
 for (const platform of ["web", "desktop"] as const) {
-  it(`${platform}：仅公布能力时读取供应商，并显式替换请求头`, async () => {
-    await Promise.all([changeWebLanguage("zh-CN"), changeDesktopLanguage("zh-CN")]);
-    const current = { apiType: "native-protocol", baseUrl: "https://previous.example" };
-    const main = { providerId: "main", required: true, supported: ["native-protocol"], current };
-    const gateway = { ...main, providerId: "gateway", required: false };
-    const inspect = vi.fn(async () => ({ engine: "codex" as const, protocolVersion: 1, authMethods: [], providerConfiguration: true as const }));
-    const list = vi.fn(async () => ({ providers: [main, gateway], restartRequired: false }));
-    const configure = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({
-      providers: [main, { ...gateway, current: { ...current, baseUrl: "https://new.example" } }],
-      restartRequired: true,
-    });
-    const disable = vi.fn(async () => ({ providers: [main, { ...gateway, current: null }], restartRequired: true }));
-    const client = { getAcpAgent: inspect, authenticateAcpAgent: async () => ({}), getAcpProviders: list, configureAcpProvider: configure, disableAcpProvider: disable };
-    const spies = platform === "desktop" ? [
-      vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(inspect),
-      vi.spyOn(nativeClient, "authenticateAcpAgent").mockImplementation(client.authenticateAcpAgent),
-      vi.spyOn(nativeClient, "getAcpProviders").mockImplementation(list),
-      vi.spyOn(nativeClient, "configureAcpProvider").mockImplementation(configure),
-      vi.spyOn(nativeClient, "disableAcpProvider").mockImplementation(disable),
-    ] : [];
-    const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const props = { agentRuntime: "acp" as const, apps: [], models: [], error: null, isPending: false, initialSection: "provider" as const, onClose: vi.fn(), onRetry: vi.fn(), onSave: vi.fn() };
-    const screen = await render(<QueryClientProvider client={query}>
-      {platform === "web" ? <WebPage {...props} client={client as unknown as SettingsClient} /> : <NativePage {...props} />}
-    </QueryClientProvider>);
+  it(`${platform}：自动填充全局自定义 API，完整填写保存且不回显密钥`, async () => {
+    const f = await fixture(platform);
     try {
-      const row = screen.getByRole("group", { name: "gateway", exact: true });
-      await expect.element(row.getByText("https://previous.example", { exact: true })).toBeVisible({ timeout: 3000 });
-      await expect.element(screen.getByRole("group", { name: "main", exact: true }).getByRole("button", { name: "停用", exact: true })).not.toBeInTheDocument();
-      await row.getByRole("button", { name: "编辑", exact: true }).click();
-      await row.getByRole("textbox", { name: "服务地址", exact: true }).fill("https://new.example");
-      const save = row.getByRole("button", { name: "保存", exact: true });
-      await expect.element(save).toBeDisabled();
-      await row.getByRole("button", { name: "添加请求头", exact: true }).click();
-      await row.getByLabelText("请求头名称").fill("Authorization");
-      await row.getByLabelText("请求头值").fill("fixture-only-secret");
-      await row.getByRole("checkbox", { name: "替换现有配置和请求头" }).click();
-      await save.click();
-      await expect.element(row.getByRole("alert")).toHaveTextContent("保存失败");
-      await save.click();
-      await expect.element(row.getByText("https://new.example", { exact: true })).toBeVisible();
-      expect(configure.mock.calls[0]?.[1]).toEqual({ providerId: "gateway", apiType: "native-protocol", baseUrl: "https://new.example", headers: { Authorization: "fixture-only-secret" } });
-      expect(configure.mock.calls[1]?.[2]?.idempotencyKey).toBe(configure.mock.calls[0]?.[2]?.idempotencyKey);
-      expect(JSON.stringify(query.getQueryData(["acp-providers", "codex"]))).not.toContain("fixture-only-secret");
-      await expect.element(row.getByLabelText("请求头值")).not.toBeInTheDocument();
-      await row.getByRole("button", { name: "停用", exact: true }).click();
-      expect(disable).not.toHaveBeenCalled();
-      await row.getByRole("button", { name: "确认停用", exact: true }).click();
-      await expect.element(row.getByText("已停用", { exact: true })).toBeVisible();
-      expect(disable.mock.calls).toHaveLength(1);
-      expect(props.onSave).not.toHaveBeenCalled();
+      const url = f.screen.getByRole("textbox", { name: "API 地址", exact: true });
+      await expect
+        .element(f.screen.getByRole("dialog", { name: "全局设置", exact: true }))
+        .toBeVisible();
+      await expect
+        .element(f.screen.getByRole("searchbox", { name: "搜索 Agent", exact: true }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(f.screen.getByRole("button", { name: "取消修改", exact: true }))
+        .not.toBeInTheDocument();
+      await expect.element(url).toHaveValue("https://global-custom.example/v1");
+      await expect
+        .element(f.screen.getByRole("heading", { name: "ACP", exact: true }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(f.screen.getByText("Custom model gateway", { exact: true }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(f.screen.getByRole("combobox", { name: "连接方式", exact: true }))
+        .toHaveTextContent("自定义 API");
+      await expect.element(f.screen.getByLabelText("API Key", { exact: true })).toHaveValue("");
+      await url.fill("https://replacement.example/v1");
+      await f.screen.getByLabelText("API Key", { exact: true }).fill("private-form-key");
+      expect(f.client.configureAcpProvider).not.toHaveBeenCalled();
+      await f.screen.getByRole("button", { name: "保存连接", exact: true }).click();
+      await expect.poll(() => f.client.configureAcpProvider.mock.calls.length).toBe(1);
+      expect(f.client.configureAcpProvider.mock.calls[0]?.[1]).toEqual({
+        providerId: "openai",
+        apiType: "openai",
+        baseUrl: "https://replacement.example/v1",
+        headers: { Authorization: "Bearer private-form-key" },
+      });
+      await expect.element(f.screen.getByText("应用内配置", { exact: true })).toBeVisible();
+      expect(JSON.stringify(f.query.getQueriesData({}))).not.toContain("private-form-key");
+      await expect.element(f.screen.getByLabelText("API Key", { exact: true })).toHaveValue("");
+      await url.fill("https://keep-key.example/v1");
+      await f.screen.getByRole("button", { name: "保存连接", exact: true }).click();
+      await expect.poll(() => f.client.configureAcpProvider.mock.calls.length).toBe(2);
+      expect(f.client.configureAcpProvider.mock.calls[1]?.[1]).not.toHaveProperty("headers");
     } finally {
-      await screen.unmount();
-      query.clear();
-      spies.forEach((spy) => spy.mockRestore());
+      await f.close();
     }
   });
+  it(`${platform}：连接表单失焦与切换分类不会自动保存`, async () => {
+    const f = await fixture(platform);
+    try {
+      await f.screen
+        .getByRole("textbox", { name: "API 地址", exact: true })
+        .fill("https://unsaved.example/v1");
+      await f.screen.getByRole("heading", { name: "连接配置", exact: true }).click();
+      expect(f.client.configureAcpProvider).not.toHaveBeenCalled();
+      await f.screen.getByRole("button", { name: "常规", exact: true }).click();
+      await f.screen.getByRole("button", { name: "ACP", exact: true }).click();
+      await expect
+        .element(f.screen.getByRole("textbox", { name: "API 地址", exact: true }))
+        .toHaveValue("https://global-custom.example/v1");
+      expect(f.client.configureAcpProvider).not.toHaveBeenCalled();
+    } finally {
+      await f.close();
+    }
+  });
+  it(`${platform}：API Key 选择不会立即登录，提交完整凭据后才调用认证`, async () => {
+    const f = await fixture(platform);
+    try {
+      await f.screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
+      await page.getByRole("option", { name: "账号登录", exact: true }).click();
+      await f.screen.getByRole("combobox", { name: "登录方式", exact: true }).click();
+      await page.getByRole("option", { name: "API Key", exact: true }).click();
+      expect(f.client.authenticateAcpAgent).not.toHaveBeenCalled();
+      await f.screen.getByRole("button", { name: "保存 API Key", exact: true }).click();
+      expect(f.client.authenticateAcpAgent).not.toHaveBeenCalled();
+      await f.screen.getByLabelText("API Key", { exact: true }).fill("native-form-key");
+      await f.screen.getByRole("button", { name: "保存 API Key", exact: true }).click();
+      await expect.poll(() => f.client.authenticateAcpAgent.mock.calls.length).toBe(1);
+      expect(f.client.authenticateAcpAgent.mock.calls[0]?.[2]).toMatchObject({
+        credentials: { apiKey: "native-form-key" },
+      });
+      await expect
+        .element(f.screen.getByRole("button", { name: "保存 API Key", exact: true }))
+        .toBeEnabled();
+    } finally {
+      await f.close();
+    }
+  });
+  it(`${platform}：浏览器登录失败保留表单，重试成功后刷新真实账号`, async () => {
+    const f = await fixture(platform);
+    try {
+      f.client.authenticateAcpAgent.mockRejectedValueOnce(new Error("offline"));
+      await f.screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
+      await page.getByRole("option", { name: "账号登录", exact: true }).click();
+      await f.screen.getByRole("combobox", { name: "登录方式", exact: true }).click();
+      await page.getByRole("option", { name: "ChatGPT", exact: true }).click();
+      await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
+      await expect.element(f.screen.getByRole("alert")).toHaveTextContent("连接未保存");
+      await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
+      await expect
+        .element(f.screen.getByText("ChatGPT Pro · user@example.com", { exact: true }))
+        .toBeVisible();
+      expect(f.client.authenticateAcpAgent).toHaveBeenCalledTimes(2);
+    } finally {
+      await f.close();
+    }
+  });
+  it(`${platform}：取消未完成的浏览器登录不解除现有配置，迟到响应也不提交`, async () => {
+    const f = await fixture(platform, "zh-CN", "application");
+    let complete!: (value: Record<string, never>) => void;
+    try {
+      f.client.authenticateAcpAgent.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            complete = resolve;
+          }),
+      );
+      await f.screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
+      await page.getByRole("option", { name: "账号登录", exact: true }).click();
+      await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
+      await expect.poll(() => f.client.authenticateAcpAgent.mock.calls.length).toBe(1);
+      const signal = f.client.authenticateAcpAgent.mock.calls[0]?.[2]?.signal;
+      await f.screen.getByRole("button", { name: "取消", exact: true }).click();
+      expect(signal?.aborted).toBe(true);
+      complete({});
+      await f.screen.getByRole("button", { name: "常规", exact: true }).click();
+      await f.screen.getByRole("button", { name: "ACP", exact: true }).click();
+      await expect
+        .element(f.screen.getByRole("textbox", { name: "API 地址", exact: true }))
+        .toHaveValue("https://global-custom.example/v1");
+      expect(f.client.disableAcpProvider).not.toHaveBeenCalled();
+      expect(f.client.configureAcpProvider).not.toHaveBeenCalled();
+    } finally {
+      complete?.({});
+      await f.close();
+    }
+  });
+  for (const language of ["zh-CN", "en"] as const) {
+    it(`${platform}：${language} 配置标签和选项按语言显示，写入仍使用 ACP 原始值`, async () => {
+      const f = await fixture(platform, language);
+      try {
+        const reasoning = f.screen.getByRole("combobox", {
+          name: language === "zh-CN" ? "推理强度" : "Reasoning effort",
+          exact: true,
+        });
+        await expect.element(reasoning).toHaveTextContent(language === "zh-CN" ? "高" : "High");
+        await reasoning.click();
+        await page
+          .getByRole("option", { name: language === "zh-CN" ? "低" : "Low", exact: true })
+          .click();
+        expect(f.client.setAcpDefaultConfig).not.toHaveBeenCalled();
+        await f.screen
+          .getByRole("heading", {
+            name: language === "zh-CN" ? "会话默认配置" : "Session defaults",
+            exact: true,
+          })
+          .click();
+        await expect.poll(() => f.client.setAcpDefaultConfig.mock.calls.length).toBe(1);
+        expect(f.client.setAcpDefaultConfig.mock.calls[0]?.slice(0, 3)).toEqual([
+          "codex",
+          "reasoning_effort",
+          "low",
+        ]);
+      } finally {
+        await f.close();
+      }
+    });
+  }
 }

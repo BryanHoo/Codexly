@@ -103,17 +103,11 @@ for (const explicit of [false, true])
         configOptions: [{ id: "model", currentValue: "b" }],
       });
       expect(response?.["result"]).not.toHaveProperty("legacy");
-      const stored = JSON.parse(
-        await readFile(join(directory, "settings/codex.json"), "utf8"),
-      ) as Record<string, unknown>;
-      if (explicit) {
-        expect(stored["legacy"]).toEqual({ model: "a", future: false });
-        expect(stored["legacyPolicy"]).toBe("preserve");
-        expect(applied).not.toHaveBeenCalled();
-      } else {
-        expect(stored).not.toHaveProperty("legacy");
-        expect(applied).not.toHaveBeenCalled();
-      }
+      // 读取及协商只使用内存快照，不能创建迁移文件或修改用户配置。
+      await expect(readFile(join(directory, "settings/codex.json"), "utf8")).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      expect(applied).not.toHaveBeenCalled();
       expect(await readFile(join(app, "agent-settings.json"), "utf8")).toBe(old);
     } finally {
       input.end();

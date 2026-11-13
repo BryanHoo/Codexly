@@ -1,4 +1,4 @@
-import { RuntimeSettingsBoundary } from "@codexly/ui/core/runtime-settings-boundary";
+import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
 import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
 import { v4 as createUuid } from "uuid";
@@ -9,7 +9,10 @@ import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
 import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
-import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
+import {
+  resolveSettingsSection,
+  settingsSectionEngine,
+} from "@codexly/frontend-core/settings-navigation";
 import type { AgentGlobalSettings } from "@codexly/protocol";
 import { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
@@ -36,24 +39,8 @@ const SavedPromptsSettings = lazy(() =>
     default: module.SavedPromptsSettings,
   })),
 );
-const AgentSettingsPanel = lazy(() =>
-  import("./agent-settings-panel.js").then((module) => ({ default: module.AgentSettingsPanel })),
-);
-const ClaudeSettingsPanel = lazy(() =>
-  import("./claude-settings-panel.js").then((module) => ({ default: module.ClaudeSettingsPanel })),
-);
-const PersonalizationSettingsPanel = lazy(() =>
-  import("./personalization-settings-panel.js").then((module) => ({
-    default: module.PersonalizationSettingsPanel,
-  })),
-);
 const CommitSettingsPanel = lazy(() =>
   import("./commit-settings-panel.js").then((module) => ({ default: module.CommitSettingsPanel })),
-);
-const ProviderConnectionPanel = lazy(() =>
-  import("../../provider-connection/components/provider-connection-panel.js").then((module) => ({
-    default: module.ProviderConnectionPanel,
-  })),
 );
 const GlobalSettingsPets = lazy(() =>
   import("../../pets/components/global-settings-pets.js").then((module) => ({
@@ -64,9 +51,9 @@ const GlobalSettingsAbout = lazy(() =>
   import("./global-settings-about.js").then((module) => ({ default: module.GlobalSettingsAbout })),
 );
 
-const AcpAuthSettings = lazy(() =>
-  import("@codexly/ui/core/acp-auth-settings").then((module) => ({
-    default: module.AcpAuthSettings,
+const AcpSettingsPanel = lazy(() =>
+  import("@codexly/ui/core/acp-settings-panel").then((module) => ({
+    default: module.AcpSettingsPanel,
   })),
 );
 
@@ -94,7 +81,9 @@ export function GlobalSettingsPage<
       engine === "codex" ? models : (await client.getEngineProfile(engine)).models.data,
     [models, client],
   );
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>(() =>
+    resolveSettingsSection(initialSection),
+  );
   const [draft, setDraft] = useState<T | undefined>(() => settings);
   const [theme, setTheme] = useState(readInitialTheme);
   const [language, setLanguage] = useState(getCurrentLanguage);
@@ -226,30 +215,24 @@ export function GlobalSettingsPage<
         />
       ) : null}
       <Suspense fallback={status}>
-        {activeSection === "prompts" ? (
+        {activeSection === "acp" ? (
+          agentRuntime === "pending" ? (
+            <LoadingSkeleton variant="settings" label={t("loading")} className="p-0" />
+          ) : (
+            <AcpSettingsPanel
+              client={client}
+              language={language === "zh-CN" ? "zh-CN" : "en"}
+              initialEngine={settingsSectionEngine(initialSection) ?? "codex"}
+              Field={SettingsField}
+              Select={SettingsSelect}
+            />
+          )
+        ) : activeSection === "prompts" ? (
           <SavedPromptsSettings
             language={language}
             projects={projectData?.projects}
             projectsUnavailable={!projectData || projectData.isPending || !!projectData.error}
           />
-        ) : (activeSection === "provider" || activeSection === "claude-provider") &&
-          agentRuntime !== "legacy" ? (
-          <section>
-            <h1 className="mb-6 text-xl font-semibold">{t(`sections.${activeSection}`)}</h1>
-            {agentRuntime === "pending" ? (
-              <LoadingSkeleton variant="settings" label={t("loading")} className="p-0" />
-            ) : (
-              <AcpAuthSettings
-                client={client}
-                engine={activeSection === "provider" ? "codex" : "claude"}
-                language={language === "zh-CN" ? "zh-CN" : "en"}
-              />
-            )}
-          </section>
-        ) : isClaudeSettingsSection(activeSection) ? (
-          <ClaudeSettingsPanel client={client} section={activeSection} />
-        ) : activeSection === "agent" ? (
-          <AgentSettingsPanel client={client} />
         ) : activeSection === "about" ? (
           <GlobalSettingsAbout
             activeSection="about"
@@ -266,25 +249,11 @@ export function GlobalSettingsPage<
           />
         ) : activeSection === "network" ? (
           <NetworkProxySettingsField />
-        ) : activeSection === "provider" ? (
-          <section>
-            <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
-            <ProviderConnectionPanel autoSave />
-          </section>
         ) : activeSection === "access" && accessMode === "lan" ? (
           <GlobalSettingsAccess
             activeSection="access"
             {...(props.onLogoutAccess === undefined ? {} : { onLogout: props.onLogoutAccess })}
           />
-        ) : activeSection === "personalization" ? (
-          <RuntimeSettingsBoundary
-            runtime={agentRuntime}
-            language={language}
-            title={t("sections.personalization")}
-            feature="personalization"
-          >
-            <PersonalizationSettingsPanel client={client} />
-          </RuntimeSettingsBoundary>
         ) : activeSection === "git" ? (
           <section id="settings-panel-git" className="space-y-6">
             <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
