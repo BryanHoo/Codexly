@@ -1,4 +1,4 @@
-import { initializeNetworkProxy } from "@codexly/provider-claude/network-proxy";
+import { initializeNetworkProxy } from "@codexly/provider-acp/network-proxy";
 import { runDoctor, type CliDoctorDependencies } from "./cli-doctor.js";
 import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
 import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";

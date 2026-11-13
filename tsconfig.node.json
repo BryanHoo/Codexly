@@ -4,6 +4,8 @@
     "composite": true,
     "noEmit": true,
     "paths": {
+      "@codexly/provider-acp/network-proxy": ["./packages/provider-acp/src/network-proxy.ts"],
+      "@codexly/provider-acp": ["./packages/provider-acp/src/index.ts"],
       "@codexly/provider-claude/network-proxy": ["./packages/provider-claude/src/network-proxy.ts"],
       "@codexly/core/app-storage-paths": ["./packages/core/src/app-storage-paths.ts"],
       "@codexly/core": ["./packages/core/src/index.ts"],
@@ -15,8 +17,11 @@
     "tsBuildInfoFile": ".cache/types/root.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tools/**/*.ts", "*.config.ts"],
+  "include": ["src/**/*.ts", "tools/**/*.ts", "*.config.ts", "packages/provider-acp/test/**/*.ts"],
   "references": [
+    {
+      "path": "./packages/provider-acp"
+    },
     {
       "path": "./packages/protocol"
     },
