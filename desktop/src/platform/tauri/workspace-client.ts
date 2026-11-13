@@ -55,7 +55,11 @@ export class TauriWorkspaceClient extends TauriNativeClient {
   }
 
   public async startWorktreeTask(projectId: string, input: { rootPath: string; worktreePath: string; engine?: AgentEngine }): Promise<StartAgentTaskResponse> {
-    const response = await this.call<StartAgentTaskResponse>("start_worktree_task", { projectId, input });
+    const runtime = await this.applicationRuntime();
+    // 原生负责工作树授权及稳定创建身份；ACP 失败不能改投旧任务创建。
+    const response = await this.call<StartAgentTaskResponse>("start_worktree_task", {
+      projectId, input, ...(runtime === "acp" ? { agentRuntime: "acp" } : {}),
+    });
     this.taskProjects.set(response.task.id, projectId);
     return response;
   }
