@@ -64,8 +64,13 @@ export class TauriRuntimeClient extends TauriCatalogClient {
   public async getPerformanceMetrics(): Promise<EventStreamMetricsResponse> {
     return this.call("get_runtime_performance_metrics");
   }
-  public async getHealth(_options: ReadOptions = {}): Promise<HealthResponse> {
-    await this.ensureRuntime();
+  public async getHealth(options: ReadOptions = {}): Promise<HealthResponse> {
+    options.signal?.throwIfAborted();
+    const runtime = await this.applicationRuntime();
+    options.signal?.throwIfAborted();
+    // ACP 的应用健康只等待事件通道握手；agent 就绪/认证由 ACP 检查端口表达。
+    await (runtime === "acp" ? this.connectRuntime() : this.ensureRuntime());
+    options.signal?.throwIfAborted();
     return { status: "ok", version: 1 };
   }
 

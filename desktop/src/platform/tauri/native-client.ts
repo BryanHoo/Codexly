@@ -1,6 +1,7 @@
 import { connectCodexRuntime, ensureCodexRuntime, subscribeAgentEvents } from "./runtime.js";
 import { invoke, type NativeInvoke } from "./native-invoke.js";
 import { requiresLegacyTaskRuntime, AcpLegacyTaskCommandError } from "./task-command-boundary.js";
+import { requiresLegacyGlobalRuntime, AcpLegacyGlobalCommandError } from "./global-command-boundary.js";
 import { v4 as createUuid } from "uuid";
 
 export type InvokeImplementation = NativeInvoke;
@@ -81,7 +82,7 @@ export class TauriNativeClient {
 
   protected async call<T>(command: string, args?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
     signal?.throwIfAborted();
-    const boundary = this.taskCommandBoundary(command, args, signal);
+    const boundary = this.legacyCommandBoundary(command, args, signal);
     if (boundary) await boundary;
     if (!isLocalCommand(command, args)) {
       await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
@@ -96,10 +97,10 @@ export class TauriNativeClient {
     body: Uint8Array,
     headers: Record<string, string>,
   ): Promise<T> {
-    const boundary = this.taskCommandBoundary(command);
+    const boundary = this.legacyCommandBoundary(command);
     if (boundary) await boundary;
     if (!localCommands.has(command)) await this.ensureRuntime();
-    const finalBoundary = this.taskCommandBoundary(command);
+    const finalBoundary = this.legacyCommandBoundary(command);
     if (finalBoundary) await finalBoundary;
     try {
       return await this.invokeNative<T>(command, body, { headers });
@@ -116,7 +117,7 @@ export class TauriNativeClient {
     if (signal === undefined) return this.call(command, args);
 
     signal.throwIfAborted();
-    const boundary = this.taskCommandBoundary(command, args, signal);
+    const boundary = this.legacyCommandBoundary(command, args, signal);
     if (boundary) await boundary;
     if (!isLocalCommand(command, args)) {
       await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
@@ -147,7 +148,7 @@ export class TauriNativeClient {
     signal?: AbortSignal,
   ): Promise<T> {
     // 真正发送前复查，防止连接等待期间切换到 ACP，或取消后仍发出旧请求。
-    const boundary = this.taskCommandBoundary(command, args, signal);
+    const boundary = this.legacyCommandBoundary(command, args, signal);
     if (boundary) await boundary;
     signal?.throwIfAborted();
     try {
@@ -159,12 +160,15 @@ export class TauriNativeClient {
     }
   }
 
-  private taskCommandBoundary(command: string, args?: Record<string, unknown>, signal?: AbortSignal): Promise<void> | undefined {
+  private legacyCommandBoundary(command: string, args?: Record<string, unknown>, signal?: AbortSignal): Promise<void> | undefined {
     // 普通本地和 ACP 端口同步放行，不新增能力查询或初始化等待。
-    if (!requiresLegacyTaskRuntime(command, args)) return;
+    const taskCommand = requiresLegacyTaskRuntime(command, args);
+    if (!taskCommand && !requiresLegacyGlobalRuntime(command)) return;
     return this.applicationRuntime().then((runtime) => {
       signal?.throwIfAborted();
-      if (runtime === "acp") throw new AcpLegacyTaskCommandError(command);
+      if (runtime === "acp") throw taskCommand
+        ? new AcpLegacyTaskCommandError(command)
+        : new AcpLegacyGlobalCommandError(command);
     });
   }
 }
