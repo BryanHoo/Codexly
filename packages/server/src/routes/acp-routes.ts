@@ -1,3 +1,4 @@
+import { withGenerationCancellation } from "./generation-cancellation.js";
 import { Type, type TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
@@ -114,29 +115,40 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         response: { 200: AcpConfigPreviewSchema },
       },
     },
-    async (request) => {
-      const project = await context.getProjectContext(request.params.projectId);
-      if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
-      const agent = service(request.params.engine);
-      if (!agent.previewConfig)
-        throw new MutationHttpError("PROVIDER_ERROR", "ACP preview unavailable", 503);
-      let cwd = project.scope.rootPath;
-      if (request.body.workspacePath !== undefined) {
-        try {
-          cwd = await resolveProjectRoot(
-            context.projectRepository,
-            request.params.projectId,
-            request.body.workspacePath,
-          );
-        } catch (error) {
-          if (error instanceof ProjectRootScopeError)
-            throw new MutationHttpError("INVALID_REQUEST", "ACP preview workspace is invalid", 400);
-          throw error;
-        }
-      }
-      // 预览与首发共用根目录授权，不能把任意浏览器路径交给 agent。
-      return agent.previewConfig(cwd, request.body, request.signal);
-    },
+    async (request, reply) =>
+      withGenerationCancellation(
+        request,
+        reply,
+        async (signal) => {
+          const project = await context.getProjectContext(request.params.projectId);
+          if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+          const agent = service(request.params.engine);
+          if (!agent.previewConfig)
+            throw new MutationHttpError("PROVIDER_ERROR", "ACP preview unavailable", 503);
+          let cwd = project.scope.rootPath;
+          if (request.body.workspacePath !== undefined) {
+            try {
+              cwd = await resolveProjectRoot(
+                context.projectRepository,
+                request.params.projectId,
+                request.body.workspacePath,
+              );
+            } catch (error) {
+              if (error instanceof ProjectRootScopeError)
+                throw new MutationHttpError(
+                  "INVALID_REQUEST",
+                  "ACP preview workspace is invalid",
+                  400,
+                );
+              throw error;
+            }
+          }
+          // 预览与首发共用根目录授权，不能把任意浏览器路径交给 agent。
+          // POST 正文结束不代表离开；预览只在响应断连或实际超时时取消。
+          return agent.previewConfig(cwd, request.body, signal);
+        },
+        "ACP model preview request timed out",
+      ),
   );
   const taskProvider = async (params: { projectId: string; taskId: string }) => {
     const project = await context.getProjectContext(params.projectId);

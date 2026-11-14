@@ -1,90 +1,74 @@
-import type { ReactNode, SelectHTMLAttributes } from "react";
-import * as Popover from "radix-ui/popover";
-import { SlidersHorizontal } from "lucide-react";
-import type { AcpConfigOption } from "@codexly/protocol";
-import { AcpConfigOptions } from "./acp-config-options.js";
-import { Button } from "./button.js";
+import { isAcpFastModeOption } from "@codexly/frontend-core/acp-config-visibility";
+import { AcpFastModeGate, type AcpProfileClient } from "./acp-fast-mode-gate.js";
+import type { AcpConfigOption, AgentEngine } from "@codexly/protocol";
+import { acpConfigLabel } from "@codexly/frontend-core/acp-config-labels";
+import { CompactSelector } from "./compact-selector.js";
 
-function Field({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1 py-2 text-label">
-      <span>{label}</span>
-      {children}
-      {description ? (
-        <span className="text-caption text-muted-foreground">{description}</span>
-      ) : null}
-    </label>
-  );
-}
-function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className="h-8 min-w-0 max-w-full rounded-control border border-separator bg-panel px-2 text-label"
-    />
-  );
-}
-
-/** 只呈现 agent 原始配置；没有审批、沙盒或思考档位的应用侧枚举。 */
+/** 工具栏只展示当前值和可选项；说明留在设置页，原始 ID 与值不参与翻译。 */
 export function AcpComposerConfiguration({
   options,
   disabled,
-  error,
-  label,
+  language = "zh-CN",
   onChange,
-  retry,
+  engine,
+  client,
 }: {
   options: readonly AcpConfigOption[];
+  engine?: AgentEngine | undefined;
+  client?: AcpProfileClient | undefined;
   disabled: boolean;
-  error: Error | null;
-  label: string;
+  language?: string;
   onChange: (id: string, value: string | boolean) => void;
-  retry?: Readonly<{ label: string; run: () => void }>;
 }) {
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={label}>
-          <SlidersHorizontal className="size-4" />
-        </Button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          side="top"
-          align="end"
-          collisionPadding={8}
-          aria-label={label}
-          className="z-50 max-h-96 w-72 max-w-[calc(100vw-1rem)] overflow-auto rounded-surface border border-separator bg-raised p-3 text-foreground shadow-floating"
-        >
-          {error ? (
-            <div>
-              <p role="alert" className="text-label text-danger">
-                {error.message}
-              </p>
-              {retry ? (
-                <Button type="button" variant="ghost" disabled={disabled} onClick={retry.run}>
-                  {retry.label}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-          <AcpConfigOptions
-            options={options}
-            disabled={disabled}
-            Field={Field}
-            Select={Select}
-            onChange={onChange}
-          />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    <div className="flex min-w-0 flex-wrap items-center gap-0.5" data-acp-configuration="">
+      {options.map((option) => {
+        const label = acpConfigLabel(option.name, language);
+        const control =
+          option.type === "select" ? (
+            <CompactSelector
+              key={option.id}
+              label={label}
+              disabled={disabled}
+              value={option.currentValue}
+              options={option.options.flatMap((choice) =>
+                ("group" in choice ? choice.options : [choice]).map((item) => ({
+                  value: item.value,
+                  label: item.name
+                    ? acpConfigLabel(item.name, language)
+                    : language === "zh-CN"
+                      ? "默认"
+                      : "Default",
+                })),
+              )}
+              onValueChange={(value) => {
+                onChange(option.id, value);
+              }}
+            />
+          ) : (
+            <CompactSelector
+              key={option.id}
+              label={label}
+              prefix={label}
+              disabled={disabled}
+              value={String(option.currentValue)}
+              options={[
+                { value: "true", label: language === "zh-CN" ? "开启" : "On" },
+                { value: "false", label: language === "zh-CN" ? "关闭" : "Off" },
+              ]}
+              onValueChange={(value) => {
+                onChange(option.id, value === "true");
+              }}
+            />
+          );
+        return isAcpFastModeOption(option) ? (
+          <AcpFastModeGate key={option.id} engine={engine} client={client}>
+            {control}
+          </AcpFastModeGate>
+        ) : (
+          control
+        );
+      })}
+    </div>
   );
 }

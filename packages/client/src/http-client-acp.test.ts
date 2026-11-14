@@ -190,3 +190,24 @@ it("认证表单将密钥放入请求体，不进入查询字符串或响应缓�
     body: JSON.stringify({ methodId: "api-key", credentials: { apiKey: "private-form-key" } }),
   });
 });
+
+it("模型预览保留服务端内部错误，避免再次转换成协议不匹配", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(() =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify({
+          code: "INTERNAL_ERROR",
+          message: "Internal server error",
+          retryable: false,
+        }),
+        { status: 500 },
+      ),
+    ),
+  );
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  await expect(client.previewAcpConfig("p", "codex", { values: {} })).rejects.toMatchObject({
+    status: 500,
+    code: "INTERNAL_ERROR",
+    message: "Internal server error",
+  });
+});

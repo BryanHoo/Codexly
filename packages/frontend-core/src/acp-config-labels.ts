@@ -1,6 +1,8 @@
 /** 仅翻译已知的协议展示文案，模型名、扩展名称及所有原始 ID/值保持不变。 */
 const chinese: Record<string, string> = {
   "collaboration mode": "协作模式",
+  manual: "每次询问",
+  effort: "推理强度",
   "workspace access": "工作区访问",
   workspace: "工作区访问",
   "auto review": "自动审核",
@@ -49,7 +51,7 @@ const chinese: Record<string, string> = {
   ask: "询问",
   "ask before edits": "修改前询问",
   code: "编程",
-  plan: "规划",
+  plan: "计划",
   normal: "常规",
   "accept edits": "自动接受编辑",
   acceptEdits: "自动接受编辑",

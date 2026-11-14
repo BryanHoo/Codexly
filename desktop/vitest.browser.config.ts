@@ -30,6 +30,7 @@ export default defineConfig({
       "@codexly/ui > @base-ui/react/dialog",
       "@codexly/ui > @base-ui/react/drawer",
       "radix-ui/popover",
+      "@codexly/ui > cmdk",
       "radix-ui/tabs",
       "zustand/react/shallow",
       "@xterm/xterm",

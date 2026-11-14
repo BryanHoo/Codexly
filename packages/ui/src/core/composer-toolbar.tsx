@@ -174,9 +174,9 @@ export function ComposerToolbar({
           </Popover.Portal>
         </Popover.Root>
       ) : null}
-      {/* 模型、思考量与发送保持原有的右侧分组，隐藏其他配置也不改变字段顺序。 */}
+      {/* 模型、思考与发送常驻右侧，思考紧邻发送按钮。 */}
       <div className="ml-auto flex min-w-0 items-center gap-1" data-composer-trailing="">
-        <div className="min-w-0 max-w-36 shrink [&>button]:max-w-full" data-composer-model="">
+        <div className="min-w-0 max-w-64 shrink [&>button]:max-w-full" data-composer-model="">
           {model}
         </div>
         {items.filter((item) => item.trailing).map(renderItem)}

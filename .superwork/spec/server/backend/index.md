@@ -32,3 +32,10 @@
 
 - 公开聊天路由 `/v1/temporary/open-capabilities` 与 `/v1/temporary/open` 共用项目宿主应用服务。聊天不要求项目根查询参数，基准目录由服务端聊天作用域确定，不能用客户端 `rootPath` 替换；普通项目仍要求显式有效项目根。能力探测不得创建聊天运行时或订阅引擎事件。保留宿主能力访问限制、幂等和错误映射。
 - 回归入口：`app-chat-quick-open.test.ts` 覆盖公开路由、目录解析、幂等与未知项目拒绝；`app-runtime.test.ts` 和 `app-security.test.ts` 覆盖项目和访问边界。
+
+## ACP 模型预览取消与错误
+
+- 模型草稿预览与辅助生成共用响应流取消边界，正常 POST 正文结束不得取消；客户端响应连接关闭或超时才取消，处理结束释放监听和计时器。启用生产 handlerTimeout 的真实 HTTP 回归不能用关闭超时的 inject 测试替代。
+- `/v1/temporary/acp/{codex|claude}/preview` 复用项目 ACP 授权和预览处理，不把客户端传入的任意路径交给 Agent。
+- 预览超时使用可重试 `PROVIDER_ERROR`；Protocol 的 mutation 错误枚举包含服务端兜底 `INTERNAL_ERROR`，客户端不能把正常结构的 HTTP 500 二次误报为协议不匹配。
+- 回归入口：`acp-preview.test.ts`（真实 HTTP、超时、断连、聊天/项目）、`temporary-task-routing.test.ts` 与客户端 `http-client-acp.test.ts`。

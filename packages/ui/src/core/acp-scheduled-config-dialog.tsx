@@ -194,6 +194,8 @@ export function AcpScheduledConfigDialog({
             {pending ? <p role="status">{labels.preview}</p> : null}
             {preview ? (
               <AcpConfigOptions
+                engine={engine || undefined}
+                client={client}
                 Field={Field}
                 Select={Select}
                 options={preview.configOptions}

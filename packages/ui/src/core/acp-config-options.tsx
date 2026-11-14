@@ -1,3 +1,6 @@
+import { isAcpFastModeOption } from "@codexly/frontend-core/acp-config-visibility";
+import { AcpFastModeGate, type AcpProfileClient } from "./acp-fast-mode-gate.js";
+import type { AgentEngine } from "@codexly/protocol";
 import { SettingsDropdown } from "./settings-dropdown.js";
 import { Switch } from "./switch.js";
 import { memo, type ComponentType, type ReactNode, type SelectHTMLAttributes } from "react";
@@ -11,6 +14,8 @@ interface FieldProps {
 }
 export interface AcpConfigOptionsProps {
   options: readonly unknown[];
+  engine?: AgentEngine | undefined;
+  client?: AcpProfileClient | undefined;
   disabled?: boolean;
   language?: string;
   settingsControls?: boolean;
@@ -22,6 +27,8 @@ export interface AcpConfigOptionsProps {
 /** 只翻译展示文案；原始标识、分组和值原样交回 ACP，不能用翻译字符串写入配置。 */
 export const AcpConfigOptions = memo(function AcpConfigOptions({
   options,
+  engine,
+  client,
   language,
   settingsControls = false,
   disabled,
@@ -43,7 +50,7 @@ export const AcpConfigOptions = memo(function AcpConfigOptions({
             : option.category === "model" || option.id === "model"
               ? name
               : acpConfigLabel(name, language);
-        return (
+        const field = (
           <Field key={option.id} label={label} {...(description ? { description } : {})}>
             <div
               className={option.type === "boolean" ? "flex justify-end" : "w-full max-w-[22rem]"}
@@ -135,6 +142,13 @@ export const AcpConfigOptions = memo(function AcpConfigOptions({
               )}
             </div>
           </Field>
+        );
+        return isAcpFastModeOption(option) ? (
+          <AcpFastModeGate key={option.id} engine={engine} client={client}>
+            {field}
+          </AcpFastModeGate>
+        ) : (
+          field
         );
       })}
     </>

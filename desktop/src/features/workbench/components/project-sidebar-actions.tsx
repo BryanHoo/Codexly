@@ -32,7 +32,7 @@ const AppUpdateDialog = lazy(() =>
   import("@codexly/ui/core/app-update-dialog").then((module) => ({ default: module.AppUpdateDialog })),
 );
 
-export type SidebarSettingsSection = "about" | "appearance";
+export type SidebarSettingsSection = "about" | "appearance" | "acp";
 
 export function ProjectPickerButton({
   disabled,

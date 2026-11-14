@@ -1,11 +1,12 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { MutationHttpError } from "./context.js";
 
-/** 覆盖异步授权到辅助会话清理；POST 正文读完不等于客户端离开。 */
+/** 覆盖异步授权到 ACP 预览或辅助会话清理；POST 正文读完不等于客户端离开。 */
 export async function withGenerationCancellation<T>(
   request: Pick<FastifyRequest, "routeOptions">,
   reply: FastifyReply,
   generate: (signal: AbortSignal) => Promise<T>,
+  timeoutMessage = "ACP generation request timed out",
 ): Promise<T> {
   const controller = new AbortController();
   const close = () => {
@@ -18,9 +19,7 @@ export async function withGenerationCancellation<T>(
   const timer =
     duration > 0
       ? setTimeout(() => {
-          controller.abort(
-            new MutationHttpError("PROVIDER_ERROR", "ACP generation request timed out", 503, true),
-          );
+          controller.abort(new MutationHttpError("PROVIDER_ERROR", timeoutMessage, 503, true));
         }, duration)
       : undefined;
   timer?.unref();

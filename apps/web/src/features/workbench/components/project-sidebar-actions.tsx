@@ -51,7 +51,7 @@ const KeyboardShortcutsDialog = lazy(() =>
   })),
 );
 
-export type SidebarSettingsSection = "about" | "appearance";
+export type SidebarSettingsSection = "about" | "appearance" | "acp";
 
 export function ProjectPickerButton({
   disabled,

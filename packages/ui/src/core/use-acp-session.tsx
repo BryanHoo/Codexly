@@ -1,3 +1,4 @@
+import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   bindAcpSessionState,
@@ -7,7 +8,7 @@ import {
 import type { AcpConfigOption, AcpSessionState } from "@codexly/protocol";
 
 /** HTTP 与原生客户端均满足此端口；Hook 不导入任何平台传输。 */
-export interface AcpSessionClient {
+export interface AcpSessionClient extends AcpProfileClient {
   getAcpSessionState: (
     projectId: string,
     taskId: string,

@@ -4,7 +4,17 @@ import { ComposerModelSelector } from "./composer-model-selector.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import type { WorkbenchComposerViewProps } from "./workbench-composer-view-contracts.js";
 import type { AgentGoal } from "@/protocol/index.js";
-import { Bookmark, Bug, CircleGauge, FilePlus2, GitFork, Lightbulb, Target, X, Zap } from "lucide-react";
+import {
+  Bookmark,
+  Bug,
+  CircleGauge,
+  FilePlus2,
+  GitFork,
+  Lightbulb,
+  Target,
+  X,
+  Zap,
+} from "lucide-react";
 import type { PromptCommandAction } from "./prompt-command.js";
 import type { ComposerMode } from "./workbench-composer-contracts.js";
 
@@ -163,13 +173,42 @@ export function ComposerAttachments() {
 }
 
 /** 保留字段的原有顺序与左右分组；收起优先级仅用于空间不足时的取舍。 */
-export function ComposerConfigurationToolbar({ props, leading, children }: Readonly<{
+export function ComposerConfigurationToolbar({
+  props,
+  leading,
+  children,
+}: Readonly<{
   props: WorkbenchComposerViewProps;
   leading: ReactNode;
   children: ReactNode;
 }>) {
   const { t } = useTranslation(["workbench", "settings"]);
-  if (props.acp) return <ComposerToolbar moreLabel={t("composer.moreSettings")} title={t("composer.settingsTitle")} leading={leading} model={props.acp.controls} items={[]} actions={children} />;
+  if (props.acp)
+    return (
+      <ComposerToolbar
+        moreLabel={t("composer.moreSettings")}
+        title={t("composer.settingsTitle")}
+        leading={leading}
+        model={props.acp.controls}
+        items={[
+          ...(props.acp.leadingControls
+            ? [{ id: "acp-config", label: "", control: props.acp.leadingControls, priority: 10 }]
+            : []),
+          ...(props.acp.trailingControls
+            ? [
+                {
+                  id: "acp-reasoning",
+                  label: t("composer.reasonEffortSelect"),
+                  control: props.acp.trailingControls,
+                  pinned: true,
+                  trailing: true,
+                },
+              ]
+            : []),
+        ]}
+        actions={children}
+      />
+    );
   if (props.activeSettings === undefined) return null;
   const modelProps = {
     activeSettings: props.activeSettings,
@@ -186,38 +225,90 @@ export function ComposerConfigurationToolbar({ props, leading, children }: Reado
     sandboxModeSelectable: props.sandboxModeSelectable,
     settings: props.activeSettings,
   };
-  return <ComposerToolbar
-    moreLabel={t("composer.moreSettings")}
-    title={t("composer.settingsTitle")}
-    leading={leading}
-    model={<ComposerModelSelector {...modelProps} control="model" />}
-    items={[
-      { id: "engine", priority: 30, label: t("engine.select"), control: props.engineControls },
-      { id: "approval", priority: 20,
-        label: t(props.activeSettings.engineOptions?.engine === "claude" ? "engine.permissions" : "composer.approvalMode"),
-        control: <ComposerApprovalControls {...approvalProps} control="approval" /> },
-      ...(props.sandboxModeSelectable && props.activeSettings.engineOptions?.engine !== "claude" ? [{
-        id: "sandbox", priority: 10, label: t("composer.sandboxMode"),
-        control: <ComposerApprovalControls {...approvalProps} control="sandbox" />,
-      }] : []),
-      ...(props.composerMode === undefined ? [] : [{
-        id: "mode", pinned: true,
-        label: t(props.composerMode === "goal" ? "composer.goalMode" : "composer.planMode"),
-        control: <ComposerModeTag disabled={props.turnControlsDisabled} mode={props.composerMode} onRemove={props.onComposerModeRemove} />,
-      }]),
-      ...(props.goal === null || props.goal === undefined || props.goal.status === "complete" ? [] : [{
-        id: "goal", priority: 80, label: t("composer.goalMode"), control: <ComposerGoalStatusTag goal={props.goal} />,
-      }]),
-      ...(props.fastModeAvailable ? [{
-        id: "fast", priority: 70, label: t("composer.fastMode"),
-        control: <ComposerFastModeButton disabled={props.turnControlsDisabled} enabled={props.fastModeEnabled} onChange={props.onFastModeChange} />,
-      }] : []),
-      ...(props.selectedModel?.supportedReasoningEfforts.length ? [{
-        // 思考量与模型共同常驻右侧，不能因中栏变窄被收进配置面板。
-        id: "reasoning", pinned: true, trailing: true, label: t("composer.reasonEffortSelect"),
-        control: <ComposerModelSelector {...modelProps} control="reasoning" />,
-      }] : []),
-    ]}
-    actions={children}
-  />;
+  return (
+    <ComposerToolbar
+      moreLabel={t("composer.moreSettings")}
+      title={t("composer.settingsTitle")}
+      leading={leading}
+      model={<ComposerModelSelector {...modelProps} control="model" />}
+      items={[
+        { id: "engine", priority: 30, label: t("engine.select"), control: props.engineControls },
+        {
+          id: "approval",
+          priority: 20,
+          label: t(
+            props.activeSettings.engineOptions?.engine === "claude"
+              ? "engine.permissions"
+              : "composer.approvalMode",
+          ),
+          control: <ComposerApprovalControls {...approvalProps} control="approval" />,
+        },
+        ...(props.sandboxModeSelectable && props.activeSettings.engineOptions?.engine !== "claude"
+          ? [
+              {
+                id: "sandbox",
+                priority: 10,
+                label: t("composer.sandboxMode"),
+                control: <ComposerApprovalControls {...approvalProps} control="sandbox" />,
+              },
+            ]
+          : []),
+        ...(props.composerMode === undefined
+          ? []
+          : [
+              {
+                id: "mode",
+                pinned: true,
+                label: t(props.composerMode === "goal" ? "composer.goalMode" : "composer.planMode"),
+                control: (
+                  <ComposerModeTag
+                    disabled={props.turnControlsDisabled}
+                    mode={props.composerMode}
+                    onRemove={props.onComposerModeRemove}
+                  />
+                ),
+              },
+            ]),
+        ...(props.goal === null || props.goal === undefined || props.goal.status === "complete"
+          ? []
+          : [
+              {
+                id: "goal",
+                priority: 80,
+                label: t("composer.goalMode"),
+                control: <ComposerGoalStatusTag goal={props.goal} />,
+              },
+            ]),
+        ...(props.fastModeAvailable
+          ? [
+              {
+                id: "fast",
+                priority: 70,
+                label: t("composer.fastMode"),
+                control: (
+                  <ComposerFastModeButton
+                    disabled={props.turnControlsDisabled}
+                    enabled={props.fastModeEnabled}
+                    onChange={props.onFastModeChange}
+                  />
+                ),
+              },
+            ]
+          : []),
+        ...(props.selectedModel?.supportedReasoningEfforts.length
+          ? [
+              {
+                // 思考量常驻发送按钮左侧，窄分栏下仍保留直接选择入口。
+                id: "reasoning",
+                trailing: true,
+                pinned: true,
+                label: t("composer.reasonEffortSelect"),
+                control: <ComposerModelSelector {...modelProps} control="reasoning" />,
+              },
+            ]
+          : []),
+      ]}
+      actions={children}
+    />
+  );
 }

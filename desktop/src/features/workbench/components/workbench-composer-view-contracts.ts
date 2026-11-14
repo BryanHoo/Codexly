@@ -28,7 +28,12 @@ import type { ComposerMode } from "./workbench-composer-contracts.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
-  acp?: Readonly<{controls:ReactNode;isBusy:boolean}>;
+  acp?: Readonly<{
+    controls: ReactNode;
+    leadingControls?: ReactNode;
+    trailingControls?: ReactNode;
+    isBusy: boolean;
+  }>;
   nativeDrop?: import("@codexly/ui/agent/prompt-input").NativeAttachmentDrop;
   engineControls?: ReactNode;
   promptOptimization?: ReactNode;

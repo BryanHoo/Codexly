@@ -1,3 +1,4 @@
+import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
@@ -7,7 +8,7 @@ import { Button } from "./button.js";
 import { LoadingSkeleton } from "./loading-skeleton.js";
 import { SettingsSaveStatus } from "./settings-save-status.js";
 
-export interface AcpDefaultsClient {
+export interface AcpDefaultsClient extends AcpProfileClient {
   getAcpDefaults: (engine: AgentEngine, options?: { signal?: AbortSignal }) => Promise<AcpDefaults>;
   setAcpDefaultConfig: (
     engine: AgentEngine,
@@ -153,6 +154,8 @@ export function AcpDefaultSettings({
       {query.data ? (
         <>
           <AcpConfigOptions
+            engine={engine}
+            client={client}
             options={query.data.configOptions.map((option) =>
               draft?.scope === scope && draft.id === option.id
                 ? { ...option, currentValue: draft.value }

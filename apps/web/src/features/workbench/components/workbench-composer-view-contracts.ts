@@ -27,7 +27,12 @@ import type { ProjectTodoRecord } from "../project-todo-store.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
-  acp?: Readonly<{ controls: ReactNode; isBusy: boolean }>;
+  acp?: Readonly<{
+    controls: ReactNode;
+    leadingControls?: ReactNode;
+    trailingControls?: ReactNode;
+    isBusy: boolean;
+  }>;
   engineControls?: ReactNode;
   promptOptimization?: ReactNode;
   asyncQuestions?: ReactNode;

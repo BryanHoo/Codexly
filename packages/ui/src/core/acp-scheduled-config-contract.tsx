@@ -1,3 +1,4 @@
+import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import type {
   AcpConfigPreview,
   AcpConfigPreviewRequest,
@@ -6,7 +7,7 @@ import type {
   SetAcpScheduledConfig,
 } from "@codexly/protocol";
 
-export interface AcpScheduledConfigClient {
+export interface AcpScheduledConfigClient extends AcpProfileClient {
   getAcpScheduledConfig(
     id: string,
     options?: { signal?: AbortSignal },

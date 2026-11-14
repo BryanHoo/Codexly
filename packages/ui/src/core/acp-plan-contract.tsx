@@ -1,3 +1,4 @@
+import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import type { ComponentType } from "react";
 import type {
   AcpConfigPreview,
@@ -13,7 +14,7 @@ import type {
   ListAcpPlans,
 } from "@codexly/protocol/acp-plan-api";
 import type { AcpPlanEditorPorts } from "@codexly/frontend-core/acp-plan-editor";
-export interface AcpPlanUiClient extends AcpPlanEditorPorts {
+export interface AcpPlanUiClient extends AcpPlanEditorPorts, AcpProfileClient {
   subscribeAcpPlans(listener: () => void): () => void;
   listAcpPlans(query?: ListAcpPlans, options?: { signal?: AbortSignal }): Promise<AcpPlanPage>;
   readAcpPlan(id: string, options?: { signal?: AbortSignal }): Promise<AcpPlanView>;

@@ -319,6 +319,8 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
               </Button>
               {preview ? (
                 <AcpConfigOptions
+                  engine={engine || undefined}
+                  client={client}
                   options={preview.configOptions}
                   Field={Field}
                   Select={Select}

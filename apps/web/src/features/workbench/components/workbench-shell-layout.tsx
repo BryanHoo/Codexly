@@ -1,3 +1,4 @@
+import { AcpComposerSettingsContext } from "@codexly/ui/core/acp-composer-settings";
 import { ComposerPromptProjectsContext } from "@codexly/ui/core/composer-submit-actions";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
@@ -121,7 +122,7 @@ export function WorkbenchShellLayout({
   );
   const extensions = extensionSection !== undefined;
   const utilityView = board || extensions || scheduled;
-  return (
+  const content = (
     <ComposerPromptProjectsContext value={projects}>
       <div
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -421,5 +422,14 @@ export function WorkbenchShellLayout({
         />
       </div>
     </ComposerPromptProjectsContext>
+  );
+  return (
+    <AcpComposerSettingsContext
+      value={() => {
+        setGlobalSettingsSection("acp");
+      }}
+    >
+      {content}
+    </AcpComposerSettingsContext>
   );
 }

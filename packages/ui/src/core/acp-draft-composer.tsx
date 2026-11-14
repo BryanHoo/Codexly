@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAcpDraft, type AcpDraftClient } from "./use-acp-draft.js";
 import { browserSetupStorage, useSelectedEngines } from "./engine-selection.js";
 import { readAcpDraftEngine, saveAcpDraftEngine } from "@codexly/frontend-core/acp-draft-engine";
-import { AgentEngineSelector } from "./agent-engine-controls.js";
-import { AcpComposerConfiguration } from "./acp-composer-configuration.js";
+import {
+  AcpModelSelector,
+  AcpComposerLeading,
+  AcpComposerReasoning,
+} from "./acp-model-selector.js";
 import type { AgentEngine } from "@codexly/protocol";
 
 const defaultEngines: readonly AgentEngine[] = ["codex", "claude"];
@@ -18,6 +21,7 @@ export function useAcpDraftComposer(
     configurationLabel: string;
     engineLabel: string;
     retryLabel: string;
+    language?: string;
   }>,
 ) {
   const engines = useSelectedEngines() ?? defaultEngines;
@@ -26,47 +30,104 @@ export function useAcpDraftComposer(
     () => input.initialEngine ?? readAcpDraftEngine(browserSetupStorage, scope, engines),
     [scope, engines, input.initialEngine],
   );
-  const [selection, setSelection] = useState(() => ({ scope, engine: inherited }));
+  const [selection, setSelection] = useState<{
+    scope: string;
+    engine: AgentEngine;
+    model?: { id: string; value: string };
+  }>(() => ({ scope, engine: inherited }));
   const selected = selection.scope === scope ? selection.engine : inherited;
   const engine = engines.includes(selected) ? selected : (engines[0] ?? "codex");
   const draft = useAcpDraft({ ...input, engine, enabled: engines.length > 0 });
+  // 跨 Agent 选择先切换草稿归属，等待该引擎协商完成后再提交原始模型值。
+  // 每个选择只消费一次；旧 binding 的取消和结果隔离仍由 useAcpDraft 负责。
+  useEffect(() => {
+    if (
+      selection.scope !== scope ||
+      selection.engine !== engine ||
+      !selection.model ||
+      !draft.preview ||
+      draft.isPending ||
+      draft.isSaving
+    )
+      return;
+    const requested = selection.model;
+    setSelection((current) => (current === selection ? { scope, engine } : current));
+    void draft.setConfig(requested.id, requested.value);
+  }, [selection, scope, engine, draft.preview, draft.isPending, draft.isSaving, draft.setConfig]);
+  const loadOptions = useCallback(
+    async (target: AgentEngine, signal: AbortSignal) => {
+      const result = await input.client.previewAcpConfig(
+        input.projectId,
+        target,
+        {
+          values: {},
+          ...(input.workspace && input.projectId !== "temporary"
+            ? { workspacePath: input.workspace }
+            : {}),
+        },
+        { signal },
+      );
+      return result.configOptions;
+    },
+    [input.client, input.projectId, input.workspace],
+  );
+  const disabled = draft.isPending || draft.isSaving || engines.length === 0;
+  const common = {
+    engine,
+    client: input.client,
+    options: draft.preview?.configOptions ?? [],
+    disabled,
+    error: draft.error,
+    ...(input.language ? { language: input.language } : {}),
+    retry: {
+      label: input.retryLabel,
+      run: () => {
+        void draft.reload();
+      },
+    },
+  };
   return {
     ...draft,
     engine,
-    isBusy: engines.length === 0 || draft.isPending || draft.isSaving || draft.error !== null,
+    isBusy:
+      disabled ||
+      draft.error !== null ||
+      (selection.scope === scope && selection.engine === engine && selection.model !== undefined),
+    trailingControls: (
+      <AcpComposerReasoning
+        {...common}
+        label={input.configurationLabel}
+        onChange={(id, value) => {
+          void draft.setConfig(id, value);
+        }}
+      />
+    ),
+    leadingControls: (
+      <AcpComposerLeading
+        {...common}
+        label={input.configurationLabel}
+        onChange={(id, value) => {
+          void draft.setConfig(id, value);
+        }}
+      />
+    ),
     controls: (
-      <>
-        {engines.length > 1 ? (
-          <AgentEngineSelector
-            label={input.engineLabel}
-            value={engine}
-            codexAvailable={engines.includes("codex")}
-            claudeAvailable={engines.includes("claude")}
-            locked={draft.hasSubmission}
-            disabled={draft.isSaving}
-            onChange={(next) => {
-              if (!draft.canChangeScope()) return;
-              saveAcpDraftEngine(browserSetupStorage, scope, next);
-              setSelection({ scope, engine: next });
-            }}
-          />
-        ) : null}
-        <AcpComposerConfiguration
-          options={draft.preview?.configOptions ?? []}
-          disabled={draft.isPending || draft.isSaving || engines.length === 0}
-          error={draft.error}
-          label={input.configurationLabel}
-          retry={{
-            label: input.retryLabel,
-            run: () => {
-              void draft.reload();
-            },
-          }}
-          onChange={(id, value) => {
+      <AcpModelSelector
+        {...common}
+        engine={engine}
+        engines={engines}
+        locked={draft.hasSubmission}
+        loadOptions={loadOptions}
+        onSelect={(next, id, value) => {
+          if (next === engine) {
             void draft.setConfig(id, value);
-          }}
-        />
-      </>
+            return;
+          }
+          if (!draft.canChangeScope() || !engines.includes(next)) return;
+          saveAcpDraftEngine(browserSetupStorage, scope, next);
+          setSelection({ scope, engine: next, model: { id, value } });
+        }}
+      />
     ),
   };
 }

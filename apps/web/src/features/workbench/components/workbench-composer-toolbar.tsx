@@ -190,7 +190,22 @@ export function ComposerConfigurationToolbar({
         title={t("composer.settingsTitle")}
         leading={leading}
         model={props.acp.controls}
-        items={[]}
+        items={[
+          ...(props.acp.leadingControls
+            ? [{ id: "acp-config", label: "", control: props.acp.leadingControls, priority: 10 }]
+            : []),
+          ...(props.acp.trailingControls
+            ? [
+                {
+                  id: "acp-reasoning",
+                  label: t("composer.reasonEffortSelect"),
+                  control: props.acp.trailingControls,
+                  pinned: true,
+                  trailing: true,
+                },
+              ]
+            : []),
+        ]}
         actions={children}
       />
     );
@@ -284,9 +299,9 @@ export function ComposerConfigurationToolbar({
           ? [
               {
                 id: "reasoning",
-                // 思考量与模型共同常驻右侧，不能因中栏变窄被收进配置面板。
-                pinned: true,
                 trailing: true,
+                // 思考量常驻发送按钮左侧，窄分栏下仍保留直接选择入口。
+                pinned: true,
                 label: t("composer.reasonEffortSelect"),
                 control: <ComposerModelSelector {...modelProps} control="reasoning" />,
               },

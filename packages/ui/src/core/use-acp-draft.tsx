@@ -1,3 +1,4 @@
+import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { v4 as createUuid } from "uuid";
 import {
@@ -7,7 +8,7 @@ import {
 } from "@codexly/frontend-core/acp-draft-binding";
 import type { AcpConfigPreview, AcpConfigPreviewRequest, AgentEngine } from "@codexly/protocol";
 
-export interface AcpDraftClient {
+export interface AcpDraftClient extends AcpProfileClient {
   previewAcpConfig(
     projectId: string,
     engine: AgentEngine,

@@ -105,6 +105,7 @@ catalog:
   undici: 8.12.3
   proxy-chain: 3.0.1
   smol-toml: 1.9.1
+  cmdk: 1.1.1
 
 catalogMode: strict
 cleanupUnusedCatalogs: true

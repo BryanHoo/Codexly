@@ -72,6 +72,8 @@ export type WorkbenchComposerHandle = Readonly<{
 export type WorkbenchComposerProps = Readonly<{
   acp?: Readonly<{
     controls: ReactNode;
+    leadingControls?: ReactNode;
+    trailingControls?: ReactNode;
     isBusy: boolean;
     submit: (
       input: AgentPromptInput,

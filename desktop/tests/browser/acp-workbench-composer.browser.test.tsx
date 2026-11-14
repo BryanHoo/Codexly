@@ -39,6 +39,14 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
         ],
       },
       { id: "native-switch", name: "原生布尔", type: "boolean", currentValue: false },
+      {
+        id: "reasoning_effort",
+        name: "Reasoning effort",
+        category: "thought_level",
+        type: "select",
+        currentValue: "high",
+        options: [{ value: "high", name: "High" }],
+      },
     ],
     availableCommands: [],
   };
@@ -143,14 +151,36 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
   const editor = screen.getByRole("textbox");
   await expect.element(editor).toHaveValue("未发送的草稿");
   const node = editor.element();
-  await screen.getByRole("button", { name: "输入配置", exact: true }).click();
-  await expect.element(screen.getByRole("checkbox", { name: "原生布尔" })).not.toBeChecked();
-  await screen.getByRole("combobox", { name: "原生模型" }).selectOptions("two");
+  const reasoning = screen.getByRole("button", { name: "推理强度", exact: true });
+  await expect.element(reasoning).toBeVisible();
+  expect(document.querySelector("[data-composer-trailing]")?.contains(reasoning.element())).toBe(
+    true,
+  );
+  expect(reasoning.element().getBoundingClientRect().right).toBeLessThanOrEqual(
+    document.querySelector("[data-composer-actions]")!.getBoundingClientRect().left,
+  );
+  expect(
+    screen
+      .getByRole("button", { name: "添加图片或文件", exact: true })
+      .element()
+      .querySelector(".lucide-plus"),
+  ).not.toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "原生布尔", exact: true }))
+    .toHaveTextContent("关闭");
+  await screen.getByRole("button", { name: / \/ 模型一$/ }).click();
+  await expect.element(screen.getByRole("tab", { name: "收藏", exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("tab", { name: "Claude", exact: true }))
+    .not.toBeInTheDocument();
+  await screen.getByRole("option", { name: /模型二/ }).click();
   await expect(ref.current?.submitCurrent()).resolves.toBe(false);
   expect(submit).not.toHaveBeenCalled();
   resolve([{ ...initial.configOptions[0]!, currentValue: "two" }]);
-  await expect.element(screen.getByRole("combobox", { name: "原生模型" })).toHaveValue("two");
-  await expect.element(screen.getByRole("checkbox", { name: "原生布尔" })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("button", { name: / \/ 模型二$/ })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "原生布尔", exact: true }))
+    .not.toBeInTheDocument();
   expect(editor.element()).toBe(node);
   await expect.element(editor).toHaveValue("未发送的草稿");
   await expect(ref.current?.submitCurrent()).resolves.toBe(true);

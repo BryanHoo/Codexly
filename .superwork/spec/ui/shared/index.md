@@ -97,3 +97,21 @@
 - `SettingsDialog` 固定顶部标题与关闭区，设置导航、Agent 栏、详情各自负责滚动，ACP 外层 main 不滚动；详情头部独立于正文，滚动采用 overscroll-contain，避免传递到整个弹窗。
 - 卡片加载使用 `LoadingSkeleton` 的 settings-fields 变体，只占位字段而非重复整页标题，保留上下留白，与实际行高一致。
 - 回归为 `desktop/tests/browser/acp-settings-layout.browser.test.tsx`，覆盖两端、Chromium/WebKit、390px/1280px：长内容滚动不移动 Agent 与关闭区，不导致横向溢出，骨架屏间距和控件尺寸符合公共规格。
+
+## ACP 聊天模型选择
+
+- Web、移动浏览器与桌面共用 `core/acp-model-selector.tsx`，以 AI Elements Model Selector 的 Command 模式提供搜索、收藏和 Agent 标签；当前选择显示为“Agent / 模型”。思考量固定在模型右侧、发送按钮左侧，其余原始配置同样复用公共紧凑下拉直接显示，不再添加独立 Agent 切换器或带说明段落的配置表单。
+- 草稿只有选择模型时才改变 Agent；浏览其他 Agent 标签按需协商配置，关闭或换标签取消请求并忽略迟到结果，不后台探测全部 Agent。已有会话只显示所属 Agent 的模型和收藏，模型变更继续走该会话的原始 ACP 配置接口，不能改变任务引擎。
+- 模型、分组和思考量消费 Agent 返回的原始配置与值；不硬编码模型目录。收藏按 Agent、配置项 ID 与模型值区分，只持久化有界展示元数据，不保存认证信息或改写默认设置。收藏在同源分屏与窗口间同步。
+- 浮层底部“配置 Agent”通过轻量共享上下文打开所属工作台的“设置 → ACP”，上下文模块不静态导入模型列表与 cmdk，保留运行时懒加载边界。
+- 回归入口：`desktop/tests/browser/acp-model-selector.browser.test.tsx` 覆盖 Chromium / WebKit、明暗主题、360px / 1280px、收藏、搜索、键盘、历史锁定、取消和设置导航；`acp-draft-composer`、`acp-workbench-composer`、`acp-native-composer` 浏览器测试继续覆盖两端真实输入框发送与互斥。
+
+- 模型入口使用透明底、次级文字和小图标，默认不绘制常驻色块，悬停继承公共 ghost 按钮的 control-hover 背景；保留可见键盘焦点。浮层继续使用全局表面样式，避免输入工具栏争抢正文视觉。浏览器回归覆盖明暗主题下默认透明与悬停背景反馈。
+
+- 模型列表不重复显示当前 Agent 分组标题；只保留 Agent 实际声明的供应商分组。模型浮层统一使用紧凑搜索、32px 选项行和全局语义样式；附件入口使用加号。
+- 配置选项使用共享 `CompactSelector`，布尔项的触发器可使用 `prefix` 区分配置名称，下拉仅显示开/关；展示随当前界面语言切换，写回仍为原始 ID、字符串或布尔值。未知品牌名保持原样。
+- ACP 的权限等左侧控件作为自适应工具栏项参与测量，窄屏收进“更多”后仍使用同一公共下拉，不横向溢出；回归覆盖 360px / 1280px、双端实际输入框、中文/英文选项和原始值传递。
+
+- ACP 快速模式仅在 Codex 身份明确为官方账号（`authStatus.kind=account`）且不存在生效的 API 连接覆盖（`connection`）时显示；API Key、网关、外部凭据、未登录、未知/读取失败及其他 Agent 均隐藏。仅为已公布快速模式的 Codex 控件按需订阅共享身份查询，复用设置页缓存；身份重新确认期间先隐藏，不启动其他 Agent。
+- 聊天、会话默认设置和计划配置共用快速模式可见性边界，仅隐藏控件，不清空已保存的原始值。身份变化即时更新显示，不触发配置保存。
+- “Plan”中文统一为“计划”；思考量在发送前常驻，不能与可折叠的左侧配置一起隐藏。回归入口包含 `acp-fast-mode-visibility.browser.test.tsx` 的官方/非官方身份、API 覆盖、缓存变化及双端实际输入框位置断言。

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
 import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
-import { useTranslation } from "../../../i18n/i18n.js";
+import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 
@@ -9,6 +9,8 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
   const client = useMemo<AcpDraftClient>(
     () => ({
+      getAcpAgent: (...args) =>
+        props.client.getAcpAgent?.(...args) ?? Promise.reject(new Error("ACP 身份端口不可用")),
       previewAcpConfig: (...args) => {
         const preview = props.client.previewAcpConfig;
         if (!preview) return Promise.reject(new Error("ACP 草稿预览端口不可用"));
@@ -28,6 +30,7 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
     configurationLabel: t("composer.settingsTitle"),
     engineLabel: t("engine.select"),
     retryLabel: t("actions.retry"),
+    language: getCurrentLanguage(),
   });
   return (
     <WorkbenchComposerBase
@@ -39,6 +42,8 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
       settings={undefined}
       acp={{
         controls: draft.controls,
+        leadingControls: draft.leadingControls,
+        trailingControls: draft.trailingControls,
         isBusy: draft.isBusy,
         submit: (input, key) =>
           draft.submit(input, key, async (delivery) => {

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
 import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
 import { createAcpComposerQueueClient } from "../../../platform/tauri/acp-composer-client.js";
-import { useTranslation } from "../../../i18n/i18n.js";
+import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 
@@ -10,6 +10,8 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
   const client = useMemo<AcpDraftClient>(
     () => ({
+      getAcpAgent: (...args) =>
+        props.client.getAcpAgent?.(...args) ?? Promise.reject(new Error("ACP 身份端口不可用")),
       previewAcpConfig: (...args) => {
         const preview = props.client.previewAcpConfig;
         if (!preview) return Promise.reject(new Error("ACP 草稿预览端口不可用"));
@@ -28,6 +30,7 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
     configurationLabel: t("composer.settingsTitle"),
     engineLabel: t("engine.select"),
     retryLabel: t("actions.retry"),
+    language: getCurrentLanguage(),
   });
   return (
     <WorkbenchComposerBase
@@ -39,6 +42,8 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
       settings={undefined}
       acp={{
         controls: draft.controls,
+        leadingControls: draft.leadingControls,
+        trailingControls: draft.trailingControls,
         isBusy: draft.isBusy,
         queueClient,
         submit: (input, key) =>
@@ -65,7 +70,11 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
             );
             // 交接实际读取边界内的正文，不能仅用新的 checkpoint 配对较早的回合响应。
             const acpSnapshot = await read.call(props.client, props.projectId, task.id);
-            if (acpSnapshot.snapshot.runtime !== "acp" || acpSnapshot.snapshot.id !== task.id || acpSnapshot.snapshot.projectId !== props.projectId)
+            if (
+              acpSnapshot.snapshot.runtime !== "acp" ||
+              acpSnapshot.snapshot.id !== task.id ||
+              acpSnapshot.snapshot.projectId !== props.projectId
+            )
               throw new Error("ACP 任务快照归属不匹配");
             return { createdTask: task, turn, checkpoint: acpSnapshot.checkpoint, acpSnapshot };
           }),

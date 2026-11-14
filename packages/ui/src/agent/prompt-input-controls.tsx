@@ -1,5 +1,5 @@
 import { InputGroupAddon, InputGroupButton, InputGroupTextarea } from "../core/input-group.js";
-import { ArrowUp, FilePlus2, ImagePlus, LoaderCircle, Paperclip, Plus, Square } from "lucide-react";
+import { ArrowUp, FilePlus2, ImagePlus, LoaderCircle, Plus, Square } from "lucide-react";
 import {
   forwardRef,
   useEffect,
@@ -270,7 +270,7 @@ export function PromptInputActionAddAttachments({
         }}
         title={accessibleLabel}
       >
-        {children ?? <Paperclip aria-hidden="true" className="size-3.5" />}
+        {children ?? <Plus aria-hidden="true" className="size-3.5" />}
       </PromptInputButton>
       <div
         className="absolute bottom-9 left-0 z-50 min-w-40 rounded-control border border-separator-strong bg-raised p-1 shadow-floating"

@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
-import { AcpComposerConfiguration } from "@codexly/ui/core/acp-composer-configuration";
-import { useTranslation } from "../../../i18n/i18n.js";
+import {
+  AcpModelSelector,
+  AcpComposerLeading,
+  AcpComposerReasoning,
+} from "@codexly/ui/core/acp-model-selector";
+import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
 import type { AgentPromptInput } from "@codexly/protocol";
@@ -25,15 +29,45 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     taskId: props.taskId,
     ...(props.runtime?.store ? { source: props.runtime.store } : {}),
   });
+  const configuration = {
+    engine:
+      props.runtime?.metadata?.engine ??
+      (props.capabilities?.provider === "claude" ? ("claude" as const) : ("codex" as const)),
+    client: props.client,
+    options: session.session?.configOptions ?? [],
+    disabled: session.isPending || session.isSaving || !!props.runtime?.activeTurnId,
+    error: session.error,
+    language: getCurrentLanguage(),
+  };
   const acp = {
     isBusy: session.isPending || session.isSaving || session.error !== null,
-    controls: (
-      <AcpComposerConfiguration
-        options={session.session?.configOptions ?? []}
-        disabled={session.isPending || session.isSaving || !!props.runtime?.activeTurnId}
-        error={session.error}
+    trailingControls: (
+      <AcpComposerReasoning
+        {...configuration}
         label={t("composer.settingsTitle")}
         onChange={(id, value) => {
+          void session.setConfig(id, value);
+        }}
+      />
+    ),
+    leadingControls: (
+      <AcpComposerLeading
+        {...configuration}
+        label={t("composer.settingsTitle")}
+        onChange={(id, value) => {
+          void session.setConfig(id, value);
+        }}
+      />
+    ),
+    controls: (
+      <AcpModelSelector
+        {...configuration}
+        engine={
+          props.runtime?.metadata?.engine ??
+          (props.capabilities?.provider === "claude" ? "claude" : "codex")
+        }
+        locked
+        onSelect={(_engine, id, value) => {
           void session.setConfig(id, value);
         }}
       />

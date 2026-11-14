@@ -14,7 +14,7 @@ export function CompactSelectorTrigger({ children, ...props }: ComponentProps<ty
   return (
     <Button
       className="min-w-0 max-w-36 max-workbench:shrink max-workbench:gap-0.5 max-workbench:px-1"
-      size="sm"
+      size="toolbar"
       type="button"
       variant="ghost"
       {...props}
@@ -29,6 +29,7 @@ export function CompactSelector<T extends string>({
   busy,
   disabled,
   label,
+  prefix,
   onValueChange,
   options,
   value,
@@ -36,6 +37,7 @@ export function CompactSelector<T extends string>({
   busy?: boolean;
   disabled: boolean;
   label: string;
+  prefix?: string;
   onValueChange: (value: T) => void;
   options: readonly Readonly<{ value: T; label: string }>[];
   value: T;
@@ -49,7 +51,8 @@ export function CompactSelector<T extends string>({
           disabled={disabled}
           value={value}
         >
-          {options.find((option) => option.value === value)?.label}
+          {prefix ? `${prefix} · ` : ""}
+          {options.find((option) => option.value === value)?.label ?? value}
         </CompactSelectorTrigger>
       </DropdownMenuTrigger>
       {/* 使用锚点与碰撞边界定位，避免移动浏览器原生选择器偏离触发按钮。 */}

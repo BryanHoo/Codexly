@@ -75,12 +75,29 @@ it.each(["web", "native"] as const)(
             }
           : turn,
       );
-    const handoff = { checkpoint: { sessionId: "s", sequence: 7 }, snapshot: {
-      ...task, runtime: "acp", status: "running", contextUsage: null, goal: null, plan: null,
-      turns: [{ ...turn, items: [{ id: "reply", role: "assistant", type: "message", text: "首屏接管前的输出" }] }],
-      pendingRequests: [], turnsNextCursor: null,
-    } };
-    const read = vi.fn().mockRejectedValueOnce(new Error("快照暂时不可用")).mockResolvedValue(handoff);
+    const handoff = {
+      checkpoint: { sessionId: "s", sequence: 7 },
+      snapshot: {
+        ...task,
+        runtime: "acp",
+        status: "running",
+        contextUsage: null,
+        goal: null,
+        plan: null,
+        turns: [
+          {
+            ...turn,
+            items: [{ id: "reply", role: "assistant", type: "message", text: "首屏接管前的输出" }],
+          },
+        ],
+        pendingRequests: [],
+        turnsNextCursor: null,
+      },
+    };
+    const read = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("快照暂时不可用"))
+      .mockResolvedValue(handoff);
     const created = vi.fn(async () => task);
     const legacy = vi.fn();
     const started = vi.fn();
@@ -162,18 +179,22 @@ it.each(["web", "native"] as const)(
       </QueryClientProvider>,
     );
     // 等待真实懒加载入口挂载，不把模块首次下载计入配置调用的断言窗口。
-    await screen.getByRole("button", { name: "输入配置", exact: true }).click();
     await expect.poll(() => preview.mock.calls.length).toBe(1);
     expect(created).not.toHaveBeenCalled();
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
     finish(initial);
     const editor = screen.getByRole("textbox");
     await expect.element(editor).toHaveValue("首次输入");
-    await expect.element(screen.getByRole("checkbox", { name: "原始开关" })).not.toBeChecked();
+    await expect
+      .element(screen.getByRole("button", { name: "原始开关", exact: true }))
+      .toHaveTextContent("关闭");
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
     await expect.element(editor).toHaveValue("首次输入");
-    await screen.getByRole("checkbox", { name: "原始开关" }).click();
-    await expect.element(screen.getByRole("checkbox", { name: "原始开关" })).toBeChecked();
+    await screen.getByRole("button", { name: "原始开关", exact: true }).click();
+    await screen.getByRole("menuitemradio", { name: "开启", exact: true }).click();
+    await expect
+      .element(screen.getByRole("button", { name: "原始开关", exact: true }))
+      .toHaveTextContent("开启");
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
     expect(started).not.toHaveBeenCalled();
     await expect(ref.current?.submitCurrent()).resolves.toBe(true);
@@ -208,7 +229,9 @@ it.each(["web", "native"] as const)(
       "claude",
       { idempotencyKey: firstKey, workspacePath: "/work" },
     ];
-    expect(created.mock.calls).toEqual(platform === "native" ? [creationArgs, creationArgs, creationArgs] : []);
+    expect(created.mock.calls).toEqual(
+      platform === "native" ? [creationArgs, creationArgs, creationArgs] : [],
+    );
     expect(started.mock.calls[0]?.slice(0, 5)).toEqual([
       task,
       expect.objectContaining({ id: "turn-new" }),

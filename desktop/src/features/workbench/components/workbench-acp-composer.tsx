@@ -1,8 +1,12 @@
 import { useMemo } from "react";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
-import { AcpComposerConfiguration } from "@codexly/ui/core/acp-composer-configuration";
+import {
+  AcpModelSelector,
+  AcpComposerLeading,
+  AcpComposerReasoning,
+} from "@codexly/ui/core/acp-model-selector";
 import { createAcpComposerQueueClient } from "../../../platform/tauri/acp-composer-client.js";
-import { useTranslation } from "../../../i18n/i18n.js";
+import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
 
@@ -28,16 +32,46 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
   });
   const locked =
     props.runtime?.writeAccess !== undefined && props.runtime.writeAccess !== "writable";
+  const configuration = {
+    engine:
+      props.runtime?.metadata?.engine ??
+      (props.capabilities?.provider === "claude" ? ("claude" as const) : ("codex" as const)),
+    client: props.client,
+    options: session.session?.configOptions ?? [],
+    disabled: locked || session.isPending || session.isSaving || !!props.runtime?.activeTurnId,
+    error: session.error,
+    language: getCurrentLanguage(),
+  };
   const acp: NonNullable<WorkbenchComposerProps["acp"]> = {
     isBusy: session.isPending || session.isSaving || session.error !== null,
-    controls: (
-      <AcpComposerConfiguration
-        options={session.session?.configOptions ?? []}
-        disabled={locked || session.isPending || session.isSaving || !!props.runtime?.activeTurnId}
-        error={session.error}
+    trailingControls: (
+      <AcpComposerReasoning
+        {...configuration}
         label={t("composer.settingsTitle")}
         onChange={(id, value) => {
-          if (!locked) void session.setConfig(id, value);
+          void session.setConfig(id, value);
+        }}
+      />
+    ),
+    leadingControls: (
+      <AcpComposerLeading
+        {...configuration}
+        label={t("composer.settingsTitle")}
+        onChange={(id, value) => {
+          void session.setConfig(id, value);
+        }}
+      />
+    ),
+    controls: (
+      <AcpModelSelector
+        {...configuration}
+        engine={
+          props.runtime?.metadata?.engine ??
+          (props.capabilities?.provider === "claude" ? "claude" : "codex")
+        }
+        locked
+        onSelect={(_engine, id, value) => {
+          void session.setConfig(id, value);
         }}
       />
     ),

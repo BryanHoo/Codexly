@@ -23,3 +23,15 @@ describe("rewriteTemporaryTaskUrl", () => {
     expect(rewriteTemporaryTaskUrl(publicUrl)).toBe(internalUrl);
   });
 });
+
+it("聊天模型预览复用项目 ACP 路由，保留 Agent 和查询参数", () => {
+  expect(rewriteTemporaryTaskUrl("/v1/temporary/acp/codex/preview")).toBe(
+    "/v1/projects/temporary/acp/codex/preview",
+  );
+  expect(rewriteTemporaryTaskUrl("/v1/temporary/acp/claude/preview?x=1")).toBe(
+    "/v1/projects/temporary/acp/claude/preview?x=1",
+  );
+  expect(rewriteTemporaryTaskUrl("/v1/temporary/acp/unknown/preview")).toBe(
+    "/v1/temporary/acp/unknown/preview",
+  );
+});
