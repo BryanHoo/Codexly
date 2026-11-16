@@ -51,7 +51,7 @@ tauri-plugin-updater = { version = "=2.14.1", default-features = false, features
 zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 tauri-plugin-clipboard-manager = "=2.5.0"
 tauri-plugin-autostart = "2.5.1"
-rusqlite = { version = "0.41.1", features = ["bundled"] }
+rusqlite = { version = "0.42.0", features = ["bundled"] }
 uuid = { version = "1.28.0", features = ["v4"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -73,7 +73,7 @@ windows-process-platform = { path = "native/windows-process-platform", version =
 winreg = "0.56.0"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-notify-rust = "=4.18.2"
+notify-rust = "=4.19.0"
 
 [lints.rust]
 unsafe_code = "forbid"
