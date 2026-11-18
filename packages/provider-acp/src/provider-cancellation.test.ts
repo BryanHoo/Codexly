@@ -3,12 +3,14 @@ import * as acp from "@agentclientprotocol/sdk/unstable";
 import { fixture, input } from "./provider.test-support.js";
 import type { AcpConnection } from "./connection.js";
 
-it("Agent 不结束已取消的 prompt 时释放占用，其他回合不被误标为已取消", async () => {
+it("取消超时只结束目标回合，其他回合仍可完成，稍后恢复原会话", async () => {
   const received = vi.fn();
   const waiting = Promise.withResolvers<acp.PromptResponse>();
+  const healthy = Promise.withResolvers<acp.PromptResponse>();
   let attempts = 0;
   const f = await fixture("codex", () => {
-    if (++attempts <= 2) return waiting.promise;
+    if (++attempts === 1) return waiting.promise;
+    if (attempts === 2) return healthy.promise;
     return Promise.resolve({ stopReason: "end_turn" });
   });
   f.app.onNotification(acp.methods.agent.session.cancel, ({ params }) => {
@@ -26,20 +28,24 @@ it("Agent 不结束已取消的 prompt 时释放占用，其他回合不被误�
     expect(received).toHaveBeenCalledExactlyOnceWith("native-one");
     await vi.waitFor(
       async () => {
-        for (const [id, turnId] of [
-          [first.id, turn.id],
-          [second.id, other.id],
-        ] as const) {
-          const { turns } = await f.history.read(id);
-          expect(turns).toHaveLength(1);
-          expect(turns[0]).toMatchObject({ id: turnId, status: "failed" });
-          expect(turns[0]?.error).toContain("结果未知");
-        }
+        const { turns } = await f.history.read(first.id);
+        expect(turns[0]).toMatchObject({ id: turn.id, status: "failed" });
+        expect(turns[0]?.error).toContain("结果未知");
       },
       { timeout: 6500 },
     );
+    expect(f.provider.hasPendingTurn(second.id)).toBe(true);
+    await expect(f.provider.startConfiguredTurn(first.id, input)).rejects.toThrow("取消");
+    expect(await f.provider.unsubscribeTask(first.id)).toBe("unsubscribed");
+    expect(f.closed).not.toHaveBeenCalled();
     expect(attempts).toBe(2);
-    expect(await f.provider.unsubscribeTask(first.id)).toBe("notLoaded");
+    healthy.resolve({ stopReason: "end_turn" });
+    await vi.waitFor(async () => {
+      expect((await f.history.read(second.id)).turns[0]).toMatchObject({
+        id: other.id,
+        status: "completed",
+      });
+    });
     await f.provider.startConfiguredTurn(first.id, input);
     expect(f.loaded).toHaveBeenCalledOnce();
     await vi.waitFor(() => {
@@ -47,6 +53,7 @@ it("Agent 不结束已取消的 prompt 时释放占用，其他回合不被误�
     });
   } finally {
     waiting.resolve({ stopReason: "cancelled" });
+    healthy.resolve({ stopReason: "end_turn" });
   }
 }, 10_000);
 

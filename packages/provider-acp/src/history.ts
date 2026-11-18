@@ -8,24 +8,72 @@ import { decodeHistoryEntry, replayFingerprint, type AcpHistoryEntry } from "./r
 
 const TURN_BYTES = 2 * 1024 * 1024;
 const PAGE_BYTES = 4 * 1024 * 1024;
+const RECENT_TURNS = 20;
+interface Receipt {
+  id: string;
+  digest: string;
+}
 interface Head {
   generation: string;
   end: number;
   previous?: string[];
   incomplete?: true;
+  recent?: Receipt[];
 }
+export class AcpHistoryCorruptionError extends Error {}
+
+function receipt(turn: AgentTurn): Receipt {
+  return { id: turn.id, digest: createHash("sha256").update(JSON.stringify(turn)).digest("hex") };
+}
+
+function keepRecent(recent: Receipt[], next: Receipt): void {
+  if (recent.length === RECENT_TURNS) recent.shift();
+  recent.push(next);
+}
+
+function decodeEntry(line: string): AcpHistoryEntry {
+  try {
+    const entry = decodeHistoryEntry(line);
+    const turn: unknown = entry.turn;
+    if (
+      !turn ||
+      typeof turn !== "object" ||
+      !("id" in turn) ||
+      typeof turn.id !== "string" ||
+      !("items" in turn) ||
+      !Array.isArray(turn.items)
+    )
+      throw new Error("ACP 回合结构无效");
+    return entry;
+  } catch (cause) {
+    throw new AcpHistoryCorruptionError("ACP 历史回合记录损坏", { cause });
+  }
+}
+
 function missing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === "ENOENT";
 }
 function validHead(value: unknown): value is Head {
   if (!value || typeof value !== "object") return false;
-  const h = value as Omit<Head, "incomplete"> & { incomplete?: unknown };
+  const h = value as Omit<Head, "incomplete" | "recent"> & {
+    incomplete?: unknown;
+    recent?: unknown;
+  };
   return (
     typeof h.generation === "string" &&
     /^[a-f0-9-]{36}$/.test(h.generation) &&
     Number.isSafeInteger(h.end) &&
     h.end >= 0 &&
     (h.incomplete === undefined || h.incomplete === true) &&
+    (h.recent === undefined ||
+      (Array.isArray(h.recent) &&
+        h.recent.length <= RECENT_TURNS &&
+        h.recent.every(
+          (row: Receipt | null) =>
+            typeof row?.id === "string" &&
+            typeof row.digest === "string" &&
+            /^[a-f0-9]{64}$/.test(row.digest),
+        ))) &&
     (h.previous === undefined ||
       (Array.isArray(h.previous) &&
         h.previous.length <= 7 &&
@@ -47,10 +95,12 @@ export class AcpHistory {
   async #head(root: string): Promise<Head | undefined> {
     try {
       const h: unknown = JSON.parse(await readFile(join(root, "current"), "utf8"));
-      if (!validHead(h)) throw new Error("ACP 历史指针损坏");
+      if (!validHead(h)) throw new AcpHistoryCorruptionError("ACP 历史指针损坏");
       return h;
     } catch (error) {
       if (missing(error)) return undefined;
+      if (error instanceof SyntaxError)
+        throw new AcpHistoryCorruptionError("ACP 历史指针损坏", { cause: error });
       throw error;
     }
   }
@@ -110,23 +160,29 @@ export class AcpHistory {
     turns: AsyncIterable<AgentTurn | AcpHistoryEntry> | Iterable<AgentTurn | AcpHistoryEntry>,
   ): Promise<void> {
     await this.#locked(task, async (root) => {
-      const old = await this.#head(root);
+      const old = await this.#head(root).catch((error: unknown) => {
+        // 旧指针损坏也允许 Agent 重建；普通 I/O 故障仍必须向调用方报告。
+        if (error instanceof AcpHistoryCorruptionError) return undefined;
+        throw error;
+      });
       const generation = randomUUID();
       const path = join(root, `${generation}.jsonl`);
       const file = await open(path, "wx", 0o600);
       let end = 0;
       let committed = false;
+      const recent: Receipt[] = [];
       try {
         // 逐回合等待落盘，为调用方提供背压；重放失败不会发布半份新历史。
         for await (const turn of turns) {
           const data = this.#encode(turn);
           await file.writeFile(data);
           end += data.length;
+          keepRecent(recent, receipt("turn" in turn ? turn.turn : turn));
         }
         await file.sync();
         await file.close();
         const previous = old ? [old.generation, ...(old.previous ?? [])].slice(0, 7) : [];
-        await this.#publish(root, { generation, end, previous });
+        await this.#publish(root, { generation, end, previous, recent });
         committed = true;
         // 最多保留当前及七个旧投影，近期游标可续读；更早游标明确失效，不能悄悄改读新版。
         const retained = new Set([generation, ...previous].map((id) => `${id}.jsonl`));
@@ -152,25 +208,30 @@ export class AcpHistory {
         ? turn
         : { turn, replayFingerprint: fingerprint ?? replayFingerprint(turn, userText) },
     );
+    const next = receipt(turn);
     await this.#locked(task, async (root) => {
-      // 当前终态的恢复重试只检查有界最新页，不扫描全部历史。
-      const existing = (await this.read(task)).turns.find((entry) => entry.id === turn.id);
+      const old = await this.#head(root);
+      // 原子指针同时提交字节边界和近期回合凭证；只有旧版指针首次追加时读取一页升级。
+      const recent = old?.recent ?? (old ? (await this.read(task)).turns.map(receipt) : []);
+      const existing = recent.find((entry) => entry.id === turn.id);
       if (existing) {
-        if (JSON.stringify(existing) !== JSON.stringify(turn))
-          throw new Error("ACP 回合提交内容冲突");
+        if (existing.digest !== next.digest) throw new Error("ACP 回合提交内容冲突");
         return;
       }
-      const old = await this.#head(root);
       const head = old ?? { generation: randomUUID(), end: 0 };
       const file = await open(join(root, `${head.generation}.jsonl`), "a+", 0o600);
       try {
         // 只公开指针中的已提交字节；上次写盘中断遗留的半行在重试时精确截断。
+        if ((await file.stat()).size < head.end)
+          throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
         await file.truncate(head.end);
         await file.writeFile(data);
         await file.sync();
+        keepRecent(recent, next);
         await this.#publish(root, {
           ...head,
           end: head.end + data.length,
+          recent,
           ...(incomplete ? { incomplete: true as const } : {}),
         });
       } finally {
@@ -198,7 +259,10 @@ export class AcpHistory {
   /** 提交指针已原子发布，只校验覆盖标记和文件边界，不为续聊读取或解析整份历史。 */
   async hasCompleteHistory(task: string): Promise<boolean> {
     const root = this.#root(task);
-    const head = await this.#head(root);
+    const head = await this.#head(root).catch((error: unknown) => {
+      if (error instanceof AcpHistoryCorruptionError) return undefined;
+      throw error;
+    });
     if (!head?.end || head.incomplete) return false;
     try {
       return (await stat(join(root, `${head.generation}.jsonl`))).size >= head.end;
@@ -233,21 +297,26 @@ export class AcpHistory {
   }
   /** 以固定读取块按原顺序消费已提交历史，重放核对不累计全部回合或游标。 */
   async *entries(task: string, reconciling = false): AsyncGenerator<AcpHistoryEntry> {
-    const root = this.#root(task),
-      head = await this.#head(root);
+    const root = this.#root(task);
+    const head = await this.#head(root).catch((error: unknown) => {
+      if (reconciling && error instanceof AcpHistoryCorruptionError) return undefined;
+      throw error;
+    });
     if (!head?.end) return;
     const path = join(root, `${head.generation}.jsonl`);
+    let end = head.end;
     if (reconciling) {
-      // 原厂已重新提供历史时，缺失或截断的旧投影不再作为身份对齐的依据。
+      // 截断时只使用仍完整的旧记录，保留可确认的本地身份与附件。
       try {
-        if ((await stat(path)).size < head.end) return;
+        end = Math.min(end, (await stat(path)).size);
       } catch (error) {
         if (missing(error)) return;
         throw error;
       }
     }
+    if (!end) return;
     const stream = createReadStream(path, {
-      end: head.end - 1,
+      end: end - 1,
       highWaterMark: 64 * 1024,
     });
     let carry: Buffer = Buffer.alloc(0);
@@ -259,14 +328,22 @@ export class AcpHistory {
         let start = 0,
           end: number;
         while ((end = data.indexOf(10, start)) >= 0) {
-          if (end - start > TURN_BYTES) throw new Error("ACP 单回合历史超过存储预算");
-          yield decodeHistoryEntry(data.subarray(start, end).toString("utf8"));
+          if (end - start > TURN_BYTES)
+            throw new AcpHistoryCorruptionError("ACP 单回合历史超过存储预算");
+          try {
+            yield decodeEntry(data.subarray(start, end).toString("utf8"));
+          } catch (error) {
+            if (!reconciling || !(error instanceof AcpHistoryCorruptionError)) throw error;
+          }
           start = end + 1;
         }
         carry = data.subarray(start);
-        if (carry.length > TURN_BYTES) throw new Error("ACP 单回合历史超过存储预算");
+        if (carry.length > TURN_BYTES)
+          throw new AcpHistoryCorruptionError("ACP 单回合历史超过存储预算");
       }
-      if (carry.length) throw new Error("ACP 历史记录不完整");
+      if (carry.length) throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
+    } catch (error) {
+      if (!reconciling || !(error instanceof AcpHistoryCorruptionError)) throw error;
     } finally {
       stream.destroy();
     }
@@ -294,33 +371,44 @@ export class AcpHistory {
       file = await open(join(root, `${head.generation}.jsonl`), "r");
     } catch (error) {
       if (cursor && missing(error)) throw new Error("ACP 历史游标已失效", { cause: error });
+      if (missing(error))
+        throw new AcpHistoryCorruptionError("ACP 历史记录文件缺失", { cause: error });
       throw error;
     }
     try {
-      if (head.end > (await file.stat()).size) throw new Error("ACP 历史游标超出文件边界");
+      if (head.end > (await file.stat()).size) {
+        if (cursor) throw new Error("ACP 历史游标超出文件边界");
+        throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
+      }
       const start = Math.max(0, head.end - PAGE_BYTES);
       const data = Buffer.alloc(head.end - start);
       let read = 0;
       while (read < data.length) {
         const result = await file.read(data, read, data.length - read, start + read);
-        if (!result.bytesRead) throw new Error("ACP 历史记录不完整");
+        if (!result.bytesRead) throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
         read += result.bytesRead;
       }
-      let position = start === 0 ? 0 : data.indexOf(10) + 1;
+      // 从页尾定位最多 20 条完整记录，再解码要返回的回合。
+      let boundary = data.length - 1;
+      for (let count = 0; boundary > 0 && count < RECENT_TURNS; count++)
+        boundary = data.lastIndexOf(10, boundary - 1);
+      let position = Math.max(boundary + 1, start === 0 ? 0 : data.indexOf(10) + 1);
       const rows: { offset: number; turn: AgentTurn }[] = [];
       while (position < data.length) {
         const newline = data.indexOf(10, position);
-        if (newline < 0) throw new Error("ACP 历史游标不是记录边界");
+        if (newline < 0) {
+          if (cursor) throw new Error("ACP 历史游标不是记录边界");
+          throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
+        }
         rows.push({
           offset: start + position,
-          turn: decodeHistoryEntry(data.subarray(position, newline).toString("utf8")).turn,
+          turn: decodeEntry(data.subarray(position, newline).toString("utf8")).turn,
         });
         position = newline + 1;
       }
-      const selected = rows.slice(-20);
-      const before = selected[0]?.offset ?? 0;
+      const before = rows[0]?.offset ?? 0;
       return {
-        turns: selected.map((row) => row.turn),
+        turns: rows.map((row) => row.turn),
         cursor:
           before > 0
             ? Buffer.from(

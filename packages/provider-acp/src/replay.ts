@@ -7,6 +7,7 @@ import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
 import type { AcpTurnContent } from "./turn-content.js";
 
+const ALIGNMENT_WINDOW = 8;
 interface ReplayTurn {
   turn: AgentTurn;
   content: AcpTurnContent;
@@ -30,29 +31,56 @@ export class AcpReplay {
     const source = async function* () {
       const reader = stream.readable.getReader();
       const previous = history.entries(taskId, true);
+      const candidates: { entry: AcpHistoryEntry; fingerprint: string }[] = [];
       let aligned = true;
+      let exhausted = false;
+      const fill = async (length: number) => {
+        while (!exhausted && candidates.length < length) {
+          const old = await previous.next();
+          if (old.done) exhausted = true;
+          else
+            candidates.push({
+              entry: old.value,
+              fingerprint: old.value.replayFingerprint ?? replayFingerprint(old.value.turn),
+            });
+        }
+      };
       try {
         for (;;) {
           const next = await reader.read();
           if (next.done) break;
           const { turn, content } = next.value;
           const fingerprint = content.fingerprint(turn);
-          const old = aligned ? await previous.next() : undefined;
-          if (
-            old &&
-            !old.done &&
-            (old.value.replayFingerprint ?? replayFingerprint(old.value.turn)) === fingerprint
-          ) {
-            // 只有同位置的完整内容匹配才保留应用身份和附件；一次错位后不猜测后续对应关系。
-            yield old.value;
-          } else {
+          await fill(1);
+          let index = candidates[0]?.fingerprint === fingerprint && aligned ? 0 : -1;
+          if (index < 0 && candidates.length) {
+            // 短暂错位后只按有界窗口内唯一的完整指纹恢复顺序，重复内容不猜测身份。
             aligned = false;
-            const projected = await content.materialize(turn, attachments, taskId);
-            yield {
-              turn: projected,
-              ...(turn !== projected ? { replayFingerprint: fingerprint } : {}),
-            } satisfies AcpHistoryEntry;
+            const moving = candidates.length === ALIGNMENT_WINDOW;
+            await fill(ALIGNMENT_WINDOW);
+            const first = candidates.findIndex(
+              (candidate) => candidate.fingerprint === fingerprint,
+            );
+            if (
+              first >= 0 &&
+              !candidates
+                .slice(first + 1)
+                .some((candidate) => candidate.fingerprint === fingerprint)
+            )
+              index = first;
+            else if (moving) candidates.shift();
           }
+          if (index >= 0) {
+            const matched = candidates.splice(0, index + 1).at(-1);
+            if (matched) yield matched.entry;
+            aligned = true;
+            continue;
+          }
+          const projected = await content.materialize(turn, attachments, taskId);
+          yield {
+            turn: projected,
+            ...(turn !== projected ? { replayFingerprint: fingerprint } : {}),
+          } satisfies AcpHistoryEntry;
         }
       } finally {
         // 消费者提前退出时解除写侧背压，磁盘/锁错误不能留下永久等待的 producer。

@@ -85,7 +85,8 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
         .agent({ name: "host-test" })
         .onRequest(acp.methods.agent.initialize, () => ({
           protocolVersion: 1,
-          agentCapabilities: _engine === "claude" ? { sessionCapabilities: { close: {} } } : {},
+          agentCapabilities:
+            _engine === "claude" ? { sessionCapabilities: { close: {}, resume: {} } } : {},
         }))
         .onRequest(acp.methods.agent.session.new, () => ({
           sessionId: "native",
@@ -109,6 +110,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
           ],
         }))
         .onRequest(acp.methods.agent.session.setConfigOption, () => ({ configOptions: [] }))
+        .onRequest(acp.methods.agent.session.resume, () => ({}))
         .onRequest(acp.methods.agent.session.close, closeSession)
         .onRequest(acp.methods.agent.session.prompt, async ({ client, params }) => {
           prompts.push(params.prompt);

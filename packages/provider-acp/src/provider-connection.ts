@@ -22,6 +22,26 @@ export class AcpProviderConnection {
     return this.#instance;
   }
 
+  async releaseSession(taskId: string, ephemeral: boolean): Promise<boolean> {
+    const session = this.sessions.get(taskId);
+    const agent = this.#instance;
+    if (session && agent) {
+      // 正在隔离的会话只能退订视图；持久会话无恢复能力时也保留原绑定。
+      if (
+        agent.isAwaitingCancellation(session) ||
+        (!ephemeral &&
+          (!agent.canRestoreSessions ||
+            !agent.initialization.agentCapabilities?.sessionCapabilities?.close))
+      ) {
+        this.detached.add(taskId);
+        return false;
+      }
+      await agent.closeSession(session);
+    }
+    this.sessions.delete(taskId);
+    return true;
+  }
+
   get(): Promise<AcpConnection> {
     if (this.#closed) return Promise.reject(new Error("ACP Provider 已关闭"));
     if (!this.#pending) {
@@ -61,13 +81,13 @@ export class AcpProviderConnection {
   recycleIdle(): void {
     const agent = this.#instance;
     if (!agent || this.#closed || !this.isIdle()) return;
-    const capabilities = agent.initialization.agentCapabilities;
-    // 无 close 时只能回收整个连接；满载时也可释放能重新绑定的空闲会话。
-    if (
-      this.detached.size &&
-      agent.atSessionCapacity &&
-      (this.#allDetached || capabilities?.loadSession || capabilities?.sessionCapabilities?.resume)
-    ) {
+    if (agent.recycleAbandoned()) {
+      this.#clear();
+      return;
+    }
+    // 普通退订不能销毁不可恢复的会话，即使所有视图都关闭或连接已满。
+    if (!agent.canRestoreSessions) return;
+    if (this.detached.size && agent.atSessionCapacity) {
       this.#clear();
       agent.close();
     } else if (this.#allDetached && !this.#idleTimer) {

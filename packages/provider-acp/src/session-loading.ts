@@ -11,6 +11,7 @@ interface Loader {
   needsDefaults: Set<string>;
   replays: Map<string, AcpReplay>;
   ephemeral: boolean;
+  repairHistory: boolean;
   history: AcpHistory;
   initialization?: AcpSessionInitialization;
   agent(): Promise<AcpConnection>;
@@ -54,6 +55,8 @@ export async function loadAcpSession(
   source: Loader,
 ): Promise<AcpConnection> {
   const connection = await source.agent();
+  if (source.repairHistory && !connection.initialization.agentCapabilities?.loadSession)
+    throw new Error("本地 ACP 历史损坏，Agent 不支持 session/load，无法重建对话");
   const journal = source.ephemeral ? undefined : source.initialization;
   const publishBinding = async (sessionId: string) => {
     if (task.sessionId === sessionId) return;
@@ -80,7 +83,7 @@ export async function loadAcpSession(
     source.needsDefaults.delete(task.id);
   };
   const bound = source.sessions.get(task.id);
-  if (bound) {
+  if (bound && !source.repairHistory) {
     // 目录回执失败时先确认已落盘的初始化意图，再发布同一绑定；禁止创建替代会话。
     if (source.needsDefaults.has(task.id)) await journal?.prepare(task, bound);
     await publishBinding(bound);
@@ -98,14 +101,17 @@ export async function loadAcpSession(
     await initialize(session.sessionId);
     source.updated(connection, session.sessionId);
   } else {
-    const sessionId = task.sessionId;
+    const sessionId = bound ?? task.sessionId;
     const capabilities = connection.initialization.agentCapabilities;
     const canResume = Boolean(capabilities?.sessionCapabilities?.resume);
     const request = { sessionId, cwd: task.cwd, mcpServers: [] };
     try {
       const complete =
-        canResume && task.status === "idle" && (await source.history.hasCompleteHistory(task.id));
-      if (canResume && (complete || !capabilities?.loadSession)) {
+        !source.repairHistory &&
+        canResume &&
+        task.status === "idle" &&
+        (await source.history.hasCompleteHistory(task.id));
+      if (!source.repairHistory && canResume && (complete || !capabilities?.loadSession)) {
         // ACP v1 的 resume 只恢复模型上下文。仅支持 resume 时允许续聊，但保留本地历史缺口。
         if (!complete) await source.history.markIncomplete(task.id);
         await connection.resumeSession(request);
@@ -126,6 +132,7 @@ export async function loadAcpSession(
       }
     } catch (error) {
       if (
+        source.repairHistory ||
         task.provider !== "codex" ||
         !pending?.firstPromptUnsent ||
         !isMissingCodexSession(error, sessionId)

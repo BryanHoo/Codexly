@@ -1,7 +1,7 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import type { AgentTurn } from "@codexly/protocol";
 import { AcpHistory } from "./history.js";
 const roots: string[] = [];
@@ -107,6 +107,34 @@ describe("ACP 历史分页", () => {
     await h.append("task", turn(1));
     expect((await h.read("task")).turns).toHaveLength(1);
     await expect(h.append("task", { ...turn(1), error: "冲突" })).rejects.toThrow("冲突");
+  });
+  it("重启后追加与不相邻的近期重试无需重新解析历史页", async () => {
+    const h = await fixture();
+    await h.replace("task", turns(400));
+    const writer = new AcpHistory(h.directory);
+    const read = vi.spyOn(writer, "read");
+    await writer.append("task", turn(400));
+    await writer.append("task", turn(398));
+    await expect(writer.append("task", { ...turn(398), error: "冲突" })).rejects.toThrow("冲突");
+    expect(read).not.toHaveBeenCalled();
+    expect((await h.read("task")).turns.at(-1)?.id).toBe("400");
+  });
+  it("兼容旧版指针，首次追加生成近期提交凭证", async () => {
+    const h = await fixture();
+    await h.replace("task", turns(25));
+    const [directory] = await readdir(h.directory);
+    if (!directory) throw new Error("缺少历史目录");
+    const path = join(h.directory, directory, "current");
+    const { generation, end } = JSON.parse(await readFile(path, "utf8")) as {
+      generation: string;
+      end: number;
+    };
+    await writeFile(path, JSON.stringify({ generation, end }));
+    const read = vi.spyOn(h, "read");
+    await h.append("task", turn(25));
+    await h.append("task", turn(24));
+    expect(read).toHaveBeenCalledOnce();
+    expect((await h.read("task")).turns.at(-1)?.id).toBe("25");
   });
   it("删除投影只清理目标任务，不影响其他任务", async () => {
     const h = await fixture();

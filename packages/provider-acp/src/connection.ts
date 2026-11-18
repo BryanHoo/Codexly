@@ -7,6 +7,7 @@ const SESSION_CAPACITY = 64;
 
 interface PendingCancellation {
   sent: boolean;
+  timedOut: boolean;
   write: Promise<void>;
   finish(): void;
 }
@@ -23,7 +24,7 @@ export interface AcpClientCallbacks {
 
 /** 仅对接 ACP 稳定接口，不解释 Codex 或 Claude 的私有协议。 */
 export class AcpConnection {
-  readonly #activePrompts = new Set<string>();
+  readonly #activePrompts = new Map<string, (error: Error) => void>();
   readonly #cancellations = new Map<string, PendingCancellation>();
   readonly #sessions = new Set<string>();
   #pendingBindings = 0;
@@ -149,6 +150,35 @@ export class AcpConnection {
   get atSessionCapacity(): boolean {
     return this.#sessions.size + this.#pendingBindings >= SESSION_CAPACITY;
   }
+  get canRestoreSessions(): boolean {
+    const capabilities = this.initialization.agentCapabilities;
+    return capabilities?.loadSession === true || Boolean(capabilities?.sessionCapabilities?.resume);
+  }
+
+  assertSessionReady(sessionId: string): void {
+    if (this.isAwaitingCancellation(sessionId))
+      throw new Error("ACP 会话的取消尚未确认，请稍后重试");
+  }
+
+  isAwaitingCancellation(sessionId: string): boolean {
+    return this.#cancellations.get(sessionId)?.timedOut === true;
+  }
+
+  recycleAbandoned(): boolean {
+    if (
+      this.#pendingBindings ||
+      ![...this.#cancellations.values()].some(({ timedOut }) => timedOut) ||
+      [...this.#activePrompts.keys()].some((id) => !this.#cancellations.get(id)?.timedOut) ||
+      (!this.canRestoreSessions && !this.#allSessionsAbandoned())
+    )
+      return false;
+    this.close();
+    return true;
+  }
+
+  #allSessionsAbandoned(): boolean {
+    return [...this.#sessions].every((id) => this.#cancellations.get(id)?.timedOut);
+  }
   readAuthStatus() {
     const marker = this.initialization.agentCapabilities?._meta?.["authStatus"];
     return this.authStatus.read(marker !== undefined && marker !== null);
@@ -204,6 +234,7 @@ export class AcpConnection {
     sessionId: string,
     restore: () => Promise<T>,
   ): Promise<T> {
+    this.assertSessionReady(sessionId);
     if (this.#activePrompts.has(sessionId)) throw new Error("会话正在进行中");
     // 必须保持原生会话身份；错误直接返回，禁止回退 newSession 丢失上下文。
     this.#beginBinding(sessionId);
@@ -232,22 +263,25 @@ export class AcpConnection {
   }
 
   async prompt(request: acp.PromptRequest): Promise<acp.PromptResponse> {
-    if (!this.#sessions.has(request.sessionId)) throw new Error("ACP 会话尚未加载");
-    if (this.#activePrompts.has(request.sessionId)) throw new Error("会话已有输入进行中");
-    this.#activePrompts.add(request.sessionId);
-    try {
-      // prompt 不做自动重试，断线后的提交结果不确定，重发可能重复执行工具。
-      const response = await this.transport.agent.request(
-        acp.methods.agent.session.prompt,
-        request,
-      );
-      await this.drainUpdates();
-      return response;
-    } finally {
-      this.#activePrompts.delete(request.sessionId);
-      const cancellation = this.#cancellations.get(request.sessionId);
-      if (cancellation?.sent) cancellation.finish();
-    }
+    const id = request.sessionId;
+    this.assertSessionReady(id);
+    if (!this.#sessions.has(id)) throw new Error("ACP 会话尚未加载");
+    if (this.#activePrompts.has(id)) throw new Error("会话已有输入进行中");
+    const abandoned = Promise.withResolvers<never>();
+    this.#activePrompts.set(id, abandoned.reject);
+    // 本地超时可以结束目标回合，但原请求仍持有会话，直到 Agent 确认或连接被安全回收。
+    const response = this.transport.agent
+      .request(acp.methods.agent.session.prompt, request)
+      .then(async (result) => {
+        await this.drainUpdates();
+        return result;
+      })
+      .finally(() => {
+        this.#activePrompts.delete(id);
+        const cancellation = this.#cancellations.get(id);
+        if (cancellation?.sent) cancellation.finish();
+      });
+    return Promise.race([response, abandoned.promise]);
   }
 
   async setConfigOption(
@@ -255,6 +289,7 @@ export class AcpConnection {
     configId: string,
     value: string | boolean,
   ): Promise<acp.SetSessionConfigOptionResponse> {
+    this.assertSessionReady(sessionId);
     if (!this.#sessions.has(sessionId)) throw new Error("ACP 会话尚未加载");
     const request: acp.SetSessionConfigOptionRequest =
       typeof value === "boolean"
@@ -270,6 +305,7 @@ export class AcpConnection {
   }
 
   async closeSession(sessionId: string): Promise<void> {
+    this.assertSessionReady(sessionId);
     if (!this.initialization.agentCapabilities?.sessionCapabilities?.close)
       throw new Error("ACP agent 不支持 session/close");
     try {
@@ -282,6 +318,7 @@ export class AcpConnection {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
+    this.assertSessionReady(sessionId);
     if (!this.initialization.agentCapabilities?.sessionCapabilities?.delete)
       throw new Error("ACP agent 不支持原生会话删除");
     try {
@@ -297,14 +334,20 @@ export class AcpConnection {
     if (existing) return existing.write;
     if (!this.#activePrompts.has(sessionId)) return Promise.resolve();
     const finished = Promise.withResolvers<undefined>();
-    // 通知写入和原 prompt 响应都必须收敛。超时关闭原连接，让所有未确认回合按断线落盘，不能伪造取消成功。
-    const reset = () => {
-      this.close(new Error("Agent 未确认取消，ACP 连接已重置，回合结果未知"));
+    // 超时只结算目标回合为结果未知；原通知与响应收敛前禁止在同一会话发送新 prompt。
+    const timeout = () => {
+      if (cancellation.timedOut) return;
+      cancellation.timedOut = true;
+      clearTimeout(timer);
+      this.#activePrompts.get(sessionId)?.(new Error("Agent 未确认取消，回合结果未知"));
+      finished.resolve(undefined);
+      if (this.#allSessionsAbandoned()) this.recycleAbandoned();
     };
-    const timer = setTimeout(reset, CANCEL_GRACE_MS);
+    const timer = setTimeout(timeout, CANCEL_GRACE_MS);
     timer.unref();
     const cancellation: PendingCancellation = {
       sent: false,
+      timedOut: false,
       write: finished.promise,
       finish: () => {
         clearTimeout(timer);
@@ -318,7 +361,7 @@ export class AcpConnection {
       this.transport.agent.notify(acp.methods.agent.session.cancel, { sessionId }).then(() => {
         cancellation.sent = true;
         if (!this.#activePrompts.has(sessionId)) cancellation.finish();
-      }, reset),
+      }, timeout),
       finished.promise,
     ]);
     return cancellation.write;

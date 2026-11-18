@@ -127,6 +127,14 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
     await replay.complete();
     const [restored] = (await history.read("task")).turns;
     expect(restored).toEqual(original);
+    const following = {
+      ...original,
+      id: "following",
+      items: original.items.map((item) =>
+        item.type === "message" && item.role === "user" ? { ...item, text: "另一个问题" } : item,
+      ),
+    };
+    await history.append("task", following, "另一个问题");
     const changed = new AcpReplay(history, "task");
     await changed.update({
       sessionUpdate: "user_message_chunk",
@@ -137,8 +145,20 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "原始回答" },
     });
+    await changed.update({
+      sessionUpdate: "user_message_chunk",
+      messageId: "following-user",
+      content: { type: "text", text: "另一个问题" },
+    });
+    await changed.update({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "following-reply",
+      content: { type: "text", text: "原始回答" },
+    });
     await changed.complete();
-    expect((await history.read("task")).turns[0]?.id).not.toBe(original.id);
+    const [replaced, preserved] = (await history.read("task")).turns;
+    expect(replaced?.id).not.toBe(original.id);
+    expect(preserved).toEqual(following);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

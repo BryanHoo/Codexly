@@ -1,8 +1,56 @@
 import { expect, it, vi } from "vitest";
+import { readdir, truncate, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { AgentCapabilities } from "@agentclientprotocol/sdk/unstable";
 import { fixture, input } from "./provider.test-support.js";
 
 const engine = "acp-test";
+
+it.each([{}, { sessionCapabilities: { close: {} } }])(
+  "普通退订保留不可恢复的会话（能力：%j）",
+  async (capabilities) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const f = await fixture(engine, undefined, undefined, { capabilities });
+      const task = await f.provider.startTask();
+      await f.provider.readSessionState(task.id);
+      expect(await f.provider.unsubscribeTask(task.id)).toBe("unsubscribed");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await f.provider.readSessionState(task.id);
+      expect(f.connected).toHaveBeenCalledOnce();
+      expect(f.closed).not.toHaveBeenCalled();
+      expect(f.created).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+
+it.each(["文件截断", "指针损坏"])("任务打开时从暖连接恢复当前历史：%s", async (damage) => {
+  const f = await fixture(engine, undefined, undefined, {
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {} } },
+  });
+  const task = await f.provider.startTask();
+  await f.provider.startConfiguredTurn(task.id, input);
+  await vi.waitFor(() => {
+    expect(f.provider.hasPendingTurn(task.id)).toBe(false);
+  });
+  const root = (await readdir(f.history.directory)).find((name) => /^[a-f0-9]{64}$/.test(name));
+  if (!root) throw new Error("缺少历史目录");
+  const path = join(f.history.directory, root);
+  const generation = (await readdir(path)).find((name) => name.endsWith(".jsonl"));
+  if (!generation) throw new Error("缺少历史文件");
+  if (damage === "文件截断") await truncate(join(path, generation), 1);
+  else await writeFile(join(path, "current"), "{");
+
+  const snapshot = await f.provider.readTask(task.id);
+  expect(snapshot.turns[0]?.items).toEqual(
+    expect.arrayContaining([expect.objectContaining({ text: "旧回答" })]),
+  );
+  expect(f.loaded).toHaveBeenCalledOnce();
+  expect(f.resumed).not.toHaveBeenCalled();
+  expect(await f.history.hasCompleteHistory(task.id)).toBe(true);
+});
 
 it("本地已有完整历史时用 resume 恢复原会话，不重放历史", async () => {
   const f = await fixture(engine, undefined, undefined, {

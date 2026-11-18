@@ -15,6 +15,9 @@ import {
   createServerOptions,
 } from "../packages/server/src/app-all.test-support.js";
 
+// SQLite Worker 与实际磁盘提交在并发测试中可能超过 vi.waitFor 默认的一秒。
+const historySettlement = { timeout: 5_000, interval: 50 };
+
 it.each(["codex", "claude"] as const)(
   "%s 的实际 HTTP/SQLite/ACP 装配在重启后沿原会话续聊",
   async (engine) => {
@@ -105,7 +108,7 @@ it.each(["codex", "claude"] as const)(
         expect(response.json<AgentTaskSnapshotResponse>().snapshot.turns[0]?.status).toBe(
           "completed",
         );
-      });
+      }, historySettlement);
       const binding = await current.store.catalog("task.read", { id: taskId });
       expect(binding?.provider).toBe(engine);
       expect(binding?.sessionId).toBeTruthy();
@@ -151,7 +154,7 @@ it.each(["codex", "claude"] as const)(
           { status: "completed", error: null },
           { status: "completed", error: null },
         ]);
-      });
+      }, historySettlement);
       expect((await current.store.catalog("task.read", { id: taskId }))?.sessionId).toBe(
         binding?.sessionId,
       );
@@ -178,7 +181,7 @@ it.each(["codex", "claude"] as const)(
         expect(snapshot.turns).toHaveLength(2);
         expect(snapshot.turns[1]?.status).toBe("completed");
         expect(response.body).toContain("旧回答");
-      });
+      }, historySettlement);
       expect(await current.store.catalog("task.read", { id: "legacy-task" })).toMatchObject({
         sessionId: "external-old",
         title: "旧标题",

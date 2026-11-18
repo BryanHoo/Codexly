@@ -6,7 +6,7 @@ import {
 } from "@codexly/core";
 import type { AgentEngine } from "@codexly/protocol";
 import type { AcpSessionState } from "@codexly/protocol";
-import type { AcpHistory } from "./history.js";
+import { AcpHistoryCorruptionError, type AcpHistory } from "./history.js";
 import type { AcpEventProjection } from "./event-projection.js";
 
 /** 异步历史准备完成后同步读取活动投影并捕获边界，不在正文与 checkpoint 之间 await。 */
@@ -16,7 +16,7 @@ export async function readAcpTaskSnapshot(
   source: {
     engine: AgentEngine;
     history: AcpHistory;
-    load(): Promise<unknown>;
+    load(repairHistory?: boolean): Promise<unknown>;
     active(): AcpEventProjection | undefined;
     pending(): AgentProviderTaskSnapshot["pendingRequests"];
     contextUsage(): AgentProviderTaskSnapshot["contextUsage"];
@@ -24,8 +24,21 @@ export async function readAcpTaskSnapshot(
   },
 ): Promise<AgentProviderTaskSnapshot> {
   const previous = source.active();
-  let page = await source.history.read(task.id, input.cursor);
-  if (!input.cursor && !previous && task.sessionId && page.turns.length === 0) {
+  let page = await source.history.read(task.id, input.cursor).catch(async (error: unknown) => {
+    // 只修复当前投影；旧游标、普通 I/O 错误和活动回合不触发整份回放。
+    if (
+      input.cursor ||
+      source.active() ||
+      !task.sessionId ||
+      !(error instanceof AcpHistoryCorruptionError)
+    )
+      throw error;
+    input.signal?.throwIfAborted();
+    await source.load(true);
+    return null;
+  });
+  if (page === null) page = await source.history.read(task.id);
+  else if (!input.cursor && !previous && task.sessionId && page.turns.length === 0) {
     await source.load();
     page = await source.history.read(task.id);
   }

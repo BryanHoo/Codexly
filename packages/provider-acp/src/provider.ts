@@ -182,12 +182,17 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     if (task && !this.#link.detached.has(task))
       this.#emit({ type: "acp.session.updated", taskId: task, payload: { state } });
   };
-  async #load(task: LocalTask, explicitConfig = false): Promise<AcpConnection> {
+  async #load(
+    task: LocalTask,
+    explicitConfig = false,
+    repairHistory = false,
+  ): Promise<AcpConnection> {
     const connection = await loadAcpSession(task, explicitConfig, {
       sessions: this.#sessions,
       needsDefaults: this.#needsDefaults,
       replays: this.#replays,
       ephemeral: this.#ephemeral.has(task.id),
+      repairHistory,
       history: this.history,
       ...(this.initialization ? { initialization: this.initialization } : {}),
       ...(this.initializeSession ? { initialize: this.initializeSession } : {}),
@@ -221,7 +226,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       return readAcpTaskSnapshot(task, input, {
         engine: this.engine,
         history: this.history,
-        load: () => this.#load(task),
+        load: (repairHistory) => this.#load(task, false, repairHistory),
         active: () => this.#active.get(id),
         pending: () => this.#permissions.list(id),
         contextUsage: () => this.#link.instance?.readSessionUsage(this.#sessions.get(id)) ?? null,
@@ -255,6 +260,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           throw new AgentTurnNotSubmittedError("任务已有运行中或待持久化回合");
         const task = await this.#task(id);
         const agent = await this.#link.get();
+        const bound = this.#sessions.get(id);
+        if (bound) agent.assertSessionReady(bound);
         const prompt = await createAcpPrompt(
           input,
           agent.initialization.agentCapabilities?.promptCapabilities ?? {},
@@ -445,16 +452,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         return "notLoaded" as const;
       if (this.#active.get(id)?.running || this.#failedCommits.has(id)) return "busy" as const;
       await this.#taskSettlements.get(id);
-      const session = this.#sessions.get(id);
-      const agent = this.#link.instance;
-      if (session && agent && !agent.initialization.agentCapabilities?.sessionCapabilities?.close) {
-        // 视图退订不等于 Agent 已释放；重开可复用原绑定，计入连接容量直到整个进程回收。
-        this.#link.detached.add(id);
-      } else {
-        if (session && agent) await agent.closeSession(session);
-        this.#sessions.delete(id);
+      if (await this.#link.releaseSession(id, this.#ephemeral.has(id)))
         this.#needsDefaults.delete(id);
-      }
       this.#active.delete(id);
       this.#ephemeral.delete(id);
       return "unsubscribed" as const;
