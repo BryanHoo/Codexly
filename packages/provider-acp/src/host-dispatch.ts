@@ -96,16 +96,20 @@ export async function dispatchAcpHost(
     method = text(message, "method");
   if (method === "agents.list")
     return params["refresh"] === true ? runtime.catalog.refresh() : runtime.catalog.list();
-  if (method === "agents.install") {
+  if (method === "agents.progress") return runtime.catalog.progress();
+  if (method === "agents.install" || method === "agents.update" || method === "agents.remove") {
     if (!Value.Check(AgentEngineSchema, params["engine"])) throw new Error("Invalid engine");
-    await runtime.catalog.install(params["engine"]);
-    return runtime.catalog.list();
+    const engine = params["engine"];
+    if (method === "agents.install") await runtime.catalog.install(engine);
+    else if (method === "agents.update") await runtime.catalog.update(engine);
+    else await runtime.catalog.remove(engine);
+    return runtime.catalog.list(false);
   }
   if (method === "agents.configure") {
     if (!Value.Check(AcpAgentRegistrationSchema, params["registration"]))
       throw new Error("Invalid Agent configuration");
     await runtime.catalog.configure(params["registration"]);
-    return runtime.catalog.list();
+    return runtime.catalog.list(false);
   }
   if (method === "application.generate") {
     if (!Value.Check(Scope, message["scope"]) || !Value.Check(ApplicationGeneration, params))

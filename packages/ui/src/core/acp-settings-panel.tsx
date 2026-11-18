@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog.js";
 import { toast } from "./notifications.js";
 import { AcpAgentPicker, type AcpCatalogClient } from "./acp-catalog-settings.js";
+import { AcpAgentMaintenance } from "./acp-agent-maintenance.js";
 import { SettingsGroup } from "./settings-group.js";
 import { useState, useRef, useContext, useEffect, useSyncExternalStore } from "react";
 import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +44,7 @@ export function AcpSettingsPanel({
   const addButton = useRef<HTMLButtonElement>(null);
   const [installing, setInstalling] = useState(false);
   const [updating, setUpdating] = useState<AgentEngine>();
+  const [maintaining, setMaintaining] = useState(false);
   const managed =
     !!client.getAcpAgentCatalog && !!client.installAcpAgent && !!client.configureAcpAgent;
   const catalog = useQuery({
@@ -58,6 +60,7 @@ export function AcpSettingsPanel({
     ? (catalog.data?.agents.filter((agent) => agent.installed) ?? [])
     : legacyAgents;
   const engine = agents.some((agent) => agent.engine === selection) ? selection : agents[0]?.engine;
+  const selected = catalog.data?.agents.find((agent) => agent.engine === engine && agent.installed);
 
   const navigate = useSettingsNavigation();
   const enabled = useSelectedEngines();
@@ -83,7 +86,6 @@ export function AcpSettingsPanel({
     if (!agent?.command || !client.configureAcpAgent) throw new Error("ACP unavailable");
     setUpdating(target);
     try {
-      await cache.cancelQueries({ queryKey: ["acp-agent-catalog"] });
       const page = await client.configureAcpAgent({
         engine: target,
         name: agent.name,
@@ -108,29 +110,9 @@ export function AcpSettingsPanel({
           aria-label="Agent"
           className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-separator border-l border-l-separator-strong bg-window p-3 lg:border-b-0 lg:border-r lg:py-4"
         >
-          <div className="mb-3 flex items-center justify-between px-2">
+          <div className="mb-3 flex shrink-0 items-center justify-between px-2.5">
             <h2 className="text-label font-medium text-muted-foreground">Agent</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-label tabular-nums text-subtle-foreground">
-                {agents.length}
-              </span>
-              {managed ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-compact"
-                  ref={addButton}
-                  aria-label={chinese ? "添加 Agent" : "Add agent"}
-                  onClick={() => {
-                    navigate(() => {
-                      setAdding(true);
-                    });
-                  }}
-                >
-                  <Plus className="size-4" />
-                </Button>
-              ) : null}
-            </div>
+            <span className="text-label tabular-nums text-subtle-foreground">{agents.length}</span>
           </div>
           <nav
             aria-label={chinese ? "选择 Agent" : "Choose agent"}
@@ -146,6 +128,7 @@ export function AcpSettingsPanel({
                     type="button"
                     variant="ghost"
                     aria-current={engine === agent.engine ? "page" : undefined}
+                    disabled={maintaining}
                     className={`h-10 min-w-0 flex-1 justify-start gap-2 px-2.5 bg-transparent hover:bg-transparent ${engine === agent.engine ? "text-foreground" : "text-muted-foreground"}`}
                     onClick={() => {
                       if (engine !== agent.engine)
@@ -174,6 +157,7 @@ export function AcpSettingsPanel({
                     }
                     disabled={
                       (!activation && !managed) ||
+                      maintaining ||
                       updating === agent.engine ||
                       snapshot?.states[agent.engine]?.phase === "preparing" ||
                       ((snapshot?.engines ?? enabled)?.length === 1 &&
@@ -225,21 +209,64 @@ export function AcpSettingsPanel({
               </div>
             ))}
           </nav>
+          {managed ? (
+            // 添加入口独立于滚动列表，Agent 较多时也能在栏底直接操作。
+            <div className="mt-2 shrink-0 border-t border-separator pt-2 lg:mt-3">
+              <Button
+                type="button"
+                variant="ghost"
+                contentAlign="start"
+                className="w-full gap-2 px-2.5 font-medium"
+                ref={addButton}
+                disabled={maintaining}
+                onClick={() => {
+                  navigate(() => {
+                    setAdding(true);
+                  });
+                }}
+              >
+                <Plus className="size-4" aria-hidden="true" />
+                {chinese ? "添加 Agent" : "Add agent"}
+              </Button>
+            </div>
+          ) : null}
         </aside>
         {engine ? (
           <div
             className="flex min-h-0 min-w-0 flex-col overflow-hidden"
             aria-label={chinese ? `${name} 配置` : `${name} settings`}
           >
-            <header className="flex shrink-0 items-center gap-3 border-b border-separator px-5 py-4 sm:px-6">
-              <span
-                aria-hidden="true"
-                className="flex size-8 shrink-0 items-center justify-center rounded-control border border-separator bg-control/50 [&>svg]:size-6"
-              >
-                <AgentEngineIcon engine={engine} />
-              </span>
-              <h2 className="text-body font-semibold tracking-tight">{name}</h2>
-              <AgentVersion engine={engine} />
+            <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 border-b border-separator px-4 py-3 sm:gap-x-3 sm:px-6">
+              <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-control border border-separator bg-control/50 [&>svg]:size-6"
+                >
+                  <AgentEngineIcon engine={engine} />
+                </span>
+                <h2 className="min-w-0 wrap-anywhere text-body font-semibold">{name}</h2>
+              </div>
+              <AgentVersion engine={engine} installedVersion={selected?.installedVersion} />
+              {selected &&
+              (client.removeAcpAgent || (selected.canUpdate && client.updateAcpAgent)) ? (
+                <AcpAgentMaintenance
+                  key={`maintenance:${engine}`}
+                  agent={selected}
+                  client={client}
+                  zh={chinese}
+                  disabled={updating !== undefined}
+                  onPendingChange={setMaintaining}
+                  navigate={navigate}
+                  fallbackFocus={addButton}
+                  onChanged={(page, removed) => {
+                    cache.setQueryData<AcpAgentCatalogPage>(["acp-agent-catalog"], page);
+                    if (removed) {
+                      toast.success(chinese ? "已移除 Agent" : "Agent removed");
+                      requestAnimationFrame(() => addButton.current?.focus());
+                    }
+                  }}
+                />
+              ) : null}
             </header>
             <div
               data-slot="settings-detail-scroll"
@@ -313,15 +340,22 @@ export function AcpSettingsPanel({
 }
 
 /** 版本跟随认证查询已有缓存，避免为展示元信息额外握手。 */
-function AgentVersion({ engine }: Readonly<{ engine: AgentEngine }>) {
+function AgentVersion({
+  engine,
+  installedVersion,
+}: Readonly<{ engine: AgentEngine; installedVersion?: string | undefined }>) {
   const { data } = useQuery<AcpAgentProfile>({
     queryKey: ["acp-agent-profile", engine],
     queryFn: skipToken,
     enabled: false,
   });
-  return data?.agentInfo?.version ? (
-    <span className="ml-auto text-label tabular-nums text-subtle-foreground">
-      v{data.agentInfo.version}
+  const version = installedVersion ?? data?.agentInfo?.version;
+  return version ? (
+    <span
+      title={`v${version}`}
+      className="col-start-2 row-start-1 max-w-20 truncate text-label tabular-nums text-subtle-foreground sm:max-w-32"
+    >
+      v{version}
     </span>
   ) : null;
 }

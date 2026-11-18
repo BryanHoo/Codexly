@@ -1,6 +1,7 @@
 import {
   AcpConfigPreviewSchema,
   AcpAgentCatalogPageSchema,
+  AcpAgentCatalogProgressSchema,
   type AcpAgentRegistration,
   AcpScheduledConfigViewSchema,
   type SetAcpScheduledConfig,
@@ -34,8 +35,24 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
     );
   }
   installAcpAgent(engine: AgentEngine, options: MutationOptions = {}) {
+    return this.mutateAcpAgent("install", engine, options);
+  }
+  updateAcpAgent(engine: AgentEngine, options: MutationOptions = {}) {
+    return this.mutateAcpAgent("update", engine, options);
+  }
+  removeAcpAgent(engine: AgentEngine, options: MutationOptions = {}) {
+    return this.mutateAcpAgent("remove", engine, options);
+  }
+  getAcpAgentCatalogProgress(options: ReadOptions = {}) {
+    return this.read("/v1/acp/registry/progress", AcpAgentCatalogProgressSchema, options);
+  }
+  private mutateAcpAgent(
+    action: "install" | "update" | "remove",
+    engine: AgentEngine,
+    options: MutationOptions,
+  ) {
     return this.mutation(
-      "/v1/acp/registry/install",
+      `/v1/acp/registry/${action}`,
       { engine },
       AcpAgentCatalogPageSchema,
       options,

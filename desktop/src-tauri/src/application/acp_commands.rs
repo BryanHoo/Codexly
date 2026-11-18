@@ -37,7 +37,10 @@ fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, A
             method,
             "agent.inspect"
                 | "agents.list"
+                | "agents.progress"
                 | "agents.install"
+                | "agents.update"
+                | "agents.remove"
                 | "agents.configure"
                 | "agent.authenticate"
                 | "settings.preview"

@@ -1,4 +1,8 @@
-import type { AcpAgentCatalogPage, AcpAgentRegistration } from "@codexly/protocol";
+import type {
+  AcpAgentCatalogPage,
+  AcpAgentCatalogProgress,
+  AcpAgentRegistration,
+} from "@codexly/protocol";
 import type {
   AcpAuthCredentials,
   AcpConfigPreview,
@@ -35,7 +39,10 @@ export interface AcpAgentSettingsService {
 }
 export interface AcpAgentCatalogService {
   refresh?(): Promise<AcpAgentCatalogPage>;
-  list(): Promise<AcpAgentCatalogPage>;
+  list(discover?: boolean): Promise<AcpAgentCatalogPage>;
+  progress?(): AcpAgentCatalogProgress;
+  update?(engine: AgentEngine): Promise<void>;
+  remove?(engine: AgentEngine): Promise<void>;
   install(engine: AgentEngine): Promise<void>;
   configure(input: AcpAgentRegistration): Promise<void>;
 }

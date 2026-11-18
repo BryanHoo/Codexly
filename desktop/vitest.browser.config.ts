@@ -28,6 +28,7 @@ export default defineConfig({
       "@codexly/ui > @base-ui/react/tooltip",
       "@codexly/ui > @base-ui/react/toast",
       "@codexly/ui > @base-ui/react/dialog",
+      "@codexly/ui > @base-ui/react/select",
       "@codexly/ui > @base-ui/react/drawer",
       "radix-ui/popover",
       "@codexly/ui > cmdk",

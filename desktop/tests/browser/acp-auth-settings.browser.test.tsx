@@ -1,4 +1,4 @@
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -44,6 +44,18 @@ async function fixture(
     restartRequired: false,
   });
   const client = {
+    getAcpAgentCatalog: vi.fn(async () => ({
+      agents: [{
+        engine: "codex" as const,
+        name: "Codex",
+        description: "",
+        installed: true,
+        enabled: true,
+        detected: true,
+        environmentKeys: [],
+        command: "/bin/codex",
+      }],
+    })),
     getAcpAgent: vi.fn(async (): Promise<AcpAgentProfile> => ({
       engine: "codex",
       protocolVersion: 1,
@@ -125,6 +137,7 @@ async function fixture(
   const spies =
     platform === "desktop"
       ? [
+          vi.spyOn(nativeClient, "getAcpAgentCatalog").mockImplementation(client.getAcpAgentCatalog),
           vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(client.getAcpAgent),
           vi.spyOn(nativeClient, "getAcpProviders").mockImplementation(client.getAcpProviders),
           vi
@@ -167,12 +180,50 @@ async function fixture(
     screen,
     client: fullClient,
     query,
+    onClose: props.onClose,
     async close() {
       await screen.unmount();
       query.clear();
       spies.forEach((spy) => spy.mockRestore());
     },
   };
+}
+for (const platform of ["web", "desktop"] as const) {
+it(`${platform}：点击设置遮罩时先收起 API 协议下拉，保留连接草稿`, async () => {
+  await page.viewport(1280, 900);
+  const f = await fixture(platform);
+  try {
+    const dialog = f.screen.getByRole("dialog", { name: "全局设置", exact: true });
+    const url = dialog.getByRole("textbox", { name: "API 地址", exact: true });
+    await url.fill("https://draft.example/v1");
+    const protocol = dialog.getByRole("combobox", { name: "API 协议", exact: true });
+    await protocol.click();
+    await expect.element(page.getByRole("listbox")).toBeVisible();
+    const overlay = document.querySelector('[data-slot="dialog-overlay"]');
+    if (!overlay) throw new Error("找不到设置遮罩");
+    const backdrop = page.elementLocator(overlay);
+    await backdrop.click({ force: true, position: { x: 4, y: 4 } });
+    await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+    await expect.element(dialog).toBeVisible();
+    await expect.element(url).toHaveValue("https://draft.example/v1");
+    expect(f.onClose).not.toHaveBeenCalled();
+    await protocol.click();
+    await expect.element(page.getByRole("listbox")).toBeVisible();
+    await url.click({ force: true });
+    await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+    expect(f.onClose).not.toHaveBeenCalled();
+    await protocol.click();
+    await expect.element(page.getByRole("listbox")).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+    await expect.element(protocol).toHaveFocus();
+    expect(f.onClose).not.toHaveBeenCalled();
+    await backdrop.click({ force: true, position: { x: 4, y: 4 } });
+    await expect.poll(() => f.onClose.mock.calls.length).toBe(1);
+  } finally {
+    await f.close();
+  }
+});
 }
 for (const platform of ["web", "desktop"] as const) {
   it(`${platform}：自动填充全局自定义 API，完整填写保存且不回显密钥`, async () => {
@@ -210,7 +261,8 @@ for (const platform of ["web", "desktop"] as const) {
         baseUrl: "https://replacement.example/v1",
         headers: { Authorization: "Bearer private-form-key" },
       });
-      await expect.element(f.screen.getByText("应用内配置", { exact: true })).toBeVisible();
+      await expect.element(f.screen.getByText("配置来源", { exact: true })).not.toBeInTheDocument();
+      await expect.element(f.screen.getByText("应用内配置", { exact: true })).not.toBeInTheDocument();
       expect(JSON.stringify(f.query.getQueriesData({}))).not.toContain("private-form-key");
       await expect.element(f.screen.getByLabelText("API Key", { exact: true })).toHaveValue("");
       await url.fill("https://keep-key.example/v1");

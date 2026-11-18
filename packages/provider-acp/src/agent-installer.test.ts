@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { installRegistryAgent, type RegistryAgent } from "./agent-installer.js";
+import type { AcpAgentInstallationStage } from "@codexly/protocol";
 const directories: string[] = [];
 afterEach(async () => {
   vi.unstubAllGlobals();
@@ -35,7 +36,7 @@ async function fixture(digest?: string, cmd = "./agent") {
       },
     },
   };
-  return { directory, agent };
+  return { directory, agent, bytes };
 }
 it("原生安装流式校验并原子发布，不启动 Agent", async () => {
   const { directory, agent } = await fixture();
@@ -54,4 +55,34 @@ it("拒绝逃逸安装目录的可执行入口", async () => {
     "超出安装目录",
   );
   await expect(stat(join(directory, "outside"))).rejects.toMatchObject({ code: "ENOENT" });
+});
+
+it.each([false, true])("只在响应大小和下载字节同口径时提供总量，编码：%s", async (encoded) => {
+  const { directory, agent, bytes } = await fixture();
+  vi.stubGlobal("fetch", () =>
+    Promise.resolve(
+      new Response(bytes, {
+        headers: {
+          "content-length": String(bytes.length),
+          ...(encoded ? { "content-encoding": "gzip" } : {}),
+        },
+      }),
+    ),
+  );
+  const updates: AcpAgentInstallationStage[] = [];
+  await installRegistryAgent(
+    agent,
+    join(directory, "runtime"),
+    process.env,
+    undefined,
+    (progress) => {
+      updates.push(progress);
+    },
+  );
+  expect(updates).toContainEqual({
+    stage: "downloading",
+    received: bytes.length,
+    ...(encoded ? {} : { total: bytes.length }),
+  });
+  expect(updates.slice(-2)).toEqual([{ stage: "verifying" }, { stage: "publishing" }]);
 });

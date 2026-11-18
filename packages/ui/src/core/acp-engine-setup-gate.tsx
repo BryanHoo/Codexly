@@ -1,6 +1,7 @@
 import { toast } from "./notifications.js";
 import { useQuery } from "@tanstack/react-query";
 import type { AcpCatalogClient } from "./acp-catalog-settings.js";
+import { acpStage, useAcpCatalogProgress } from "./acp-catalog-progress.js";
 import {
   lazy,
   Suspense,
@@ -118,6 +119,7 @@ function CatalogSetup({
         .map((agent) => agent.engine) ?? [],
     [query.data],
   );
+  const progress = useAcpCatalogProgress(client, query.isFetching);
   const notificationId = `acp-discovery-${useId()}`;
   const running = useRef(false);
   const zh = language.startsWith("zh");
@@ -199,6 +201,24 @@ function CatalogSetup({
     zh,
     notifyLoading,
   ]);
+  const automatic = progress?.operations.find((operation) => operation.action === "automatic");
+  const checked = progress?.discovery;
+  const stage = automatic ? acpStage(automatic.progress, zh) : undefined;
+  const description = [
+    checked
+      ? zh
+        ? `已检测 ${String(checked.checked)}/${String(checked.total)}`
+        : `Checked ${String(checked.checked)}/${String(checked.total)}`
+      : undefined,
+    automatic && stage
+      ? `${automatic.name}：${stage.label}${stage.detail ? ` ${stage.detail}` : ""}`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  useEffect(() => {
+    if (query.isFetching && description) toast.update(notificationId, { description });
+  }, [description, notificationId, query.isFetching]);
   useEffect(
     () => () => {
       running.current = false;

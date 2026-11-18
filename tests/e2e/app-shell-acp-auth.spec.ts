@@ -22,6 +22,24 @@ for (const width of [390, 1280]) {
         },
       }),
     );
+    await page.route("**/v1/acp/registry", (route) =>
+      route.fulfill({
+        json: {
+          agents: [
+            {
+              engine: "codex",
+              name: "Codex",
+              description: "",
+              installed: true,
+              enabled: true,
+              detected: true,
+              environmentKeys: [],
+              command: "/bin/codex",
+            },
+          ],
+        },
+      }),
+    );
     let source = "native",
       baseUrl = "https://global-custom.example/v1",
       apiType = "openai",
@@ -97,6 +115,11 @@ for (const width of [390, 1280]) {
     await expect(settings.getByRole("searchbox", { name: "搜索 Agent", exact: true })).toHaveCount(
       0,
     );
+    await settings.getByRole("combobox", { name: "API 协议", exact: true }).click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.mouse.click(4, 4);
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "全局设置", exact: true })).toBeVisible();
     // 切换连接方式只编辑草稿，密钥必须填写并明确提交。
     await settings.getByRole("combobox", { name: "连接方式", exact: true }).click();
     await page.getByRole("option", { name: "账号登录", exact: true }).click();
@@ -121,7 +144,8 @@ for (const width of [390, 1280]) {
     await settings.getByLabel("API Key", { exact: true }).fill("e2e-provider-key");
     expect(writes).toEqual([]);
     await settings.getByRole("button", { name: "保存连接", exact: true }).click();
-    await expect(settings.getByText("应用内配置", { exact: true })).toBeVisible();
+    await expect(settings.getByText("配置来源", { exact: true })).toHaveCount(0);
+    await expect(settings.getByText("应用内配置", { exact: true })).toHaveCount(0);
     expect(writes).toEqual([
       {
         providerId: "openai",

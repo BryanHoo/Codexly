@@ -8,6 +8,7 @@ import { chmod, mkdir, readFile, realpath, rename, rm, stat } from "node:fs/prom
 import { dirname, join, resolve, relative, isAbsolute } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { findAgentExecutable, type AgentCommand } from "./agent-executable.js";
+import type { AcpAgentInstallationStage } from "@codexly/protocol";
 const execute = promisify(execFile);
 interface Spec {
   args?: string[];
@@ -34,6 +35,7 @@ export async function installRegistryAgent(
   destination: string,
   environment: NodeJS.ProcessEnv = process.env,
   signal?: AbortSignal,
+  report?: (progress: AcpAgentInstallationStage) => void,
 ): Promise<AgentCommand> {
   const run = (command: string, args: string[]) =>
     execute(command, args, {
@@ -59,6 +61,7 @@ export async function installRegistryAgent(
         process.platform === "win32"
           ? join(dirname(executable), "node_modules", "npm", "bin", "npm-cli.js")
           : await realpath(executable);
+      report?.({ stage: "installing" });
       await run(node, [
         cli,
         "install",
@@ -92,6 +95,7 @@ export async function installRegistryAgent(
         throw new Error("目录 Python 包必须固定版本");
       const packageName = pinned.split("==")[0] ?? "";
       // uv 缓存负责虚拟环境和并发，不搬迁带有绝对 shebang 的 Python 环境。
+      report?.({ stage: "installing" });
       const probe = await run(uv, [
         "tool",
         "run",
@@ -120,6 +124,7 @@ export async function installRegistryAgent(
       if (!spec) throw new Error("此 Agent 没有当前系统的安装包，请配置本机 ACP 命令");
       const url = new URL(spec.archive);
       if (url.protocol !== "https:") throw new Error("Agent 下载地址必须使用 HTTPS");
+      report?.({ stage: "downloading", received: 0 });
       const timeout = AbortSignal.timeout(180_000);
       const response = await fetch(url, {
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
@@ -127,28 +132,51 @@ export async function installRegistryAgent(
       if (!response.ok || !response.body) throw new Error("Agent 下载失败");
       const archive = join(stage, "download.archive");
       let size = 0;
+      let lastReport = 0;
+      const limit = 256 * 1024 * 1024;
+      const length = Number(response.headers.get("content-length"));
+      // Fetch 会解码压缩响应，只有原始字节数与响应头一致时才可使用该总量。
+      const lengthKnown =
+        !response.headers.has("content-encoding") &&
+        Number.isSafeInteger(length) &&
+        length > 0 &&
+        length <= limit;
+      const downloading = () =>
+        report?.({
+          stage: "downloading",
+          received: size,
+          ...(lengthKnown && size <= length ? { total: length } : {}),
+        });
+      downloading();
       const digest = createHash("sha256");
       await pipeline(
         Readable.fromWeb(response.body as WebReadableStream<Uint8Array>),
         new Transform({
           transform(chunk: Buffer, _encoding, callback) {
             size += chunk.length;
-            if (size > 256 * 1024 * 1024) {
+            if (size > limit) {
               callback(new Error("Agent 安装包超过大小限制"));
               return;
             }
             digest.update(chunk);
+            const now = Date.now();
+            if (now - lastReport >= 200) {
+              lastReport = now;
+              downloading();
+            }
             callback(null, chunk);
           },
         }),
         createWriteStream(archive, { flags: "wx", mode: 0o600 }),
       );
+      if (spec.sha256) report?.({ stage: "verifying" });
       if (spec.sha256 && digest.digest("hex") !== spec.sha256.toLowerCase())
         throw new Error("Agent 安装包校验失败");
       const command = resolve(stage, spec.cmd);
       if (relative(stage, command).startsWith("..") || isAbsolute(relative(stage, command)))
         throw new Error("Agent 入口超出安装目录");
       if (/\.(zip|tar\.gz|tgz|tar\.bz2|tbz2)$/i.test(url.pathname)) {
+        report?.({ stage: "extracting" });
         const { stdout } = await run("tar", ["-tf", archive]);
         if (
           stdout
@@ -185,6 +213,7 @@ export async function installRegistryAgent(
         ...(spec.env ? { env: spec.env } : {}),
       };
     }
+    report?.({ stage: "publishing" });
     await mkdir(dirname(destination), { recursive: true });
     signal?.throwIfAborted();
     await rm(destination, { recursive: true, force: true });

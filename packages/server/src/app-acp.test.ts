@@ -331,6 +331,8 @@ it("Agent 目录支持任意 ACP 身份、严格配置和安装幂等", async ()
     ],
   };
   const install = vi.fn(() => Promise.resolve()),
+    update = vi.fn(() => Promise.resolve()),
+    remove = vi.fn(() => Promise.resolve()),
     configure = vi.fn(() => Promise.resolve());
   const service = {
     inspect: () => Promise.resolve(profile),
@@ -344,7 +346,24 @@ it("Agent 目录支持任意 ACP 身份、严格配置和安装幂等", async ()
     acpAgents: {
       codex: service,
       claude: service,
-      catalog: { list: () => Promise.resolve(page), install, configure },
+      catalog: {
+        list: () => Promise.resolve(page),
+        install,
+        configure,
+        update,
+        remove,
+        progress: () => ({
+          discovery: { checked: 2, total: 10 },
+          operations: [
+            {
+              engine: "acp-gemini",
+              name: "Gemini",
+              action: "update",
+              progress: { stage: "downloading", received: 10, total: 20 },
+            },
+          ],
+        }),
+      },
     },
   });
   closeCallbacks.push(() => app.close());
@@ -361,6 +380,29 @@ it("Agent 目录支持任意 ACP 身份、严格配置和安装幂等", async ()
       ).statusCode,
     ).toBe(200);
   expect(install).toHaveBeenCalledExactlyOnceWith("acp-gemini");
+  const progress = await app.inject({ method: "GET", url: "/v1/acp/registry/progress" });
+  expect(progress.statusCode).toBe(200);
+  expect(progress.json()).toMatchObject({
+    discovery: { checked: 2, total: 10 },
+    operations: [{ action: "update", progress: { stage: "downloading", received: 10, total: 20 } }],
+  });
+  for (const [action, mutate] of [
+    ["update", update],
+    ["remove", remove],
+  ] as const) {
+    for (let i = 0; i < 2; i++)
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: `/v1/acp/registry/${action}`,
+            payload: { engine: "acp-gemini" },
+            headers: { "idempotency-key": "maintenance" },
+          })
+        ).statusCode,
+      ).toBe(200);
+    expect(mutate).toHaveBeenCalledExactlyOnceWith("acp-gemini");
+  }
   for (const engine of ["acp-../evil", "acp-", "unknown"])
     expect(
       (

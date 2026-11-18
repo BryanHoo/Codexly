@@ -225,3 +225,23 @@ it("Agent 目录刷新传递宿主发现标记，并保持安装幂等请求", a
     headers: { "idempotency-key": "install-once" },
   });
 });
+
+it("Agent 目录进度独立读取，更新和移除各自持有幂等键", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>((input) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    return Promise.resolve(
+      Response.json(url.endsWith("/progress") ? { operations: [] } : { agents: [] }),
+    );
+  });
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  await expect(client.getAcpAgentCatalogProgress()).resolves.toEqual({ operations: [] });
+  await client.updateAcpAgent("codex", { idempotencyKey: "update" });
+  await client.removeAcpAgent("codex", { idempotencyKey: "remove" });
+  for (const [index, action] of ["update", "remove"].entries()) {
+    expect(fetch.mock.calls[index + 1]?.[0]).toBe(`https://example.test/v1/acp/registry/${action}`);
+    expect(fetch.mock.calls[index + 1]?.[1]).toMatchObject({
+      method: "POST",
+      headers: { "idempotency-key": action },
+    });
+  }
+});

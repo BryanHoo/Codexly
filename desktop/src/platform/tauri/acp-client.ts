@@ -1,6 +1,7 @@
 import type {
   AcpConfigPreview,
   AcpAgentCatalogPage,
+  AcpAgentCatalogProgress,
   AcpAgentRegistration,
   AcpConfigPreviewRequest,
   AcpAgentProfile,
@@ -31,9 +32,18 @@ export class TauriAcpClient extends TauriAcpTaskClient {
     engine: AgentEngine,
     options: MutationOptions = {},
   ): Promise<AcpAgentCatalogPage> {
+    return this.writeAcp(engine, "agents.install", {}, options);
+  }
+  updateAcpAgent(engine: AgentEngine, options: MutationOptions = {}): Promise<AcpAgentCatalogPage> {
+    return this.writeAcp(engine, "agents.update", {}, options);
+  }
+  removeAcpAgent(engine: AgentEngine, options: MutationOptions = {}): Promise<AcpAgentCatalogPage> {
+    return this.writeAcp(engine, "agents.remove", {}, options);
+  }
+  getAcpAgentCatalogProgress(options: ReadOptions = {}): Promise<AcpAgentCatalogProgress> {
     return this.callCancellable(
       "acp_agent_request",
-      { engine, method: "agents.install", params: {} },
+      { engine: "codex", method: "agents.progress", params: {} },
       options.signal,
     );
   }
@@ -41,11 +51,7 @@ export class TauriAcpClient extends TauriAcpTaskClient {
     registration: AcpAgentRegistration,
     options: MutationOptions = {},
   ): Promise<AcpAgentCatalogPage> {
-    return this.callCancellable(
-      "acp_agent_request",
-      { engine: registration.engine, method: "agents.configure", params: { registration } },
-      options.signal,
-    );
+    return this.writeAcp(registration.engine, "agents.configure", { registration }, options);
   }
   getAcpScheduledConfig(
     taskId: string,

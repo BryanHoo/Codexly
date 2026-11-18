@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AcpAgentCatalog } from "./agent-catalog.js";
@@ -94,7 +94,7 @@ test("关闭目录取消正在安装的任务，不发布迟到安装记录", as
     install: (_entry, _directory, signal) =>
       new Promise((_resolve, reject) => {
         started.resolve(undefined);
-        signal?.addEventListener(
+        signal.addEventListener(
           "abort",
           () => {
             reject(new Error("安装已取消"));
@@ -111,4 +111,101 @@ test("关闭目录取消正在安装的任务，不发布迟到安装记录", as
   expect((await catalog.list(false)).agents.find((a) => a.engine === "codex")?.installed).toBe(
     false,
   );
+});
+
+test("后台安装期间可以独立读取当前 Agent、阶段和检测数量", async () => {
+  const { path } = await fixture();
+  const installing = Promise.withResolvers<undefined>();
+  const finish = Promise.withResolvers<undefined>();
+  const catalog = new AcpAgentCatalog(path, {
+    find: (name) => Promise.resolve(name === "codex" ? "/bin/codex" : undefined),
+    install: async (_entry, _directory, _signal, report) => {
+      report({ stage: "downloading", received: 25, total: 100 });
+      installing.resolve(undefined);
+      await finish.promise;
+      return { command: "/adapter", args: [] };
+    },
+  });
+  const discovery = catalog.list();
+  try {
+    await installing.promise;
+    const progress = catalog.progress();
+    expect(progress.discovery?.checked).toBeGreaterThan(0);
+    expect(progress.discovery?.total).toBeGreaterThanOrEqual(progress.discovery?.checked ?? 0);
+    expect(progress).toMatchObject({
+      operations: [
+        {
+          engine: "codex",
+          action: "automatic",
+          progress: { stage: "downloading", received: 25, total: 100 },
+        },
+      ],
+    });
+  } finally {
+    finish.resolve(undefined);
+    await discovery;
+  }
+  expect(catalog.progress()).toEqual({ operations: [] });
+});
+
+test("更新保留启用状态和私有环境，失败时保留原运行时", async () => {
+  const { path } = await fixture();
+  let version = 0;
+  const catalog = new AcpAgentCatalog(path, {
+    install: async (_entry, directory, _signal, report) => {
+      report({ stage: "installing" });
+      await mkdir(directory, { recursive: true });
+      if (++version === 2) throw new Error("offline");
+      const command = join(directory, "agent");
+      await writeFile(command, String(version));
+      return { command, args: [], env: { DEFAULT: "new" } };
+    },
+  });
+  await catalog.install("codex");
+  const first = await catalog.command("codex");
+  await expect(catalog.update("codex")).rejects.toThrow("offline");
+  expect(await catalog.command("codex")).toEqual(first);
+  expect(await readFile(first.command, "utf8")).toBe("1");
+  await catalog.configure({
+    ...first,
+    name: "我的 Codex",
+    engine: "codex",
+    enabled: false,
+    env: { CODEX_PATH: "/bin/codex" },
+  });
+  await catalog.update("codex");
+  const row = (await catalog.list(false)).agents.find((a) => a.engine === "codex");
+  expect(row).toMatchObject({ enabled: false, name: "我的 Codex", canUpdate: true });
+  expect(row?.environmentKeys).toContain("CODEX_PATH");
+  if (!row?.command) throw new Error("更新后缺少运行时路径");
+  expect(await readFile(row.command, "utf8")).toBe("3");
+});
+
+test("移除清理私有运行时但不删除本机命令，重新检测不会恢复已移除的 Agent", async () => {
+  const { path } = await fixture();
+  const native = join(path, "native");
+  await writeFile(native, "keep");
+  const catalog = new AcpAgentCatalog(path, {
+    find: (name) => Promise.resolve(name === "gemini" ? native : undefined),
+    install: async (_entry, directory) => {
+      await mkdir(directory, { recursive: true });
+      const command = join(directory, "agent");
+      await writeFile(command, "managed");
+      return { command, args: [] };
+    },
+  });
+  await catalog.list();
+  await catalog.install("codex");
+  const { command } = await catalog.command("codex");
+  await catalog.remove("codex");
+  await catalog.remove("acp-gemini");
+  await expect(readFile(command)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(await readFile(native, "utf8")).toBe("keep");
+  const restarted = new AcpAgentCatalog(path, {
+    find: (name) => Promise.resolve(name === "gemini" ? native : undefined),
+  });
+  expect((await restarted.refresh()).agents.filter((a) => a.installed)).toEqual([]);
+  await expect(restarted.command("acp-gemini")).rejects.toThrow("安装并启用");
+  await catalog.install("acp-gemini");
+  expect((await catalog.command("acp-gemini")).command).not.toBe(native);
 });

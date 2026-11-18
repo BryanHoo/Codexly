@@ -4,6 +4,7 @@ import { Value } from "@sinclair/typebox/value";
 import {
   AcpConfigPreviewSchema,
   AcpAgentCatalogPageSchema,
+  AcpAgentCatalogProgressSchema,
   AcpAgentRegistrationSchema,
   type AcpAgentRegistration,
   AcpConfigPreviewRequestSchema,
@@ -65,28 +66,39 @@ export const registerAcpRoutes: FastifyPluginCallback<{
       return refresh && registry.refresh ? registry.refresh() : registry.list();
     },
   );
-  app.post<{ Body: { engine: AgentEngine }; Headers: { "idempotency-key": string } }>(
-    "/v1/acp/registry/install",
-    {
-      handlerTimeout: 360_000,
-      validatorCompiler,
-      schema: {
-        body: Params,
-        headers: IdempotencyHeadersSchema,
-        response: { 200: AcpAgentCatalogPageSchema },
-      },
-    },
-    (request) =>
-      context.runIdempotent(
-        ["acp-agent-install", request.body.engine],
-        request.headers["idempotency-key"],
-        request.body,
-        async () => {
-          await catalog().install(request.body.engine);
-          return catalog().list();
-        },
-      ),
+  app.get(
+    "/v1/acp/registry/progress",
+    { schema: { response: { 200: AcpAgentCatalogProgressSchema } } },
+    () => catalog().progress?.() ?? { operations: [] },
   );
+  for (const action of ["install", "update", "remove"] as const)
+    app.post<{ Body: { engine: AgentEngine }; Headers: { "idempotency-key": string } }>(
+      `/v1/acp/registry/${action}`,
+      {
+        handlerTimeout: 360_000,
+        validatorCompiler,
+        schema: {
+          body: Params,
+          headers: IdempotencyHeadersSchema,
+          response: { 200: AcpAgentCatalogPageSchema },
+        },
+      },
+      (request) =>
+        context.runIdempotent(
+          [`acp-agent-${action}`, request.body.engine],
+          request.headers["idempotency-key"],
+          request.body,
+          async () => {
+            const registry = catalog();
+            const mutate = registry[action];
+            if (!mutate)
+              throw new MutationHttpError("PROVIDER_ERROR", "ACP operation unavailable", 503);
+            await mutate.call(registry, request.body.engine);
+            // 写入返回当前快照，不等待目录中正在自动安装的其他 Agent。
+            return registry.list(false);
+          },
+        ),
+    );
   app.put<{ Body: AcpAgentRegistration; Headers: { "idempotency-key": string } }>(
     "/v1/acp/registry/configuration",
     {
@@ -104,7 +116,7 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         request.body,
         async () => {
           await catalog().configure(request.body);
-          return catalog().list();
+          return catalog().list(false);
         },
       ),
   );

@@ -5,15 +5,24 @@ import type { AcpAgentCatalogPage, AcpAgentRegistration, AgentEngine } from "@co
 import { Button } from "./button.js";
 import { Input } from "./input.js";
 import { SettingsSaveStatus } from "./settings-save-status.js";
-export interface AcpCatalogClient {
+import {
+  AcpStage,
+  useAcpCatalogProgress,
+  type AcpCatalogProgressReader,
+} from "./acp-catalog-progress.js";
+
+type CatalogMutation = (
+  engine: AgentEngine,
+  options?: { idempotencyKey?: string },
+) => Promise<AcpAgentCatalogPage>;
+export interface AcpCatalogClient extends AcpCatalogProgressReader {
   getAcpAgentCatalog(options?: {
     signal?: AbortSignal;
     refresh?: boolean;
   }): Promise<AcpAgentCatalogPage>;
-  installAcpAgent(
-    engine: AgentEngine,
-    options?: { idempotencyKey?: string },
-  ): Promise<AcpAgentCatalogPage>;
+  installAcpAgent: CatalogMutation;
+  updateAcpAgent: CatalogMutation;
+  removeAcpAgent: CatalogMutation;
   configureAcpAgent(
     input: AcpAgentRegistration,
     options?: { idempotencyKey?: string },
@@ -52,37 +61,52 @@ export function AcpAgentPicker({
     engine: AgentEngine;
   }>();
   const [busy, setBusy] = useState(false);
+  const [installing, setInstalling] = useState<AgentEngine>();
+  const progress = useAcpCatalogProgress(client, installing !== undefined);
   const [error, setError] = useState<string>();
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const pending = useRef<Promise<boolean> | undefined>(undefined);
   const retry = useRef<(() => void) | undefined>(undefined);
-  const run = (engine: AgentEngine, action: () => Promise<AcpAgentCatalogPage>) => {
+  const run = (
+    engine: AgentEngine,
+    action: () => Promise<AcpAgentCatalogPage>,
+    install = false,
+  ) => {
     if (pending.current) return;
     retry.current = () => {
-      run(engine, action);
+      run(engine, action, install);
     };
     setBusy(true);
+    if (install) setInstalling(engine);
     onPendingChange(true);
-    setStatus("saving");
+    setStatus(install ? "idle" : "saving");
     setError(undefined);
-    // 取消旧读取，完整目录作为唯一公开快照；凭据不进入查询缓存。
-    pending.current = cache
-      .cancelQueries({ queryKey: key })
+    // 不取消工作区的后台发现；发现完成后仍需同步其他自动安装的 Agent。
+    pending.current = Promise.resolve()
       .then(action)
       .then((page) => {
         cache.setQueryData(key, page);
-        setStatus("saved");
+        if (!install) setStatus("saved");
         setDraft(undefined);
         onAdded(engine);
         return true;
       })
       .catch(() => {
-        setError(zh ? "添加失败，请重试" : "Could not add agent. Retry.");
-        setStatus("error");
+        setError(
+          install
+            ? zh
+              ? "安装失败，请重试"
+              : "Installation failed. Try again."
+            : zh
+              ? "添加失败，请重试"
+              : "Could not add agent. Retry.",
+        );
+        if (!install) setStatus("error");
         return false;
       })
       .finally(() => {
         setBusy(false);
+        setInstalling(undefined);
         onPendingChange(false);
         pending.current = undefined;
       });
@@ -146,17 +170,24 @@ export function AcpAgentPicker({
         </Button>
       ) : null}
       {!query.data && !query.isError ? <p role="status">{zh ? "加载中…" : "Loading…"}</p> : null}
+      {/* 搜索框留在滚动区外，四周完整显示键盘焦点描边。 */}
+      {!draft ? (
+        <Input
+          type="search"
+          variant="outline"
+          className="shrink-0"
+          aria-label={zh ? "搜索 Agent" : "Search agents"}
+          placeholder={zh ? "搜索 Agent" : "Search agents"}
+          disabled={busy}
+          value={filter}
+          onChange={(event) => {
+            setFilter(event.target.value);
+          }}
+        />
+      ) : null}
       <div className="min-h-0 space-y-4 overflow-y-auto">
         {!draft ? (
           <>
-            <Input
-              aria-label={zh ? "搜索 Agent" : "Search agents"}
-              placeholder={zh ? "搜索 Agent" : "Search agents"}
-              value={filter}
-              onChange={(event) => {
-                setFilter(event.target.value);
-              }}
-            />
             <Button
               variant="outline"
               disabled={busy}
@@ -193,10 +224,11 @@ export function AcpAgentPicker({
                         () =>
                           client.installAcpAgent?.(agent.engine, { idempotencyKey: uuid() }) ??
                           Promise.reject(new Error("ACP unavailable")),
+                        true,
                       );
                     }}
                   >
-                    {busy
+                    {installing === agent.engine
                       ? zh
                         ? "正在安装…"
                         : "Installing…"
@@ -204,6 +236,15 @@ export function AcpAgentPicker({
                         ? "安装并启用"
                         : "Install and enable"}
                   </Button>
+                  {installing === agent.engine ? (
+                    <AcpStage
+                      zh={zh}
+                      progress={
+                        progress?.operations.find((operation) => operation.engine === agent.engine)
+                          ?.progress
+                      }
+                    />
+                  ) : null}
                 </div>
               ))}
           </>

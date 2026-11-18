@@ -155,20 +155,6 @@ export function AcpConnectionForm({
         }}
       />
       <fieldset disabled={busy} className="min-w-0 divide-y divide-separator">
-        <div className={field}>
-          <span className="text-body-small font-medium">
-            {chinese ? "配置来源" : "Configuration source"}
-          </span>
-          <span className="text-body-small text-muted-foreground">
-            {profile.connection?.source === "application"
-              ? chinese
-                ? "应用内配置"
-                : "App configuration"
-              : chinese
-                ? "全局配置"
-                : "Global configuration"}
-          </span>
-        </div>
         <label className={field}>
           <span className="text-body-small font-medium">{chinese ? "连接方式" : "Connection"}</span>
           <SettingsDropdown

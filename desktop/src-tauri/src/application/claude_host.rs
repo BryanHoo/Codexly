@@ -124,6 +124,8 @@ impl ClaudeHostManager {
                         | "application.generate"
                         | "agents.list"
                         | "agents.install"
+                        | "agents.update"
+                        | "agents.remove"
                 )
             {
                 Duration::from_secs(360)

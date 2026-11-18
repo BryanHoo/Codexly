@@ -22,6 +22,8 @@ pub(crate) fn cancellable_acp_request(method: &str) -> bool {
         method,
         "agent.authenticate"
             | "agent.inspect"
+            | "agents.list"
+            | "agents.progress"
             | "settings.read"
             | "settings.preview"
             | "providers.list"
