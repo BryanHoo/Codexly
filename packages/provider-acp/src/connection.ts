@@ -3,6 +3,7 @@ import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 
 const CANCEL_GRACE_MS = 5_000;
+const SESSION_CAPACITY = 64;
 
 interface PendingCancellation {
   sent: boolean;
@@ -145,6 +146,9 @@ export class AcpConnection {
   get closed(): Promise<void> {
     return this.transport.closed;
   }
+  get atSessionCapacity(): boolean {
+    return this.#sessions.size + this.#pendingBindings >= SESSION_CAPACITY;
+  }
   readAuthStatus() {
     const marker = this.initialization.agentCapabilities?._meta?.["authStatus"];
     return this.authStatus.read(marker !== undefined && marker !== null);
@@ -162,7 +166,7 @@ export class AcpConnection {
   }
 
   async newSession(request: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
-    this.#pendingBindings++;
+    this.#beginBinding();
     try {
       const result = await this.transport.agent.request(acp.methods.agent.session.new, request);
       await this.updateConfiguration(
@@ -180,24 +184,47 @@ export class AcpConnection {
   async loadSession(request: acp.LoadSessionRequest): Promise<acp.LoadSessionResponse> {
     if (!this.initialization.agentCapabilities?.loadSession)
       throw new Error("此 ACP agent 不支持 session/load，无法加载原会话");
-    if (this.#activePrompts.has(request.sessionId)) throw new Error("会话正在进行中");
+    return this.#restoreSession(request.sessionId, () =>
+      this.transport.agent.request(acp.methods.agent.session.load, request),
+    );
+  }
+
+  async resumeSession(request: acp.ResumeSessionRequest): Promise<acp.ResumeSessionResponse> {
+    if (!this.initialization.agentCapabilities?.sessionCapabilities?.resume)
+      throw new Error("此 ACP agent 不支持 session/resume，无法恢复原会话");
+    return this.#restoreSession(request.sessionId, () =>
+      this.transport.agent.request(acp.methods.agent.session.resume, request),
+    );
+  }
+
+  async #restoreSession<T extends acp.LoadSessionResponse | acp.ResumeSessionResponse>(
+    sessionId: string,
+    restore: () => Promise<T>,
+  ): Promise<T> {
+    if (this.#activePrompts.has(sessionId)) throw new Error("会话正在进行中");
     // 必须保持原生会话身份；错误直接返回，禁止回退 newSession 丢失上下文。
-    this.#pendingBindings++;
+    this.#beginBinding(sessionId);
     try {
-      const result = await this.transport.agent.request(acp.methods.agent.session.load, request);
+      const result = await restore();
       await this.updateConfiguration(
-        request.sessionId,
-        result.configOptions ?? this.metadata.read(request.sessionId).configOptions,
+        sessionId,
+        result.configOptions ?? this.metadata.read(sessionId).configOptions,
       );
-      this.#sessions.add(request.sessionId);
+      this.#sessions.add(sessionId);
       await this.drainUpdates();
       return result;
     } finally {
       this.#finishBinding();
     }
   }
+  #beginBinding(sessionId?: string): void {
+    // 绑定中的并发请求也占用额度，退订但无法 close 的会话仍计入真实连接容量。
+    if ((sessionId === undefined || !this.#sessions.has(sessionId)) && this.atSessionCapacity)
+      throw new Error("ACP 活跃会话达到容量限制");
+    this.#pendingBindings++;
+  }
   #finishBinding(): void {
-    // 并发 new/load 全部结束后才清理未绑定缓存，不能删除另一请求提前公布的命令。
+    // 并发会话绑定全部结束后才清理未绑定缓存，不能删除另一请求提前公布的命令。
     if (--this.#pendingBindings === 0) this.metadata.retain(this.#sessions);
   }
 

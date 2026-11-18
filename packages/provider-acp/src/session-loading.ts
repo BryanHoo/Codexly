@@ -87,7 +87,6 @@ export async function loadAcpSession(
     await initialize(bound);
     return connection;
   }
-  if (source.sessions.size >= 64) throw new Error("ACP 活跃会话达到容量限制");
   if (source.ephemeral && !connection.initialization.agentCapabilities?.sessionCapabilities?.close)
     throw new Error("ACP agent 不支持辅助会话关闭");
   if (task.sessionId === null) {
@@ -100,13 +99,32 @@ export async function loadAcpSession(
     source.updated(connection, session.sessionId);
   } else {
     const sessionId = task.sessionId;
-    const replay = new AcpReplay(source.history, task.id);
-    source.replays.set(sessionId, replay);
+    const capabilities = connection.initialization.agentCapabilities;
+    const canResume = Boolean(capabilities?.sessionCapabilities?.resume);
+    const request = { sessionId, cwd: task.cwd, mcpServers: [] };
     try {
-      await connection.loadSession({ sessionId, cwd: task.cwd, mcpServers: [] });
-      await replay.complete();
+      const complete =
+        canResume && task.status === "idle" && (await source.history.hasCompleteHistory(task.id));
+      if (canResume && (complete || !capabilities?.loadSession)) {
+        // ACP v1 的 resume 只恢复模型上下文。仅支持 resume 时允许续聊，但保留本地历史缺口。
+        if (!complete) await source.history.markIncomplete(task.id);
+        await connection.resumeSession(request);
+      } else if (capabilities?.loadSession) {
+        const replay = new AcpReplay(source.history, task.id);
+        source.replays.set(sessionId, replay);
+        try {
+          await connection.loadSession(request);
+          await replay.complete();
+        } catch (error) {
+          await replay.abort(error).catch(() => undefined);
+          throw error;
+        } finally {
+          source.replays.delete(sessionId);
+        }
+      } else {
+        throw new Error("此 ACP agent 不支持 session/load 或 session/resume，无法恢复原会话");
+      }
     } catch (error) {
-      await replay.abort(error);
       if (
         task.provider !== "codex" ||
         !pending?.firstPromptUnsent ||
@@ -126,8 +144,6 @@ export async function loadAcpSession(
       await initialize(replacement);
       source.updated(connection, replacement);
       return connection;
-    } finally {
-      source.replays.delete(sessionId);
     }
     source.sessions.set(task.id, sessionId);
     await initialize(sessionId);

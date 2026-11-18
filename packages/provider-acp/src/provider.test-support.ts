@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, vi } from "vitest";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { LocalTask, LocalCatalogStore, CatalogOperations } from "@codexly/core";
+import type { AgentEngine } from "@codexly/protocol";
 import { AcpConnection } from "./connection.js";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
@@ -12,7 +13,7 @@ afterEach(async () => {
   for (const close of cleanup.splice(0)) await close();
 });
 export async function fixture(
-  engine: "codex" | "claude",
+  engine: AgentEngine,
   handler?: (context: acp.AgentRequestContext<acp.PromptRequest>) => Promise<acp.PromptResponse>,
   initializeSession?: (
     connection: AcpConnection,
@@ -71,6 +72,9 @@ export async function fixture(
       return {};
     },
   );
+  const resumed = vi.fn((_context: acp.AgentRequestContext<acp.ResumeSessionRequest>) => ({}));
+  const closed = vi.fn<() => acp.CloseSessionResponse>(() => ({}));
+  const connected = vi.fn<() => void>();
   const app = acp
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
@@ -81,7 +85,8 @@ export async function fixture(
       },
     }))
     .onRequest(acp.methods.agent.session.new, created)
-    .onRequest(acp.methods.agent.session.close, () => ({}))
+    .onRequest(acp.methods.agent.session.close, closed)
+    .onRequest(acp.methods.agent.session.resume, resumed)
     .onRequest(acp.methods.agent.session.delete, ({ params }) => {
       if (!management?.deleteSession) throw new Error("未配置测试删除处理器");
       return management.deleteSession(params.sessionId);
@@ -114,6 +119,7 @@ export async function fixture(
     } satisfies LocalCatalogStore,
     history,
     async (callbacks) => {
+      connected();
       const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
       const b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
       const agent = app.connect({ readable: a.readable, writable: b.writable });
@@ -129,6 +135,6 @@ export async function fixture(
     await provider.close();
     await rm(directory, { recursive: true, force: true });
   });
-  return { provider, tasks, created, loaded, history, catalog, app };
+  return { provider, tasks, created, loaded, resumed, closed, connected, history, catalog, app };
 }
 export const input = { text: "问题", files: [], images: [], skills: [], textAttachments: [] };

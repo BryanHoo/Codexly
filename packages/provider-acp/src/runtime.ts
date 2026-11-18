@@ -238,6 +238,7 @@ export class AcpRuntime {
     }
     if (this.#entries.size >= 16) throw new Error("ACP 项目运行时达到容量限制");
     const handles = new Set<AcpAgentHandle>();
+    const reapByEngine = new Map<AgentEngine, Promise<void>>();
     const create = (engine: AgentEngine) =>
       new AcpAgentProvider(
         engine,
@@ -245,6 +246,8 @@ export class AcpRuntime {
         this.store,
         this.#history,
         async (callbacks) => {
+          // 协议流关闭不代表子进程已退出。重连前先回收旧进程，避免两个 Agent 同时占用原会话。
+          await reapByEngine.get(engine);
           const handle = await this.launch(engine, scope, callbacks);
           // 在会话创建/恢复前恢复 ACP 路由；失败回收本次连接，不回退到默认供应商。
           try {
@@ -254,10 +257,12 @@ export class AcpRuntime {
             throw error;
           }
           handles.add(handle);
-          void handle.connection.closed
-            .then(() => handle.close())
+          const reaped = handle.connection.closed.then(() => handle.close());
+          reapByEngine.set(engine, reaped);
+          void reaped
             .finally(() => {
               handles.delete(handle);
+              if (reapByEngine.get(engine) === reaped) reapByEngine.delete(engine);
             })
             .catch(() => undefined);
           return handle.connection;

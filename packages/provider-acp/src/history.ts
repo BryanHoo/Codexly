@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, opendir, readFile, realpath, rename, rm } from "node:fs/promises";
+import { mkdir, open, opendir, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentTurn } from "@codexly/protocol";
 import type { AcpStorageLeases } from "./storage-lease.js";
@@ -12,18 +12,20 @@ interface Head {
   generation: string;
   end: number;
   previous?: string[];
+  incomplete?: true;
 }
 function missing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === "ENOENT";
 }
 function validHead(value: unknown): value is Head {
   if (!value || typeof value !== "object") return false;
-  const h = value as Head;
+  const h = value as Omit<Head, "incomplete"> & { incomplete?: unknown };
   return (
     typeof h.generation === "string" &&
     /^[a-f0-9-]{36}$/.test(h.generation) &&
     Number.isSafeInteger(h.end) &&
     h.end >= 0 &&
+    (h.incomplete === undefined || h.incomplete === true) &&
     (h.previous === undefined ||
       (Array.isArray(h.previous) &&
         h.previous.length <= 7 &&
@@ -143,6 +145,7 @@ export class AcpHistory {
     turn: AgentTurn,
     userText?: string,
     fingerprint?: string,
+    incomplete = false,
   ): Promise<void> {
     const data = this.#encode(
       userText === undefined
@@ -165,7 +168,11 @@ export class AcpHistory {
         await file.truncate(head.end);
         await file.writeFile(data);
         await file.sync();
-        await this.#publish(root, { ...head, end: head.end + data.length });
+        await this.#publish(root, {
+          ...head,
+          end: head.end + data.length,
+          ...(incomplete ? { incomplete: true as const } : {}),
+        });
       } finally {
         await file.close();
       }
@@ -188,6 +195,33 @@ export class AcpHistory {
   async hasTurns(task: string): Promise<boolean> {
     return ((await this.#head(this.#root(task)))?.end ?? 0) > 0;
   }
+  /** 提交指针已原子发布，只校验覆盖标记和文件边界，不为续聊读取或解析整份历史。 */
+  async hasCompleteHistory(task: string): Promise<boolean> {
+    const root = this.#root(task);
+    const head = await this.#head(root);
+    if (!head?.end || head.incomplete) return false;
+    try {
+      return (await stat(join(root, `${head.generation}.jsonl`))).size >= head.end;
+    } catch (error) {
+      if (missing(error)) return false;
+      throw error;
+    }
+  }
+  /** resume 不补旧消息；持久标记缺口，后续追加新回合也不能冒充一份完整历史。 */
+  async markIncomplete(task: string): Promise<void> {
+    if ((await this.#head(this.#root(task)))?.incomplete) return;
+    await this.#locked(task, async (root) => {
+      const head = await this.#head(root);
+      if (head?.incomplete) return;
+      if (head) {
+        await this.#publish(root, { ...head, incomplete: true });
+      } else {
+        const generation = randomUUID();
+        await (await open(join(root, `${generation}.jsonl`), "wx", 0o600)).close();
+        await this.#publish(root, { generation, end: 0, incomplete: true });
+      }
+    });
+  }
   /** 搜索锚定当前不可变投影；后续追加或重放不能改变命中的上下文页。 */
   async currentCursor(task: string): Promise<string | null> {
     const head = await this.#head(this.#root(task));
@@ -198,11 +232,21 @@ export class AcpHistory {
       : null;
   }
   /** 以固定读取块按原顺序消费已提交历史，重放核对不累计全部回合或游标。 */
-  async *entries(task: string): AsyncGenerator<AcpHistoryEntry> {
+  async *entries(task: string, reconciling = false): AsyncGenerator<AcpHistoryEntry> {
     const root = this.#root(task),
       head = await this.#head(root);
     if (!head?.end) return;
-    const stream = createReadStream(join(root, `${head.generation}.jsonl`), {
+    const path = join(root, `${head.generation}.jsonl`);
+    if (reconciling) {
+      // 原厂已重新提供历史时，缺失或截断的旧投影不再作为身份对齐的依据。
+      try {
+        if ((await stat(path)).size < head.end) return;
+      } catch (error) {
+        if (missing(error)) return;
+        throw error;
+      }
+    }
+    const stream = createReadStream(path, {
       end: head.end - 1,
       highWaterMark: 64 * 1024,
     });

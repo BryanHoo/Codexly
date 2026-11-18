@@ -29,7 +29,7 @@ export class AcpReplay {
     this.#writer = stream.writable.getWriter();
     const source = async function* () {
       const reader = stream.readable.getReader();
-      const previous = history.entries(taskId);
+      const previous = history.entries(taskId, true);
       let aligned = true;
       try {
         for (;;) {
