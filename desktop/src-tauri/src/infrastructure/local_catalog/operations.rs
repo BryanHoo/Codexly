@@ -79,6 +79,31 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         "acp.storage.read" | "acp.storage.claim" | "acp.storage.release" => {
             super::acp_storage_locks::execute(db, op, p)
         }
+        "acp.session.rebind" => {
+            let id = string(p, "id")?;
+            let session_id = string(p, "sessionId")?;
+            let expected = string(p, "expectedSessionId")?;
+            if [id, session_id, expected]
+                .iter()
+                .any(|value| value.is_empty())
+            {
+                return Err(CatalogError::InvalidMessage);
+            }
+            if session_id == expected {
+                return Ok(json!(false));
+            }
+            let schema: Value = serde_json::from_str(include_str!(
+                "../../../../../packages/protocol/src/local-catalog-schema.json"
+            ))
+            .map_err(|_| CatalogError::InvalidMessage)?;
+            // 使用与 Web 相同的条件更新；普通 task.patch 仍禁止改绑。
+            db.execute(
+                string(&schema, "acpRebindSessionSql")?,
+                params![session_id, id, expected],
+            )
+            .map(|changed| json!(changed == 1))
+            .map_err(db_error)
+        }
         "acp.title.claim" | "acp.title.finish" => super::acp_task_titles::execute(db, op, p),
         "app.preferences.read" | "app.preferences.patch" => {
             super::application_preferences::execute(db, op, p)

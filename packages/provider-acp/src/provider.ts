@@ -1,7 +1,7 @@
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import type * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpTaskManagement } from "./task-management.js";
 import { readAcpTaskSnapshot } from "./task-snapshot.js";
 import {
@@ -86,19 +86,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       store,
       (id) => this.#active.has(id),
       async (task) => {
-        if (task.sessionId) {
-          const agent = await this.#agent();
-          if (!agent.initialization.agentCapabilities?.sessionCapabilities?.delete)
-            throw new Error("ACP agent 不支持原生会话删除");
-          try {
-            await agent.transport.agent.request(acp.methods.agent.session.delete, {
-              sessionId: task.sessionId,
-            });
-          } catch (error) {
-            if (!(error instanceof acp.RequestError) || error.code !== -32002) throw error;
-          }
-          agent.forgetSession(task.sessionId);
-        }
+        if (task.sessionId) await (await this.#agent()).deleteSession(task.sessionId);
         this.#sessions.delete(task.id);
         this.#needsDefaults.delete(task.id);
       },
@@ -215,6 +203,16 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       ...(this.initializeSession ? { initialize: this.initializeSession } : {}),
       agent: () => this.#agent(),
       patch: (patch) => this.#patch(task.id, patch),
+      rebind: async (expectedSessionId, sessionId) => {
+        if (
+          !(await this.store.catalog("acp.session.rebind", {
+            id: task.id,
+            expectedSessionId,
+            sessionId,
+          }))
+        )
+          throw new Error("ACP 会话绑定已改变，请重新加载任务");
+      },
       updated: (connection, session) => {
         this.#emitSessionState(session, connection.readSessionState(session));
       },
@@ -287,7 +285,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
             agent.readSessionState(sessionId).configOptions,
             initialConfig,
           );
-          if (!this.#ephemeral.has(id)) await this.initialization?.complete(task, sessionId);
+          if (!this.#ephemeral.has(id))
+            await this.initialization?.complete({ ...task, sessionId }, sessionId);
           this.#needsDefaults.delete(id);
         }
         const selected = migrateAcpSettings(
@@ -307,6 +306,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         });
         signal?.throwIfAborted();
         if (!this.#ephemeral.has(id)) await this.prepareTaskTitle?.(task, input);
+        if (this.engine === "codex" && !this.#ephemeral.has(id))
+          await this.initialization?.markFirstPrompt({ ...task, sessionId }, sessionId);
         const projection = new AcpEventProjection(id, randomUUID(), this.#emit, true);
         this.#active.set(id, projection);
         projection.userMessage(`acp:message:user:${randomUUID()}`, input.text, attachments);

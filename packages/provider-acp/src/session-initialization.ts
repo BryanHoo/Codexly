@@ -17,6 +17,8 @@ const RecordSchema = Type.Object(
     cwd: Type.String(),
     sessionId: Type.String({ minLength: 1 }),
     phase: Type.Union([Type.Literal("pending"), Type.Literal("done")]),
+    firstPromptUnsent: Type.Optional(Type.Literal(true)),
+    replacesSessionId: Type.Optional(Type.String({ minLength: 1 })),
     settings: Type.Optional(StoredSchema),
   },
   { additionalProperties: false },
@@ -49,8 +51,10 @@ export class AcpSessionInitialization {
       value.provider !== task.provider ||
       value.projectId !== task.projectId ||
       value.cwd !== task.cwd ||
-      (task.sessionId !== null && value.sessionId !== task.sessionId) ||
-      (value.phase === "pending" && !value.settings)
+      (task.sessionId !== null &&
+        value.sessionId !== task.sessionId &&
+        value.replacesSessionId !== task.sessionId) ||
+      ((value.phase === "pending" || value.firstPromptUnsent) && !value.settings)
     )
       throw new Error("ACP 初始化身份或配置无效，保留原记录供恢复");
     return value;
@@ -101,6 +105,7 @@ export class AcpSessionInitialization {
         cwd: task.cwd,
         sessionId,
         phase: "pending",
+        ...(provider === "codex" ? { firstPromptUnsent: true } : {}),
         settings: await this.settings.read(provider),
       });
     });
@@ -111,9 +116,47 @@ export class AcpSessionInitialization {
       if (!previous) return;
       if (previous.sessionId !== sessionId) throw new Error("ACP 初始化会话身份冲突");
       if (previous.phase === "done") return;
-      // 完成后只保留小型绑定锚点，不长期复制含私有供应商头的默认设置快照。
+      // Codex 的空会话可能在首发前丢失，这时仍需用首次冻结的默认值重建。
+      if (previous.firstPromptUnsent) {
+        await this.#write(task.id, { ...previous, phase: "done" });
+        return;
+      }
       const { settings: _settings, ...binding } = previous;
       await this.#write(task.id, { ...binding, phase: "done" });
+    });
+  }
+  async markFirstPrompt(task: LocalTask, sessionId: string): Promise<void> {
+    const record = await this.read(task);
+    if (record && record.sessionId !== sessionId) throw new Error("ACP 初始化会话身份冲突");
+    if (!record?.firstPromptUnsent) return;
+    await this.#locked(task.id, async () => {
+      const current = await this.read(task);
+      if (current?.sessionId !== sessionId) throw new Error("ACP 初始化会话身份冲突");
+      if (!current.firstPromptUnsent) return;
+      // 必须先持久化再发 prompt；即使发送回执丢失，也不能再把此会话当作空会话替换。
+      const { firstPromptUnsent: _unsent, settings: _settings, ...binding } = current;
+      await this.#write(task.id, { ...binding, phase: "done" });
+    });
+  }
+  async replaceUnsent(
+    task: LocalTask,
+    sessionId: string,
+    hasHistory: () => Promise<boolean>,
+    create: () => Promise<string>,
+  ): Promise<string | undefined> {
+    return this.#locked(task.id, async () => {
+      const current = await this.read(task);
+      if (current?.sessionId !== sessionId || !current.firstPromptUnsent || (await hasHistory()))
+        return undefined;
+      const replacement = await create();
+      // 先写替换意图，再发布任务绑定。两次写入之间崩溃时，旧目录身份仍可恢复到新会话。
+      await this.#write(task.id, {
+        ...current,
+        sessionId: replacement,
+        replacesSessionId: sessionId,
+        phase: "pending",
+      });
+      return replacement;
     });
   }
   async deleteTask(id: string): Promise<void> {

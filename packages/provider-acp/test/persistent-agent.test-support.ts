@@ -5,6 +5,7 @@ import { AcpConnection, type AcpAgentLauncher } from "../src/index.js";
 /** 保留会话的 SDK 对端，供应用重启测试复用；不调用真实账号或模型。 */
 export function createPersistentAgentPeer(
   onSetConfig?: (configId: string, value: string | boolean) => void,
+  loadError?: (sessionId: string) => { code: number; message: string; data?: unknown } | undefined,
 ) {
   const loaded: string[] = [];
   const prompts: string[] = [];
@@ -39,6 +40,8 @@ export function createPersistentAgentPeer(
       })
       .onRequest(acp.methods.agent.session.load, async ({ params, client }) => {
         loaded.push(params.sessionId);
+        const error = loadError?.(params.sessionId);
+        if (error) throw new acp.RequestError(error.code, error.message, error.data);
         // 模拟持久化 agent 按 ACP 约定重放原会话，不能用空重放伪造恢复成功。
         for (const [index, entry] of (transcripts.get(params.sessionId) ?? []).entries()) {
           await client.notify(acp.methods.client.session.update, {

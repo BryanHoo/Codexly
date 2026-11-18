@@ -387,6 +387,31 @@ mod tests {
     }
 
     #[test]
+    fn acp_rebind_should_only_replace_the_expected_codex_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LocalCatalog::at(dir.path()).unwrap();
+        for (id, provider) in [("task", "codex"), ("other", "claude")] {
+            store.execute("task.put", &json!({"id":id,"projectId":null,"title":"手动名称","cwd":"/workspace","provider":provider,"sessionId":"old","updatedAt":100,"pinned":true,"archived":false,"status":"idle"})).unwrap();
+        }
+        let rebind = |id, expected| {
+            store
+                .execute(
+                    "acp.session.rebind",
+                    &json!({"id":id,"sessionId":"new","expectedSessionId":expected}),
+                )
+                .unwrap()
+        };
+        assert_eq!(rebind("task", "stale"), false);
+        assert_eq!(rebind("other", "old"), false);
+        assert_eq!(rebind("task", "old"), true);
+        assert_eq!(rebind("task", "old"), false);
+        let task = store.execute("task.read", &json!({"id":"task"})).unwrap();
+        assert_eq!(task["sessionId"], "new");
+        assert_eq!(task["title"], "手动名称");
+        assert_eq!(task["pinned"], true);
+    }
+
+    #[test]
     fn catalog_should_release_database_after_last_user_and_reopen_persisted_data() {
         let dir = tempfile::tempdir().unwrap();
         let store = LocalCatalog::at(dir.path()).unwrap();

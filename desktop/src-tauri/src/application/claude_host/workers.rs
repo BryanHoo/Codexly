@@ -96,6 +96,7 @@ pub(super) async fn catalog_loop(
                 | "app.preferences.read"
                 | "acp.title.claim"
                 | "acp.title.finish"
+                | "acp.session.rebind"
                 | "acp.storage.read"
                 | "acp.storage.claim"
                 | "acp.storage.release"),

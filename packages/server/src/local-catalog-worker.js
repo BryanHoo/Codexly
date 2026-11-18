@@ -151,6 +151,15 @@ export function createLocalCatalogOperations(db) {
     }),
     "task.put": putTask,
     "task.read": ({ id }) => readTask(id),
+    "acp.session.rebind": ({ id, sessionId, expectedSessionId }) => {
+      if (![id, sessionId, expectedSessionId].every((value) => typeof value === "string" && value))
+        throw new Error("Invalid ACP session rebind");
+      if (sessionId === expectedSessionId) return false;
+      // 单条条件更新只替换已确认丢失的绑定，不覆盖并发更名、归档等任务元数据。
+      return Boolean(
+        db.prepare(schema.acpRebindSessionSql).run(sessionId, id, expectedSessionId).changes,
+      );
+    },
     "task.preview": ({ id, preview }) => {
       if (!readTask(id)) throw new Error("Task not found");
       writeTaskPreview(db, id, preview);

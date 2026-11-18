@@ -118,6 +118,8 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  /** 仅用于恢复已确认丢失且从未提交 prompt 的 Codex 会话。 */
+  "acp.session.rebind": [{ id: string; expectedSessionId: string; sessionId: string }, boolean];
   /** 内部写锁：owner 每次领取都生成新令牌；非空 expectedOwner 必须仍存在且匹配。 */
   "acp.storage.read": [{ key: string }, { owner: string; pid: number } | null];
   "acp.storage.claim": [

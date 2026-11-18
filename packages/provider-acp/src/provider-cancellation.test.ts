@@ -3,6 +3,53 @@ import * as acp from "@agentclientprotocol/sdk/unstable";
 import { fixture, input } from "./provider.test-support.js";
 import type { AcpConnection } from "./connection.js";
 
+it("Agent 不结束已取消的 prompt 时释放占用，其他回合不被误标为已取消", async () => {
+  const received = vi.fn();
+  const waiting = Promise.withResolvers<acp.PromptResponse>();
+  let attempts = 0;
+  const f = await fixture("codex", () => {
+    if (++attempts <= 2) return waiting.promise;
+    return Promise.resolve({ stopReason: "end_turn" });
+  });
+  f.app.onNotification(acp.methods.agent.session.cancel, ({ params }) => {
+    received(params.sessionId);
+  });
+  f.created
+    .mockReturnValueOnce({ sessionId: "native-one", configOptions: [] })
+    .mockReturnValueOnce({ sessionId: "native-two", configOptions: [] });
+  const first = await f.provider.startTask();
+  const second = await f.provider.startTask();
+  const turn = await f.provider.startConfiguredTurn(first.id, input);
+  const other = await f.provider.startConfiguredTurn(second.id, input);
+  try {
+    await f.provider.interruptTurn(first.id, turn.id);
+    expect(received).toHaveBeenCalledExactlyOnceWith("native-one");
+    await vi.waitFor(
+      async () => {
+        for (const [id, turnId] of [
+          [first.id, turn.id],
+          [second.id, other.id],
+        ] as const) {
+          const { turns } = await f.history.read(id);
+          expect(turns).toHaveLength(1);
+          expect(turns[0]).toMatchObject({ id: turnId, status: "failed" });
+          expect(turns[0]?.error).toContain("结果未知");
+        }
+      },
+      { timeout: 6500 },
+    );
+    expect(attempts).toBe(2);
+    expect(await f.provider.unsubscribeTask(first.id)).toBe("notLoaded");
+    await f.provider.startConfiguredTurn(first.id, input);
+    expect(f.loaded).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(attempts).toBe(3);
+    });
+  } finally {
+    waiting.resolve({ stopReason: "cancelled" });
+  }
+}, 10_000);
+
 it("中断准确回合时取消其待审批，保留其他会话审批与两份历史", async () => {
   const responses = new Map<string, acp.RequestPermissionResponse>();
   const lateResponses = new Map<string, acp.RequestPermissionResponse>();

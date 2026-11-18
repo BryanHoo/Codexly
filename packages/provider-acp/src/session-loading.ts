@@ -1,4 +1,4 @@
-import type { SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
+import { RequestError, type SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import type { LocalTask } from "@codexly/core";
 import type { AcpConnection } from "./connection.js";
 import type { AcpHistory } from "./history.js";
@@ -15,6 +15,7 @@ interface Loader {
   initialization?: AcpSessionInitialization;
   agent(): Promise<AcpConnection>;
   patch(patch: Partial<LocalTask>): Promise<void>;
+  rebind(expectedSessionId: string, sessionId: string): Promise<void>;
   initialize?(
     connection: AcpConnection,
     sessionId: string,
@@ -22,6 +23,28 @@ interface Loader {
     saved?: AcpStoredSettings,
   ): Promise<SessionConfigOption[]>;
   updated(connection: AcpConnection, sessionId: string): void;
+}
+
+function isMissingCodexSession(error: unknown, sessionId: string): boolean {
+  if (!(error instanceof RequestError)) return false;
+  // Codex Adapter v2.6 会把原生 JSON-RPC 错误包装成 ACP internal error 的 details。
+  const detail =
+    error.code === -32603 &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "details" in error.data
+      ? error.data.details
+      : error.code === -32600
+        ? error.message
+        : undefined;
+  return (
+    error.code === -32002 ||
+    detail === `no rollout found for thread id ${sessionId}` ||
+    detail === `thread not found: ${sessionId}` ||
+    (error.code === 1001 &&
+      error.message ===
+        `Session ${sessionId} had no messages yet and was lost when the Codex app-server restarted. Start a new session.`)
+  );
 }
 
 /** 会话加载不重试 prompt；恢复绑定与默认值使用独立私有日志，不改变旧任务或配置结构。 */
@@ -32,12 +55,15 @@ export async function loadAcpSession(
 ): Promise<AcpConnection> {
   const connection = await source.agent();
   const journal = source.ephemeral ? undefined : source.initialization;
+  const publishBinding = async (sessionId: string) => {
+    if (task.sessionId === sessionId) return;
+    if (task.sessionId === null) await source.patch({ sessionId });
+    else await source.rebind(task.sessionId, sessionId);
+    task = { ...task, sessionId };
+  };
   const pending = await journal?.read(task);
   if (pending) {
-    if (!task.sessionId) {
-      await source.patch({ sessionId: pending.sessionId });
-      task = { ...task, sessionId: pending.sessionId };
-    }
+    await publishBinding(pending.sessionId);
     if (pending.phase === "pending") source.needsDefaults.add(task.id);
   }
   const initialize = async (sessionId: string) => {
@@ -57,7 +83,7 @@ export async function loadAcpSession(
   if (bound) {
     // 目录回执失败时先确认已落盘的初始化意图，再发布同一绑定；禁止创建替代会话。
     if (source.needsDefaults.has(task.id)) await journal?.prepare(task, bound);
-    if (task.sessionId !== bound) await source.patch({ sessionId: bound });
+    await publishBinding(bound);
     await initialize(bound);
     return connection;
   }
@@ -69,26 +95,43 @@ export async function loadAcpSession(
     source.sessions.set(task.id, session.sessionId);
     source.needsDefaults.add(task.id);
     await journal?.prepare(task, session.sessionId);
-    await source.patch({ sessionId: session.sessionId });
+    await publishBinding(session.sessionId);
     await initialize(session.sessionId);
     source.updated(connection, session.sessionId);
   } else {
+    const sessionId = task.sessionId;
     const replay = new AcpReplay(source.history, task.id);
-    let replayed = false;
-    source.replays.set(task.sessionId, replay);
+    source.replays.set(sessionId, replay);
     try {
-      await connection.loadSession({ sessionId: task.sessionId, cwd: task.cwd, mcpServers: [] });
+      await connection.loadSession({ sessionId, cwd: task.cwd, mcpServers: [] });
       await replay.complete();
-      replayed = true;
-      source.sessions.set(task.id, task.sessionId);
-      await initialize(task.sessionId);
-      source.updated(connection, task.sessionId);
     } catch (error) {
-      if (!replayed) await replay.abort(error);
-      throw error;
+      await replay.abort(error);
+      if (
+        task.provider !== "codex" ||
+        !pending?.firstPromptUnsent ||
+        !isMissingCodexSession(error, sessionId)
+      )
+        throw error;
+      const replacement = await journal?.replaceUnsent(
+        task,
+        sessionId,
+        () => source.history.hasTurns(task.id),
+        async () => (await connection.newSession({ cwd: task.cwd, mcpServers: [] })).sessionId,
+      );
+      if (!replacement) throw error;
+      source.sessions.set(task.id, replacement);
+      source.needsDefaults.add(task.id);
+      await publishBinding(replacement);
+      await initialize(replacement);
+      source.updated(connection, replacement);
+      return connection;
     } finally {
-      source.replays.delete(task.sessionId);
+      source.replays.delete(sessionId);
     }
+    source.sessions.set(task.id, sessionId);
+    await initialize(sessionId);
+    source.updated(connection, sessionId);
   }
   return connection;
 }

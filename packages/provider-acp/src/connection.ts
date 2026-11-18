@@ -2,6 +2,14 @@ import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 
+const CANCEL_GRACE_MS = 5_000;
+
+interface PendingCancellation {
+  sent: boolean;
+  write: Promise<void>;
+  finish(): void;
+}
+
 export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
   onUpdate?(notification: acp.SessionNotification): void | Promise<void>;
@@ -15,6 +23,7 @@ export interface AcpClientCallbacks {
 /** 仅对接 ACP 稳定接口，不解释 Codex 或 Claude 的私有协议。 */
 export class AcpConnection {
   readonly #activePrompts = new Set<string>();
+  readonly #cancellations = new Map<string, PendingCancellation>();
   readonly #sessions = new Set<string>();
   #pendingBindings = 0;
 
@@ -28,7 +37,11 @@ export class AcpConnection {
       sessionId: string,
       options: acp.SessionConfigOption[],
     ) => Promise<void>,
-  ) {}
+  ) {
+    void transport.closed.then(() => {
+      for (const cancellation of this.#cancellations.values()) cancellation.finish();
+    });
+  }
 
   static async connect(
     stream: acp.Stream,
@@ -202,6 +215,8 @@ export class AcpConnection {
       return response;
     } finally {
       this.#activePrompts.delete(request.sessionId);
+      const cancellation = this.#cancellations.get(request.sessionId);
+      if (cancellation?.sent) cancellation.finish();
     }
   }
 
@@ -236,8 +251,47 @@ export class AcpConnection {
     this.forgetSession(sessionId);
   }
 
+  async deleteSession(sessionId: string): Promise<void> {
+    if (!this.initialization.agentCapabilities?.sessionCapabilities?.delete)
+      throw new Error("ACP agent 不支持原生会话删除");
+    try {
+      await this.transport.agent.request(acp.methods.agent.session.delete, { sessionId });
+    } catch (error) {
+      if (!(error instanceof acp.RequestError) || error.code !== -32002) throw error;
+    }
+    this.forgetSession(sessionId);
+  }
+
   cancel(sessionId: string): Promise<void> {
-    return this.transport.agent.notify(acp.methods.agent.session.cancel, { sessionId });
+    const existing = this.#cancellations.get(sessionId);
+    if (existing) return existing.write;
+    if (!this.#activePrompts.has(sessionId)) return Promise.resolve();
+    const finished = Promise.withResolvers<undefined>();
+    // 通知写入和原 prompt 响应都必须收敛。超时关闭原连接，让所有未确认回合按断线落盘，不能伪造取消成功。
+    const reset = () => {
+      this.close(new Error("Agent 未确认取消，ACP 连接已重置，回合结果未知"));
+    };
+    const timer = setTimeout(reset, CANCEL_GRACE_MS);
+    timer.unref();
+    const cancellation: PendingCancellation = {
+      sent: false,
+      write: finished.promise,
+      finish: () => {
+        clearTimeout(timer);
+        if (this.#cancellations.get(sessionId) === cancellation)
+          this.#cancellations.delete(sessionId);
+        finished.resolve(undefined);
+      },
+    };
+    this.#cancellations.set(sessionId, cancellation);
+    cancellation.write = Promise.race([
+      this.transport.agent.notify(acp.methods.agent.session.cancel, { sessionId }).then(() => {
+        cancellation.sent = true;
+        if (!this.#activePrompts.has(sessionId)) cancellation.finish();
+      }, reset),
+      finished.promise,
+    ]);
+    return cancellation.write;
   }
 
   close(error?: unknown): void {
