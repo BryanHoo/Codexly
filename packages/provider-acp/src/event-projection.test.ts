@@ -13,6 +13,29 @@ function fixture() {
 }
 
 describe("ACP 增量事件投影", () => {
+  it("将当前上下文用量映射到共享事件，保留下降和归零，不混入费用", () => {
+    const { projection, events } = fixture();
+    for (const used of [53000, 12000, 0]) {
+      projection.update({
+        sessionUpdate: "usage_update",
+        used,
+        size: 200000,
+        cost: { amount: 1, currency: "USD" },
+      });
+    }
+    expect(events).toEqual(
+      [53000, 12000, 0].map((usedTokens) => ({
+        type: "usage.updated",
+        taskId: "task",
+        turnId: "turn",
+        payload: { usage: { usedTokens, contextWindow: 200000 } },
+      })),
+    );
+    projection.update({ sessionUpdate: "usage_update", used: 0, size: 0 });
+    expect(events.at(-1)?.payload).toEqual({ usage: { usedTokens: 0, contextWindow: null } });
+    expect(projection.snapshot().items).toEqual([]);
+  });
+
   it.each([
     ["end_turn", "completed"],
     ["refusal", "completed"],

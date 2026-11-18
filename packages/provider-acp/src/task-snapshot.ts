@@ -19,6 +19,7 @@ export async function readAcpTaskSnapshot(
     load(): Promise<unknown>;
     active(): AcpEventProjection | undefined;
     pending(): AgentProviderTaskSnapshot["pendingRequests"];
+    contextUsage(): AgentProviderTaskSnapshot["contextUsage"];
     sessionState(): AcpSessionState | undefined;
   },
 ): Promise<AgentProviderTaskSnapshot> {
@@ -48,7 +49,7 @@ export async function readAcpTaskSnapshot(
       active?.status === "running" ? "running" : active?.status === "failed" ? "failed" : "idle",
     turns,
     turnsNextCursor: page.cursor,
-    contextUsage: null,
+    contextUsage: source.contextUsage(),
     goal: null,
     plan: projection?.plan ?? null,
     pendingRequests: source.pending(),

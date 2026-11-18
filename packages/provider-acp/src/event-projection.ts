@@ -8,6 +8,7 @@ import type {
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@codexly/protocol";
 import { AcpTurnContent } from "./turn-content.js";
+import { acpContextUsage } from "./context-usage.js";
 
 type TextUpdate = Extract<
   SessionUpdate,
@@ -58,6 +59,14 @@ export class AcpEventProjection {
   update(update: SessionUpdate): void {
     if (this.#status !== "running") throw new Error("ACP 回合已经结束");
     switch (update.sessionUpdate) {
+      case "usage_update":
+        this.emit({
+          type: "usage.updated",
+          taskId: this.taskId,
+          turnId: this.turnId,
+          payload: { usage: acpContextUsage(update) },
+        });
+        break;
       case "agent_message_chunk":
       case "user_message_chunk":
       case "agent_thought_chunk":

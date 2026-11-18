@@ -156,6 +156,9 @@ export class AcpConnection {
   readSessionState(sessionId: string): AcpSessionMetadata {
     return this.metadata.read(sessionId);
   }
+  readSessionUsage(sessionId: string | undefined) {
+    return sessionId ? this.metadata.readUsage(sessionId) : null;
+  }
   cacheSessionConfiguration(sessionId: string, options: acp.SessionConfigOption[]): Promise<void> {
     // 默认值初始化只能提交已经由 ACP 响应确认的完整选项，不建立另一份配置缓存。
     return this.updateConfiguration(sessionId, options);

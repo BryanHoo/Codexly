@@ -3,6 +3,8 @@ import type {
   SessionConfigOption,
   SessionNotification,
 } from "@agentclientprotocol/sdk/unstable";
+import type { AgentContextUsage } from "@codexly/protocol";
+import { acpContextUsage } from "./context-usage.js";
 
 export interface AcpSessionMetadata {
   configOptions: SessionConfigOption[];
@@ -12,6 +14,7 @@ interface Entry {
   value: AcpSessionMetadata;
   json: string;
   bytes: number;
+  usage: AgentContextUsage | null;
 }
 
 /** 保存 ACP 会话元数据；允许创建响应前的命令更新，不为聊天 token 分配缓存。 */
@@ -24,6 +27,10 @@ export class AcpSessionMetadataStore {
       this.#entries.get(sessionId)?.value ?? { configOptions: [], availableCommands: [] },
     );
   }
+  readUsage(sessionId: string): AgentContextUsage | null {
+    const usage = this.#entries.get(sessionId)?.usage;
+    return usage ? { ...usage } : null;
+  }
   configure(sessionId: string, configOptions: SessionConfigOption[]) {
     return this.#write(sessionId, {
       configOptions,
@@ -31,6 +38,14 @@ export class AcpSessionMetadataStore {
     });
   }
   update({ sessionId, update }: SessionNotification): AcpSessionMetadata | undefined {
+    if (update.sessionUpdate === "usage_update") {
+      // 用量与会话共用容量及清理边界，创建/加载响应前也可缓存；回合结束后继续保留。
+      if (!this.#entries.has(sessionId))
+        this.#write(sessionId, { configOptions: [], availableCommands: [] });
+      const entry = this.#entries.get(sessionId);
+      if (entry) entry.usage = acpContextUsage(update);
+      return undefined;
+    }
     if (update.sessionUpdate === "config_option_update")
       return this.configure(sessionId, update.configOptions);
     if (update.sessionUpdate !== "available_commands_update") return undefined;
@@ -55,7 +70,7 @@ export class AcpSessionMetadataStore {
     if (bytes > 256 * 1024 || total > 4 * 1024 * 1024)
       throw new Error("ACP 会话元数据超过字节预算");
     const copy = structuredClone(value);
-    this.#entries.set(sessionId, { value: copy, json, bytes });
+    this.#entries.set(sessionId, { value: copy, json, bytes, usage: previous?.usage ?? null });
     this.#bytes = total;
     return structuredClone(copy);
   }

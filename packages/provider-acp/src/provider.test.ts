@@ -7,6 +7,79 @@ import type { AgentProviderEvent } from "@codexly/core";
 import type { AgentTurnOptions } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
 import { fixture, input } from "./provider.test-support.js";
+it.each(["codex", "claude"] as const)(
+  "%s 用量事件与活动、完成及后续回合快照一致",
+  async (engine) => {
+    const gate = Promise.withResolvers<acp.PromptResponse>();
+    const f = await fixture(engine, async ({ params, client }) => {
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: { sessionUpdate: "usage_update", used: 53000, size: 200000 },
+      });
+      return gate.promise;
+    });
+    const events: AgentProviderEvent[] = [];
+    f.provider.subscribeEvents((event) => {
+      events.push(event);
+    });
+    const task = await f.provider.startTask();
+    expect((await f.provider.readTask(task.id)).contextUsage).toBeNull();
+    const turn = await f.provider.startTurn(task.id, input, {} as AgentTurnOptions);
+    try {
+      await vi.waitFor(() => {
+        expect(events.find((event) => event.type === "usage.updated")).toMatchObject({
+          taskId: task.id,
+          turnId: turn.id,
+          provider: engine,
+          payload: { usage: { usedTokens: 53000, contextWindow: 200000 } },
+        });
+      });
+      const snapshot = await f.provider.readTask(task.id);
+      expect(snapshot.contextUsage).toEqual({ usedTokens: 53000, contextWindow: 200000 });
+      expect(snapshot.status).toBe("running");
+      gate.resolve({ stopReason: "end_turn" });
+      await expect.poll(async () => (await f.provider.readTask(task.id)).status).toBe("idle");
+      expect((await f.provider.readTask(task.id)).contextUsage).toEqual(snapshot.contextUsage);
+      f.app.onRequest(acp.methods.agent.session.prompt, () => ({ stopReason: "end_turn" }));
+      await f.provider.startTurn(task.id, input, {} as AgentTurnOptions);
+      expect((await f.provider.readTask(task.id)).contextUsage).toEqual(snapshot.contextUsage);
+      await expect.poll(async () => (await f.provider.readTask(task.id)).status).toBe("idle");
+      await f.provider.unsubscribeTask(task.id);
+      expect((await f.provider.readTask(task.id)).contextUsage).toBeNull();
+    } finally {
+      gate.resolve({ stopReason: "end_turn" });
+    }
+  },
+);
+
+it("会话创建响应前与历史重放中的用量进入快照，不伪造历史回合", async () => {
+  const f = await fixture("codex");
+  f.created.mockImplementationOnce(async ({ client }) => {
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: "native",
+      update: { sessionUpdate: "usage_update", used: 53000, size: 200000 },
+    });
+    return { sessionId: "native" };
+  });
+  const task = await f.provider.startTask();
+  await f.provider.readSessionState(task.id);
+  expect((await f.provider.readTask(task.id)).contextUsage).toEqual({
+    usedTokens: 53000,
+    contextWindow: 200000,
+  });
+  await f.provider.unsubscribeTask(task.id);
+  f.loaded.mockImplementationOnce(async ({ params, client }) => {
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: { sessionUpdate: "usage_update", used: 12000, size: 200000 },
+    });
+    return {};
+  });
+  const snapshot = await f.provider.readTask(task.id);
+  expect(snapshot.contextUsage).toEqual({ usedTokens: 12000, contextWindow: 200000 });
+  expect(snapshot.turns).toEqual([]);
+});
+
 it("完整ACP会话状态包含提前到达的命令，配置变更更新事件和历史快照", async () => {
   const f = await fixture("claude");
   const config: acp.SessionConfigOption[] = [

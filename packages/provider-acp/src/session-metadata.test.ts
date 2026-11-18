@@ -10,6 +10,36 @@ const model: SessionConfigOption = {
   options: [{ value: "a", name: "A" }],
 };
 
+it("会话用量独立隔离、覆盖最新值并随元数据清理，配置更新不丢失用量", () => {
+  const store = new AcpSessionMetadataStore();
+  const update = (sessionId: string, used: number) =>
+    store.update({
+      sessionId,
+      update: { sessionUpdate: "usage_update", used, size: 200000 },
+    });
+  expect(update("s", 53000)).toBeUndefined();
+  update("other", 1000);
+  store.configure("s", [model]);
+  const snapshot = store.readUsage("s");
+  expect(snapshot).toEqual({ usedTokens: 53000, contextWindow: 200000 });
+  if (!snapshot) throw new Error("用量缺失");
+  Object.assign(snapshot, { usedTokens: 99 });
+  expect(store.readUsage("s")?.usedTokens).toBe(53000);
+  update("s", 12000);
+  expect(store.readUsage("s")?.usedTokens).toBe(12000);
+  update("s", 0);
+  expect(store.readUsage("s")?.usedTokens).toBe(0);
+  expect(store.readUsage("other")?.usedTokens).toBe(1000);
+  store.retain(new Set(["s"]));
+  expect(store.readUsage("other")).toBeNull();
+  store.delete("s");
+  expect(store.readUsage("s")).toBeNull();
+  for (let index = 0; index < 128; index++) update(`s-${String(index)}`, index);
+  expect(() => update("overflow", 1)).toThrow("容量");
+  store.clear();
+  expect(store.readUsage("s-0")).toBeNull();
+});
+
 it("命令可先于会话绑定到达，配置响应保留命令，状态按session隔离且返回副本", () => {
   const store = new AcpSessionMetadataStore();
   const commands = [{ name: "review", description: "检查", input: { hint: "范围" } }];

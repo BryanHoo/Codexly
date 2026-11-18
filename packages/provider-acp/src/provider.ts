@@ -19,7 +19,6 @@ import {
   type AgentProviderEventSubscriptionOptions,
 } from "@codexly/core";
 import type { AcpConfigValues, AgentEngine, AgentTurnOptions, AgentTurn } from "@codexly/protocol";
-import type { SessionNotification, SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import type { AcpConnection, AcpClientCallbacks } from "./connection.js";
 import type { AcpHistory } from "./history.js";
 import type { AcpReplay } from "./replay.js";
@@ -75,9 +74,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     readonly initializeSession?: (
       connection: AcpConnection,
       sessionId: string,
-      options: SessionConfigOption[],
+      options: acp.SessionConfigOption[],
       saved?: AcpStoredSettings,
-    ) => Promise<SessionConfigOption[]>,
+    ) => Promise<acp.SessionConfigOption[]>,
     readonly initialization?: AcpSessionInitialization,
   ) {
     this.attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
@@ -168,7 +167,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       .catch(() => undefined);
     return operation;
   }
-  async #update(notification: SessionNotification): Promise<void> {
+  async #update(notification: acp.SessionNotification): Promise<void> {
     const replay = this.#replays.get(notification.sessionId);
     if (replay) {
       await replay.update(notification.update);
@@ -226,6 +225,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         load: () => this.#load(task),
         active: () => this.#active.get(id),
         pending: () => this.#permissions.list(id),
+        contextUsage: () => this.#link.instance?.readSessionUsage(this.#sessions.get(id)) ?? null,
         sessionState: () => {
           const session = this.#sessions.get(id);
           return session ? this.#link.instance?.readSessionState(session) : undefined;
@@ -414,14 +414,14 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       return agent.readSessionState(session);
     });
   }
-  readSessionConfiguration(id: string): Promise<SessionConfigOption[]> {
+  readSessionConfiguration(id: string): Promise<acp.SessionConfigOption[]> {
     return this.readSessionState(id).then((state) => state.configOptions);
   }
   async setSessionConfiguration(
     id: string,
     configId: string,
     value: string | boolean,
-  ): Promise<SessionConfigOption[]> {
+  ): Promise<acp.SessionConfigOption[]> {
     return this.#serial(id, async () => {
       const agent = await this.#load(await this.#task(id));
       const options = await applyAcpConfig(
