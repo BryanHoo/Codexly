@@ -14,9 +14,17 @@ import { AcpProviderRouting } from "./provider-routing.js";
 import { importAcpCatalog } from "./catalog-import.js";
 import type { LocalCatalogStore } from "@codexly/core";
 
+const SETTINGS_CLOSE_TIMEOUT_MS = 1_000;
+
 export class AcpAgentService implements AcpAgentSettingsService {
   readonly providers: NonNullable<AcpAgentSettingsService["providers"]>;
-  #handle: Promise<AcpAgentHandle> | undefined;
+  #handle:
+    | {
+        launched: Promise<AcpAgentHandle>;
+        ready: Promise<AcpAgentHandle>;
+        connection: AcpConnection | undefined;
+      }
+    | undefined;
   #queue: Promise<unknown> = Promise.resolve();
   #closed = false;
   #catalogImported = false;
@@ -48,11 +56,12 @@ export class AcpAgentService implements AcpAgentSettingsService {
     this.#queue = result;
     return result;
   }
-  async #agent(): Promise<AcpConnection> {
+  async #agent(signal?: AbortSignal): Promise<AcpConnection> {
     if (!this.#handle) {
       // 迁移来源只读校验先于启动；失败不启动 agent，已保存的 ACP 配置由存储层优先保留。
       if (this.store.legacySource) await this.store.inspect(this.engine);
-      const pending = this.launch(
+      signal?.throwIfAborted();
+      const launched = this.launch(
         this.engine,
         {
           id: "acp-settings",
@@ -61,26 +70,36 @@ export class AcpAgentService implements AcpAgentSettingsService {
           runtimeWorkspaceRoots: [this.cwd],
         },
         {},
-      ).then(async (handle) => {
+      );
+      // 原始启动句柄独立于供应商恢复，恢复请求挂起时仍可关闭传输。
+      const current = {
+        launched,
+        ready: launched,
+        connection: undefined as AcpConnection | undefined,
+      };
+      const pending = launched.then(async (handle) => {
+        if (this.#handle !== current) throw new Error("ACP 设置连接已回收");
+        current.connection = handle.connection;
         try {
           await new AcpProviderRouting(this.engine, this.store, this.readNative).restore(
             handle.connection,
           );
           return handle;
         } catch (error) {
-          await handle.close();
+          await this.#closeHandle(handle.connection);
           throw error;
         }
       });
-      this.#handle = pending;
+      current.ready = pending;
+      this.#handle = current;
       void pending
         .then((handle) => handle.connection.closed)
         .catch(() => undefined)
         .then(() => {
-          if (this.#handle === pending) this.#handle = undefined;
+          if (this.#handle === current) this.#handle = undefined;
         });
     }
-    return (await this.#handle).connection;
+    return (await this.#handle.ready).connection;
   }
   inspect(): Promise<AcpAgentProfile> {
     return this.#run(async () => {
@@ -172,24 +191,37 @@ export class AcpAgentService implements AcpAgentSettingsService {
     // 与认证和默认值共用串行连接，但只读取私有设置快照，不进行任何持久写入。
     return this.#run(async () => {
       signal?.throwIfAborted();
-      const connection = await this.#agent();
-      const saved = await this.store.inspect(this.engine);
-      signal?.throwIfAborted();
+      const cancelled = Promise.withResolvers<never>();
+      const onAbort = () => {
+        cancelled.reject(signal?.reason);
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
       try {
-        const result = await previewAcpConfig(
-          connection,
-          cwd,
-          saved,
-          input.values,
-          input.change,
-          this.engine.startsWith("acp-") ? (id) => this.#closeSession(connection, id) : undefined,
-        );
+        // 从启动到会话清理都参与取消竞速，Agent 不回应也能退出串行队列。
+        const preview = (async () => {
+          const connection = await this.#agent(signal);
+          signal?.throwIfAborted();
+          const saved = await this.store.inspect(this.engine);
+          signal?.throwIfAborted();
+          return previewAcpConfig(
+            connection,
+            cwd,
+            saved,
+            input.values,
+            input.change,
+            this.engine.startsWith("acp-") ? (id) => this.#closeSession(connection, id) : undefined,
+          );
+        })();
+        const result = await Promise.race([preview, cancelled.promise]);
         signal?.throwIfAborted();
         return result;
       } catch (error) {
         // 预览关闭失败或取消后释放独立设置连接，不影响项目中的聊天连接。
-        await this.#closeHandle();
+        await this.#closeHandle().catch(() => undefined);
+        signal?.throwIfAborted();
         throw error;
+      } finally {
+        signal?.removeEventListener("abort", onAbort);
       }
     });
   }
@@ -294,23 +326,40 @@ export class AcpAgentService implements AcpAgentSettingsService {
       this.engine.startsWith("acp-") &&
       !connection.initialization.agentCapabilities?.sessionCapabilities?.close
     ) {
-      await this.#closeHandle();
+      await this.#closeHandle(connection);
       return;
     }
     try {
       await connection.closeSession(sessionId);
     } catch (error) {
-      await this.#closeHandle();
+      await this.#closeHandle(connection);
       throw error;
     }
   }
-  async #closeHandle(): Promise<void> {
+  async #closeHandle(connection?: AcpConnection): Promise<void> {
     const current = this.#handle;
-    if (!current) return;
+    // 迟到的旧会话清理不能关闭后续设置操作创建的新连接。
+    if (!current || (connection && current.connection !== connection)) return;
+    this.#handle = undefined;
+    const cleanup = current.launched.then(
+      async (handle) => {
+        handle.connection.close();
+        await handle.close();
+      },
+      () => undefined,
+    );
+    // 启动和进程退出均可能失去响应；超时后释放队列，迟到句柄仍执行回收。
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await (await current.catch(() => undefined))?.close();
+      await Promise.race([
+        cleanup,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, SETTINGS_CLOSE_TIMEOUT_MS);
+          timer.unref();
+        }),
+      ]);
     } finally {
-      if (this.#handle === current) this.#handle = undefined;
+      clearTimeout(timer);
     }
   }
 }

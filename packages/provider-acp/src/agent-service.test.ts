@@ -468,6 +468,144 @@ it("供应商设置经公共服务保存，新项目连接先恢复配置再创�
   }
 });
 
+it.each(
+  (["newSession", "setConfigOption", "closeSession", "cleanup"] as const).flatMap((stage) =>
+    (["claude", "acp-test"] as const).map((engine) => ({ stage, engine })),
+  ),
+)("$engine 取消卡在 $stage 的预览会回收连接并解除后续设置等待", async ({ stage, engine }) => {
+  const f = await fixture();
+  const entered = Promise.withResolvers<undefined>();
+  const blocked = Promise.withResolvers<never>();
+  const released = vi.fn();
+  const launch: AcpAgentLauncher = async (...args) => {
+    const handle = await f.launch(...args);
+    if (f.launch.mock.calls.length === 1) {
+      // 模拟 Agent 永不响应；即使关闭进程也不主动完成这个 Promise。
+      vi.spyOn(
+        handle.connection,
+        stage === "cleanup" ? "newSession" : stage,
+      ).mockImplementationOnce(() => {
+        entered.resolve(undefined);
+        return blocked.promise;
+      });
+      const close = handle.close.bind(handle);
+      handle.close = async () => {
+        released();
+        await close();
+        if (stage === "cleanup") await blocked.promise;
+      };
+    }
+    return handle;
+  };
+  const service = new AcpAgentService(engine, f.root, f.store, launch);
+  const controller = new AbortController();
+  let outcome: unknown;
+  const pending = service
+    .previewConfig(f.root, { values: { model: "b" } }, controller.signal)
+    .catch((error: unknown) => {
+      outcome = error;
+    });
+  try {
+    await entered.promise;
+    const defaults = service.readDefaults();
+    controller.abort();
+    await vi.waitFor(
+      () => {
+        expect(outcome).toBeInstanceOf(DOMException);
+      },
+      { timeout: 2_000 },
+    );
+    expect(released).toHaveBeenCalledOnce();
+    await expect(defaults).resolves.toMatchObject({ defaults: {} });
+    await expect(service.authenticate("login")).resolves.toEqual({});
+    // 让旧预览在新连接已可用后才失败，验证迟到清理不会回收新连接。
+    blocked.reject(new Error("迟到的旧请求失败"));
+    await expect(service.readDefaults()).resolves.toMatchObject({ defaults: {} });
+    expect(f.launch).toHaveBeenCalledTimes(2);
+    expect((await f.store.read(engine)).values).toEqual({});
+  } finally {
+    blocked.reject(new Error("结束测试中的挂起请求"));
+    await pending;
+    await service.close();
+    await f.dispose();
+  }
+});
+
+it.each(["launch", "restore"] as const)(
+  "取消卡在 %s 的预览后回收迟到句柄，且不影响新设置连接",
+  async (stage) => {
+    const f = await fixture();
+    const entered = Promise.withResolvers<undefined>();
+    const unblock = Promise.withResolvers<undefined>();
+    const released = vi.fn();
+    const launch: AcpAgentLauncher = async (...args) => {
+      const handle = await f.launch(...args);
+      if (f.launch.mock.calls.length === 1) {
+        const close = handle.close.bind(handle);
+        handle.close = async () => {
+          released();
+          await close();
+        };
+        if (stage === "launch") {
+          entered.resolve(undefined);
+          await unblock.promise;
+        }
+      }
+      return handle;
+    };
+    if (stage === "restore") {
+      const inspect = f.store.inspect.bind(f.store);
+      vi.spyOn(f.store, "inspect").mockImplementationOnce(async (...args) => {
+        entered.resolve(undefined);
+        await unblock.promise;
+        return inspect(...args);
+      });
+    }
+    const service = new AcpAgentService("claude", f.root, f.store, launch);
+    const controller = new AbortController();
+    let outcome: unknown;
+    const pending = service
+      .previewConfig(f.root, { values: {} }, controller.signal)
+      .catch((error: unknown) => {
+        outcome = error;
+      });
+    try {
+      await entered.promise;
+      controller.abort();
+      await vi.waitFor(
+        () => {
+          expect(outcome).toBeInstanceOf(DOMException);
+        },
+        { timeout: 2_000 },
+      );
+      await expect(service.readDefaults()).resolves.toMatchObject({ defaults: {} });
+      unblock.resolve(undefined);
+      await vi.waitFor(() => {
+        expect(released).toHaveBeenCalledOnce();
+      });
+      await expect(service.readDefaults()).resolves.toMatchObject({ defaults: {} });
+      expect(f.launch).toHaveBeenCalledTimes(2);
+    } finally {
+      unblock.resolve(undefined);
+      await pending;
+      await service.close();
+      await f.dispose();
+    }
+  },
+);
+
+it("预先取消预览不会启动 Agent", async () => {
+  const f = await fixture();
+  try {
+    await expect(
+      f.service.previewConfig(f.root, { values: {} }, AbortSignal.abort()),
+    ).rejects.toThrow();
+    expect(f.launch).not.toHaveBeenCalled();
+  } finally {
+    await f.dispose();
+  }
+});
+
 it("草稿服务协商完成后全局私有设置字节不变", async () => {
   const f = await fixture();
   try {
@@ -487,7 +625,10 @@ it("草稿服务协商完成后全局私有设置字节不变", async () => {
     await expect(
       f.service.previewConfig(f.root, { values: { model: "b" } }, controller.signal),
     ).rejects.toThrow();
-    expect(f.closed).toHaveBeenCalledTimes(3);
+    // 取消直接回收专用传输，不再等待 Agent 确认 session/close。
+    expect(f.closed).toHaveBeenCalledTimes(2);
+    await f.service.readDefaults();
+    expect(f.launch).toHaveBeenCalledTimes(2);
     expect(write).not.toHaveBeenCalled();
   } finally {
     await f.dispose();
