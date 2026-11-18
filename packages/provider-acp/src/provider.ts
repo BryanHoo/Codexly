@@ -36,12 +36,14 @@ import { submitAcpTurn } from "./turn-submission.js";
 import { startAcpLocalTask } from "./task-creation.js";
 import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
+import { prepareAcpHistoryCommit } from "./turn-persistence.js";
 
 /** 同一实现接入任意 ACP agent；应用任务管理与 agent 的原生会话身份保持分离。 */
 export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #listeners = new Map<AgentProviderEventListener, boolean>();
   readonly #ephemeral = new Map<string, LocalTask>();
   readonly #taskSettlements = new Map<string, Promise<void>>();
+  readonly #failedCommits = new Map<string, () => Promise<void>>();
   readonly #sessions = new Map<string, string>();
   #agentInstance: AcpConnection | undefined;
   readonly #needsDefaults = new Set<string>();
@@ -195,7 +197,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     }
     const task = [...this.#sessions].find(([, session]) => session === notification.sessionId)?.[0];
     if (!task) return;
-    this.#active.get(task)?.update(notification.update);
+    const active = this.#active.get(task);
+    if (active?.running) active.update(notification.update);
   }
   #emitSessionState(sessionId: string, state: AcpSessionMetadata): void {
     const task = [...this.#sessions].find(([, native]) => native === sessionId)?.[0];
@@ -254,6 +257,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   ): Promise<AgentTurn> {
     return submitAcpTurn((submitted) =>
       this.#serial(id, async () => {
+        // 上次回答若因真正的存储故障滞留，用户继续发送时只先补写历史。
+        const recover = this.#failedCommits.get(id);
+        if (recover) await recover();
         if (this.#active.has(id))
           throw new AgentTurnNotSubmittedError("任务已有运行中或待持久化回合");
         const task = await this.#task(id);
@@ -301,7 +307,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         });
         signal?.throwIfAborted();
         if (!this.#ephemeral.has(id)) await this.prepareTaskTitle?.(task, input);
-        const projection = new AcpEventProjection(id, randomUUID(), this.#emit);
+        const projection = new AcpEventProjection(id, randomUUID(), this.#emit, true);
         this.#active.set(id, projection);
         projection.userMessage(`acp:message:user:${randomUUID()}`, input.text, attachments);
         const turn = projection.snapshot();
@@ -322,36 +328,48 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
             (error: unknown) =>
               projection.fail(error instanceof Error ? error.message : "ACP 连接失败"),
           )
-          .then(async (final) => {
-            if (!this.#ephemeral.has(id))
-              await this.history.append(id, final, prompt.map(contentText).join(""));
-            await this.#patch(id, {
-              status: "idle",
-              updatedAt: Math.floor(Date.now() / 1000),
-            });
-            if (!this.#ephemeral.has(id)) this.#active.delete(id);
-          })
-          .catch((error: unknown) => {
-            this.#emit({
-              type: "task.notice",
-              taskId: id,
-              payload: {
-                code: "runtime_warning",
-                level: "warning",
-                message: error instanceof Error ? error.message : "ACP 历史保存失败",
-              },
-            });
-          });
+          .then((final) => this.#commitTurn(id, projection, final, prompt));
         this.#settlements.add(settlement);
         this.#taskSettlements.set(id, settlement);
         void settlement.finally(() => {
-          this.#permissions.finishTurn(id, turn.id);
           this.#settlements.delete(settlement);
           this.#taskSettlements.delete(id);
         });
         return turn;
       }),
     );
+  }
+  async #commitTurn(
+    id: string,
+    projection: AcpEventProjection,
+    final: AgentTurn,
+    prompt: acp.ContentBlock[],
+  ): Promise<void> {
+    this.#permissions.finishTurn(id, final.id);
+    if (this.#ephemeral.has(id)) {
+      projection.publishCompletion(final);
+      return;
+    }
+    const userText = prompt.map(contentText).join("");
+    const fingerprint = projection.content.fingerprint(final, userText);
+    const persist = prepareAcpHistoryCommit(
+      () => projection.content.materialize(final, this.attachments, id),
+      (stored) => this.history.append(id, stored, userText, fingerprint),
+      () => this.#patch(id, { status: "idle", updatedAt: Math.floor(Date.now() / 1000) }),
+    );
+    const commit = async () => {
+      const stored = await persist();
+      // 终态会同步唤醒队列；同一事件循环内先释放占用，再公布持久化后的正文。
+      this.#failedCommits.delete(id);
+      this.#active.delete(id);
+      projection.publishCompletion(stored);
+    };
+    try {
+      await commit();
+    } catch (error) {
+      this.#failedCommits.set(id, commit);
+      projection.storageFailed(error instanceof Error ? error.message : "暂不能保存对话。");
+    }
   }
   generateText(text: string, model: string | undefined, signal: AbortSignal): Promise<string> {
     return generateAcpText(
@@ -427,7 +445,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   async unsubscribeTask(id: string) {
     return this.#serial(id, async () => {
       if (!this.#ephemeral.has(id) && !this.#sessions.has(id)) return "notLoaded" as const;
-      if (this.#active.get(id)?.running) return "busy" as const;
+      if (this.#active.get(id)?.running || this.#failedCommits.has(id)) return "busy" as const;
       await this.#taskSettlements.get(id);
       const session = this.#sessions.get(id);
       if (session) await (await this.#agent()).closeSession(session);
@@ -443,9 +461,11 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     return this.#serial(id, async () => {
       await this.#task(id);
       const session = this.#sessions.get(id);
-      if (!session || this.#active.get(id)?.turnId !== turnId) return;
+      const active = this.#active.get(id);
+      if (!session || !active?.running || active.turnId !== turnId) return;
       const agent = await this.#agent();
-      if (this.#active.get(id)?.turnId !== turnId) return;
+      const current = this.#active.get(id);
+      if (!current?.running || current.turnId !== turnId) return;
       this.#permissions.cancelTurn(id, turnId);
       await agent.cancel(session);
     });

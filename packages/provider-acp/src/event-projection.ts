@@ -7,6 +7,7 @@ import type {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@codexly/protocol";
+import { AcpTurnContent } from "./turn-content.js";
 
 type TextUpdate = Extract<
   SessionUpdate,
@@ -15,6 +16,7 @@ type TextUpdate = Extract<
 
 /** 仅映射 ACP 更新；正文按条目追加，不在每个 token 复制完整历史或写入存储。 */
 export class AcpEventProjection {
+  readonly content = new AcpTurnContent();
   readonly #items = new Map<string, AgentItem>();
   readonly #finished = new Set<string>();
   readonly #startedAt = new Date().toISOString();
@@ -23,12 +25,15 @@ export class AcpEventProjection {
   #error: string | null = null;
   #anonymous = 0;
   #current: { kind: string; id: string } | undefined;
+  #settlementError: string | undefined;
+  #published = false;
   plan: AgentPlan | null = null;
 
   constructor(
     readonly taskId: string,
     readonly turnId: string,
     readonly emit: AgentProviderEventListener,
+    private readonly deferCompletion = false,
   ) {}
 
   /** 状态检查不构造整份回合快照，避免审批和退订复制历史正文。 */
@@ -103,7 +108,7 @@ export class AcpEventProjection {
       this.#items.set(id, item);
       this.#emitItem("item.started", item);
     }
-    const delta = contentText(update.content);
+    const delta = this.content.text(id, contentText(update.content), kind === "thought");
     if (!delta) return;
     if (item.type === "reasoning") {
       // ACP 主动公开的 thought 属于可展示摘要；旧 content 字段不参与两端展示。
@@ -140,11 +145,13 @@ export class AcpEventProjection {
       status,
       ...(old && "input" in old ? { input: old.input } : {}),
       ...(old && "output" in old ? { output: old.output } : {}),
-      ...(update.rawInput !== undefined ? { input: update.rawInput } : {}),
+      ...(update.rawInput !== undefined
+        ? { input: this.content.tool(id, "input", update.rawInput, old?.input) }
+        : {}),
       ...(update.rawOutput !== undefined
-        ? { output: update.rawOutput }
+        ? { output: this.content.tool(id, "output", update.rawOutput, old?.output) }
         : update.content !== undefined
-          ? { output: update.content }
+          ? { output: this.content.tool(id, "output", update.content, old?.output) }
           : {}),
     };
     this.#items.set(id, item);
@@ -163,6 +170,25 @@ export class AcpEventProjection {
       items: structuredClone([...this.#items.values()]),
       forkable: false,
     };
+  }
+
+  /** 保存中的快照不抢先报告终态；失败时仍保留当前已显示的内容。 */
+  visibleSnapshot(): AgentTurn {
+    const turn = this.snapshot();
+    if (this.#settlementError) return { ...turn, status: "failed", error: this.#settlementError };
+    return this.deferCompletion && !this.#published
+      ? { ...turn, status: "running", completedAt: null, error: null }
+      : turn;
+  }
+
+  storageFailed(message: string): void {
+    this.#settlementError = message;
+    this.emit({
+      type: "provider.error",
+      taskId: this.taskId,
+      turnId: this.turnId,
+      payload: { code: "internal_error", message, willRetry: false },
+    });
   }
 
   finish(reason: StopReason): AgentTurn {
@@ -193,13 +219,20 @@ export class AcpEventProjection {
       this.#finished.add(id);
     }
     const turn = this.snapshot();
+    if (!this.deferCompletion) this.publishCompletion(turn);
+    return turn;
+  }
+
+  publishCompletion(turn: AgentTurn): void {
+    if (this.#published) return;
+    this.#published = true;
+    this.#settlementError = undefined;
     this.emit({
       type: "turn.completed",
       taskId: this.taskId,
       turnId: this.turnId,
       payload: { turn },
     });
-    return turn;
   }
 
   #emitItem(type: "item.started" | "item.completed", item: AgentItem): void {

@@ -147,9 +147,10 @@ it.each(["codex", "claude"] as const)(
         expect(snapshot.turns).toHaveLength(2);
         // 重启重放不能改变既有应用回合身份，否则搜索锚点和时间线引用会失效。
         expect(snapshot.turns[0]?.id).toBe(firstBody.turn.id);
-        expect(
-          snapshot.turns.every((turn: { status: string }) => turn.status === "completed"),
-        ).toBe(true);
+        expect(snapshot.turns.map(({ status, error }) => ({ status, error }))).toEqual([
+          { status: "completed", error: null },
+          { status: "completed", error: null },
+        ]);
       });
       expect((await current.store.catalog("task.read", { id: taskId }))?.sessionId).toBe(
         binding?.sessionId,

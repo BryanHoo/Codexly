@@ -84,7 +84,9 @@ export class AcpHistory {
       lock = await open(join(root, "writer.lock"), "wx", 0o600);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EEXIST")
-        throw new Error("ACP 历史正在写入，请稍后重试", { cause: error });
+        throw Object.assign(new Error("ACP 历史正在写入，请稍后重试", { cause: error }), {
+          code: "EBUSY",
+        });
       throw error;
     }
     try {
@@ -136,11 +138,16 @@ export class AcpHistory {
       }
     });
   }
-  async append(task: string, turn: AgentTurn, userText?: string): Promise<void> {
+  async append(
+    task: string,
+    turn: AgentTurn,
+    userText?: string,
+    fingerprint?: string,
+  ): Promise<void> {
     const data = this.#encode(
       userText === undefined
         ? turn
-        : { turn, replayFingerprint: replayFingerprint(turn, userText) },
+        : { turn, replayFingerprint: fingerprint ?? replayFingerprint(turn, userText) },
     );
     await this.#locked(task, async (root) => {
       // 当前终态的恢复重试只检查有界最新页，不扫描全部历史。

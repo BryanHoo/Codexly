@@ -3,10 +3,18 @@ import type { AgentTurn } from "@codexly/protocol";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection } from "./event-projection.js";
 import { replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
+import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
+import { join } from "node:path";
+import type { AcpTurnContent } from "./turn-content.js";
+
+interface ReplayTurn {
+  turn: AgentTurn;
+  content: AcpTurnContent;
+}
 
 /** ACP v1 不提供历史回合分页；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
 export class AcpReplay {
-  readonly #writer: WritableStreamDefaultWriter<AgentTurn>;
+  readonly #writer: WritableStreamDefaultWriter<ReplayTurn>;
   readonly #saved: Promise<void>;
   #current: AcpEventProjection | undefined;
   #replySeen = false;
@@ -16,7 +24,8 @@ export class AcpReplay {
     history: AcpHistory,
     readonly taskId: string,
   ) {
-    const stream = new TransformStream<AgentTurn, AgentTurn>();
+    const stream = new TransformStream<ReplayTurn, ReplayTurn>();
+    const attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
     this.#writer = stream.writable.getWriter();
     const source = async function* () {
       const reader = stream.readable.getReader();
@@ -26,18 +35,23 @@ export class AcpReplay {
         for (;;) {
           const next = await reader.read();
           if (next.done) break;
+          const { turn, content } = next.value;
+          const fingerprint = content.fingerprint(turn);
           const old = aligned ? await previous.next() : undefined;
           if (
             old &&
             !old.done &&
-            (old.value.replayFingerprint ?? replayFingerprint(old.value.turn)) ===
-              replayFingerprint(next.value)
+            (old.value.replayFingerprint ?? replayFingerprint(old.value.turn)) === fingerprint
           ) {
             // 只有同位置的完整内容匹配才保留应用身份和附件；一次错位后不猜测后续对应关系。
             yield old.value;
           } else {
             aligned = false;
-            yield { turn: next.value } satisfies AcpHistoryEntry;
+            const projected = await content.materialize(turn, attachments, taskId);
+            yield {
+              turn: projected,
+              ...(turn !== projected ? { replayFingerprint: fingerprint } : {}),
+            } satisfies AcpHistoryEntry;
           }
         }
       } finally {
@@ -85,7 +99,10 @@ export class AcpReplay {
     if (!this.#current) return;
     const turn = this.#current.finish("end_turn");
     // 上游重放缺少回合时间，保持未知，不能以本次读取时间伪造历史发生时间。
-    await this.#writer.write({ ...turn, startedAt: null, completedAt: null });
+    await this.#writer.write({
+      turn: { ...turn, startedAt: null, completedAt: null },
+      content: this.#current.content,
+    });
     this.#current = undefined;
     this.#replySeen = false;
     this.#userId = undefined;

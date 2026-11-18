@@ -336,6 +336,13 @@ export function TimelineItemContent({
             )}
             {item.input === undefined ? null : <ToolInput input={item.input} />}
             <ToolOutput errorText={errorText} output={hasErrorOutput ? undefined : item.output} />
+            {item.outputAttachments?.map((attachment) => (
+              <MessageFileAttachment
+                attachment={attachment}
+                key={attachment.id}
+                url={buildTaskAttachmentUrl("", projectId, taskId, attachment.id)}
+              />
+            ))}
           </ToolContent>
         </Tool>
       );

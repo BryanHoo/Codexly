@@ -133,7 +133,11 @@ pub(super) async fn event_loop(
             transport.respond(message.take());
         } else {
             let event = message["event"].take();
-            let completed = if event["type"] == "turn.completed" {
+            // 本地存储终止也结束前端运行态，但不伪造已入历史的完成事件。
+            let completed = if event["type"] == "turn.completed"
+                || (event["type"] == "provider.error"
+                    && event["payload"]["willRetry"].as_bool() == Some(false))
+            {
                 event["taskId"]
                     .as_str()
                     .zip(event["turnId"].as_str())

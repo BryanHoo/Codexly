@@ -30,6 +30,7 @@ export const AgentToolItemSchema = Type.Object(
     input: Type.Optional(Type.Unknown()),
     name: Type.String({ minLength: 1 }),
     output: Type.Optional(Type.Unknown()),
+    outputAttachments: Type.Optional(Type.Array(AgentMessageAttachmentSchema, { maxItems: 128 })),
     progress: Type.Optional(Type.String({ maxLength: 8_192 })),
     status: AgentItemStatusSchema,
     type: Type.Literal("tool"),
