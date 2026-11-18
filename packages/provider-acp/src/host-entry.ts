@@ -2,7 +2,6 @@ import { isAbsolute } from "node:path";
 import { mkdir } from "node:fs/promises";
 import type { Readable, Writable } from "node:stream";
 import { AcpHost } from "./host.js";
-import { AcpProcess } from "./process.js";
 import type { AcpAgentLauncher } from "./runtime.js";
 import {
   readAcpLegacyApplicationSettings,
@@ -31,23 +30,11 @@ export async function runAcpHost(
     throw new Error("ACP 宿主需要数据目录及两个原生程序的绝对路径");
   io.signal?.throwIfAborted();
   await mkdir(directory, { recursive: true, mode: 0o700 });
-  const launcher: AcpAgentLauncher =
-    launch ??
-    ((engine, scope, callbacks) =>
-      AcpProcess.start(
-        {
-          command: process.execPath,
-          args: ["--acp-agent", engine],
-          cwd: scope.rootPath,
-          env: engine === "codex" ? { CODEX_PATH: codex } : { CLAUDE_CODE_EXECUTABLE: claude },
-        },
-        callbacks,
-      ));
   // 仅可信原生启动器提供旧应用目录；三参数独立宿主不推测父目录或读取用户文件。
   const host = new AcpHost(
     directory,
     io.output,
-    launcher,
+    launch,
     applicationDirectory === undefined
       ? undefined
       : (engine) => readAcpLegacyApplicationSettings(applicationDirectory, engine),

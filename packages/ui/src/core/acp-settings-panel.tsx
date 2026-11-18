@@ -1,7 +1,11 @@
+import { Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog.js";
+import { toast } from "./notifications.js";
+import { AcpAgentPicker, type AcpCatalogClient } from "./acp-catalog-settings.js";
 import { SettingsGroup } from "./settings-group.js";
-import { useState, useContext, useSyncExternalStore } from "react";
+import { useState, useRef, useContext, useEffect, useSyncExternalStore } from "react";
 import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AcpAgentProfile, AgentEngine } from "@codexly/protocol";
+import type { AcpAgentProfile, AgentEngine, AcpAgentCatalogPage } from "@codexly/protocol";
 import { AgentEngineIcon } from "./agent-engine-icon.js";
 import { AcpAuthSettings, type AcpAuthClient } from "./acp-auth-settings.js";
 import {
@@ -16,7 +20,7 @@ import { useSettingsNavigation } from "./settings-save-status.js";
 import { Button } from "./button.js";
 import { Switch } from "./switch.js";
 
-const agents = [
+const legacyAgents = [
   { engine: "codex", name: "Codex" },
   { engine: "claude", name: "Claude Code" },
 ] as const;
@@ -29,16 +33,36 @@ export function AcpSettingsPanel({
   Select,
   initialEngine = "codex",
 }: Readonly<{
-  client: Partial<AcpAuthClient> & AcpDefaultsClient;
+  client: Partial<AcpAuthClient & AcpCatalogClient> & AcpDefaultsClient;
   language: "zh-CN" | "en";
   initialEngine?: AgentEngine;
 }> &
   Pick<AcpConfigOptionsProps, "Field" | "Select">) {
-  const [engine, setEngine] = useState(initialEngine);
+  const [selection, setEngine] = useState(initialEngine);
+  const [adding, setAdding] = useState(false);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const [installing, setInstalling] = useState(false);
+  const [updating, setUpdating] = useState<AgentEngine>();
+  const managed =
+    !!client.getAcpAgentCatalog && !!client.installAcpAgent && !!client.configureAcpAgent;
+  const catalog = useQuery({
+    queryKey: ["acp-agent-catalog"],
+    enabled: managed,
+    queryFn: ({ signal }) =>
+      client.getAcpAgentCatalog?.({ signal }) ?? Promise.reject(new Error("ACP unavailable")),
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  const agents: readonly { engine: AgentEngine; name: string }[] = managed
+    ? (catalog.data?.agents.filter((agent) => agent.installed) ?? [])
+    : legacyAgents;
+  const engine = agents.some((agent) => agent.engine === selection) ? selection : agents[0]?.engine;
+
   const navigate = useSettingsNavigation();
   const enabled = useSelectedEngines();
   const chinese = language === "zh-CN";
-  const name = engine === "codex" ? "Codex" : "Claude Code";
+  const name = agents.find((agent) => agent.engine === engine)?.name ?? "";
   const cache = useQueryClient();
   const activation = useContext(EngineActivationContext);
   const snapshot = useSyncExternalStore(
@@ -46,6 +70,37 @@ export function AcpSettingsPanel({
     activation?.getSnapshot ?? noSnapshot,
     activation?.getSnapshot ?? noSnapshot,
   );
+  useEffect(() => {
+    if (managed && catalog.data)
+      activation?.synchronize(
+        catalog.data.agents
+          .filter((agent) => agent.installed && agent.enabled)
+          .map((agent) => agent.engine),
+      );
+  }, [activation, managed, catalog.data]);
+  const configureEnabled = async (target: AgentEngine, checked: boolean) => {
+    const agent = catalog.data?.agents.find((agent) => agent.engine === target);
+    if (!agent?.command || !client.configureAcpAgent) throw new Error("ACP unavailable");
+    setUpdating(target);
+    try {
+      await cache.cancelQueries({ queryKey: ["acp-agent-catalog"] });
+      const page = await client.configureAcpAgent({
+        engine: target,
+        name: agent.name,
+        command: agent.command,
+        args: agent.args ?? [],
+        enabled: checked,
+      });
+      cache.setQueryData<AcpAgentCatalogPage>(["acp-agent-catalog"], page);
+      activation?.synchronize(
+        page.agents
+          .filter((agent) => agent.enabled && agent.installed)
+          .map((agent) => agent.engine),
+      );
+    } finally {
+      setUpdating(undefined);
+    }
+  };
   return (
     <section aria-label="ACP" className="h-full min-h-0 min-w-0">
       <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden lg:grid-rows-1 lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -55,7 +110,27 @@ export function AcpSettingsPanel({
         >
           <div className="mb-3 flex items-center justify-between px-2">
             <h2 className="text-label font-medium text-muted-foreground">Agent</h2>
-            <span className="text-label tabular-nums text-subtle-foreground">{agents.length}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-label tabular-nums text-subtle-foreground">
+                {agents.length}
+              </span>
+              {managed ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-compact"
+                  ref={addButton}
+                  aria-label={chinese ? "添加 Agent" : "Add agent"}
+                  onClick={() => {
+                    navigate(() => {
+                      setAdding(true);
+                    });
+                  }}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
           <nav
             aria-label={chinese ? "选择 Agent" : "Choose agent"}
@@ -91,10 +166,16 @@ export function AcpSettingsPanel({
                   </Button>
                   <Switch
                     aria-label={chinese ? `启用 ${agent.name}` : `Enable ${agent.name}`}
-                    checked={(snapshot?.engines ?? enabled)?.includes(agent.engine) ?? true}
+                    checked={
+                      managed
+                        ? (catalog.data?.agents.find((item) => item.engine === agent.engine)
+                            ?.enabled ?? false)
+                        : ((snapshot?.engines ?? enabled)?.includes(agent.engine) ?? true)
+                    }
                     disabled={
-                      !activation ||
-                      snapshot?.states[agent.engine].phase === "preparing" ||
+                      (!activation && !managed) ||
+                      updating === agent.engine ||
+                      snapshot?.states[agent.engine]?.phase === "preparing" ||
                       ((snapshot?.engines ?? enabled)?.length === 1 &&
                         (snapshot?.engines ?? enabled)?.includes(agent.engine))
                     }
@@ -108,6 +189,12 @@ export function AcpSettingsPanel({
                     }
                     onCheckedChange={(checked) => {
                       navigate(() => {
+                        if (managed) {
+                          void configureEnabled(agent.engine, checked).catch(() => {
+                            toast.error(chinese ? "更新失败" : "Could not update");
+                          });
+                          return;
+                        }
                         if (!activation) return;
                         if (!checked) {
                           activation.disable(agent.engine);
@@ -129,7 +216,7 @@ export function AcpSettingsPanel({
                     }}
                   />
                 </div>
-                {snapshot?.states[agent.engine].phase === "failed" &&
+                {snapshot?.states[agent.engine]?.phase === "failed" &&
                 (snapshot.engines.includes(agent.engine) || engine !== agent.engine) ? (
                   <p role="alert" className="px-2.5 pb-2 text-label text-danger">
                     {chinese ? "更新失败，请重试" : "Could not update. Try again."}
@@ -139,43 +226,88 @@ export function AcpSettingsPanel({
             ))}
           </nav>
         </aside>
-        <div
-          className="flex min-h-0 min-w-0 flex-col overflow-hidden"
-          aria-label={chinese ? `${name} 配置` : `${name} settings`}
-        >
-          <header className="flex shrink-0 items-center gap-3 border-b border-separator px-5 py-4 sm:px-6">
-            <span
-              aria-hidden="true"
-              className="flex size-8 shrink-0 items-center justify-center rounded-control border border-separator bg-control/50 [&>svg]:size-6"
-            >
-              <AgentEngineIcon engine={engine} />
-            </span>
-            <h2 className="text-body font-semibold tracking-tight">{name}</h2>
-            <AgentVersion engine={engine} />
-          </header>
+        {engine ? (
           <div
-            data-slot="settings-detail-scroll"
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6"
+            className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+            aria-label={chinese ? `${name} 配置` : `${name} settings`}
           >
-            <AcpEngineSettingsGate key={engine} client={client} engine={engine} language={language}>
-              <div className="space-y-7">
-                <AcpAuthSettings key={engine} client={client} engine={engine} language={language} />
-                <SettingsGroup title={chinese ? "会话默认配置" : "Session defaults"}>
-                  <AcpDefaultSettings
+            <header className="flex shrink-0 items-center gap-3 border-b border-separator px-5 py-4 sm:px-6">
+              <span
+                aria-hidden="true"
+                className="flex size-8 shrink-0 items-center justify-center rounded-control border border-separator bg-control/50 [&>svg]:size-6"
+              >
+                <AgentEngineIcon engine={engine} />
+              </span>
+              <h2 className="text-body font-semibold tracking-tight">{name}</h2>
+              <AgentVersion engine={engine} />
+            </header>
+            <div
+              data-slot="settings-detail-scroll"
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6"
+            >
+              <AcpEngineSettingsGate
+                key={engine}
+                client={client}
+                engine={engine}
+                language={language}
+                prepareAgent={managed ? () => configureEnabled(engine, true) : undefined}
+              >
+                <div className="space-y-7">
+                  <AcpAuthSettings
                     key={engine}
                     client={client}
                     engine={engine}
-                    Field={Field}
-                    Select={Select}
-                    labels={acpDefaultSettingsLabels[language]}
                     language={language}
                   />
-                </SettingsGroup>
-              </div>
-            </AcpEngineSettingsGate>
+                  <SettingsGroup title={chinese ? "会话默认配置" : "Session defaults"}>
+                    <AcpDefaultSettings
+                      key={engine}
+                      client={client}
+                      engine={engine}
+                      Field={Field}
+                      Select={Select}
+                      labels={acpDefaultSettingsLabels[language]}
+                      language={language}
+                    />
+                  </SettingsGroup>
+                </div>
+              </AcpEngineSettingsGate>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
+      <Dialog
+        open={adding}
+        onOpenChange={(open) => {
+          if (!installing)
+            navigate(() => {
+              setAdding(open);
+            });
+        }}
+      >
+        <DialogContent
+          closeLabel={chinese ? "关闭" : "Close"}
+          closeDisabled={installing}
+          // 触发按钮位于左栏，显式交给通用浮层恢复焦点，兼容 Safari 点击按钮不聚焦的行为。
+          finalFocus={addButton}
+          className="flex max-h-[min(44rem,calc(100dvh-2rem))] flex-col overflow-hidden sm:max-w-xl"
+        >
+          <DialogHeader>
+            <DialogTitle>{chinese ? "添加 Agent" : "Add agent"}</DialogTitle>
+          </DialogHeader>
+          {adding ? (
+            <AcpAgentPicker
+              client={client}
+              language={language}
+              onPendingChange={setInstalling}
+              onAdded={(target) => {
+                setEngine(target);
+                setAdding(false);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

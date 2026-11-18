@@ -1,4 +1,4 @@
-import { LoaderCircle, RotateCcw, X } from "lucide-react";
+import { LoaderCircle, RotateCcw } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -140,12 +140,13 @@ export function WallpaperImageDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="wallpaper-dialog" aria-describedby={undefined}>
+      <DialogContent
+        closeLabel={t("wallpaper.close")}
+        className="wallpaper-dialog"
+        aria-describedby={undefined}
+      >
         <div className="wallpaper-section-heading">
           <DialogTitle>{title}</DialogTitle>
-          <WallpaperAction label={t("wallpaper.close")} onClick={onClose}>
-            <X aria-hidden="true" />
-          </WallpaperAction>
         </div>
         <div className="wallpaper-original">
           {error ? (

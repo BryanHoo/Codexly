@@ -1,3 +1,4 @@
+import { isAgentEngine } from "@codexly/protocol";
 import type {
   AgentEngine,
   SearchOccurrencesPage,
@@ -99,7 +100,7 @@ export class CatalogSearchService implements AgentSearchProvider {
             )
           )
             continue;
-          if (task.provider !== "codex" && task.provider !== "claude") continue;
+          if (!isAgentEngine(task.provider)) continue;
           const metadata = localTaskMetadata(task);
           if (input.kind === "tasks") {
             data[index] = { task: metadata, snippet: "" };

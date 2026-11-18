@@ -30,7 +30,9 @@ pub(crate) fn valid(v: &Value) -> bool {
         ],
     ) || !text(&v["name"], 1, 120)
         || !text(&v["projectId"], 1, 128)
-        || !matches!(v["engine"].as_str(), Some("codex" | "claude"))
+        || !v["engine"]
+            .as_str()
+            .is_some_and(crate::infrastructure::acp_runtime::valid_agent_engine)
         || !v["enabled"].is_boolean()
     {
         return false;

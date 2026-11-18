@@ -8,7 +8,7 @@
 
 - [ ] 通过 props 接收翻译与平台动作，不反向导入两端应用或服务运行时。
 - [ ] 共享 Dialog 的非模态入口（`modal={false}`）不渲染遮罩，保留后台工作台交互；懒加载完成后再读取弹窗 DOM，浏览器交互测试须加载实际样式。回归入口为桌面 `project-sidebar-actions.browser.test.tsx`、`pdf-preview.browser.test.tsx`、`subagent.browser.test.tsx` 和 `task-timeline-operation-groups.browser.test.tsx`。
-- [ ] 模态弹窗统一复用 `Dialog`，须有可访问的右上角关闭入口；新入口向共享 `DialogContent` 传入翻译后的 `closeLabel`，已有预览工具栏关闭按钮可继续使用。操作期间通过 `closeDisabled` 禁用按钮，并在 `onOpenChange` 保留提交锁和未保存草稿保护。配置 `closeLabel` 的内容使用共享 `DialogTitle`，标题行按文字字号收紧行高，关闭按钮悬停容器随标题等高并对齐上下边缘，内部 14px 图标垂直居中；不固定按钮高度，标题栏无需额外预留右侧内边距。关闭与焦点恢复复用 Radix，草稿/待办浮层使用 `PopoverClose`。回归入口为桌面 `dialog-close.browser.test.tsx`（宽窄屏、长标题、提交期间禁用及焦点恢复）、`saved-prompts.browser.test.tsx`（脏草稿）和 Web `app-shell-new-project.spec.ts`（嵌套选择器）。
+- [ ] 模态弹窗统一复用 `Dialog` / `Drawer`，共享内容组件默认提供固定右上角关闭按钮；业务必须传入本地化 `closeLabel`，不得另写重复的关闭图标。操作期间使用 `closeDisabled` 统一保护按钮、Escape 与遮罩关闭，`onOpenChange` 保留提交锁和未保存草稿保护。按钮命中区域为 32px 方形、图标为 16px，与弹窗右上边缘间隔 16px；`DialogTitle` 自动预留右侧空间，预览和搜索工具栏中的其他操作也须避让按钮。关闭与焦点恢复复用 Base UI，草稿/待办锚点浮层复用 `Popover` / `PopoverClose`。回归入口为 `tools/dialog-contract.test.mjs`（纳入 `lint:architecture`）、桌面 `dialog-close.browser.test.tsx`（宽窄屏、长标题、默认关闭入口、提交保护和嵌套焦点恢复）、`acp-catalog.browser.test.tsx`（添加与安装保护）、`saved-prompts.browser.test.tsx`（脏草稿）和 Web `app-shell-new-project.spec.ts`（嵌套选择器）。
 - [ ] 渲染模型复用 Frontend Core；重型语法、编辑器和面板按需加载，缓存与任务调度保持有界。
 - [ ] 交互变更同步检查 Web / 移动与桌面，核对焦点、滚动、触控、键盘及流式追加行为。
 - [ ] 仅有聊天时隐藏标签栏；存在文档标签时聊天始终首位且可见；常规批量关闭保留固定项，显式关闭固定文件也不能关闭聊天。批量关闭经过单次保存保护，失败整批保留；拖动仅在放下时提交顺序，不逐帧刷新 React。交互约定与验证见 [文档工作区](../../../../docs/document-workspace.md)。
@@ -115,3 +115,16 @@
 - ACP 快速模式仅在 Codex 身份明确为官方账号（`authStatus.kind=account`）且不存在生效的 API 连接覆盖（`connection`）时显示；API Key、网关、外部凭据、未登录、未知/读取失败及其他 Agent 均隐藏。仅为已公布快速模式的 Codex 控件按需订阅共享身份查询，复用设置页缓存；身份重新确认期间先隐藏，不启动其他 Agent。
 - 聊天、会话默认设置和计划配置共用快速模式可见性边界，仅隐藏控件，不清空已保存的原始值。身份变化即时更新显示，不触发配置保存。
 - “Plan”中文统一为“计划”；思考量在发送前常驻，不能与可折叠的左侧配置一起隐藏。回归入口包含 `acp-fast-mode-visibility.browser.test.tsx` 的官方/非官方身份、API 覆盖、缓存变化及双端实际输入框位置断言。
+
+## ACP 后台发现与应用启动
+
+- ACP Agent 检测及自动准备不能阻塞工作区挂载；检测未完成时可用列表为空，不从旧浏览器双引擎选择推断安装状态。空结果、部分失败和请求失败均保持应用可操作，添加入口位于设置 → ACP。
+- 后台目录结果同步到同一个 EngineActivation store，不能使用 key 或条件分支重挂载工作区。同步不握手、不启动模型、不改写旧浏览器偏好，保留用户正在编辑的状态。
+- 使用共享 Base UI Toast manager 的同一通知 ID 更新后台进度、成功及失败。检测中通知不过期；失败支持显式刷新重试，快速完成的重试也必须产生结果通知。根组件卸载回收通知，不额外轮询。
+- 回归：`engine-activation.test.ts` 验证目录同步与空列表；`desktop/tests/browser/acp-catalog.browser.test.tsx` 在 Chromium/WebKit、390px/1280px 验证 pending 期间可操作、原通知更新、状态保留、失败重试和空目录；`acp-engine-setup.browser.test.tsx` 验证两端真实入口。
+
+## ACP 设置布局与添加入口
+
+- ACP 设置沿用原有左侧 Agent 栏和右侧认证、供应商、会话默认配置布局。目录管理不得替换整个设置页面；只在左侧 Agent 标题旁增加添加按钮，通过独立弹窗安装或添加自定义 Agent。
+- 添加完成后更新左侧列表并选择新增 Agent；右侧继续复用原有配置组件及保存屏障。添加流程不展示平台原理、发现机制等解释段落，保留必要的字段、状态和错误反馈。
+- `acp-catalog.browser.test.tsx` 验证添加按钮归属左栏、原配置区保留、弹窗安装及自定义配置；`acp-settings-panel.browser.test.tsx` 继续覆盖原有保存和布局。

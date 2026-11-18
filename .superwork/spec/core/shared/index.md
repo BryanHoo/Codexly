@@ -40,3 +40,11 @@
 - 新会话先保存冻结的初始化配置再发布原厂会话绑定；失败重启恢复原 sessionId，成功后移除敏感快照。不得自动重发结果未知的 prompt。
 - 历史重放按顺序及正文指纹保留原回合 / 消息身份和附件，不用相似匹配推断；搜索只匹配可见正文，缓存搜索不启动 agent，冷搜索仅加载原会话且必须可取消、关闭和限制并发。
 - 验证覆盖真实 SQLite / 子进程崩溃、SDK 双向流、编译宿主及真实账号首发 / 重启续聊；不能以跳过的可选测试或空历史重放替代证明。
+
+## ACP Agent 目录与身份
+
+- Agent 身份保留 `codex` / `claude`；新增身份使用 `acp-` 加小写字母、数字和连字符，后缀 1–96 字符。共享协议、JS Worker、Rust 校验保持一致，任务创建后不可切换。
+- 发现只检查宿主可执行文件，不请求模型；未检测到的 Agent 只在用户选择后安装。用户停用记录、启动配置与私有环境变量优先，刷新不得覆盖。
+- Web 与桌面共用目录管理器和 ACP 执行；安装记录私有、原子写入，跨宿主使用 SQLite owner CAS 锁，失败不启用。公开列表只返回环境变量名称，不回显值。
+- 旧全局设置 Schema 保持 v0.53.0 回滚兼容，其他 Agent 的生成偏好和计划配置只保存到独立 ACP 记录。默认值和预览遇到未实现 close 扩展的第三方 Agent 时回收独占设置进程，不遗留临时会话。
+- 参考 [Agent 使用说明](../../../../docs/agent-engines.md)；回归入口为 `agent-catalog.test.ts`、`agent-installer.test.ts`、`runtime.test.ts`、`app-acp.test.ts` 与 `desktop/tests/browser/acp-catalog.browser.test.tsx`。

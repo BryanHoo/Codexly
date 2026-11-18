@@ -90,8 +90,9 @@ describe("GlobalSettingsPage", () => {
         />,
       );
       expect(markup).toContain('aria-label="ACP"');
-      expect(markup).toContain("会话默认配置");
-      expect(markup).toContain("ACP 模型");
+      expect(markup).toContain("选择 Agent");
+      expect(markup).not.toContain("会话默认配置");
+      expect(markup).toContain("添加 Agent");
       expect(markup).not.toContain("Codex unavailable");
     },
   );

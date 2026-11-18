@@ -1,4 +1,17 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
+import { toast } from "./notifications.js";
+import { useQuery } from "@tanstack/react-query";
+import type { AcpCatalogClient } from "./acp-catalog-settings.js";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AcpDefaults, AgentEngine } from "@codexly/protocol";
 import { ENGINE_SETUP_KEY, readEngineSetup } from "@codexly/frontend-core/engine-setup";
@@ -16,7 +29,7 @@ export interface AcpEngineSetupClient extends AcpAuthClient {
   getAcpDefaults: (engine: AgentEngine) => Promise<AcpDefaults>;
 }
 
-export function AcpEngineSetupGate({
+function LegacyAcpEngineSetupGate({
   children,
   client,
   language,
@@ -77,5 +90,134 @@ export function AcpEngineSetupGate({
     >
       {children}
     </EngineSetupGate>
+  );
+}
+
+/** 工作区先挂载；目录检测与适配器准备在后台请求中完成，只通过应用通知反馈。 */
+function CatalogSetup({
+  children,
+  client,
+  language,
+  storage = browserSetupStorage,
+}: Parameters<typeof LegacyAcpEngineSetupGate>[0] & { client: Partial<AcpCatalogClient> }) {
+  const privateStorage = useMemo(() => createAcpEngineSetupStorage(storage), [storage]);
+  const refreshing = useRef(false);
+  const query = useQuery({
+    queryKey: ["acp-agent-catalog"],
+    queryFn: ({ signal }) =>
+      client.getAcpAgentCatalog?.({ signal, refresh: refreshing.current }) ??
+      Promise.reject(new Error("ACP catalog unavailable")),
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  const engines = useMemo(
+    () =>
+      query.data?.agents
+        .filter((agent) => agent.installed && agent.enabled)
+        .map((agent) => agent.engine) ?? [],
+    [query.data],
+  );
+  const notificationId = `acp-discovery-${useId()}`;
+  const running = useRef(false);
+  const zh = language.startsWith("zh");
+  const notifyLoading = useCallback(() => {
+    running.current = true;
+    toast.add({
+      id: notificationId,
+      type: "loading",
+      title: zh
+        ? "正在后台检测和准备 Agent…"
+        : "Discovering and preparing agents in the background…",
+      description: zh
+        ? "可以继续使用应用，准备完成后会自动启用。"
+        : "You can keep using the app. Agents become available when ready.",
+      timeout: 0,
+    });
+  }, [notificationId, zh]);
+  useEffect(() => {
+    if (query.isFetching) {
+      if (!running.current) notifyLoading();
+      return;
+    }
+    if (!running.current) return;
+    running.current = false;
+    if (query.isError) {
+      toast.error(zh ? "Agent 后台检测失败" : "Agent discovery failed", {
+        id: notificationId,
+        duration: 0,
+        description: zh
+          ? "可以继续使用应用，稍后重试或在设置 → ACP 中配置。"
+          : "Keep using the app. Retry or configure agents in Settings → ACP.",
+        action: {
+          label: zh ? "重试" : "Retry",
+          onClick: () => {
+            refreshing.current = true;
+            notifyLoading();
+            void query.refetch().finally(() => {
+              refreshing.current = false;
+            });
+          },
+        },
+      });
+      return;
+    }
+    const agents = query.data?.agents ?? [];
+    const failed = agents.filter((agent) => agent.error);
+    const available = agents.filter((agent) => agent.installed && agent.enabled);
+    if (failed.length) {
+      toast.warning(zh ? "部分 Agent 准备失败" : "Some agents could not be prepared", {
+        id: notificationId,
+        duration: 0,
+        description:
+          failed
+            .slice(0, 3)
+            .map((agent) => agent.name)
+            .join(", ") +
+          (zh ? "，可在设置 → ACP 中重试安装。" : ". Retry installation in Settings → ACP."),
+      });
+    } else if (available.length) {
+      toast.success(zh ? "Agent 已就绪" : "Agents are ready", {
+        id: notificationId,
+        description: available
+          .slice(0, 4)
+          .map((agent) => agent.name)
+          .join(", "),
+      });
+    } else {
+      toast.info(zh ? "尚未发现可用 Agent" : "No agents available yet", {
+        id: notificationId,
+        description: zh ? "可在设置 → ACP 中添加 Agent。" : "Add agents in Settings → ACP.",
+      });
+    }
+  }, [
+    notificationId,
+    query.isFetching,
+    query.isError,
+    query.data,
+    query.refetch,
+    zh,
+    notifyLoading,
+  ]);
+  useEffect(
+    () => () => {
+      running.current = false;
+      toast.dismiss(notificationId);
+    },
+    [notificationId],
+  );
+  return (
+    <EngineSelectionProvider engines={engines} synchronize storage={privateStorage}>
+      {children}
+    </EngineSelectionProvider>
+  );
+}
+export function AcpEngineSetupGate(
+  props: Parameters<typeof LegacyAcpEngineSetupGate>[0] & { client: Partial<AcpCatalogClient> },
+) {
+  return props.client.getAcpAgentCatalog ? (
+    <CatalogSetup {...props} />
+  ) : (
+    <LegacyAcpEngineSetupGate {...props} />
   );
 }

@@ -1,3 +1,4 @@
+import type { AgentEngine } from "@codexly/protocol";
 import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
 import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
@@ -99,7 +100,7 @@ export function GlobalSettingsPage<
   const { t } = useTranslation("settings");
   const projectData = useContext(ProjectDataContext);
   const getGenerationModels = useCallback(
-    async (engine: "codex" | "claude") =>
+    async (engine: AgentEngine) =>
       engine === "codex" ? models : (await nativeClient.getEngineProfile(engine)).models.data,
     [models],
   );

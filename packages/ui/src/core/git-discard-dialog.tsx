@@ -36,6 +36,7 @@ export default function GitDiscardDialog({
         description: "将恢复所选文件的暂存及未暂存变更，并删除所选新增文件。此操作无法撤销。",
         confirm: "确认丢弃",
         cancel: "取消",
+        close: "关闭",
         pending: "正在丢弃…",
         stale: "变更已更新，请取消后重新选择并确认。",
       }
@@ -45,6 +46,7 @@ export default function GitDiscardDialog({
           "Restore staged and unstaged changes and delete selected new files. This cannot be undone.",
         confirm: "Confirm discard",
         cancel: "Cancel",
+        close: "Close",
         pending: "Discarding…",
         stale: "Changes have updated. Cancel and review the selection again.",
       };
@@ -69,7 +71,7 @@ export default function GitDiscardDialog({
         if (!open && !discarding) onCancel();
       }}
     >
-      <DialogContent closeDisabled={discarding}>
+      <DialogContent closeLabel={copy.close} closeDisabled={discarding}>
         <DialogHeader>
           <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>

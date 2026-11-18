@@ -1,3 +1,4 @@
+import { isAgentEngine } from "@codexly/protocol";
 import type {
   AgentCapabilities,
   SessionConfigOption,
@@ -9,8 +10,7 @@ import type { AcpSettingsMigration, AcpTaskBinding } from "@codexly/protocol";
 export function bindAcpTask(
   task: Pick<LocalTask, "id" | "provider" | "sessionId" | "cwd">,
 ): AcpTaskBinding {
-  if (task.provider !== "codex" && task.provider !== "claude")
-    throw new Error("无法迁移未知引擎的任务");
+  if (!isAgentEngine(task.provider)) throw new Error("无法迁移未知引擎的任务");
   if (!task.id || !task.cwd || task.sessionId === "") throw new Error("历史任务身份不完整");
   return { taskId: task.id, engine: task.provider, sessionId: task.sessionId, cwd: task.cwd };
 }

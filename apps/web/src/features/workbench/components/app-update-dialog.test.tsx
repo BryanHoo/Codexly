@@ -73,7 +73,8 @@ describe("更新日志弹窗", () => {
     const markup = renderDialog({ isPending: true, onUpdate, percentage: 42 });
     expect(markup).toContain('value="42"');
     expect(markup).toContain("42%");
-    expect(markup.match(/disabled=""/gu)).toHaveLength(2);
+    // 只统计原生按钮的 disabled，Base UI 还会输出 data-disabled 状态属性。
+    expect(markup.match(/<button\b[^>]* disabled=""[^>]*>/gu)).toHaveLength(2);
     actions.update?.();
     expect(onUpdate).not.toHaveBeenCalled();
   });

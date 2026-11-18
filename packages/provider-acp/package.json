@@ -15,8 +15,6 @@
     }
   },
   "dependencies": {
-    "@agentclientprotocol/claude-agent-acp": "catalog:",
-    "@agentclientprotocol/codex-acp": "catalog:",
     "@agentclientprotocol/sdk": "catalog:",
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
@@ -24,5 +22,9 @@
     "proxy-chain": "catalog:",
     "smol-toml": "catalog:",
     "undici": "catalog:"
+  },
+  "devDependencies": {
+    "@agentclientprotocol/codex-acp": "catalog:",
+    "@agentclientprotocol/claude-agent-acp": "catalog:"
   }
 }

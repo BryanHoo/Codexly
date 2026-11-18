@@ -10,8 +10,9 @@ export async function previewAcpConfig(
   saved: AcpStoredSettings,
   values: AcpConfigValues,
   change?: AcpConfigPreviewRequest["change"],
+  releaseSession?: (id: string) => Promise<void>,
 ) {
-  if (!connection.initialization.agentCapabilities?.sessionCapabilities?.close)
+  if (!connection.initialization.agentCapabilities?.sessionCapabilities?.close && !releaseSession)
     throw new Error("ACP agent 不支持预览会话关闭");
   const session = await connection.newSession({ cwd, mcpServers: [] });
   try {
@@ -41,6 +42,7 @@ export async function previewAcpConfig(
     };
   } finally {
     // 关闭失败必须向上报告，不能把泄漏的会话当作成功预览。
-    await connection.closeSession(session.sessionId);
+    if (releaseSession) await releaseSession(session.sessionId);
+    else await connection.closeSession(session.sessionId);
   }
 }

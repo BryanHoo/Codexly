@@ -1,3 +1,7 @@
+const validAgentEngine = (value) =>
+  value === "codex" ||
+  value === "claude" ||
+  (typeof value === "string" && /^acp-[a-z0-9][a-z0-9-]{0,95}$/.test(value));
 import { createAcpTaskTitleOperations } from "./acp-task-title-worker.js";
 import { createAcpStorageLockOperations } from "./acp-storage-lock-worker.js";
 import { createApplicationPreferencesOperations } from "./application-preferences-worker.js";
@@ -200,7 +204,7 @@ export function createLocalCatalogOperations(db) {
         if (
           !Array.isArray(input.providers) ||
           input.providers.length > 2 ||
-          input.providers.some((provider) => provider !== "codex" && provider !== "claude")
+          input.providers.some((provider) => !validAgentEngine(provider))
         )
           throw new Error("Invalid task providers");
         where.push(`provider IN (${input.providers.map(() => "?").join(",")})`);

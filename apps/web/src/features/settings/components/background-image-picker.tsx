@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
 import {
@@ -6,6 +5,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from "../../../shared/components/core/dialog.js";
 import { BingBackgroundSettings } from "./bing-background-settings.js";
@@ -24,23 +24,11 @@ export function BackgroundImagePicker({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="wallpaper-picker">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <DialogTitle>{t("wallpaper.choose")}</DialogTitle>
-            <DialogDescription className="mt-1">
-              {t("wallpaper.pickerDescription")}
-            </DialogDescription>
-          </div>
-          <Button
-            aria-label={t("wallpaper.closePicker")}
-            size="icon-sm"
-            variant="ghost"
-            onClick={onClose}
-          >
-            <X aria-hidden="true" />
-          </Button>
-        </div>
+      <DialogContent closeLabel={t("wallpaper.closePicker")} className="wallpaper-picker">
+        <DialogHeader className="gap-1">
+          <DialogTitle>{t("wallpaper.choose")}</DialogTitle>
+          <DialogDescription>{t("wallpaper.pickerDescription")}</DialogDescription>
+        </DialogHeader>
         <div className="wallpaper-picker-body">
           {props.preference.mode === "bing" ? (
             <BingBackgroundSettings

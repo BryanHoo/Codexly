@@ -316,3 +316,83 @@ it("认证表单凭据通过 HTTP 到达服务，响应不回显秘密", async (
   });
   expect(response.body).not.toContain("private-form-key");
 });
+it("Agent 目录支持任意 ACP 身份、严格配置和安装幂等", async () => {
+  const page = {
+    agents: [
+      {
+        engine: "acp-gemini" as const,
+        name: "Gemini",
+        description: "",
+        installed: false,
+        enabled: false,
+        detected: false,
+        environmentKeys: [],
+      },
+    ],
+  };
+  const install = vi.fn(() => Promise.resolve()),
+    configure = vi.fn(() => Promise.resolve());
+  const service = {
+    inspect: () => Promise.resolve(profile),
+    readDefaults: () => Promise.resolve(defaults),
+    updateDefaults: () => Promise.resolve(defaults),
+    setDefaultConfig: () => Promise.resolve(defaults),
+    authenticate: () => Promise.resolve({}),
+  };
+  const app = await createCodexlyServer({
+    ...createServerOptions(createProvider().provider),
+    acpAgents: {
+      codex: service,
+      claude: service,
+      catalog: { list: () => Promise.resolve(page), install, configure },
+    },
+  });
+  closeCallbacks.push(() => app.close());
+  expect((await app.inject({ method: "GET", url: "/v1/acp/registry" })).json()).toEqual(page);
+  for (let i = 0; i < 2; i++)
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/v1/acp/registry/install",
+          payload: { engine: "acp-gemini" },
+          headers: { "idempotency-key": "same-agent" },
+        })
+      ).statusCode,
+    ).toBe(200);
+  expect(install).toHaveBeenCalledExactlyOnceWith("acp-gemini");
+  for (const engine of ["acp-../evil", "acp-", "unknown"])
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/v1/acp/registry/install",
+          payload: { engine },
+          headers: { "idempotency-key": engine },
+        })
+      ).statusCode,
+    ).toBe(400);
+  expect(
+    (
+      await app.inject({
+        method: "PUT",
+        url: "/v1/acp/registry/configuration",
+        payload: {
+          engine: "acp-custom",
+          name: "自定义",
+          command: "/bin/agent",
+          args: ["--acp"],
+          enabled: true,
+        },
+        headers: { "idempotency-key": "custom" },
+      })
+    ).statusCode,
+  ).toBe(200);
+  expect(configure).toHaveBeenCalledExactlyOnceWith({
+    engine: "acp-custom",
+    name: "自定义",
+    command: "/bin/agent",
+    args: ["--acp"],
+    enabled: true,
+  });
+});

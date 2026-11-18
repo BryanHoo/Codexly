@@ -3,6 +3,9 @@ import { Type, type TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
   AcpConfigPreviewSchema,
+  AcpAgentCatalogPageSchema,
+  AcpAgentRegistrationSchema,
+  type AcpAgentRegistration,
   AcpConfigPreviewRequestSchema,
   type AcpConfigPreviewRequest,
   AgentEngineSchema,
@@ -40,8 +43,71 @@ export const registerAcpRoutes: FastifyPluginCallback<{
 }> = (app, { context, agents }, done) => {
   const service = (engine: AgentEngine) => {
     if (!agents) throw new MutationHttpError("PROVIDER_ERROR", "ACP service is unavailable", 503);
-    return agents[engine];
+    const value = agents[engine];
+    if (!value) throw new MutationHttpError("PROVIDER_ERROR", "ACP Agent is unavailable", 404);
+    return value;
   };
+  const catalog = () => {
+    if (!agents?.catalog)
+      throw new MutationHttpError("PROVIDER_ERROR", "ACP catalog unavailable", 503);
+    return agents.catalog;
+  };
+  app.get(
+    "/v1/acp/registry",
+    { handlerTimeout: 360_000, schema: { response: { 200: AcpAgentCatalogPageSchema } } },
+    (request) => {
+      const registry = catalog();
+      const refresh =
+        request.query &&
+        typeof request.query === "object" &&
+        "refresh" in request.query &&
+        request.query.refresh === "true";
+      return refresh && registry.refresh ? registry.refresh() : registry.list();
+    },
+  );
+  app.post<{ Body: { engine: AgentEngine }; Headers: { "idempotency-key": string } }>(
+    "/v1/acp/registry/install",
+    {
+      handlerTimeout: 360_000,
+      validatorCompiler,
+      schema: {
+        body: Params,
+        headers: IdempotencyHeadersSchema,
+        response: { 200: AcpAgentCatalogPageSchema },
+      },
+    },
+    (request) =>
+      context.runIdempotent(
+        ["acp-agent-install", request.body.engine],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          await catalog().install(request.body.engine);
+          return catalog().list();
+        },
+      ),
+  );
+  app.put<{ Body: AcpAgentRegistration; Headers: { "idempotency-key": string } }>(
+    "/v1/acp/registry/configuration",
+    {
+      validatorCompiler,
+      schema: {
+        body: AcpAgentRegistrationSchema,
+        headers: IdempotencyHeadersSchema,
+        response: { 200: AcpAgentCatalogPageSchema },
+      },
+    },
+    (request) =>
+      context.runIdempotent(
+        ["acp-agent-configure", request.body.engine],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          await catalog().configure(request.body);
+          return catalog().list();
+        },
+      ),
+  );
   const providers = (engine: AgentEngine) => {
     const value = service(engine).providers;
     if (!value) throw new MutationHttpError("PROVIDER_ERROR", "ACP providers are unavailable", 503);

@@ -1,3 +1,4 @@
+import type { AcpAgentCatalogPage, AcpAgentRegistration } from "@codexly/protocol";
 import type {
   AcpAuthCredentials,
   AcpConfigPreview,
@@ -32,4 +33,12 @@ export interface AcpAgentSettingsService {
   updateDefaults(values: AcpConfigValues): Promise<AcpDefaults>;
   setDefaultConfig(configId: string, value: string | boolean): Promise<AcpDefaults>;
 }
-export type AcpAgentServices = Readonly<Record<AgentEngine, AcpAgentSettingsService>>;
+export interface AcpAgentCatalogService {
+  refresh?(): Promise<AcpAgentCatalogPage>;
+  list(): Promise<AcpAgentCatalogPage>;
+  install(engine: AgentEngine): Promise<void>;
+  configure(input: AcpAgentRegistration): Promise<void>;
+}
+export type AcpAgentServices = Readonly<Record<AgentEngine, AcpAgentSettingsService>> & {
+  readonly catalog?: AcpAgentCatalogService;
+};

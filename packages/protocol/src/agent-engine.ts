@@ -1,7 +1,11 @@
 import { Type, type Static } from "@sinclair/typebox";
 
 /** 执行引擎与 API 服务商是两个概念；会话创建后引擎身份不可修改。 */
-export const AgentEngineSchema = Type.Union([Type.Literal("codex"), Type.Literal("claude")]);
+export const AgentEngineSchema = Type.Union([
+  Type.Literal("codex"),
+  Type.Literal("claude"),
+  Type.Unsafe<`acp-${string}`>({ ...Type.String({ pattern: "^acp-[a-z0-9][a-z0-9-]{0,95}$" }) }),
+]);
 export type AgentEngine = Static<typeof AgentEngineSchema>;
 
 /** Claude 只开放已支持映射的三档别名；两端与运行层共用固定名称，避免泄露映射后缀。 */
@@ -94,4 +98,16 @@ export type AgentEngineOptions = Static<typeof AgentEngineOptionsSchema>;
 /** 旧会话没有显式字段时沿用 Codex，不能使用当前草稿的选择推断历史归属。 */
 export function taskEngine(task: Readonly<{ engine?: AgentEngine }>): AgentEngine {
   return task.engine ?? "codex";
+}
+
+/** 新 Agent 使用可移植、不可包含路径的独立身份；旧任务身份保持不变。 */
+export function isAgentEngine(value: unknown): value is AgentEngine {
+  return (
+    value === "codex" ||
+    value === "claude" ||
+    (typeof value === "string" && /^acp-[a-z0-9][a-z0-9-]{0,95}$/.test(value))
+  );
+}
+export function agentEngineName(engine: AgentEngine): string {
+  return engine === "codex" ? "Codex" : engine === "claude" ? "Claude" : engine.slice(4);
 }

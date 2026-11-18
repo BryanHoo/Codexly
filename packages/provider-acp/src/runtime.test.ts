@@ -12,50 +12,53 @@ import {
 } from "@codexly/core";
 import type { AgentTurnOptions } from "@codexly/protocol";
 import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
-it("订阅和任务目录不启动 agent，实际执行只延迟装配对应引擎；释放后拒绝旧引用", async () => {
-  const root = await mkdtemp(join(tmpdir(), "acp-runtime-"));
-  const tasks = new Map<string, LocalTask>();
-  const store: LocalCatalogStore = {
-    catalog: <K extends keyof CatalogOperations>(
-      operation: K,
-      payload: CatalogOperations[K][0],
-    ) => {
-      const task = payload as LocalTask;
-      if (operation === "task.put") {
-        tasks.set(task.id, task);
-        return Promise.resolve(task as CatalogOperations[K][1]);
-      }
-      if (operation === "task.read")
-        return Promise.resolve((tasks.get(task.id) ?? null) as CatalogOperations[K][1]);
-      return Promise.reject(new Error(operation));
-    },
-  };
-  const launch = vi.fn<AcpAgentLauncher>(() => Promise.reject(new Error("模拟离线")));
-  const runtime = new AcpRuntime(root, store, launch);
-  try {
-    const router = runtime.forTemporary(root);
-    expect(runtime.forTemporary(root)).toBe(router);
-    const unsubscribe = router.subscribeEvents(() => undefined);
-    const task = await router.startTask({ engine: "claude" });
-    expect(launch).not.toHaveBeenCalled();
-    await expect(
-      router.startTurn(
-        task.id,
-        { text: "问题", files: [], images: [], skills: [], textAttachments: [] },
-        {} as AgentTurnOptions,
-      ),
-    ).rejects.toThrow("模拟离线");
-    expect(launch).toHaveBeenCalledOnce();
-    expect(launch.mock.calls[0]?.[0]).toBe("claude");
-    unsubscribe();
-    await runtime.releaseProject("temporary", router);
-    expect(runtime.forTemporary(root)).not.toBe(router);
-    await expect(router.startTask({ engine: "codex" })).rejects.toThrow("关闭");
-  } finally {
-    await runtime.close();
-    await rm(root, { recursive: true, force: true });
-  }
-});
+it.each(["claude", "acp-gemini"] as const)(
+  "订阅和目录不启动 %s，执行与恢复保持 Agent 身份",
+  async (engine) => {
+    const root = await mkdtemp(join(tmpdir(), "acp-runtime-"));
+    const tasks = new Map<string, LocalTask>();
+    const store: LocalCatalogStore = {
+      catalog: <K extends keyof CatalogOperations>(
+        operation: K,
+        payload: CatalogOperations[K][0],
+      ) => {
+        const task = payload as LocalTask;
+        if (operation === "task.put") {
+          tasks.set(task.id, task);
+          return Promise.resolve(task as CatalogOperations[K][1]);
+        }
+        if (operation === "task.read")
+          return Promise.resolve((tasks.get(task.id) ?? null) as CatalogOperations[K][1]);
+        return Promise.reject(new Error(operation));
+      },
+    };
+    const launch = vi.fn<AcpAgentLauncher>(() => Promise.reject(new Error("模拟离线")));
+    const runtime = new AcpRuntime(root, store, launch);
+    try {
+      const router = runtime.forTemporary(root);
+      expect(runtime.forTemporary(root)).toBe(router);
+      const unsubscribe = router.subscribeEvents(() => undefined);
+      const task = await router.startTask({ engine });
+      expect(launch).not.toHaveBeenCalled();
+      await expect(
+        router.startTurn(
+          task.id,
+          { text: "问题", files: [], images: [], skills: [], textAttachments: [] },
+          {} as AgentTurnOptions,
+        ),
+      ).rejects.toThrow("模拟离线");
+      expect(launch).toHaveBeenCalledOnce();
+      expect(launch.mock.calls[0]?.[0]).toBe(engine);
+      unsubscribe();
+      await runtime.releaseProject("temporary", router);
+      expect(runtime.forTemporary(root)).not.toBe(router);
+      await expect(router.startTask({ engine: "codex" })).rejects.toThrow("关闭");
+    } finally {
+      await runtime.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 it.each(["title", "commit", "optimize"] as const)(
   "运行时 %s 辅助生成经 ACP 返回正文、拒绝工具权限并释放辅助会话",

@@ -1,3 +1,4 @@
+import { isAgentEngine, agentEngineName } from "@codexly/protocol";
 import { useQuery } from "@tanstack/react-query";
 import type { AgentEngine } from "@codexly/protocol";
 import { isAcpConfigOption } from "@codexly/protocol/acp-config-validation";
@@ -62,8 +63,7 @@ export function AcpGenerationSettings({
           <Select
             value={engine ?? ""}
             onValueChange={(value) => {
-              if (value === "codex" || value === "claude")
-                onChange({ defaultAgent: value, defaultModel: null });
+              if (isAgentEngine(value)) onChange({ defaultAgent: value, defaultModel: null });
             }}
           >
             <SelectTrigger
@@ -81,7 +81,7 @@ export function AcpGenerationSettings({
               ) : null}
               {engines.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {value === "codex" ? "Codex" : "Claude"}
+                  {agentEngineName(value)}
                 </SelectItem>
               ))}
             </SelectContent>

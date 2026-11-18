@@ -1,3 +1,15 @@
+/// 与共享 AgentEngineSchema 保持一致；不允许路径片段、Unicode 混淆或空自定义标识。
+pub(crate) fn valid_agent_engine(value: &str) -> bool {
+    matches!(value, "codex" | "claude")
+        || value.strip_prefix("acp-").is_some_and(|id| {
+            !id.is_empty()
+                && id.len() <= 96
+                && id.as_bytes()[0].is_ascii_alphanumeric()
+                && id
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        })
+}
 use std::path::{Component, Path, PathBuf};
 use tokio::io::AsyncReadExt;
 
@@ -8,6 +20,7 @@ struct Manifest {
     platform: String,
     arch: String,
     host: Host,
+    #[serde(default)]
     engines: Engines,
 }
 
@@ -19,10 +32,10 @@ struct Host {
     placement: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Default, serde::Deserialize)]
 struct Engines {
-    codex: Engine,
-    claude: Engine,
+    codex: Option<Engine>,
+    claude: Option<Engine>,
 }
 
 #[derive(serde::Deserialize)]
@@ -95,13 +108,17 @@ async fn read_manifest(resources: &Path) -> Result<Option<Manifest>, ()> {
     {
         return Err(());
     }
-    for entry in [&manifest.engines.codex, &manifest.engines.claude] {
+    for entry in [&manifest.engines.codex, &manifest.engines.claude]
+        .into_iter()
+        .flatten()
+    {
         if !local_path(&entry.entrypoint) || semver::Version::parse(&entry.version).is_err() {
             return Err(());
         }
     }
-    semver::Version::parse(manifest.engines.claude.sdk_version.as_deref().ok_or(())?)
-        .map_err(|_| ())?;
+    if let Some(claude) = &manifest.engines.claude {
+        semver::Version::parse(claude.sdk_version.as_deref().ok_or(())?).map_err(|_| ())?;
+    }
     Ok(Some(manifest))
 }
 
@@ -110,8 +127,8 @@ pub(crate) async fn bundled_version(resources: &Path, engine: &str) -> Result<Op
         return Ok(None);
     };
     match engine {
-        "codex" => Ok(Some(manifest.engines.codex.version)),
-        "claude" => Ok(Some(manifest.engines.claude.version)),
+        "codex" => Ok(manifest.engines.codex.map(|entry| entry.version)),
+        "claude" => Ok(manifest.engines.claude.map(|entry| entry.version)),
         _ => Err(()),
     }
 }
@@ -198,8 +215,16 @@ impl AcpRuntimeManager {
         };
         let paths = AcpRuntimePaths {
             host,
-            codex: controlled_executable(&root, &manifest.engines.codex.entrypoint).await?,
-            claude: controlled_executable(&root, &manifest.engines.claude.entrypoint).await?,
+            codex: if let Some(entry) = &manifest.engines.codex {
+                controlled_executable(&root, &entry.entrypoint).await?
+            } else {
+                root.clone()
+            },
+            claude: if let Some(entry) = &manifest.engines.claude {
+                controlled_executable(&root, &entry.entrypoint).await?
+            } else {
+                root.clone()
+            },
         };
         *prepared = Some((root, sidecar.map(Path::to_path_buf), paths.clone()));
         Ok(paths)

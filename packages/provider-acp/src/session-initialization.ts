@@ -1,3 +1,4 @@
+import { isAgentEngine, AgentEngineSchema } from "@codexly/protocol";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,7 +12,7 @@ const RecordSchema = Type.Object(
   {
     version: Type.Literal(1),
     taskId: Type.String(),
-    provider: Type.Union([Type.Literal("codex"), Type.Literal("claude")]),
+    provider: AgentEngineSchema,
     projectId: Type.Union([Type.String(), Type.Null()]),
     cwd: Type.String(),
     sessionId: Type.String({ minLength: 1 }),
@@ -84,7 +85,7 @@ export class AcpSessionInitialization {
     }
   }
   async prepare(task: LocalTask, sessionId: string): Promise<void> {
-    if (task.provider !== "codex" && task.provider !== "claude") throw new Error("未知 ACP 引擎");
+    if (!isAgentEngine(task.provider)) throw new Error("未知 ACP 引擎");
     const provider = task.provider;
     await this.#locked(task.id, async () => {
       const previous = await this.read(task);

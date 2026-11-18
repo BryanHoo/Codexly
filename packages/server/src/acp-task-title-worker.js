@@ -1,3 +1,7 @@
+const validAgentEngine = (value) =>
+  value === "codex" ||
+  value === "claude" ||
+  (typeof value === "string" && /^acp-[a-z0-9][a-z0-9-]{0,95}$/.test(value));
 import sql from "../../protocol/src/acp-task-title-sql.json" with { type: "json" };
 function identifier(value) {
   return typeof value === "string" && value.length > 0 && value.length <= 256;
@@ -21,7 +25,7 @@ export function createAcpTaskTitleOperations(db) {
   const claim = db.transaction((input) => {
     validate(input, ["id", "token", "engine", "projectId"]);
     if (
-      !["codex", "claude"].includes(input.engine) ||
+      !validAgentEngine(input.engine) ||
       !(input.projectId === null || identifier(input.projectId))
     )
       throw new Error("Invalid ACP title scope");

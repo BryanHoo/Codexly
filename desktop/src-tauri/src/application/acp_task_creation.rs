@@ -36,7 +36,7 @@ pub(super) async fn create_with_workspace(
     key: &str,
     workspace_path: Option<&str>,
 ) -> Result<Value, AppError> {
-    if !matches!(engine, "codex" | "claude")
+    if !crate::infrastructure::acp_runtime::valid_agent_engine(engine)
         || project.is_empty()
         || project.len() > 1024
         || key.trim().is_empty()

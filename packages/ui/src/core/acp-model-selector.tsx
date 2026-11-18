@@ -1,3 +1,4 @@
+import { agentEngineName, isAgentEngine } from "@codexly/protocol";
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useContext, useEffect, useState } from "react";
 import * as Popover from "radix-ui/popover";
@@ -28,7 +29,7 @@ const choices = (option: SelectOption | undefined) =>
       ? choice.options.map((item) => ({ ...item, group: choice.name }))
       : [{ ...choice, group: "" }],
   ) ?? [];
-const engineName = (engine: AgentEngine) => (engine === "claude" ? "Claude" : "Codex");
+const engineName = (engine: AgentEngine) => agentEngineName(engine);
 const favoriteKey = "codexly:acp-model-favorites:v1";
 interface Favorite {
   engine: AgentEngine;
@@ -51,7 +52,7 @@ function readFavorites(): Favorite[] {
               "value" in item &&
               "name" in item &&
               "optionId" in item &&
-              (item.engine === "codex" || item.engine === "claude") &&
+              isAgentEngine(item.engine) &&
               typeof item.value === "string" &&
               typeof item.name === "string" &&
               typeof item.optionId === "string",

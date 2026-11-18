@@ -1,3 +1,4 @@
+import { agentEngineName } from "@codexly/protocol";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AcpAgentProfile, AgentEngine } from "@codexly/protocol";
@@ -13,15 +14,17 @@ export function AcpEngineSettingsGate({
   engine,
   language,
   children,
+  prepareAgent,
 }: Readonly<{
   client: Partial<Client>;
   engine: AgentEngine;
   language: string;
   children: ReactNode;
+  prepareAgent?: (() => Promise<void>) | undefined;
 }>) {
   const cache = useQueryClient();
   const chinese = language.startsWith("zh");
-  const name = engine === "codex" ? "Codex" : "Claude";
+  const name = agentEngineName(engine);
   return (
     <EngineSettingsGate
       engine={engine}
@@ -35,6 +38,7 @@ export function AcpEngineSettingsGate({
       }}
       prepare={async (report) => {
         report(chinese ? "正在检查智能体…" : "Checking agent…");
+        await prepareAgent?.();
         const inspect = client.getAcpAgent;
         if (!inspect) throw new Error("ACP preparation is unavailable");
         const profile = await inspect.call(client, engine);

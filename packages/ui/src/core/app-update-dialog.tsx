@@ -1,4 +1,4 @@
-import { Download, LoaderCircle, X } from "lucide-react";
+import { Download, LoaderCircle } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "./button.js";
@@ -61,6 +61,8 @@ export function AppUpdateDialog({
       }}
     >
       <DialogContent
+        closeLabel={labels.close}
+        closeDisabled={updating}
         aria-describedby={undefined}
         aria-labelledby={titleId}
         className={`grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-0 ${modal ? "max-h-[min(80dvh,40rem)] max-w-2xl" : "max-h-[min(65dvh,32rem)] max-w-lg border border-separator-strong"}`}
@@ -75,16 +77,6 @@ export function AppUpdateDialog({
           <DialogTitle className="min-w-0 flex-1" id={titleId}>
             {labels.title}
           </DialogTitle>
-          <Button
-            aria-label={labels.close}
-            disabled={updating}
-            onClick={close}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <X aria-hidden="true" className="size-4" />
-          </Button>
         </header>
         <div className="min-h-0 overflow-y-auto border-t border-separator px-5 py-4">
           {children}

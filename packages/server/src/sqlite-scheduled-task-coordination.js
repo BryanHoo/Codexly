@@ -11,10 +11,13 @@ export function createScheduledTaskCoordination(databasePath) {
   const claim = database.prepare("INSERT INTO run_owners (run_id, pid) VALUES (?, ?)");
   return {
     initialize(operation) {
-      // 新数据目录的建表和迁移同样串行化，避免多个实例首次启动时争抢 Schema。
+      // 启动迁移单独互斥，不能等待运行中实例跨异步调用持有的调度锁。
+      // 独立文件仍让多个新实例串行初始化；进程退出时 SQLite 自动释放事务锁。
+      const startup = new Database(`${databasePath}.startup-lock`, { timeout: 5_000 });
       try {
-        return database.transaction(operation).immediate();
+        return startup.transaction(operation).immediate();
       } finally {
+        startup.close();
         database.pragma("busy_timeout = 0");
       }
     },

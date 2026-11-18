@@ -47,7 +47,7 @@ fn revision(input: &Value) -> Result<i64, CatalogError> {
 }
 
 fn encode(input: &Value) -> Result<String, CatalogError> {
-    if !matches!(string(input, "engine")?, "codex" | "claude") {
+    if !crate::infrastructure::acp_runtime::valid_agent_engine(string(input, "engine")?) {
         return Err(CatalogError::InvalidMessage);
     }
     let values = input["values"]

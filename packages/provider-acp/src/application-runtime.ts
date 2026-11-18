@@ -7,14 +7,17 @@ import {
   type AgentRuntimeDefaultSettings,
   type LocalCatalogStore,
 } from "@codexly/core";
-import type { AgentGlobalSettings, AgentEngine } from "@codexly/protocol";
+import type { AgentEngine } from "@codexly/protocol";
 import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
 import { acpCapabilities } from "./provider-discovery.js";
 import { acpModels } from "./session-options.js";
 import { migrateAcpSettings } from "./migration.js";
 import type { AcpLegacySettingsSource } from "./settings-store.js";
 
-type Preferences = Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel">;
+interface Preferences {
+  defaultAgent?: AgentEngine;
+  defaultModel: string;
+}
 const unsupported = (operation: string): Promise<never> =>
   Promise.reject(new Error(`ACP 不提供旧专用接口 ${operation}，请使用 ACP 服务`));
 
@@ -26,8 +29,9 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
     readonly readPreferences: () => Promise<Preferences | undefined>,
     launch?: AcpAgentLauncher,
     legacySource?: AcpLegacySettingsSource,
+    environment?: NodeJS.ProcessEnv,
   ) {
-    super(directory, store, launch, legacySource, readPreferences);
+    super(directory, store, launch, legacySource, readPreferences, environment);
   }
   get acpAgents() {
     return this.agents;
@@ -36,7 +40,9 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
     return acpCapabilities("codex");
   }
   async listModels(engine: AgentEngine = "codex") {
-    return acpModels((await this.agents[engine].readDefaults()).configOptions);
+    const service = this.agents[engine];
+    if (!service) throw new Error("Agent unavailable");
+    return acpModels((await service.readDefaults()).configOptions);
   }
   async readDefaultSettings(): Promise<AgentRuntimeDefaultSettings> {
     const { configOptions } = await this.agents.codex.readDefaults();

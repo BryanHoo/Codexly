@@ -10,10 +10,15 @@ try {
     // 移除宿主参数后直接进入官方 ACP CLI；不解析厂商消息或重写 SDK 调用。
     process.argv.splice(2, 2);
     try {
-      if (args[1] === "codex") await import("@agentclientprotocol/codex-acp");
-      else if (args[1] === "claude")
-        await import("@agentclientprotocol/claude-agent-acp/dist/index.js");
-      else throw new Error("Invalid agent mode");
+      // 兼容显式诊断入口，使用外部模块名，生产宿主不再嵌入两套 adapter。
+      const moduleName =
+        args[1] === "codex"
+          ? "@agentclientprotocol/codex-acp"
+          : args[1] === "claude"
+            ? "@agentclientprotocol/claude-agent-acp/dist/index.js"
+            : undefined;
+      if (!moduleName) throw new Error("Invalid agent mode");
+      await import(moduleName);
     } catch (error) {
       await proxy.close();
       throw error;

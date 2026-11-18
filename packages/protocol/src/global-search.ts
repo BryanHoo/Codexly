@@ -1,3 +1,4 @@
+import { AgentEngineSchema } from "./agent-engine.js";
 import { Type, type Static } from "@sinclair/typebox";
 
 import { AgentTaskSchema } from "./agent-attachments.js";
@@ -60,8 +61,8 @@ export type SearchOccurrencesPage = Readonly<Static<typeof SearchOccurrencesPage
 export const TaskSearchPageSchema = Type.Object(
   {
     unavailableEngines: Type.Optional(
-      Type.Array(Type.Union([Type.Literal("codex"), Type.Literal("claude")]), {
-        maxItems: 2,
+      Type.Array(AgentEngineSchema, {
+        maxItems: 256,
         uniqueItems: true,
       }),
     ),

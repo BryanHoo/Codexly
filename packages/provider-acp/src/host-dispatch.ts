@@ -9,6 +9,7 @@ import { ApplicationGenerationRequestSchema } from "@codexly/protocol/applicatio
 import { ApplicationPreferencesSchema } from "@codexly/protocol/application-preferences";
 import {
   AcpConfigValuesSchema,
+  AcpAgentRegistrationSchema,
   AcpAuthCredentialsSchema,
   AcpConfigPreviewRequestSchema,
   AgentEngineSchema,
@@ -93,6 +94,19 @@ export async function dispatchAcpHost(
 ): Promise<unknown> {
   const params = hostRecord(message["params"] ?? {}),
     method = text(message, "method");
+  if (method === "agents.list")
+    return params["refresh"] === true ? runtime.catalog.refresh() : runtime.catalog.list();
+  if (method === "agents.install") {
+    if (!Value.Check(AgentEngineSchema, params["engine"])) throw new Error("Invalid engine");
+    await runtime.catalog.install(params["engine"]);
+    return runtime.catalog.list();
+  }
+  if (method === "agents.configure") {
+    if (!Value.Check(AcpAgentRegistrationSchema, params["registration"]))
+      throw new Error("Invalid Agent configuration");
+    await runtime.catalog.configure(params["registration"]);
+    return runtime.catalog.list();
+  }
   if (method === "application.generate") {
     if (!Value.Check(Scope, message["scope"]) || !Value.Check(ApplicationGeneration, params))
       throw new Error("Invalid application generation parameters");
@@ -114,6 +128,7 @@ export async function dispatchAcpHost(
     if (!Value.Check(AgentEngineSchema, params["engine"])) throw new Error("Invalid engine");
     const engine = params["engine"],
       service = runtime.agents[engine];
+    if (!service) throw new Error("Agent unavailable");
     switch (method) {
       case "agent.inspect":
         return service.inspect();

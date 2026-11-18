@@ -50,7 +50,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             Value::String(value) if identifier(value) => Some(value.as_str()),
             _ => return Err(CatalogError::InvalidMessage),
         };
-        if !matches!(engine, "codex" | "claude") {
+        if !crate::infrastructure::acp_runtime::valid_agent_engine(engine) {
             return Err(CatalogError::InvalidMessage);
         }
         json!(

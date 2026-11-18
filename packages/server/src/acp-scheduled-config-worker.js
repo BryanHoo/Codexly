@@ -1,3 +1,7 @@
+const validAgentEngine = (value) =>
+  value === "codex" ||
+  value === "claude" ||
+  (typeof value === "string" && /^acp-[a-z0-9][a-z0-9-]{0,95}$/.test(value));
 import sql from "../../protocol/src/acp-scheduled-config-sql.json" with { type: "json" };
 
 function key(input) {
@@ -18,7 +22,7 @@ function revision(input) {
 }
 function encode(input) {
   if (
-    !["codex", "claude"].includes(input.engine) ||
+    !validAgentEngine(input.engine) ||
     !input.values ||
     typeof input.values !== "object" ||
     Array.isArray(input.values)

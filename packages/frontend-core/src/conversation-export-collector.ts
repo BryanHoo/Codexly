@@ -1,3 +1,4 @@
+import type { AgentEngine } from "@codexly/protocol";
 import { jsonChunks, JsonByteBudget, jsonBlob } from "./conversation-export-json.js";
 import type { AgentTask, AgentTaskSnapshot, AgentTurn } from "@codexly/protocol";
 
@@ -26,7 +27,7 @@ export interface ConversationRecord {
   version: 1;
   exportedAt: string;
   task: Pick<ExportSnapshot, "id" | "projectId" | "title" | "status" | "updatedAt"> & {
-    engine: "codex" | "claude";
+    engine: AgentEngine;
   };
   turns: Omit<ExportTurn, "processCursor">[];
 }

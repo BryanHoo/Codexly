@@ -1,5 +1,7 @@
 import {
   AcpConfigPreviewSchema,
+  AcpAgentCatalogPageSchema,
+  type AcpAgentRegistration,
   AcpScheduledConfigViewSchema,
   type SetAcpScheduledConfig,
   type AcpAuthCredentials,
@@ -19,6 +21,37 @@ import { projectPath, type MutationOptions, type ReadOptions } from "./http-clie
 
 /** ACP 设置与认证统一复用配对、错误解码、取消和幂等传输。 */
 export class AcpHttpClient extends AsyncQuestionHttpClient {
+  getAcpAgentCatalog(options: ReadOptions & { refresh?: boolean } = {}) {
+    return this.request(
+      `/v1/acp/registry${options.refresh ? "?refresh=true" : ""}`,
+      AcpAgentCatalogPageSchema,
+      {},
+      undefined,
+      {
+        ...options,
+        timeoutMs: 360_000,
+      },
+    );
+  }
+  installAcpAgent(engine: AgentEngine, options: MutationOptions = {}) {
+    return this.mutation(
+      "/v1/acp/registry/install",
+      { engine },
+      AcpAgentCatalogPageSchema,
+      options,
+      "POST",
+      360_000,
+    );
+  }
+  configureAcpAgent(input: AcpAgentRegistration, options: MutationOptions = {}) {
+    return this.mutation(
+      "/v1/acp/registry/configuration",
+      input,
+      AcpAgentCatalogPageSchema,
+      options,
+      "PUT",
+    );
+  }
   getAcpScheduledConfig(taskId: string, options: ReadOptions = {}) {
     return this.read(
       `/v1/scheduled-tasks/${encodeURIComponent(taskId)}/acp-config`,

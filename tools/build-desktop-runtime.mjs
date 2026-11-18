@@ -43,7 +43,7 @@ try {
   // 从落盘清单取版本，避免关于页或日志误读旧 SDK 的包元数据。
   const published = JSON.parse(await readFile(join(resources, "runtime/manifest.json"), "utf8"));
   console.log(
-    `Bundled ACP runtime: ${target.platform}/${target.arch}, Codex ${published.engines.codex.version}, Claude ${published.engines.claude.version}`,
+    `Bundled ACP runtime: ${target.platform}/${target.arch}, host protocol ${published.host.protocolVersion}, agents installed on demand`,
   );
 } finally {
   await rm(stage, { recursive: true, force: true });

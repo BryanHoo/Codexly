@@ -81,6 +81,7 @@ export async function readNativeConnection(
         headers: key ? { Authorization: `Bearer ${key}` } : {},
       };
     }
+    if (engine !== "claude") return;
     const directory = text(environment["CLAUDE_CONFIG_DIR"]) ?? join(home, ".claude");
     const content = await read(join(directory, "settings.json"));
     const env = {

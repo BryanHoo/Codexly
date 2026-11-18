@@ -21,6 +21,37 @@ const input: ScheduledTaskInput = {
 // 用例包含真实子进程、多个 SQLite Worker 启动及磁盘事务；总预算需覆盖多次原生初始化。
 // 单次 Worker 请求和锁等待仍由生产代码各自的 10 秒时限约束。
 describe("scheduled tasks shared by Web instances", { timeout: 60_000 }, () => {
+  it("已有实例持有定时任务锁时，新实例仍能完成数据库初始化", async () => {
+    const root = await createWorkspace();
+    const first = await openRepository(root);
+    const entered = Promise.withResolvers<undefined>();
+    const release = Promise.withResolvers<undefined>();
+    const pending = first.withScheduledTaskLock(async () => {
+      entered.resolve(undefined);
+      await release.promise;
+    });
+    let competing: Promise<void> | undefined;
+    let acquired = false;
+    try {
+      await entered.promise;
+      const second = await openRepository(root);
+      competing = second.withScheduledTaskLock(() => {
+        acquired = true;
+        return Promise.resolve();
+      });
+      await expect(second.diagnose()).resolves.toMatchObject({
+        journalMode: "wal",
+        integrityCheck: "ok",
+      });
+      expect(acquired).toBe(false);
+    } finally {
+      release.resolve(undefined);
+      await pending;
+      await competing;
+    }
+    expect(acquired).toBe(true);
+  });
+
   it("releases short locks and discards run ownership when another process crashes", async () => {
     const root = await createWorkspace();
     const repository = await openRepository(root);

@@ -13,6 +13,7 @@ import { WorkbenchChanges } from "./workbench-changes.js";
 import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
 import type {
   AgentGlobalSettings,
+  AgentEngine,
   AgentModel,
   AgentProjectDefaults,
   AgentTaskSettings,
@@ -260,9 +261,7 @@ export async function createCodexlyServer(
     },
     release: (projectId) => releaseProjectContext(projectId, true),
   });
-  const listModels = async (
-    engine: "codex" | "claude" = "codex",
-  ): Promise<readonly AgentModel[]> => {
+  const listModels = async (engine: AgentEngine = "codex"): Promise<readonly AgentModel[]> => {
     if (engine === "codex") return (await modelCatalogCache.read()).data;
     const service = options.provider.engines?.[engine];
     if (!service) throw new Error("Claude engine is unavailable");
@@ -270,22 +269,20 @@ export async function createCodexlyServer(
   };
   const readEffectiveGlobalSettings = async (
     models?: readonly AgentModel[],
-    engine: "codex" | "claude" = "codex",
+    engine: AgentEngine = "codex",
   ): Promise<AgentGlobalSettings> => {
     const catalog = models ?? (await listModels(engine));
     const stored = await options.settingsRepository.readGlobalSettings();
     // Codex 是智能体默认值的来源；本地记录仅补齐未配置字段与应用专属偏好。
     const runtimeDefaults = engine === "codex" ? await options.provider.readDefaultSettings() : {};
     const generation = await options.provider.readGenerationDefaults?.(stored);
-    return {
-      ...resolveGlobalSettings(
-        catalog,
-        stored,
-        runtimeDefaults,
-        engine === "claude" && !stored?.defaultAgent ? ["claude"] : ["codex", "claude"],
-      ),
-      ...generation,
-    };
+    return resolveGlobalSettings(
+      catalog,
+      stored,
+      runtimeDefaults,
+      engine === "claude" && !stored?.defaultAgent ? ["claude"] : ["codex", "claude"],
+      generation,
+    );
   };
   const readEffectiveProjectDefaults = async (
     projectId: string,

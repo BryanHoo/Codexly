@@ -176,7 +176,14 @@ export class AcpAgentService implements AcpAgentSettingsService {
       const saved = await this.store.inspect(this.engine);
       signal?.throwIfAborted();
       try {
-        const result = await previewAcpConfig(connection, cwd, saved, input.values, input.change);
+        const result = await previewAcpConfig(
+          connection,
+          cwd,
+          saved,
+          input.values,
+          input.change,
+          this.engine.startsWith("acp-") ? (id) => this.#closeSession(connection, id) : undefined,
+        );
         signal?.throwIfAborted();
         return result;
       } catch (error) {
@@ -215,7 +222,10 @@ export class AcpAgentService implements AcpAgentSettingsService {
   }
   async #defaults(values?: AcpConfigValues): Promise<AcpDefaults> {
     const connection = await this.#agent();
-    if (!connection.initialization.agentCapabilities?.sessionCapabilities?.close)
+    if (
+      !connection.initialization.agentCapabilities?.sessionCapabilities?.close &&
+      !this.engine.startsWith("acp-")
+    )
       throw new Error("ACP agent 不支持设置会话关闭");
     const session = await connection.newSession({ cwd: this.cwd, mcpServers: [] });
     const validated = await (async () => {
@@ -238,7 +248,8 @@ export class AcpAgentService implements AcpAgentSettingsService {
       }
     })();
     const { configOptions, defaults, migration, invalidDefaults } = validated;
-    await this.#discover(connection);
+    if (connection.initialization.agentCapabilities?.sessionCapabilities?.close)
+      await this.#discover(connection);
     // agent 拒绝、连接或关闭失败时不会写默认值；legacy 只在私有记录中留存。
     // 查看和草稿预览不落盘；只有明确提交完整默认值后才写用户配置。
     if (values !== undefined)
@@ -278,6 +289,14 @@ export class AcpAgentService implements AcpAgentSettingsService {
     await this.#queue.catch(() => undefined);
   }
   async #closeSession(connection: AcpConnection, sessionId: string): Promise<void> {
+    // 标准 ACP Agent 未必实现 close 扩展；设置连接独占，可回收整个进程释放临时会话。
+    if (
+      this.engine.startsWith("acp-") &&
+      !connection.initialization.agentCapabilities?.sessionCapabilities?.close
+    ) {
+      await this.#closeHandle();
+      return;
+    }
     try {
       await connection.closeSession(sessionId);
     } catch (error) {

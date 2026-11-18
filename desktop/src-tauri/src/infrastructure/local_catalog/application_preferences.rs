@@ -26,7 +26,9 @@ fn text(v: &Value, min: usize, max: usize) -> bool {
 }
 fn valid_field(key: &str, value: &Value) -> bool {
     match key {
-        "defaultAgent" => matches!(value.as_str(), Some("codex" | "claude")),
+        "defaultAgent" => value
+            .as_str()
+            .is_some_and(crate::infrastructure::acp_runtime::valid_agent_engine),
         "defaultModel" => value.is_null() || text(value, 1, 16384),
         "commitMessagePrompt" | "taskTitlePrompt" | "promptOptimizationPrompt" => {
             text(value, 0, 4000)

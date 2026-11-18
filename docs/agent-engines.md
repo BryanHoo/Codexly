@@ -1,12 +1,22 @@
-# Codex 与 Claude Agent
+# ACP Agent
 
-Web（含移动端）与桌面应用统一通过官方 ACP adapter 执行 Codex 和 Claude。应用自己的目录保存任务身份，原厂会话 ID 只用于执行与续聊。新聊天可以选择引擎，创建后引擎固定；切换新聊天的引擎不会修改已有任务。
+Web（含移动端）与桌面应用通过共享 ACP 运行时执行 Agent，包括 Codex、Claude、Gemini、Cursor、Copilot 等官方目录中的 Agent，以及用户自定义的 ACP 程序。应用自己的目录保存任务身份，原厂会话 ID 只用于执行与续聊。新聊天可以选择引擎，创建后引擎固定；切换新聊天的引擎不会修改已有任务。
 
 日常操作参见[首次连接](getting-started.md)、[工作台指南](usage.md)和[Web 局域网接入](web.md)。桌面不自动提供 LAN 服务，手机使用 Web 服务所在机器的账号、工作目录与执行程序。
 
+## 发现、安装与添加
+
+首次启动检查运行服务的电脑上的 PATH 与常见用户 CLI 安装目录，不执行模型请求。检测到原生 ACP CLI 时复用程序及其原生配置；Codex、Claude 等需要适配器时只安装对应适配器。没有检测到的 Agent 不自动安装。已有停用记录和手动配置优先，不会被发现流程覆盖。
+
+进入「设置 → ACP → 添加 Agent」，从官方目录选择「安装并启用」，或通过「配置自定义 Agent」指定名称、可执行程序、参数与环境变量。参数使用 JSON 字符串数组，例如 `["--acp"]`；环境变量使用 JSON 字符串对象。环境变量只在明确勾选替换后更新，已有值不会回显。安装失败保留重试入口，不发布已安装记录。
+
+目录采用 [ACP Registry](https://github.com/agentclientprotocol/registry/blob/main/FORMAT.md) 的稳定版本快照（2026-11-14），支持 npm、uv 与当前平台二进制分发。npm 类型需要电脑已安装 Node.js/npm，Python 类型需要 uv；二进制类型不要求 Node.js。安装使用私有目录或 uv 缓存，不修改全局 Agent 安装。目录中没有的 Agent 可配置已有本机 ACP 启动命令。凭据由 Agent 自行管理，添加 Agent 不等同于完成登录。
+
+Agent 程序、认证和原生配置均位于服务电脑。手机或其他电脑通过 Web 访问时，检测的是服务电脑。现有 Codex/Claude 任务身份不变，其他 Agent 使用独立标识，任务创建后不可改投另一个 Agent。启动命令变更在重新连接后生效；已打开的会话保留原连接。
+
 ## 连接与设置
 
-设置页面根据 ACP 握手公布的认证方式与配置选项显示可用操作，不根据厂商名称猜测能力。供应商配置仅在 agent 声明相应接口时提供；未声明时保留原厂配置入口，不伪造连接成功。两个引擎独立启动和诊断，一个不可用不会阻止另一个执行。
+设置页面根据 ACP 握手公布的认证方式与配置选项显示可用操作，不根据厂商名称猜测能力。供应商配置仅在 agent 声明相应接口时提供；未声明时保留原厂配置入口，不伪造连接成功。各个 Agent 独立启动和诊断，一个不可用不会阻止另一个执行。
 
 默认配置保存在应用的 ACP 设置目录，更新只影响后续新建会话。当前会话的配置选项来自 `session/new`、`session/load` 与配置更新响应，原会话续聊保留自身配置。应用不会把普通默认值变更回写原厂配置文件。旧版应用偏好只读迁移一次，已存在的 ACP 配置优先；原厂认证和策略仍由官方 adapter 读取。
 
@@ -30,9 +40,9 @@ Web 和桌面共享存储锁协议。领取与释放通过 SQLite 的 owner 比�
 
 ## 桌面分发
 
-`pnpm build:desktop-runtime` 选择锁定的目标平台包并核对摘要、架构和完整布局。Codex 保留官方 vendor 布局及辅助文件，Claude 保留官方 CLI。共享 Bun 宿主只有一个副本，作为 Tauri `externalBin` 参与签名与公证，运行时资源不包含下载缓存或其他架构程序。
+`pnpm build:desktop-runtime` 只构建共享 Bun 宿主及许可，不再固定打包 Codex 和 Claude。宿主作为 Tauri `externalBin` 参与签名与公证。Agent 由本机发现或用户选择后按需安装。
 
-Windows 便携版为完整 ZIP，需同时保留主程序、`acp-host.exe` 和 `runtime`。macOS 最低支持 14.5（Apple Silicon / Intel），不再提供 Legacy 安装包、兼容渲染器或更新渠道。桌面用户无需另装 Node.js、Bun 或 CLI；Web 服务要求 Node.js 24+。
+Windows 便携版需保留主程序、`acp-host.exe` 和 `runtime` 元数据。macOS 最低支持 14.5（Apple Silicon / Intel）。Web 服务要求 Node.js 24+；桌面只在安装 npm 类型 Agent 时需要 Node.js/npm。
 
 ## 验证入口
 

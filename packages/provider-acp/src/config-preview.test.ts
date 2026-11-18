@@ -87,3 +87,21 @@ it("模型切换丢弃旧依赖值并返回可交付首发的完整当前值", a
   expect(result.values).toEqual({ model: "b" });
   expect(connection.setConfigOption).toHaveBeenCalledExactlyOnceWith("p", "model", "b");
 });
+it("标准 Agent 没有 close 扩展时使用宿主提供的独占进程回收", async () => {
+  const release = vi.fn(() => Promise.resolve());
+  const connection = {
+    initialization: { agentCapabilities: {} },
+    newSession: vi.fn(() => Promise.resolve({ sessionId: "standard", configOptions: [] })),
+  };
+  await expect(
+    previewAcpConfig(
+      connection as never,
+      "/p",
+      { configured: true, values: {} } as never,
+      {},
+      undefined,
+      release,
+    ),
+  ).resolves.toEqual({ configOptions: [], values: {} });
+  expect(release).toHaveBeenCalledExactlyOnceWith("standard");
+});

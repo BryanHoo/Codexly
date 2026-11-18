@@ -1,3 +1,4 @@
+import { isAgentEngine } from "@codexly/protocol";
 import type { AcpConfigValues } from "@codexly/protocol";
 import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AgentEngine, AgentTask, ClaudePermissionMode } from "@codexly/protocol";
@@ -15,8 +16,7 @@ export type AgentExecutionAdapter = Partial<AgentProvider> &
   Pick<AgentProvider, "startTask" | "readTask" | "startTurn" | "subscribeEvents">;
 
 export function localTaskMetadata(task: LocalTask): AgentTask {
-  if (task.provider !== "codex" && task.provider !== "claude")
-    throw new Error("Unsupported task engine");
+  if (!isAgentEngine(task.provider)) throw new Error("Unsupported task engine");
   return {
     engine: task.provider,
     id: task.id,
@@ -47,6 +47,7 @@ export class EngineProjectRouter implements AgentProvider {
   #adapter(engine: AgentEngine): AgentExecutionAdapter {
     const source = this.adapters[engine];
     const adapter = typeof source === "function" ? source() : source;
+    if (!adapter) throw new Error("ACP Agent 未注册");
     const subscription = this.#subscriptions.get(engine);
     if (this.#listeners.size && subscription?.adapter !== adapter) {
       // 路由可比执行适配器存活更久；回收或断开后，先迁移订阅再调用新适配器。
@@ -94,8 +95,7 @@ export class EngineProjectRouter implements AgentProvider {
     const ephemeral = this.#ephemeral.get(id);
     if (ephemeral) return this.#engineMethod(ephemeral, key);
     const task = await this.#task(id);
-    if (task.provider !== "codex" && task.provider !== "claude")
-      throw new Error("Unsupported task engine");
+    if (!isAgentEngine(task.provider)) throw new Error("Unsupported task engine");
     return this.#engineMethod(task.provider, key);
   }
 
@@ -190,8 +190,7 @@ export class EngineProjectRouter implements AgentProvider {
   async startTurn(...args: Parameters<AgentProvider["startTurn"]>) {
     if (this.#ephemeral.has(args[0])) return (await this.#method(args[0], "startTurn"))(...args);
     const task = await this.#task(args[0]);
-    if (task.provider !== "codex" && task.provider !== "claude")
-      throw new Error("Unsupported task engine");
+    if (!isAgentEngine(task.provider)) throw new Error("Unsupported task engine");
     if (task.provider === "codex" && !task.title && !task.preview) {
       const input = args[1];
       const preview =

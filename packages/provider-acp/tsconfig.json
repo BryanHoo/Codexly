@@ -8,6 +8,13 @@
     "tsBuildInfoFile": "../../.cache/types/provider-acp.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
-  "references": [{ "path": "../protocol" }, { "path": "../core" }]
+  "include": ["src/**/*.ts", "src/**/*.json"],
+  "references": [
+    {
+      "path": "../protocol"
+    },
+    {
+      "path": "../core"
+    }
+  ]
 }

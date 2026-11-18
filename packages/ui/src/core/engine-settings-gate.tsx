@@ -1,3 +1,4 @@
+import { agentEngineName } from "@codexly/protocol";
 import { useContext, useSyncExternalStore, type ReactNode } from "react";
 import type { AgentEngine } from "@codexly/protocol";
 import type { PrepareEngine } from "@codexly/frontend-core/engine-activation";
@@ -31,7 +32,7 @@ export function EngineSettingsGate({
   );
   const enabled = (snapshot?.engines ?? selected)?.includes(engine) ?? true;
   const chinese = language.startsWith("zh");
-  const name = engine === "codex" ? "Codex" : "Claude";
+  const name = agentEngineName(engine);
   if (enabled) return children;
   const state = snapshot?.states[engine];
   const busy = state?.phase === "preparing";

@@ -2,7 +2,7 @@ import { Type, type Static } from "@sinclair/typebox";
 
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
-import { AgentEngineOptionsSchema, AgentEngineSchema } from "./agent-engine.js";
+import { AgentEngineOptionsSchema } from "./agent-engine.js";
 
 export const DEFAULT_GENERATION_MODEL = "gpt-6-luna";
 
@@ -97,7 +97,8 @@ export type AgentCollaborationMode = Readonly<Static<typeof AgentCollaborationMo
 
 const AgentGlobalSettingProperties = {
   // 应用辅助生成共用默认引擎；旧记录省略时优先 Codex。
-  defaultAgent: Type.Optional(AgentEngineSchema),
+  // 旧设置格式保持回滚兼容；新增 Agent 仅进入独立 ACP 应用偏好。
+  defaultAgent: Type.Optional(Type.Union([Type.Literal("codex"), Type.Literal("claude")])),
   // null 表示继承 Codex 模型默认值；限制为 JS 安全整数，保证 HTTP 与原生传输一致。
   modelContextWindow: Type.Union([
     Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),

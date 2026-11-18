@@ -14,7 +14,9 @@ import {
 import type { AgentEngine, Project } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 export type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
-import { createOfficialAcpLauncher } from "./official-agent.js";
+import { AcpAgentCatalog } from "./agent-catalog.js";
+import { AcpProcess } from "./process.js";
+import { isAgentEngine } from "@codexly/protocol";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
 import { AcpAgentService } from "./agent-service.js";
@@ -29,6 +31,7 @@ interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
   providers: AcpAgentProvider[];
+  provider(engine: AgentEngine): AcpAgentProvider;
   handles: Set<AcpAgentHandle>;
   titles: AcpTaskTitles[];
 }
@@ -36,7 +39,11 @@ interface Entry {
 export class AcpRuntime {
   readonly search: CatalogSearchService;
   readonly settings: AcpSettingsStore;
-  readonly agents: Readonly<Record<AgentEngine, AcpAgentService>>;
+  readonly agents: Readonly<Record<AgentEngine, AcpAgentService>> & {
+    readonly catalog: AcpAgentCatalog;
+  };
+  readonly catalog: AcpAgentCatalog;
+  readonly launch: AcpAgentLauncher;
   readonly #entries = new Map<string, Entry>();
   readonly #history: AcpHistory;
   readonly #preferences: ApplicationPreferencesService;
@@ -47,10 +54,28 @@ export class AcpRuntime {
   constructor(
     readonly directory: string,
     readonly store: LocalCatalogStore,
-    readonly launch: AcpAgentLauncher = createOfficialAcpLauncher(),
+    launch?: AcpAgentLauncher,
     legacySource?: AcpLegacySettingsSource,
     readPreferences: () => Promise<unknown> = () => Promise.resolve(undefined),
+    environment: NodeJS.ProcessEnv = process.env,
   ) {
+    this.catalog = new AcpAgentCatalog(
+      join(directory, "agents"),
+      {},
+      new AcpStorageLeases(store),
+      environment,
+    );
+    const snapshot = { ...environment };
+    this.launch =
+      launch ??
+      (async (engine, scope, callbacks) => {
+        const command = await this.catalog.command(engine);
+        return AcpProcess.start(
+          { ...command, env: { ...snapshot, ...command.env }, cwd: scope.rootPath },
+          callbacks,
+        );
+      });
+    launch = this.launch;
     this.#preferences = new ApplicationPreferencesService(store, readPreferences);
     const leases = new AcpStorageLeases(store);
     this.#history = new AcpHistory(join(directory, "history"), leases);
@@ -68,8 +93,7 @@ export class AcpRuntime {
         ?.providers.some((provider) => provider.hasPendingTurn(task.id));
       if (!input.cursor && task.sessionId && !pending && !(await this.#history.hasTurns(task.id))) {
         this.#checkOpen();
-        if (task.provider !== "codex" && task.provider !== "claude")
-          throw new Error("未知 ACP 搜索引擎");
+        if (!isAgentEngine(task.provider)) throw new Error("未知 ACP 搜索引擎");
         if (this.#searches.size >= 4) throw new Error("ACP 冷历史搜索达到并发限制");
         // 冷搜索使用独立短连接，不能修改已经打开的项目根、订阅或会话容量。
         const scope: AgentTaskScope = {
@@ -125,10 +149,18 @@ export class AcpRuntime {
       }
       return searchAcpHistory(this.#history, task.id, input, signal, limit);
     });
-    this.agents = {
-      codex: new AcpAgentService("codex", directory, this.settings, launch, store),
-      claude: new AcpAgentService("claude", directory, this.settings, launch, store),
+    const services = { catalog: this.catalog } as Record<AgentEngine, AcpAgentService> & {
+      catalog: AcpAgentCatalog;
     };
+    this.agents = new Proxy(services, {
+      get: (target, key, receiver) => {
+        if (isAgentEngine(key) && !Object.hasOwn(target, key)) {
+          this.#checkOpen();
+          target[key] = new AcpAgentService(key, directory, this.settings, this.launch, store);
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
   }
   #checkOpen(): void {
     if (this.#closed) throw new Error("ACP Runtime 已关闭");
@@ -150,7 +182,7 @@ export class AcpRuntime {
       this.#scope({ id, kind: "temporary", rootPath: cwd, runtimeWorkspaceRoots: [cwd] });
       entry = this.#entries.get(id);
     }
-    const provider = entry?.providers[engine === "codex" ? 0 : 1];
+    const provider = entry?.provider(engine);
     if (!provider) throw new Error("ACP 辅助 Provider 不可用");
     const pending = provider.generateText(text, model, signal);
     this.#generations.add(pending);
@@ -164,13 +196,16 @@ export class AcpRuntime {
     this.forScope(scope);
     const task = await this.store.catalog("task.read", { id });
     if (!task) throw new Error("ACP queue task not found");
-    const provider = this.#entries.get(scope.id)?.providers[task.provider === "codex" ? 0 : 1];
+    if (!isAgentEngine(task.provider)) throw new Error("未知 ACP 引擎");
+    const provider = this.#entries.get(scope.id)?.provider(task.provider);
     if (!provider) throw new Error("ACP provider unavailable");
     return provider.startConfiguredTurn(id, input);
   }
   importCatalog(engine: AgentEngine, signal?: AbortSignal): Promise<void> {
     if (this.#closed) return Promise.reject(new Error("ACP Runtime 已关闭"));
-    return this.agents[engine].importCatalog(this.store, signal);
+    const service = this.agents[engine];
+    if (!service) return Promise.reject(new Error("Agent unavailable"));
+    return service.importCatalog(this.store, signal);
   }
   forProject(project: Project): AgentProvider {
     const rootPath = project.roots[0]?.path;
@@ -233,34 +268,56 @@ export class AcpRuntime {
         },
         this.#initialization,
       );
-    const codex = create("codex"),
-      claude = create("claude");
-    const titles = [codex, claude].map((provider) => {
-      const scheduler = new AcpTaskTitles(
-        this.store,
-        provider.engine,
-        scope.kind === "temporary" ? null : scope.id,
-        (id) => this.#history.hasTurns(id),
-        async (task, text, signal) =>
-          generateApplicationText(
-            await this.#preferences.read(),
-            task.cwd,
-            { purpose: "title", text },
-            signal,
-            this.generateText.bind(this),
-          ),
-        (id, title) => {
-          provider.publishTaskTitle(id, title);
-        },
-      );
-      provider.prepareTaskTitle = (task, input) => scheduler.prepare(task, input);
-      provider.subscribeEvents((event) => {
-        scheduler.receive(event);
-      });
-      return scheduler;
+    const providers: AcpAgentProvider[] = [];
+    const titles: AcpTaskTitles[] = [];
+    const adapters = new Proxy({} as Record<AgentEngine, AcpAgentProvider>, {
+      get: (target, key) => {
+        if (!isAgentEngine(key)) return undefined;
+        if (this.#closed || this.#entries.get(scope.id)?.providers !== providers)
+          return target[key];
+        if (!target[key]) {
+          const provider = create(key);
+          const scheduler = new AcpTaskTitles(
+            this.store,
+            key,
+            scope.kind === "temporary" ? null : scope.id,
+            (id) => this.#history.hasTurns(id),
+            async (task, text, signal) =>
+              generateApplicationText(
+                await this.#preferences.read(),
+                task.cwd,
+                { purpose: "title", text },
+                signal,
+                this.generateText.bind(this),
+              ),
+            (id, title) => {
+              provider.publishTaskTitle(id, title);
+            },
+          );
+          provider.prepareTaskTitle = (task, input) => scheduler.prepare(task, input);
+          provider.subscribeEvents((event) => {
+            scheduler.receive(event);
+          });
+          target[key] = provider;
+          providers.push(provider);
+          titles.push(scheduler);
+        }
+        return target[key];
+      },
     });
-    const router = new EngineProjectRouter(scope, this.store, { codex, claude });
-    this.#entries.set(scope.id, { scope, router, providers: [codex, claude], handles, titles });
+    const router = new EngineProjectRouter(scope, this.store, adapters);
+    this.#entries.set(scope.id, {
+      scope,
+      router,
+      providers,
+      handles,
+      titles,
+      provider: (engine) => {
+        const provider = adapters[engine];
+        if (!provider) throw new Error("ACP Agent 未注册");
+        return provider;
+      },
+    });
     return router;
   }
   async releaseProject(id: string, expected?: AgentProvider): Promise<void> {
@@ -283,8 +340,11 @@ export class AcpRuntime {
     this.#closed = true;
     for (const stop of this.#searches.values()) stop();
     const results = await Promise.allSettled([
+      this.catalog.close(),
       ...[...this.#entries.keys()].map((id) => this.releaseProject(id)),
-      ...Object.values(this.agents).map((service) => service.close()),
+      ...Object.entries(this.agents)
+        .filter(([key]) => isAgentEngine(key))
+        .map(([, service]) => (service as AcpAgentService).close()),
     ]);
     await Promise.allSettled(this.#generations);
     await Promise.allSettled(this.#searches.keys());

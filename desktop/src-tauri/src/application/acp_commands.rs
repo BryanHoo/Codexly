@@ -21,7 +21,7 @@ impl AcpDesktopRuntime {
 /// 只读能力入口不接收工作目录或程序路径；认证与配置写入使用后续独立命令。
 #[tauri::command]
 pub async fn read_acp_agent(app: AppHandle, engine: String) -> Result<Value, AppError> {
-    if !matches!(engine.as_str(), "codex" | "claude") {
+    if !crate::infrastructure::acp_runtime::valid_agent_engine(&engine) {
         return Err(AppError::Acp("Invalid ACP engine".into()));
     }
     app.state::<AppState>()
@@ -32,10 +32,13 @@ pub async fn read_acp_agent(app: AppHandle, engine: String) -> Result<Value, App
 }
 
 fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, AppError> {
-    if !matches!(engine, "codex" | "claude")
+    if !crate::infrastructure::acp_runtime::valid_agent_engine(engine)
         || !matches!(
             method,
             "agent.inspect"
+                | "agents.list"
+                | "agents.install"
+                | "agents.configure"
                 | "agent.authenticate"
                 | "settings.preview"
                 | "settings.read"

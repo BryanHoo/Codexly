@@ -211,3 +211,17 @@ it("模型预览保留服务端内部错误，避免再次转换成协议不匹�
     message: "Internal server error",
   });
 });
+it("Agent 目录刷新传递宿主发现标记，并保持安装幂等请求", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(() =>
+    Promise.resolve(new Response(JSON.stringify({ agents: [] }))),
+  );
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  await client.getAcpAgentCatalog({ refresh: true });
+  await client.installAcpAgent("acp-gemini", { idempotencyKey: "install-once" });
+  expect(fetch.mock.calls[0]?.[0]).toBe("https://example.test/v1/acp/registry?refresh=true");
+  expect(fetch.mock.calls[1]?.[1]).toMatchObject({
+    method: "POST",
+    body: JSON.stringify({ engine: "acp-gemini" }),
+    headers: { "idempotency-key": "install-once" },
+  });
+});

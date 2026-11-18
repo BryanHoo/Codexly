@@ -269,9 +269,11 @@ fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     if let Some(providers) = p.get("providers") {
         let providers = providers.as_array().ok_or(CatalogError::InvalidMessage)?;
         if providers.len() > 2
-            || providers
-                .iter()
-                .any(|provider| !matches!(provider.as_str(), Some("codex" | "claude")))
+            || providers.iter().any(|provider| {
+                !provider
+                    .as_str()
+                    .is_some_and(crate::infrastructure::acp_runtime::valid_agent_engine)
+            })
         {
             return Err(CatalogError::InvalidMessage);
         }

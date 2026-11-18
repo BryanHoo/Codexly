@@ -45,7 +45,13 @@ export class AcpSettingsStore {
   /** 查看和预览仅构造快照，不导入旧配置、不创建或改写设置文件。 */
   async inspect(engine: AgentEngine): Promise<AcpStoredSettings> {
     const current = await this.#read(engine);
-    if (current.configured || current.legacy !== undefined || !this.legacySource) return current;
+    if (
+      current.configured ||
+      current.legacy !== undefined ||
+      !this.legacySource ||
+      engine.startsWith("acp-")
+    )
+      return current;
     const snapshot = await this.legacySource(engine);
     return {
       ...current,
@@ -57,7 +63,8 @@ export class AcpSettingsStore {
     const current = await this.#read(engine);
     const source = this.legacySource;
     // 用户已经明确保存的新默认值不再依赖旧来源可读；损坏的旧文件不能阻断现有 ACP 配置。
-    if (current.configured || current.legacy !== undefined || !source) return current;
+    if (current.configured || current.legacy !== undefined || !source || engine.startsWith("acp-"))
+      return current;
     const existing = this.#imports.get(engine);
     if (existing) return existing;
     // 首读只采集应用自有旧值；并发读取共用一次来源，失败不能写入空的迁移标记。

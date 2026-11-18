@@ -39,11 +39,7 @@ const built = spawnSync(
 );
 if (built.status !== 0) throw built.error ?? new Error("ACP host compilation failed");
 const packages = {};
-for (const name of [
-  "@agentclientprotocol/sdk",
-  "@agentclientprotocol/codex-acp",
-  "@agentclientprotocol/claude-agent-acp",
-]) {
+for (const name of ["@agentclientprotocol/sdk"]) {
   const directory = await resolveRuntimePackage(require, name);
   packages[name] = JSON.parse(await readFile(join(directory, "package.json"), "utf8")).version;
 }

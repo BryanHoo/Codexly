@@ -23,6 +23,19 @@ export function createEngineActivation(
   };
   return {
     getSnapshot: () => snapshot,
+    /** 目录是宿主的持久事实；后台完成后只同步选择，不握手、不写浏览器旧偏好。 */
+    synchronize(engines: readonly AgentEngine[]) {
+      const next = [...new Set(engines)];
+      if (
+        next.length === snapshot.engines.length &&
+        next.every((engine, index) => engine === snapshot.engines[index])
+      )
+        return;
+      const states = { ...snapshot.states };
+      for (const engine of next) states[engine] ??= { phase: "idle", message: "" };
+      snapshot = { engines: next, states };
+      for (const listener of listeners) listener();
+    },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {

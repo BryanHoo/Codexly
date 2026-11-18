@@ -18,6 +18,7 @@ export default {
       anyOf: [
         { const: "codex", type: "string", [Kind]: "Literal" },
         { const: "claude", type: "string", [Kind]: "Literal" },
+        { type: "string", pattern: "^acp-[a-z0-9][a-z0-9-]{0,95}$", [Kind]: "String" },
       ],
       [Kind]: "Union",
     },

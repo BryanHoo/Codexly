@@ -2,7 +2,6 @@ import { join } from "node:path";
 import type { AgentRuntimeProvider, LocalCatalogStore } from "@codexly/core";
 import {
   AcpApplicationRuntime,
-  createOfficialAcpLauncher,
   readAcpLegacyApplicationSettings,
   type AcpAgentLauncher,
 } from "@codexly/provider-acp";
@@ -24,7 +23,7 @@ export function createCliAcpRuntime(input: CreateCliAcpRuntimeInput): CliAcpRunt
     join(input.applicationDirectory, "engines", "acp"),
     input.store,
     () => input.store.readGlobalSettings(),
-    input.launch ?? createOfficialAcpLauncher(input.environment),
+    input.launch,
     async (engine) => {
       const source = await readAcpLegacyApplicationSettings(input.applicationDirectory, engine);
       return engine === "codex"
@@ -34,5 +33,6 @@ export function createCliAcpRuntime(input: CreateCliAcpRuntimeInput): CliAcpRunt
           }
         : source;
     },
+    input.environment,
   );
 }

@@ -1,7 +1,5 @@
 import { useState, type ReactElement, type ReactNode } from "react";
-import { X } from "lucide-react";
 
-import { Button } from "./button.js";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./dialog.js";
 import { PdfPreview, type PdfPreviewLabels } from "./pdf-preview.js";
 
@@ -34,22 +32,13 @@ export function PdfAttachment({
     <Dialog onOpenChange={setOpen} open={open}>
       {wrapTrigger === undefined ? trigger : wrapTrigger(trigger)}
       <DialogContent
+        closeLabel={labels.close}
         aria-describedby={undefined}
         className="h-[min(92dvh,54rem)] max-w-[72rem] overflow-hidden p-0"
       >
         <section className="grid size-full grid-rows-[auto_minmax(0,1fr)]">
-          <header className="flex min-h-toolbar items-center gap-3 px-3 shadow-toolbar">
+          <header className="flex min-h-16 items-center gap-3 px-3 shadow-toolbar">
             <DialogTitle className="min-w-0 flex-1 truncate text-body-small">{name}</DialogTitle>
-            <Button
-              aria-label={labels.close}
-              onClick={() => {
-                setOpen(false);
-              }}
-              size="icon-sm"
-              variant="ghost"
-            >
-              <X aria-hidden="true" className="size-3.5" />
-            </Button>
           </header>
           {/* 只在用户打开弹窗后加载 PDF，历史附件不会提前请求。 */}
           {open ? (

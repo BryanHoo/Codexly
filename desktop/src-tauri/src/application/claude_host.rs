@@ -117,8 +117,16 @@ impl ClaudeHostManager {
         // 从管理器排队开始计算同一个绝对时限；启动、写入和等待响应都不得重置计时。
         // 插件下载安装包含网络请求；仅扩展写操作放宽时限，普通会话保持原预算。
         let deadline = Instant::now()
-            + if self.acp && matches!(method, "agent.authenticate" | "application.generate") {
-                Duration::from_secs(150)
+            + if self.acp
+                && matches!(
+                    method,
+                    "agent.authenticate"
+                        | "application.generate"
+                        | "agents.list"
+                        | "agents.install"
+                )
+            {
+                Duration::from_secs(360)
             } else if method == "extensions.mutate" {
                 Duration::from_secs(120)
             } else {

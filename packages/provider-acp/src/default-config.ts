@@ -24,7 +24,10 @@ export async function setAcpDefaultConfig(
   value: string | boolean,
   closeSession: (sessionId: string) => Promise<void>,
 ) {
-  if (!connection.initialization.agentCapabilities?.sessionCapabilities?.close)
+  if (
+    !connection.initialization.agentCapabilities?.sessionCapabilities?.close &&
+    !engine.startsWith("acp-")
+  )
     throw new Error("ACP agent 不支持设置会话关闭");
   const session = await connection.newSession({ cwd, mcpServers: [] });
   const result = await (async () => {

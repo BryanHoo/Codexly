@@ -131,3 +131,30 @@ async fn acp_prepare_should_use_one_external_sidecar_and_cache_its_identity() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn acp_host_only_bundle_should_not_require_any_agent() {
+    let root = tempfile::tempdir().unwrap();
+    let platform = if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(windows) {
+        "win32"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        "x64"
+    };
+    std::fs::write(root.path().join("host"), "binary").unwrap();
+    std::fs::write(root.path().join("manifest.json"), serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,"host":{"path":"host","protocolVersion":1},"engines":{}}).to_string()).unwrap();
+    assert!(
+        AcpRuntimeManager::default()
+            .prepare(root.path())
+            .await
+            .is_ok()
+    );
+    assert_eq!(bundled_version(root.path(), "codex").await.unwrap(), None);
+    assert_eq!(bundled_version(root.path(), "claude").await.unwrap(), None);
+}

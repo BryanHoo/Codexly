@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AgentEngine, AgentGlobalSettings, AgentModel } from "@codexly/protocol";
+import type { AgentEngine, AgentModel } from "@codexly/protocol";
 import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
 import { useSelectedEngines } from "./engine-selection.js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
@@ -14,7 +14,7 @@ export function DefaultGenerationSettings({
   getModels,
   onChange,
 }: Readonly<{
-  settings: Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel">;
+  settings: { defaultAgent?: AgentEngine; defaultModel: string };
   language: string;
   getModels: (engine: AgentEngine) => Promise<readonly AgentModel[]>;
   onChange: (patch: { defaultAgent: AgentEngine; defaultModel: string }) => void;
@@ -24,7 +24,11 @@ export function DefaultGenerationSettings({
     ? (settings.defaultAgent ?? "codex")
     : (engines[0] ?? "codex");
   const configuredModel =
-    (settings.defaultAgent ?? "codex") === engine ? settings.defaultModel : defaults[engine];
+    (settings.defaultAgent ?? "codex") === engine
+      ? settings.defaultModel
+      : engine === "claude"
+        ? defaults.claude
+        : defaults.codex;
   // Claude 的旧自定义值回落 Haiku，防止辅助生成的选择器重新补回已过滤的模型。
   const model =
     engine === "claude" && !CLAUDE_MODEL_OPTIONS.some((option) => option.id === configuredModel)
@@ -70,7 +74,10 @@ export function DefaultGenerationSettings({
             value={engine}
             onValueChange={(value) => {
               const defaultAgent = value as AgentEngine;
-              onChange({ defaultAgent, defaultModel: defaults[defaultAgent] });
+              onChange({
+                defaultAgent,
+                defaultModel: defaultAgent === "claude" ? defaults.claude : defaults.codex,
+              });
             }}
           >
             <SelectTrigger

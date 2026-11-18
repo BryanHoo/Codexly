@@ -20,7 +20,7 @@ for (const [platform, client] of [
   ["web", codexlyClient],
   ["desktop", nativeClient],
 ] as const) {
-  it(`${platform}：额外引擎显式启用仅做 ACP 握手，失败保留原选择`, async () => {
+  it(`${platform} 旧客户端兼容：额外引擎显式启用仅做 ACP 握手，失败保留原选择`, async () => {
     await Promise.all([webLanguage("zh-CN"), desktopLanguage("zh-CN")]);
     const marker = '{"engines":["codex"],"complete":true}';
     const data = new Map([[ENGINE_SETUP_KEY, marker]]);
@@ -63,6 +63,10 @@ for (const [platform, client] of [
       onRetry: vi.fn(),
       onSave: vi.fn(),
     };
+    // 此用例专门保留无目录接口的旧客户端兼容契约；新目录流程在 acp-catalog 中验证。
+    const descriptor = Object.getOwnPropertyDescriptor(client, "getAcpAgentCatalog");
+    if (platform === "desktop")
+      Object.defineProperty(client, "getAcpAgentCatalog", { value: undefined, configurable: true });
     const screen = await render(
       <QueryClientProvider client={query}>
         <EngineSelectionProvider engines={["codex"]} storage={storage}>
@@ -125,6 +129,10 @@ for (const [platform, client] of [
       oldSettings.mockRestore();
       oldProfile.mockRestore();
       defaults.mockRestore();
+      if (platform === "desktop") {
+        if (descriptor) Object.defineProperty(client, "getAcpAgentCatalog", descriptor);
+        else Reflect.deleteProperty(client, "getAcpAgentCatalog");
+      }
     }
   });
 }

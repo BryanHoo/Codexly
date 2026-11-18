@@ -168,3 +168,4 @@ export const AcpConfigPreviewSchema = Type.Object(
 );
 export type AcpConfigPreviewRequest = Static<typeof AcpConfigPreviewRequestSchema>;
 export type AcpConfigPreview = Static<typeof AcpConfigPreviewSchema>;
+export * from "./acp-agent-catalog.js";

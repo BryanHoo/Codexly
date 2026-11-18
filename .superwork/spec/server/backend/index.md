@@ -39,3 +39,8 @@
 - `/v1/temporary/acp/{codex|claude}/preview` 复用项目 ACP 授权和预览处理，不把客户端传入的任意路径交给 Agent。
 - 预览超时使用可重试 `PROVIDER_ERROR`；Protocol 的 mutation 错误枚举包含服务端兜底 `INTERNAL_ERROR`，客户端不能把正常结构的 HTTP 500 二次误报为协议不匹配。
 - 回归入口：`acp-preview.test.ts`（真实 HTTP、超时、断连、聊天/项目）、`temporary-task-routing.test.ts` 与客户端 `http-client-acp.test.ts`。
+
+## 启动与调度锁隔离
+
+- Web SQLite 初始化使用独立的 `state.sqlite3.startup-lock` 事务互斥；运行时定时任务继续使用 `state.sqlite3.scheduled-lock`。不能让新实例的 Schema 初始化等待另一实例跨异步操作持有的调度锁，也不能通过删除锁文件或终止其他实例解决竞争。
+- 回归 `scheduled-task-multi-instance.test.ts` 必须在已有实例持有调度锁时启动第二实例，并确认启动成功、业务调度仍然互斥、释放后可继续领取；原生 SQLite 进程锁在进程退出时自动释放。

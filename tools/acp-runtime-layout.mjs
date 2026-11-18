@@ -88,8 +88,7 @@ export async function verifyAcpRuntime(directory, target, sidecar) {
     throw new Error("Invalid ACP host placement");
   const executables = [
     ...(manifest.host.placement === "sidecar" ? [] : [hostPath]),
-    localPath(manifest.engines.codex.entrypoint),
-    localPath(manifest.engines.claude.entrypoint),
+    ...Object.values(manifest.engines ?? {}).map((engine) => localPath(engine.entrypoint)),
   ];
   const files = (await runtimeInventory(directory)).filter(
     (entry) => entry.path !== "manifest.json",

@@ -1,3 +1,4 @@
+import { isAgentEngine } from "@codexly/protocol";
 import type { AgentEngine } from "@codexly/protocol";
 type StoragePort = Readonly<{
   getItem(key: string): string | null;
@@ -15,7 +16,7 @@ export function readAcpDraftEngine(
   try {
     const saved =
       storage.getItem(`${prefix}${scope}`) ?? storage.getItem(`codexly:engine-draft:v1:${scope}`);
-    return (saved === "codex" || saved === "claude") && engines.includes(saved) ? saved : fallback;
+    return isAgentEngine(saved) && engines.includes(saved) ? saved : fallback;
   } catch {
     return fallback;
   }

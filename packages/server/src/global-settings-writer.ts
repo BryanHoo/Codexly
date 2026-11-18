@@ -1,3 +1,4 @@
+import type { AgentEngine } from "@codexly/protocol";
 import { isDeepStrictEqual } from "node:util";
 import type { AgentRuntimeDefaultSettings } from "@codexly/core";
 import type { AgentGlobalSettings } from "@codexly/protocol";
@@ -18,7 +19,7 @@ export function createGlobalSettingsWriter(
     ServerRouteContext,
     "readEffectiveGlobalSettings" | "settingsRepository" | "provider"
   >,
-  engine: "codex" | "claude" = "codex",
+  engine: AgentEngine = "codex",
 ) {
   let queue: Promise<unknown> = Promise.resolve();
   return (settings: AgentGlobalSettings): Promise<AgentGlobalSettings> => {

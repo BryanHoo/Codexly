@@ -1,5 +1,7 @@
 import type {
   AcpConfigPreview,
+  AcpAgentCatalogPage,
+  AcpAgentRegistration,
   AcpConfigPreviewRequest,
   AcpAgentProfile,
   AcpAuthCredentials,
@@ -16,6 +18,35 @@ import { TauriAcpTaskClient } from "./acp-task-client.js";
 
 /** ACP 全局端口直接走本地 IPC，与 Web 使用相同数据契约，不初始化旧厂商运行时。 */
 export class TauriAcpClient extends TauriAcpTaskClient {
+  getAcpAgentCatalog(
+    options: ReadOptions & { refresh?: boolean } = {},
+  ): Promise<AcpAgentCatalogPage> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine: "codex", method: "agents.list", params: { refresh: options.refresh ?? false } },
+      options.signal,
+    );
+  }
+  installAcpAgent(
+    engine: AgentEngine,
+    options: MutationOptions = {},
+  ): Promise<AcpAgentCatalogPage> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine, method: "agents.install", params: {} },
+      options.signal,
+    );
+  }
+  configureAcpAgent(
+    registration: AcpAgentRegistration,
+    options: MutationOptions = {},
+  ): Promise<AcpAgentCatalogPage> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine: registration.engine, method: "agents.configure", params: { registration } },
+      options.signal,
+    );
+  }
   getAcpScheduledConfig(
     taskId: string,
     options: ReadOptions = {},
