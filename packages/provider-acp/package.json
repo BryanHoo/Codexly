@@ -21,10 +21,14 @@
     "@sinclair/typebox": "catalog:",
     "proxy-chain": "catalog:",
     "smol-toml": "catalog:",
-    "undici": "catalog:"
+    "undici": "catalog:",
+    "yauzl": "catalog:"
   },
   "devDependencies": {
+    "@agentclientprotocol/claude-agent-acp": "catalog:",
     "@agentclientprotocol/codex-acp": "catalog:",
-    "@agentclientprotocol/claude-agent-acp": "catalog:"
+    "@types/yazl": "catalog:",
+    "@types/yauzl": "catalog:",
+    "yazl": "catalog:"
   }
 }

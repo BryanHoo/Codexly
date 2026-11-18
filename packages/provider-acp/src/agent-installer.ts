@@ -9,6 +9,7 @@ import { dirname, join, resolve, relative, isAbsolute } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { findAgentExecutable, type AgentCommand } from "./agent-executable.js";
 import type { AcpAgentInstallationStage } from "@codexly/protocol";
+import { extractAgentZip } from "./agent-zip.js";
 const execute = promisify(execFile);
 interface Spec {
   args?: string[];
@@ -133,7 +134,8 @@ export async function installRegistryAgent(
       const archive = join(stage, "download.archive");
       let size = 0;
       let lastReport = 0;
-      const limit = 256 * 1024 * 1024;
+      // 目录中的 Antigravity Linux x64 ZIP 约 261 MiB；保留有界下载预算并覆盖真实发布包。
+      const limit = 512 * 1024 * 1024;
       const length = Number(response.headers.get("content-length"));
       // Fetch 会解码压缩响应，只有原始字节数与响应头一致时才可使用该总量。
       const lengthKnown =
@@ -175,7 +177,11 @@ export async function installRegistryAgent(
       const command = resolve(stage, spec.cmd);
       if (relative(stage, command).startsWith("..") || isAbsolute(relative(stage, command)))
         throw new Error("Agent 入口超出安装目录");
-      if (/\.(zip|tar\.gz|tgz|tar\.bz2|tbz2)$/i.test(url.pathname)) {
+      if (/\.zip$/i.test(url.pathname)) {
+        report?.({ stage: "extracting" });
+        await extractAgentZip(archive, stage, signal);
+        await rm(archive);
+      } else if (/\.(tar\.gz|tgz|tar\.bz2|tbz2)$/i.test(url.pathname)) {
         report?.({ stage: "extracting" });
         const { stdout } = await run("tar", ["-tf", archive]);
         if (

@@ -32,9 +32,12 @@
 pnpm exec vitest run packages/provider-acp/src
 pnpm exec tsc -b packages/provider-acp --pretty false
 CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-acp/src/official-agents.test.ts
+CODEXLY_REGISTRY_RELEASE_TEST=1 pnpm exec vitest run packages/provider-acp/src/agent-installer.test.ts packages/provider-acp/src/registry-release.test.ts
 ```
 
 真实 adapter 测试在隔离目录握手并读取供应商列表，验证 Claude 空历史列表与 Codex 未认证的目录拒绝；不创建会话、不调用模型，不能证明实际账号、历史续聊或端到端交互可用。
+
+目录发布测试从内置快照安装官方固定版本，分别验证 npm 和当前平台二进制的真实安装与握手；Ubuntu 额外下载并安装 Junie、Antigravity 的 Linux ZIP。三平台 CI 显式开启 `CODEXLY_REGISTRY_RELEASE_TEST=1`，日常单测只执行离线分发格式和版本一致性校验。更新官方快照时必须同步开发依赖；ZIP 解包不依赖系统 tar 或 unzip，tar 系列仍使用系统 tar，覆盖 Registry 规范中的 ZIP、tar.gz、tgz、tar.bz2、tbz2 及原始二进制。
 
 HTTP 契约：`/v1/acp/agents/:engine`、`/authenticate`、`/defaults`、`/providers` 及 `/v1/projects/:projectId/tasks/:taskId/acp/config`。写入沿用配对认证和幂等键；原始布尔值不经过类型强制转换。桌面将消费同一 Core 服务端口，不能绕行这些 HTTP 路由。
 

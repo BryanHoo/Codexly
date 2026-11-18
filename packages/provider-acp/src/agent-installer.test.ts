@@ -1,8 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { ZipFile } from "yazl";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import snapshot from "./registry-snapshot.json" with { type: "json" };
 import { installRegistryAgent, type RegistryAgent } from "./agent-installer.js";
 import type { AcpAgentInstallationStage } from "@codexly/protocol";
 const directories: string[] = [];
@@ -36,8 +40,94 @@ async function fixture(digest?: string, cmd = "./agent") {
       },
     },
   };
-  return { directory, agent, bytes };
+  const spec = Object.values(agent.distribution.binary ?? {})[0];
+  if (!spec) throw new Error("缺少测试二进制分发");
+  return { directory, agent, bytes, spec, target };
 }
+
+async function zipBytes(name = "bin/agent", mode = 0o100755) {
+  const zip = new ZipFile();
+  zip.addBuffer(Buffer.from("test executable"), name, { mode });
+  zip.end();
+  const chunks: Buffer[] = [];
+  for await (const chunk of zip.outputStream) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+}
+
+it("ZIP 安装不依赖系统 tar 或 unzip，并保留嵌套入口、参数和环境", async () => {
+  const { directory, agent, spec } = await fixture(undefined, "./bin/agent");
+  const bytes = await zipBytes();
+  spec.archive += ".zip";
+  spec.sha256 = createHash("sha256").update(bytes).digest("hex");
+  spec.env = { ACP_MODE: "test" };
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(bytes)));
+  const result = await installRegistryAgent(agent, join(directory, "runtime"), { PATH: "" });
+  expect(await readFile(result.command, "utf8")).toBe("test executable");
+  expect(result.args).toEqual(["acp"]);
+  expect(result.env).toEqual({ ACP_MODE: "test" });
+});
+
+it.each(["../evilx", "/outside", "C:/evilx", "a\\evilxx"])(
+  "拒绝 ZIP 路径逃逸：%s，并清理暂存目录",
+  async (name) => {
+    const { directory, agent, spec } = await fixture();
+    // 同时替换本地头和中央目录，构造真实恶意 ZIP，而非模拟解包器的返回值。
+    const bytes = Buffer.from(
+      (await zipBytes("safe.txt")).toString("latin1").replaceAll("safe.txt", name),
+      "latin1",
+    );
+    spec.archive += ".zip";
+    spec.sha256 = createHash("sha256").update(bytes).digest("hex");
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response(bytes)));
+    await expect(installRegistryAgent(agent, join(directory, "runtime"))).rejects.toThrow();
+    await expect(stat(join(directory, "runtime"))).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readdir(directory)).toEqual([]);
+  },
+);
+
+it("拒绝 ZIP 符号链接", async () => {
+  const { directory, agent, spec } = await fixture();
+  const bytes = await zipBytes("agent", 0o120777);
+  spec.archive += ".zip";
+  spec.sha256 = createHash("sha256").update(bytes).digest("hex");
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(bytes)));
+  await expect(installRegistryAgent(agent, join(directory, "runtime"))).rejects.toThrow("特殊文件");
+});
+
+it.each([".tar.gz", ".tgz", ".tar.bz2", ".tbz2"])("按 Registry 规范安装 %s", async (extension) => {
+  const { directory, agent, spec } = await fixture(undefined, "./bin/agent");
+  await mkdir(join(directory, "source/bin"), { recursive: true });
+  await writeFile(join(directory, "source/bin/agent"), "test executable");
+  const archive = join(directory, `fixture${extension}`);
+  await promisify(execFile)("tar", [
+    extension.includes("bz2") ? "-cjf" : "-czf",
+    archive,
+    "-C",
+    join(directory, "source"),
+    "bin",
+  ]);
+  const bytes = await readFile(archive);
+  spec.archive += extension;
+  spec.sha256 = createHash("sha256").update(bytes).digest("hex");
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(bytes)));
+  const result = await installRegistryAgent(agent, join(directory, "runtime"));
+  expect(await readFile(result.command, "utf8")).toBe("test executable");
+});
+
+it.each(["junie", "antigravity-acp"])("按 %s 的 Linux ZIP 目录条目安装嵌套入口", async (id) => {
+  const { directory, agent, target } = await fixture();
+  const entries: RegistryAgent[] = snapshot.agents;
+  const linux = entries.find((item) => item.id === id)?.distribution.binary?.["linux-x86_64"];
+  if (!linux) throw new Error("目录缺少 Linux 分发");
+  const bytes = await zipBytes(linux.cmd.replace(/^\.\//, ""));
+  agent.distribution.binary = {
+    [target]: { ...linux, sha256: createHash("sha256").update(bytes).digest("hex") },
+  };
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(bytes)));
+  const result = await installRegistryAgent(agent, join(directory, "runtime"), { PATH: "" });
+  expect(await readFile(result.command, "utf8")).toBe("test executable");
+  expect(result.args).toEqual(linux.args);
+});
 it("原生安装流式校验并原子发布，不启动 Agent", async () => {
   const { directory, agent } = await fixture();
   const result = await installRegistryAgent(agent, join(directory, "runtime"));

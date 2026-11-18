@@ -111,7 +111,7 @@ describe("release verification", () => {
     expect(desktopPackage.packageManager).toBe(rootPackage.packageManager);
 
     for (const [workflowPath, expectedJobs] of [
-      [".github/workflows/desktop-quality.yml", 4],
+      [".github/workflows/desktop-quality.yml", 5],
       [".github/workflows/desktop-webview.yml", 1],
       [".github/workflows/release.yml", 1],
     ] as const) {
