@@ -6,9 +6,13 @@ This document describes current conversation loading and resource management for
 
 ## 会话历史 / Conversation History
 
-打开任务时优先读取最近回合的问题与最终答复摘要，每页最多 10 个回合。顶部「加载更早历史」每次只读取一页更早回合，不加载回合内部的过程条目。展开某个回合的过程后独立读取执行条目，分页历史每次最多读取该回合的 100 个条目，支持继续加载与失败重试，不改变问题与最终答复的顺序；保留审查结果和条目耗时，长过程内容限制在当前分屏内。旧格式历史仍按回合读取完整过程，过程入口同样按需加载。分页是读取方式，不会删除磁盘上的历史记录。
+当前 Web、移动浏览器和桌面共用 ACP 历史投影。命中缓存时从文件尾部有界读取，每页最多 20 个回合、读取窗口最多 4 MiB；继续加载通过游标读取更早回合。缓存未命中时通过原厂会话 ID 发起 `session/load`，逐回合处理历史重放并等待写盘背压，不将整个会话一次性读入内存。ACP v1 没有标准历史消息分页，界面分页不会减少冷重放的总传输量。
 
-Opening a task loads summaries of recent questions and final answers, with up to 10 turns per page. The top history control loads one page of earlier turns without fetching their internal execution details. Expanding a turn’s process loads its details independently, with up to 100 items per page for paginated history and controls to load more or retry failures, while keeping questions and final answers in order. Review results and item timings are preserved, and long process content stays within the current pane. Legacy history reads the complete process by turn, also only when expanded. Pagination changes how history is read; it does not delete history on disk.
+Both interfaces share the ACP history projection. Cached reads return up to 20 turns from a bounded 4 MiB tail window. A cache miss loads the original session through ACP and processes replay one turn at a time with disk backpressure. ACP v1 has no standard message-history pagination, so UI pagination does not reduce the total cold replay traffic.
+
+可重放正文缓存的容量目标为同机共享 256 MiB；首次使用及会话释放时，优先淘汰最久未访问的闲置会话。实际握手未确认 `loadSession` 的历史不会自动删除。活动视图、分页读取、导出和运行中会话持有跨进程保护，允许暂时超额，释放后再回收。新生成的回答续文和工具详情附件计入此目标；原厂历史、兼容性存储、用户上传附件及旧版混合仓储附件单独保留。每次重建只保留当前及一个旧代际；过期游标明确提示刷新，不改读其他版本。
+
+Replayable history has a shared 256 MiB cache target. First use and session release evict least recently accessed idle sessions. Active views, exports and running sessions hold cross-process protection and may temporarily exceed the target. New answer continuations and tool-detail attachments count toward the cache target. Unknown or non-replayable history, native agent storage, user uploads and legacy mixed attachments are retained separately. Replay keeps the current generation and one previous generation; expired cursors fail explicitly.
 
 ## 共享聊天组件 / Shared Chat Components
 
@@ -22,7 +26,7 @@ Conversation rows stay in the DOM and use browser content visibility instead of 
 
 ### 活跃长会话的容量与回收验收
 
-分页最多 10 回合仅限制单次读取，不限制累计加载或持续运行的回合数。保留原生查找、选择的代价是正文 DOM、组件和订阅随已加载内容增长；四个不同任务的分屏分别承担这份成本。当前没有活跃会话的总堆内存硬上限，不会自动删除、折叠或卸载较早的问题与答复，也不以虚拟滚动优化会话。
+分页仅限制单次读取，不限制累计加载或持续运行的回合数。保留原生查找、选择的代价是正文 DOM、组件和订阅随已加载内容增长；四个不同任务的分屏分别承担这份成本。当前没有活跃会话的总堆内存硬上限，不会自动删除、折叠或卸载较早的问题与答复，也不以虚拟滚动优化会话。
 
 先减少重复工作：两端稳定回合渲染工厂，共享列表仅在条目顺序、键工厂或回合渲染输入改变时重建行元素。分页状态、页脚通知、发送信号与导航宽度更新复用已有行；结构变化仍更新对应回合，正文增量仍由目标 Item Store 发布。只保存当前列表的一版元素，不维护跨任务行缓存。回合级 `memo` 和稳定分组继续隔离无关历史正文；这减少更新工作，不减少驻留规模或消除所有 Store 选择器调用。
 

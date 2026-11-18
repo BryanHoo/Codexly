@@ -5,6 +5,7 @@ import type { AgentTurn } from "@codexly/protocol";
 import type { AcpStorageLeases } from "./storage-lease.js";
 import { createReadStream } from "node:fs";
 import { decodeHistoryEntry, replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
+import { AcpHistoryCache, ACP_HISTORY_CACHE_BYTES } from "./history-cache.js";
 
 const TURN_BYTES = 2 * 1024 * 1024;
 const PAGE_BYTES = 4 * 1024 * 1024;
@@ -82,10 +83,14 @@ function validHead(value: unknown): value is Head {
 }
 /** 只保存应用投影，模型上下文仍由 ACP agent 的 sessionId 恢复；读取量不随总历史增长。 */
 export class AcpHistory {
+  readonly cache: AcpHistoryCache;
   constructor(
     readonly directory: string,
     readonly leases?: AcpStorageLeases,
-  ) {}
+    cacheBytes = ACP_HISTORY_CACHE_BYTES,
+  ) {
+    this.cache = new AcpHistoryCache(directory, leases, cacheBytes);
+  }
   #key(task: string): string {
     return createHash("sha256").update(task).digest("hex");
   }
@@ -181,10 +186,11 @@ export class AcpHistory {
         }
         await file.sync();
         await file.close();
-        const previous = old ? [old.generation, ...(old.previous ?? [])].slice(0, 7) : [];
+        const previous = old ? [old.generation] : [];
         await this.#publish(root, { generation, end, previous, recent });
         committed = true;
-        // 最多保留当前及七个旧投影，近期游标可续读；更早游标明确失效，不能悄悄改读新版。
+        await this.cache.rebuilt(task);
+        // 只留一份旧投影供近期游标续读，避免每次重放长期累积八份完整正文。
         const retained = new Set([generation, ...previous].map((id) => `${id}.jsonl`));
         for await (const entry of await opendir(root)) {
           if (/^[a-f0-9-]{36}\.(jsonl|tmp)$/.test(entry.name) && !retained.has(entry.name))

@@ -88,66 +88,78 @@ export class AcpRuntime {
     this.search = new CatalogSearchService(store, async (task, input, signal, limit) => {
       if (this.#closed) throw new Error("ACP Runtime 已关闭");
       checkSearchCancellation(signal);
-      const pending = this.#entries
-        .get(task.projectId ?? "temporary")
-        ?.providers.some((provider) => provider.hasPendingTurn(task.id));
-      if (!input.cursor && task.sessionId && !pending && !(await this.#history.hasTurns(task.id))) {
-        this.#checkOpen();
-        if (!isAgentEngine(task.provider)) throw new Error("未知 ACP 搜索引擎");
-        if (this.#searches.size >= 4) throw new Error("ACP 冷历史搜索达到并发限制");
-        // 冷搜索使用独立短连接，不能修改已经打开的项目根、订阅或会话容量。
-        const scope: AgentTaskScope = {
-          id: task.projectId ?? "temporary",
-          kind: task.projectId === null ? "temporary" : "project",
-          rootPath: task.cwd,
-          runtimeWorkspaceRoots: [task.cwd],
-        };
-        let handle: AcpAgentHandle | undefined;
-        const controller = new AbortController();
-        const stop = () => {
-          controller.abort();
-          void handle?.close().catch(() => undefined);
-        };
-        const provider = new AcpAgentProvider(
-          task.provider,
-          scope,
-          store,
-          this.#history,
-          async (callbacks) => {
-            handle = await launch(task.provider as AgentEngine, scope, callbacks);
-            // 取消可能发生在启动等待期间；迟到的新连接必须立即回收，不能继续加载历史。
-            if (controller.signal.aborted) {
-              await handle.close();
-              controller.signal.throwIfAborted();
-            }
-            await new AcpProviderRouting(task.provider as AgentEngine, this.settings).restore(
-              handle.connection,
-            );
-            return handle.connection;
-          },
-        );
-        const pending = (async () => {
-          try {
-            await provider.readTask(task.id, { signal: controller.signal });
-          } finally {
+      // 搜索与冷重放共用同一使用保护；匹配及游标形成之前，不能关闭 Provider 后立即淘汰正文。
+      const release = await this.#history.cache.acquire(task.id);
+      try {
+        const pending = this.#entries
+          .get(task.projectId ?? "temporary")
+          ?.providers.some((provider) => provider.hasPendingTurn(task.id));
+        if (
+          !input.cursor &&
+          task.sessionId &&
+          !pending &&
+          !(await this.#history.hasTurns(task.id))
+        ) {
+          this.#checkOpen();
+          if (!isAgentEngine(task.provider)) throw new Error("未知 ACP 搜索引擎");
+          if (this.#searches.size >= 4) throw new Error("ACP 冷历史搜索达到并发限制");
+          // 冷搜索使用独立短连接，不能修改已经打开的项目根、订阅或会话容量。
+          const scope: AgentTaskScope = {
+            id: task.projectId ?? "temporary",
+            kind: task.projectId === null ? "temporary" : "project",
+            rootPath: task.cwd,
+            runtimeWorkspaceRoots: [task.cwd],
+          };
+          let handle: AcpAgentHandle | undefined;
+          const controller = new AbortController();
+          const stop = () => {
+            controller.abort();
+            void handle?.close().catch(() => undefined);
+          };
+          const provider = new AcpAgentProvider(
+            task.provider,
+            scope,
+            store,
+            this.#history,
+            async (callbacks) => {
+              handle = await launch(task.provider as AgentEngine, scope, callbacks);
+              // 取消可能发生在启动等待期间；迟到的新连接必须立即回收，不能继续加载历史。
+              if (controller.signal.aborted) {
+                await handle.close();
+                controller.signal.throwIfAborted();
+              }
+              await new AcpProviderRouting(task.provider as AgentEngine, this.settings).restore(
+                handle.connection,
+              );
+              return handle.connection;
+            },
+          );
+          const pending = (async () => {
             try {
-              await provider.close();
+              await provider.readTask(task.id, { signal: controller.signal });
             } finally {
-              await handle?.close();
+              try {
+                await provider.close();
+              } finally {
+                await handle?.close();
+              }
             }
+          })();
+          this.#searches.set(pending, stop);
+          signal?.addEventListener("abort", stop, { once: true });
+          if (signal?.aborted) stop();
+          try {
+            await pending;
+          } finally {
+            signal?.removeEventListener("abort", stop);
+            this.#searches.delete(pending);
           }
-        })();
-        this.#searches.set(pending, stop);
-        signal?.addEventListener("abort", stop, { once: true });
-        if (signal?.aborted) stop();
-        try {
-          await pending;
-        } finally {
-          signal?.removeEventListener("abort", stop);
-          this.#searches.delete(pending);
         }
+        return await searchAcpHistory(this.#history, task.id, input, signal, limit);
+      } finally {
+        await release();
+        await this.#history.cache.prune();
       }
-      return searchAcpHistory(this.#history, task.id, input, signal, limit);
     });
     const services = { catalog: this.catalog } as Record<AgentEngine, AcpAgentService> & {
       catalog: AcpAgentCatalog;
@@ -339,10 +351,13 @@ export class AcpRuntime {
         failures.map((result): unknown => result.reason),
         "ACP 项目释放失败",
       );
+    await this.#history.cache.prune();
     if (this.#entries.get(id) === entry) this.#entries.delete(id);
   }
-  async close(): Promise<void> {
+  async close(catalogDisconnected = false): Promise<void> {
     this.#closed = true;
+    // stdio 已结束时不可再发反向 RPC；存储 owner 不按时间释放，等待进程死亡证明。
+    if (catalogDisconnected) this.#history.cache.disconnect();
     for (const stop of this.#searches.values()) stop();
     const results = await Promise.allSettled([
       this.catalog.close(),

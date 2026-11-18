@@ -205,7 +205,7 @@ export class AcpHost {
     // 先关闭运行时解除在途请求，再等待订阅操作退出，避免落盘等待与关闭互锁。
     this.#closing = (async () => {
       try {
-        await this.runtime.close();
+        await this.runtime.close(true);
       } finally {
         await this.#tasks.settled();
       }

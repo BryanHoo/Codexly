@@ -3,8 +3,6 @@ import type { AgentTurn } from "@codexly/protocol";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection } from "./event-projection.js";
 import { replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
-import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
-import { join } from "node:path";
 import type { AcpTurnContent } from "./turn-content.js";
 
 const ALIGNMENT_WINDOW = 8;
@@ -26,7 +24,7 @@ export class AcpReplay {
     readonly taskId: string,
   ) {
     const stream = new TransformStream<ReplayTurn, ReplayTurn>();
-    const attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
+    const attachments = history.cache.content(taskId);
     this.#writer = stream.writable.getWriter();
     const source = async function* () {
       const reader = stream.readable.getReader();

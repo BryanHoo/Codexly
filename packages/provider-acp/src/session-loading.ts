@@ -1,5 +1,5 @@
 import { RequestError, type SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
-import type { LocalTask } from "@codexly/core";
+import type { LocalTask, LocalCatalogStore } from "@codexly/core";
 import type { AcpConnection } from "./connection.js";
 import type { AcpHistory } from "./history.js";
 import { AcpReplay } from "./replay.js";
@@ -16,7 +16,7 @@ interface Loader {
   initialization?: AcpSessionInitialization;
   agent(): Promise<AcpConnection>;
   patch(patch: Partial<LocalTask>): Promise<void>;
-  rebind(expectedSessionId: string, sessionId: string): Promise<void>;
+  store: LocalCatalogStore;
   initialize?(
     connection: AcpConnection,
     sessionId: string,
@@ -61,7 +61,14 @@ export async function loadAcpSession(
   const publishBinding = async (sessionId: string) => {
     if (task.sessionId === sessionId) return;
     if (task.sessionId === null) await source.patch({ sessionId });
-    else await source.rebind(task.sessionId, sessionId);
+    else if (
+      !(await source.store.catalog("acp.session.rebind", {
+        id: task.id,
+        expectedSessionId: task.sessionId,
+        sessionId,
+      }))
+    )
+      throw new Error("ACP 会话绑定已改变，请重新加载任务");
     task = { ...task, sessionId };
   };
   const pending = await journal?.read(task);
@@ -83,7 +90,10 @@ export async function loadAcpSession(
     source.needsDefaults.delete(task.id);
   };
   const bound = source.sessions.get(task.id);
-  if (bound && !source.repairHistory) {
+  const evicted =
+    connection.initialization.agentCapabilities?.loadSession &&
+    (await source.history.cache.wasEvicted(task.id));
+  if (bound && !source.repairHistory && !evicted) {
     // 目录回执失败时先确认已落盘的初始化意图，再发布同一绑定；禁止创建替代会话。
     if (source.needsDefaults.has(task.id)) await journal?.prepare(task, bound);
     await publishBinding(bound);

@@ -163,6 +163,6 @@ describe("ACP 历史分页", () => {
     if (!taskDirectory) throw new Error("历史目录未创建");
     expect(
       (await readdir(join(h.directory, taskDirectory))).filter((name) => name.endsWith(".jsonl")),
-    ).toHaveLength(8);
+    ).toHaveLength(2);
   });
 });
