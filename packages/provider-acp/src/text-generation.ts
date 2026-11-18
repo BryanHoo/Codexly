@@ -27,8 +27,11 @@ export async function generateAcpText(
   const unsubscribe = source.subscribe((event) => {
     if (event.taskId !== task.id || event.type !== "turn.completed") return;
     const turn = event.payload.turn;
-    if (turn.status !== "completed") {
-      result.reject(new Error(turn.error ?? "ACP 辅助生成中断"));
+    // completed 只描述聊天展示；拒绝、截断或原因缺失都不能交付给自动化消费者。
+    if (turn.status !== "completed" || turn.stopReason !== "end_turn") {
+      result.reject(
+        new Error(turn.error ?? `ACP 辅助生成未成功结束：${turn.stopReason ?? "unknown"}`),
+      );
       return;
     }
     const answer = turn.items

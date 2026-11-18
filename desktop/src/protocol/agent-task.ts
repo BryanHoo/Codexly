@@ -1,4 +1,5 @@
 import { Type, type Static } from "@sinclair/typebox";
+import { AgentTurnSchema as SharedAgentTurnSchema } from "@codexly/protocol";
 
 import {
   AgentAttachmentKindSchema,
@@ -230,6 +231,8 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 原生链路保留停止原因，并复用共享字段约束，避免两端协议漂移。
+    stopReason: SharedAgentTurnSchema.properties.stopReason,
     // 与共享协议一致：无原生回复位置的命令回合不提供分叉。
     forkable: Type.Optional(Type.Boolean()),
     processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),

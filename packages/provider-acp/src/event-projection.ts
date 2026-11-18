@@ -23,6 +23,7 @@ export class AcpEventProjection {
   #completedAt: string | null = null;
   #status: AgentTurn["status"] = "running";
   #error: string | null = null;
+  #stopReason: StopReason | undefined;
   #anonymous = 0;
   #current: { kind: string; id: string } | undefined;
   #settlementError: string | undefined;
@@ -167,6 +168,7 @@ export class AcpEventProjection {
       completedAt: this.#completedAt,
       status: this.#status,
       error: this.#error,
+      ...(this.#stopReason ? { stopReason: this.#stopReason } : {}),
       items: structuredClone([...this.#items.values()]),
       forkable: false,
     };
@@ -192,7 +194,12 @@ export class AcpEventProjection {
   }
 
   finish(reason: StopReason): AgentTurn {
-    return this.#finish(reason === "cancelled" ? "interrupted" : "completed", null);
+    if (!this.running) return this.snapshot();
+    this.#stopReason = reason;
+    // 拒绝也是可展示的完整答复；取消及配额截断保留部分正文并显示中断。
+    // 这里仅决定聊天状态，不能据此判断辅助生成是否成功。
+    const status = reason === "end_turn" || reason === "refusal" ? "completed" : "interrupted";
+    return this.#finish(status, null);
   }
 
   fail(error: string): AgentTurn {

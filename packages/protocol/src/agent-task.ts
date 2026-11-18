@@ -209,6 +209,9 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // ACP 原始停止原因独立于聊天展示状态；自动化成功必须明确检查 end_turn。
+    // 可选以兼容旧历史及其他 Provider，不为缺少原因的旧数据推断成功。
+    stopReason: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
     // 缺省沿用引擎能力；false 表示本回合没有可恢复的原生消息分叉点。
     forkable: Type.Optional(Type.Boolean()),
     // 执行终态与落盘状态独立；缺省表示没有待恢复写入，不能用写盘错误覆盖模型结果。

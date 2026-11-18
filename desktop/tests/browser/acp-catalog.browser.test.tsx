@@ -318,14 +318,16 @@ it("已安装 Agent 显示更新进度，确认后才从目录移除", async () 
   const remove = screen.getByRole("button", { name: "移除 Agent" });
   await expect.element(version).toBeVisible();
   const versionRect = version.element().getBoundingClientRect();
-  for (const [index, control] of [update, remove].entries()) {
+  for (const control of [update, remove]) {
     expect(control.element().textContent).toBe("");
     const rect = control.element().getBoundingClientRect();
     expect(rect.left).toBeGreaterThanOrEqual(versionRect.right);
     expect(rect.top + rect.height / 2).toBeCloseTo(versionRect.top + versionRect.height / 2, 0);
-    if (index === 1)
-      expect(rect.left).toBeGreaterThan(update.element().getBoundingClientRect().left);
   }
+  // 控件的左右顺序始终单独验证，避免条件分支跳过布局断言。
+  expect(remove.element().getBoundingClientRect().left).toBeGreaterThan(
+    update.element().getBoundingClientRect().left,
+  );
   await update.hover();
   await expect.element(page.getByRole("tooltip", { name: "更新 Agent" })).toBeVisible();
   await update.click();

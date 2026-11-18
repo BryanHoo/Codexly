@@ -13,6 +13,13 @@
 
 事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
 
+## ACP 停止原因
+
+- Web 与桌面回合通过可选 `stopReason` 保留 ACP 原始停止原因，事件和历史读取不得丢弃；旧历史和其他 Provider 可省略。
+- 聊天展示将 `end_turn`、`refusal` 标为已完成，将 `cancelled`、`max_tokens`、`max_turn_requests` 标为中断并保留已有正文。展示完成不等于自动化成功。
+- ACP 辅助生成必须同时满足 `status === "completed"` 和 `stopReason === "end_turn"`；拒绝、截断和缺失原因均拒绝交付结果，错误保留具体原因，仍释放临时会话。
+- 回归入口：`packages/provider-acp/src/event-projection.test.ts`、`text-generation.test.ts`、`turn-persistence.test.ts`，以及 `desktop/src/protocol/acp-session.test.ts`。
+
 ## Web 诊断契约
 
 - `packages/protocol/src/diagnostics.ts` 定义 `DiagnosticsResponseSchema` 和 `DiagnosticsResponse`，由 Client `getDiagnostics()` 与 Server `GET /v1/diagnostics` 共用；版本固定为 1，包含导出时间、运行环境、脱敏 JSON 日志行和淘汰计数。该 HTTP 快照不替换桌面原生 ZIP 导出协议。

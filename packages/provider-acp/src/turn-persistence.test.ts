@@ -1,9 +1,27 @@
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEvent } from "@codexly/core";
+import type { AgentTurn } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
 import { AcpHistory } from "./history.js";
 import { AcpReplay } from "./replay.js";
 import { fixture, input } from "./provider.test-support.js";
+
+it.each(["end_turn", "refusal", "max_tokens", "max_turn_requests", "cancelled"] as const)(
+  "停止原因 %s 在完成事件和重新读取历史后保持一致",
+  async (stopReason) => {
+    const f = await fixture("codex", () => Promise.resolve({ stopReason }));
+    const completed = Promise.withResolvers<AgentTurn>();
+    f.provider.subscribeEvents((event) => {
+      if (event.type !== "turn.completed") return;
+      completed.resolve(event.payload.turn);
+    });
+    const task = await f.provider.startTask();
+    await f.provider.startConfiguredTurn(task.id, input);
+    expect((await completed.promise).stopReason).toBe(stopReason);
+    const reopened = new AcpHistory(f.history.directory);
+    expect((await reopened.read(task.id)).turns[0]?.stopReason).toBe(stopReason);
+  },
+);
 
 it("超长回答和工具输出保存为受控附件，刷新后仍可读且可以继续发送", async () => {
   const answer = "回答😀".repeat(240_000);

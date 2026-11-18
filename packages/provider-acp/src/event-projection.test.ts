@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AgentProviderEvent } from "@codexly/core";
 import { AcpEventProjection } from "./event-projection.js";
+import { AgentTurnSchema } from "@codexly/protocol";
+import { Value } from "@sinclair/typebox/value";
 
 function fixture() {
   const events: AgentProviderEvent[] = [];
@@ -11,6 +13,22 @@ function fixture() {
 }
 
 describe("ACP 增量事件投影", () => {
+  it.each([
+    ["end_turn", "completed"],
+    ["refusal", "completed"],
+    ["max_tokens", "interrupted"],
+    ["max_turn_requests", "interrupted"],
+    ["cancelled", "interrupted"],
+  ] as const)("保留 %s 原因，聊天展示为 %s", (reason, status) => {
+    const { projection, events } = fixture();
+    const turn = projection.finish(reason);
+    expect(turn).toMatchObject({ status, stopReason: reason });
+    expect(Value.Check(AgentTurnSchema, turn)).toBe(true);
+    expect(events.at(-1)).toMatchObject({ payload: { turn: { stopReason: reason } } });
+    // 迟到的结束通知不得覆盖先前已确定的停止原因。
+    expect(projection.finish("end_turn")).toEqual(turn);
+  });
+
   it("相同 messageId 合并增量，不修改已交付的开始事件", () => {
     const { projection, events } = fixture();
     projection.update({
