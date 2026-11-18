@@ -19,6 +19,7 @@ export async function createAcpPrompt(
   input: AgentProviderTurnInput,
   capabilities: PromptCapabilities,
   directory: string,
+  onRollback?: (cleanup: () => Promise<void>) => void,
 ): Promise<ContentBlock[]> {
   if (input.skills.length || input.outputSchema)
     throw new Error("当前 ACP 输入不支持旧技能或结构化输出设置");
@@ -57,6 +58,10 @@ export async function createAcpPrompt(
     }
   }
   const saved: string[] = [];
+  const cleanup = async () => {
+    // 只回收本次生成的唯一文件，不能删除同任务已提交或结果未知的附件。
+    await Promise.all(saved.map((path) => rm(path, { force: true })));
+  };
   let fileBytes = 0;
   try {
     for (const file of input.files) {
@@ -81,9 +86,11 @@ export async function createAcpPrompt(
     // 官方 agent 的标准 NDJSON 入站限制为32MiB，超出时在发送前明确拒绝，避免提交结果不确定。
     if (Buffer.byteLength(JSON.stringify(prompt)) > 32 * 1024 * 1024 - 64 * 1024)
       throw new Error("ACP 输入超过传输预算");
+    // 内部准备成功后交给提交边界管理；后续历史、会话、配置等准备失败仍可回滚。
+    onRollback?.(cleanup);
     return prompt;
   } catch (error) {
-    await Promise.all(saved.map((path) => rm(path, { force: true })));
+    await cleanup();
     throw error;
   }
 }

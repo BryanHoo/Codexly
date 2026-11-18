@@ -37,7 +37,6 @@ import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
 import { prepareAcpHistoryCommit } from "./turn-persistence.js";
 import { AcpProviderConnection } from "./provider-connection.js";
-
 /** 同一实现接入任意 ACP agent；应用任务管理与 agent 的原生会话身份保持分离。 */
 export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #listeners = new Map<AgentProviderEventListener, boolean>();
@@ -247,7 +246,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     signal?: AbortSignal,
     initialConfig?: AcpConfigValues,
   ): Promise<AgentTurn> {
-    return submitAcpTurn((submitted) =>
+    return submitAcpTurn((submitted, onRollback) =>
       this.#serial(id, async () => {
         // 上次回答若因真正的存储故障滞留，用户继续发送时只先补写历史。
         const recover = this.#failedCommits.get(id);
@@ -264,6 +263,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
             "attachments",
             createHash("sha256").update(id).digest("hex"),
           ),
+          onRollback,
         );
         const attachments = await this.attachments.prepare(id, input);
         await this.#load(task, initialConfig !== undefined);
