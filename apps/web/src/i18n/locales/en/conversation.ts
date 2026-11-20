@@ -337,6 +337,8 @@ export const conversation = {
     planGenerating: "Generating plan",
     planReady: "Plan ready to build",
     processing: "Processed",
+    processingCompleted: "Completed",
+    durationUnknown: "Duration unavailable",
     quickNavigation: "User message quick navigation",
     reconnecting: "Restoring live connection",
     review: "Review",

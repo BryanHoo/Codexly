@@ -149,7 +149,11 @@ export function createTaskEventReducer<
           turnIds: [...state.turnIds.filter((turnId) => turnId !== event.turnId), event.turnId],
           turnsById: {
             ...state.turnsById,
-            [event.turnId]: retainTurnItemTimings(state.turnsById[event.turnId], normalizedTurn),
+            [event.turnId]: retainTurnItemTimings(
+              state.turnsById[event.turnId],
+              normalizedTurn,
+              event,
+            ),
           },
         };
       }
@@ -396,10 +400,14 @@ export function createTaskEventReducer<
               : {
                   ...state.turnsById,
                   // 终态通知不携带历史过程入口，保留恢复摘要时登记的独立游标。
-                  [event.turnId]: retainTurnItemTimings(currentTurn, {
-                    ...currentTurn,
-                    ...normalizedTurn,
-                  }),
+                  [event.turnId]: retainTurnItemTimings(
+                    currentTurn,
+                    {
+                      ...currentTurn,
+                      ...normalizedTurn,
+                    },
+                    event,
+                  ),
                 },
         };
       }

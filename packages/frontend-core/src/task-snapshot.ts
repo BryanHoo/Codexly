@@ -67,6 +67,8 @@ export function mergeTurnItemTimings(
 }
 
 interface ReconciledTurn {
+  startedAt?: string | null;
+  completedAt?: string | null;
   id: string;
   items: { id: string; type: string; role?: string; identityAliases?: readonly string[] }[];
   itemTimings?: AgentTurn["itemTimings"];
@@ -94,6 +96,13 @@ export function reconcileTaskSnapshot<
         const itemTimings = mergeTurnItemTimings(currentTurn.itemTimings, incoming.itemTimings);
         return {
           ...incoming,
+          // 同一运行时的空快照不能抹掉已观察到的起止时间；跨运行时仍使用权威快照。
+          ...(incoming.startedAt === null && currentTurn.startedAt
+            ? { startedAt: currentTurn.startedAt }
+            : {}),
+          ...(incoming.completedAt === null && currentTurn.completedAt
+            ? { completedAt: currentTurn.completedAt }
+            : {}),
           ...(itemTimings === undefined ? {} : { itemTimings }),
           items: retainSnapshotTurnItems(currentTurn.items, incoming.items, currentTurn.id),
         };

@@ -250,17 +250,22 @@ export function TurnProcessingTime({
 
   if (totalSeconds === null && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
-  const content =
-    duration === null ? (
-      i18n.t(expanded ? "timeline.collapseProcess" : "timeline.expandProcess", {
-        ns: "conversation",
-      })
-    ) : (
-      <>
-        <span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span>
+  // 标题始终表达执行状态；展开/收起只保留为按钮的可访问名称。
+  const content = (
+    <>
+      <span>
+        {i18n.t(status === "completed" ? "timeline.processingCompleted" : "timeline.processing", {
+          ns: "conversation",
+        })}
+        &nbsp;
+      </span>
+      {duration === null ? (
+        <span>{i18n.t("timeline.durationUnknown", { ns: "conversation" })}</span>
+      ) : (
         <time dateTime={duration.dateTime}>{duration.label}</time>
-      </>
-    );
+      )}
+    </>
+  );
   const className = "agent-process-header";
 
   return onToggle === undefined ? (

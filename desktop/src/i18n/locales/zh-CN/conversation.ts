@@ -328,6 +328,8 @@ export const conversation = {
     planGenerating: "正在生成计划",
     planReady: "计划已生成，可开始构建",
     processing: "已处理",
+    processingCompleted: "已完成",
+    durationUnknown: "耗时未知",
     quickNavigation: "用户消息快捷导航",
     reconnecting: "实时连接恢复中",
     review: "审核",

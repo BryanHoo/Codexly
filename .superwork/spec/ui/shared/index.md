@@ -41,6 +41,7 @@
 
 - Trace 的完成/运行/失败状态以共享图标表达，状态文案保留在可访问名称中，禁止重复拼入可见标题。连续过程使用紧凑间距，正文保持独立段落节奏。
 - ACP 缺少消息阶段时，仅在 ACP 时间线启用共享的末次普通助手消息答复边界推导，完成后收起此前说明和操作；明确的 final_answer 优先，异步问题不充当答复边界。运行中自动收起必须读取后续正文的增量物化视图，不能用 peek 的初始空文本；手动展开仍优先。回归为 `desktop/tests/browser/operation-collapse.browser.test.tsx`（双端 Store、Chromium/WebKit）及 Web `task-timeline-process.test.tsx`。
+- 过程标题在运行中显示“已处理”和持续耗时，完成后显示“已完成”和固定耗时；展开/收起文案只作为可访问名称。原生起止时间缺失时，仅可用实际观察到的生命周期事件时间补齐，同一运行时空快照不能覆盖它们；历史缺少时间时明确显示耗时未知，禁止把页面恢复时间当作执行时间。回归：共享 `task-event-timing.test.ts`、两端 continuation 测试及 `turn-processing-alignment.browser.test.tsx`。
 - 新步骤入场由会话内稳定 itemKey 去重，跳过初始历史、token 更新及折叠重开；身份集合有界、切换任务释放。仅使用 CSS/原生 Web Animations，不为动效延迟事件提交或逐帧更新 React；遵循 `prefers-reduced-motion`。
 - Trace 折叠交给 Radix Presence 完成退出过渡后卸载，不能在外层直接条件移除详情；操作组聚合前后保留稳定折叠节点。思考摘要随流式状态展开/收起，用户手动选择优先。回归入口为桌面 `trace-entry.browser.test.tsx`、`trace-polish.browser.test.tsx` 和 Web `app-shell-trace-motion.spec.ts`。
 - 命令、工具和文件操作从首条起使用共享 `agent/operation-group.tsx` 的 Trace 折叠容器，展开窗口最多五条摘要行（28px 行高、4px 间隔），此高度只限制摘要列表，命令、工具及思考详情使用按需挂载的独立 Dialog Portal，文件 Diff 沿用已有独立入口，不受列表高度和中栏宽度限制。详情弹层固定标题，参数、终端日志和结果共享一个正文纵向滚动区，不能保留嵌套的日志高度上限；只有用户点击才打开，流式状态不自动弹出。查看详情视为手动展开组，后续助手正文不能卸载正在阅读的详情，关闭后恢复焦点并卸载重型内容。少量新增步骤使用原生平滑滚动，初始历史、批量追加及输出增量即时跟随，减少动态效果时禁用平滑滚动；不新增逐帧 React 状态。用户滚动、触控或打开详情时暂停内部跟随，由用户自行滚动，不显示回到底部按钮，手动滚到底部后恢复跟随；内部滚动意图不传播给外层会话滚动器。后续正文默认收起操作组，手动选择优先。单独的思考摘要继续使用原有入口。回归入口为桌面 `task-timeline-operation-groups.browser.test.tsx` 与 Web `app-shell-trace-motion.spec.ts`，覆盖窄屏、Chromium / Firefox / WebKit、外层高度和滚动位置稳定、手动折叠与减少动态效果。
