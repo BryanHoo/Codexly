@@ -121,7 +121,12 @@ export async function submitTask(
     await ports.validate();
     if (input.taskId === undefined && record?.task === undefined) {
       await claim({ fingerprint, stage: "creating" });
-      const task = await ports.createTask();
+      const task = await ports.createTask().catch(async (error: unknown) => {
+        // 创建端明确保证尚未写入任务时才释放占用；未知存储结果不能重复创建。
+        if (error instanceof AgentTurnNotSubmittedError)
+          await save({ fingerprint, stage: "ready" });
+        throw error;
+      });
       await save({ fingerprint, stage: "ready", task });
     }
     const task = record?.task;

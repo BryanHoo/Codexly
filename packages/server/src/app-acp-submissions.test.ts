@@ -45,6 +45,29 @@ async function fixture(repository?: TaskSubmissionRepository) {
   return { ...h, ...settings, startConfiguredTurn, app };
 }
 
+it("ACP 创建明确未执行时允许原键重试，不遗留 creating 占用", async () => {
+  const h = await fixture();
+  h.startTask.mockRejectedValueOnce(new AgentTurnNotSubmittedError("工作目录暂不可用"));
+  const payload = { type: "acp-prompt", engine: "codex", input: request.payload.input };
+  expect((await h.app.inject({ ...request, payload })).statusCode).toBe(502);
+  const retried = await h.app.inject({ ...request, payload });
+  expect(retried.statusCode, retried.body).toBe(201);
+  expect(h.startTask).toHaveBeenCalledTimes(2);
+  expect(h.startConfiguredTurn).toHaveBeenCalledOnce();
+});
+
+it("ACP 创建结果未知时保留原键保护，禁止重复创建任务", async () => {
+  const h = await fixture();
+  h.startTask.mockRejectedValueOnce(new Error("任务写入回执丢失"));
+  const payload = { type: "acp-prompt", engine: "codex", input: request.payload.input };
+  expect((await h.app.inject({ ...request, payload })).statusCode).toBe(502);
+  const retried = await h.app.inject({ ...request, payload });
+  expect(retried.statusCode).toBe(409);
+  expect(retried.json()).toMatchObject({ code: "SUBMISSION_OUTCOME_UNKNOWN" });
+  expect(h.startTask).toHaveBeenCalledOnce();
+  expect(h.startConfiguredTurn).not.toHaveBeenCalled();
+});
+
 it("ACP 续聊使用权威会话配置，不读取模型列表、不写旧设置且重复提交只执行一次", async () => {
   const h = await fixture();
   const first = await h.app.inject(request),

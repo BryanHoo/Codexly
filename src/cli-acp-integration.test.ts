@@ -2,6 +2,8 @@ import { expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { AcpApplicationRuntime } from "@codexly/provider-acp";
 import { createPersistentAgentPeer } from "../packages/provider-acp/test/persistent-agent.test-support.js";
@@ -22,8 +24,24 @@ it.each(["codex", "claude"] as const)(
   "%s 的实际 HTTP/SQLite/ACP 装配在重启后沿原会话续聊",
   async (engine) => {
     const directory = await mkdtemp(join(tmpdir(), "cli-acp-integration-"));
-    const workspace = join(directory, "project");
-    await mkdir(workspace);
+    const projectRoot = join(directory, "project");
+    const workspace = join(directory, "worktree");
+    await mkdir(projectRoot);
+    const git = promisify(execFile);
+    await git("git", ["init", projectRoot]);
+    await git("git", [
+      "-C",
+      projectRoot,
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "--allow-empty",
+      "-m",
+      "init",
+    ]);
+    await git("git", ["-C", projectRoot, "worktree", "add", "-b", "test", workspace]);
     const { launch, loaded, prompts, transcripts } = createPersistentAgentPeer();
     async function open() {
       const store = await SqliteStateRepository.open(join(directory, "state.sqlite3"));
@@ -59,7 +77,7 @@ it.each(["codex", "claude"] as const)(
       current = await open();
       await current.store.catalog("project.put", {
         id: "project",
-        path: workspace,
+        path: projectRoot,
         name: "项目",
         createdAt: new Date().toISOString(),
       });
@@ -93,6 +111,7 @@ it.each(["codex", "claude"] as const)(
         payload: {
           type: "acp-prompt",
           engine,
+          workspacePath: workspace,
           input: { type: "prompt", text: "第一条", attachments: [], skills: [] },
         },
       });
@@ -123,6 +142,7 @@ it.each(["codex", "claude"] as const)(
         payload: {
           type: "acp-prompt",
           engine,
+          workspacePath: workspace,
           input: { type: "prompt", text: "第一条", attachments: [], skills: [] },
         },
       });
