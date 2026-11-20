@@ -2,7 +2,7 @@ import type { AgentEngine } from "@codexly/protocol";
 import { useState } from "react";
 import { Toaster, toast } from "@codexly/ui/core/toaster";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -172,7 +172,12 @@ it("检测到的其他 Agent 自动进入工作区，未启动账号或模型探
   await screen.unmount();
 });
 
-afterEach(() => toast.dismiss());
+// 每个启动用例独立验证首次初始化，不能继承其他用例的完成记录。
+beforeEach(() => localStorage.removeItem("codexly:acp-engine-setup:v1"));
+afterEach(() => {
+  toast.dismiss();
+  localStorage.removeItem("codexly:acp-engine-setup:v1");
+});
 function BackgroundWorkspace() {
   const [count, setCount] = useState(0);
   const engines = useSelectedEngines();

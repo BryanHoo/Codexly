@@ -102,6 +102,10 @@ function CatalogSetup({
   storage = browserSetupStorage,
 }: Parameters<typeof LegacyAcpEngineSetupGate>[0] & { client: Partial<AcpCatalogClient> }) {
   const privateStorage = useMemo(() => createAcpEngineSetupStorage(storage), [storage]);
+  // 完成记录跨页面刷新保留；日常目录读取不再重复播报初始化进度和成功。
+  const initialized = useRef<boolean | undefined>(undefined);
+  initialized.current ??=
+    readEngineSetup(privateStorage.getItem(ENGINE_SETUP_KEY))?.complete === true;
   const refreshing = useRef(false);
   const query = useQuery({
     queryKey: ["acp-agent-catalog"],
@@ -139,7 +143,10 @@ function CatalogSetup({
   }, [notificationId, zh]);
   useEffect(() => {
     if (query.isFetching) {
-      if (!running.current) notifyLoading();
+      if (!running.current) {
+        if (!initialized.current) notifyLoading();
+        running.current = true;
+      }
       return;
     }
     if (!running.current) return;
@@ -179,6 +186,15 @@ function CatalogSetup({
           (zh ? "，可在设置 → ACP 中重试安装。" : ". Retry installation in Settings → ACP."),
       });
     } else if (available.length) {
+      if (initialized.current) {
+        toast.dismiss(notificationId);
+        return;
+      }
+      initialized.current = true;
+      privateStorage.setItem(
+        ENGINE_SETUP_KEY,
+        JSON.stringify({ engines: available.map((agent) => agent.engine), complete: true }),
+      );
       toast.success(zh ? "Agent 已就绪" : "Agents are ready", {
         id: notificationId,
         description: available
@@ -200,6 +216,7 @@ function CatalogSetup({
     query.refetch,
     zh,
     notifyLoading,
+    privateStorage,
   ]);
   const automatic = progress?.operations.find((operation) => operation.action === "automatic");
   const checked = progress?.discovery;
