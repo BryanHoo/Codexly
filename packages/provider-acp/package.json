@@ -22,7 +22,8 @@
     "proxy-chain": "catalog:",
     "smol-toml": "catalog:",
     "undici": "catalog:",
-    "yauzl": "catalog:"
+    "yauzl": "catalog:",
+    "@codexly/provider-codex": "workspace:*"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "catalog:",

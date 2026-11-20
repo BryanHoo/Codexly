@@ -202,7 +202,7 @@ export function useComposerSession({
     [runtime, skills],
   );
   const { attachmentsDisabled, draftInputDisabled, turnControlsDisabled } =
-    deriveComposerInputAvailability(state);
+    deriveComposerInputAvailability(state, runtime?.writeAccess);
   const fileSearch = useProjectFileSearch(
     client,
     projectId,

@@ -347,6 +347,7 @@ export async function dispatchAcpHost(
         id,
         {
           signal,
+          checkWriteAccess: typeof params["cursor"] !== "string",
           ...(typeof params["cursor"] === "string" ? { cursor: params["cursor"] } : {}),
           ...(typeof params["summary"] === "boolean" ? { summary: params["summary"] } : {}),
         },

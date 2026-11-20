@@ -697,6 +697,9 @@ importers:
       '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@codexly/provider-codex':
+        specifier: workspace:*
+        version: link:../provider-codex
       '@sinclair/typebox':
         specifier: 'catalog:'
         version: 0.34.52

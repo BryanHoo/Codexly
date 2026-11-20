@@ -93,6 +93,8 @@ export class ProjectEventRuntime {
       this.#disposed ||
       projectId !== this.#projectId ||
       snapshotMetadata === null ||
+      // ACP retain 仅登记视图；重新打开必须通过快照检查实际写入权。
+      snapshotMetadata.runtime === "acp" ||
       checkpoint === null ||
       this.#connectionState !== "connected" ||
       this.#snapshotRecoveryRequired ||
@@ -169,7 +171,7 @@ export class ProjectEventRuntime {
       .then(() => {
         const state = store.getState();
         if (this.#targets.get(store) !== target || state.writeAccess !== "checking") return;
-        state.setWriteAccess("writable");
+        state.setWriteAccess(state.snapshotMetadata?.writeAccess === "external" ? "external" : "writable");
       }).catch((reason: unknown) => {
         const state = store.getState();
         if (this.#targets.get(store) !== target || state.writeAccess === "external") return;

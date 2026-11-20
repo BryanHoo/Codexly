@@ -70,6 +70,7 @@ export const LegacyAgentTaskSnapshotSchema = Type.Object(
     turnsNextCursor: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
     updatedAt: DateTimeSchema,
     workspacePath: Type.Optional(ProjectRootPathSchema),
+    writeAccess: Type.Optional(Type.Union([Type.Literal("writable"), Type.Literal("external")])),
   },
   { additionalProperties: false },
 );

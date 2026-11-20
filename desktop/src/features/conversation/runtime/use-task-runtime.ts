@@ -56,7 +56,7 @@ export function useTaskRuntime(
   );
   const connectionState = useStore(subscribedStore, (state) => state.connectionState);
   const runtimeError = useStore(subscribedStore, (state) => state.error);
-  const writeAccess = useStore(subscribedStore, (state) => state.writeAccess);
+  const storedWriteAccess = useStore(subscribedStore, (state) => state.writeAccess);
   const metadata = useStore(subscribedStore, useShallow(selectTaskRuntimeMetadata));
   const itemStructureRevision = useStore(subscribedStore, (state) => state.itemStructureRevision);
   const turnsNextCursor = useStore(subscribedStore, (state) => state.turnsNextCursor);
@@ -165,6 +165,7 @@ export function useTaskRuntime(
   const taskQueryError = taskQueryState.scope === taskScope ? taskQueryState.error : null;
   const taskQueryPending =
     taskId !== undefined && (taskQueryState.scope !== taskScope || taskQueryState.isPending);
+  const writeAccess = taskQueryPending ? "checking" : storedWriteAccess;
   const error =
     activeRuntime === undefined || !hasHydratedSnapshot
       ? taskQueryError

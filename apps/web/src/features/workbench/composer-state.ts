@@ -146,16 +146,20 @@ export function deriveComposerState(
   return input.mutationFailed === true ? "failed" : "idle";
 }
 
-export function deriveComposerInputAvailability(state: ComposerState): Readonly<{
+export function deriveComposerInputAvailability(
+  state: ComposerState,
+  writeAccess?: "checking" | "writable" | "external",
+): Readonly<{
   attachmentsDisabled: boolean;
   draftInputDisabled: boolean;
   turnControlsDisabled: boolean;
 }> {
+  const writeBlocked = writeAccess !== undefined && writeAccess !== "writable";
   return {
     // 草稿与附件都是本地输入，实时连接恢复期间不能禁用，否则浏览器会终止原生 IME 上下文。
-    attachmentsDisabled: state === "submitting",
-    draftInputDisabled: state === "submitting",
-    turnControlsDisabled: state === "reconnecting" || state === "submitting",
+    attachmentsDisabled: writeBlocked || state === "submitting",
+    draftInputDisabled: writeBlocked || state === "submitting",
+    turnControlsDisabled: writeBlocked || state === "reconnecting" || state === "submitting",
   };
 }
 

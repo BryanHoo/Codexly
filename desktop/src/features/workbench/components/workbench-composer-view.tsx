@@ -1,3 +1,4 @@
+import { ComposerWriteAccessNotice } from "@codexly/ui/core/composer-interaction-boundary";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import {
   ComposerSubmitActions,
@@ -334,7 +335,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           <PromptInput
             attachments={props.attachments}
             aria-busy={props.state === "submitting" || props.state === "reconnecting"}
-            className="w-full"
+            className="relative w-full"
             data-state={props.state}
             disabled={props.attachmentsDisabled}
             fileAccept={AGENT_FILE_ACCEPT}
@@ -455,6 +456,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 ) : null}
               </>
             </ComposerConfigurationToolbar>
+            <ComposerWriteAccessNotice access={props.writeAccess} message={t("composer.threadBusy")} />
           </PromptInput>
         </div>
         {props.modelsError === null ? null : (

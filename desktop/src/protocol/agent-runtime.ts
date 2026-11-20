@@ -56,6 +56,7 @@ export const LegacyAgentTaskSnapshotSchema = Type.Object(
     pinned: Type.Boolean(),
     projectId: Type.String({ minLength: 1 }),
     workspacePath: Type.Optional(Type.String({ minLength: 1 })),
+    writeAccess: Type.Optional(Type.Union([Type.Literal("writable"), Type.Literal("external")])),
     settings: AgentTaskSettingsSchema,
     // 仅原生读取快照携带；新建任务的乐观快照没有权威线程配置。
     threadConfiguration: Type.Optional(AgentThreadConfigurationSchema),

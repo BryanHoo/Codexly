@@ -1,3 +1,4 @@
+import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import {
@@ -46,6 +47,7 @@ export class AcpRuntime {
   readonly launch: AcpAgentLauncher;
   readonly #entries = new Map<string, Entry>();
   readonly #history: AcpHistory;
+  readonly #environment: NodeJS.ProcessEnv;
   readonly #preferences: ApplicationPreferencesService;
   readonly #initialization: AcpSessionInitialization;
   #closed = false;
@@ -66,6 +68,7 @@ export class AcpRuntime {
       environment,
     );
     const snapshot = { ...environment };
+    this.#environment = snapshot;
     this.launch =
       launch ??
       (async (engine, scope, callbacks) => {
@@ -134,6 +137,7 @@ export class AcpRuntime {
               return handle.connection;
             },
           );
+          provider.readExternalHistory = this.#readExternalHistory;
           const pending = (async () => {
             try {
               await provider.readTask(task.id, { signal: controller.signal });
@@ -174,6 +178,14 @@ export class AcpRuntime {
       },
     });
   }
+  readonly #readExternalHistory: typeof readAcpCodexHistory = async (task, input) => {
+    if (task.provider !== "codex") throw new Error("此 Agent 不支持 Codex 只读历史");
+    const command = await this.catalog.command(task.provider);
+    return readAcpCodexHistory(task, input, {
+      ...command,
+      env: { ...this.#environment, ...command.env },
+    });
+  };
   #checkOpen(): void {
     if (this.#closed) throw new Error("ACP Runtime 已关闭");
   }
@@ -294,6 +306,7 @@ export class AcpRuntime {
           return target[key];
         if (!target[key]) {
           const provider = create(key);
+          provider.readExternalHistory = this.#readExternalHistory;
           const scheduler = new AcpTaskTitles(
             this.store,
             key,

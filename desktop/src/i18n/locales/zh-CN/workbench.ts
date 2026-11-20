@@ -129,7 +129,7 @@ export const workbench = {
     noModels: "暂无可用模型",
     openProjectFolder: "在系统文件夹中打开",
     operationFailed: "操作失败，请重试",
-    threadBusy: "当前任务正在其他客户端进行",
+    threadBusy: "此任务正在其他应用中编辑，暂时无法发送消息",
     placeholder: "告诉 Codexly 你想完成什么",
     planMode: "计划",
     projectPath: "项目路径",

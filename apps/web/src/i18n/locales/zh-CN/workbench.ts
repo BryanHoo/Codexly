@@ -55,6 +55,7 @@ export const workbench = {
     showFileTree: "切换为文件树",
   },
   composer: {
+    threadBusy: "此任务正在其他应用中编辑，暂时无法发送消息",
     addedAttachments: "已添加附件",
     applyTodo: "应用待办",
     applyTodoDescription: "应用待办将覆盖输入框中的当前内容。是否继续？",

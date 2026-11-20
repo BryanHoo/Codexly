@@ -50,6 +50,7 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
         {
           ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
           ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
+          checkWriteAccess: request.query.cursor === undefined,
           // Fastify 超时仅协作取消，必须传入读取与后续 RPC，避免响应结束后继续重读。
           signal: request.signal,
         },

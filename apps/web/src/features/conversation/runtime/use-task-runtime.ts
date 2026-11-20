@@ -20,6 +20,7 @@ const taskStoreRegistry = createTaskStoreRegistry({ maxRetainedStores: 20 });
 const emptyTaskStore = createTaskStore({ projectId: "", taskId: "" });
 
 export type TaskRuntimeView = Readonly<{
+  writeAccess?: "checking" | "writable" | "external" | undefined;
   activeTurnId: string | undefined;
   connectionState: "closed" | "connected" | "connecting" | "reconnecting";
   error: Error | null;
@@ -161,10 +162,16 @@ export function useTaskRuntime(
       }
     }
   }, [activeRuntime, client, projectId, taskId, turnsNextCursor]);
+  const storedWriteAccess = useStore(
+    activeRuntime ?? emptyTaskStore,
+    (state) => state.snapshotMetadata?.writeAccess,
+  );
   const hasHydratedSnapshot = activeRuntime?.getState().snapshotMetadata !== null;
   const taskQueryError = taskQueryState.scope === taskScope ? taskQueryState.error : null;
   const taskQueryPending =
     taskId !== undefined && (taskQueryState.scope !== taskScope || taskQueryState.isPending);
+  // 权限确认期间保留缓存历史，但先禁用发送，避免旧可写状态绕过本次检查。
+  const writeAccess = taskQueryPending ? "checking" : storedWriteAccess;
   const error =
     activeRuntime === undefined || !hasHydratedSnapshot
       ? taskQueryError
@@ -185,6 +192,7 @@ export function useTaskRuntime(
   return useMemo(
     () => ({
       activeTurnId,
+      writeAccess,
       connectionState: activeRuntime === undefined ? "connecting" : connectionState,
       error,
       hasOlderHistory: turnsNextCursor !== null,
@@ -199,6 +207,7 @@ export function useTaskRuntime(
     }),
     [
       activeRuntime,
+      writeAccess,
       activeTurnId,
       connectionState,
       error,

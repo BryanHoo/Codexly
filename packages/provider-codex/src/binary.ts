@@ -73,7 +73,10 @@ export interface LocateCodexBinaryOptions {
   platform?: NodeJS.Platform;
 }
 
-function resolveBundledBinary(platform: NodeJS.Platform): string | null {
+export function resolveBundledBinary(
+  platform: NodeJS.Platform,
+  anchor = import.meta.url,
+): string | null {
   const targetKey = `${platform}-${process.arch}`;
   const target = BUNDLED_CODEX_TARGETS[targetKey];
   if (!target) {
@@ -81,7 +84,7 @@ function resolveBundledBinary(platform: NodeJS.Platform): string | null {
   }
 
   try {
-    const rootRequire = createRequire(import.meta.url);
+    const rootRequire = createRequire(anchor);
     const codexPackagePath = rootRequire.resolve("@openai/codex/package.json");
     const codexRequire = createRequire(codexPackagePath);
     const platformPackagePath = codexRequire.resolve(`${target.packageName}/package.json`);

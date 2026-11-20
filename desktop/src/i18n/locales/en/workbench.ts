@@ -133,7 +133,7 @@ export const workbench = {
     noModels: "No models available",
     openProjectFolder: "Open in system file manager",
     operationFailed: "Operation failed. Please retry.",
-    threadBusy: "This task is active in another client",
+    threadBusy: "This task is being edited in another app. Sending is temporarily disabled.",
     placeholder: "Tell Codexly what you want to accomplish",
     planMode: "Plan",
     projectPath: "Project path",

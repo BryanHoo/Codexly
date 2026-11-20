@@ -462,6 +462,7 @@ export function WorkbenchComposerBase({
       setActiveCommandIndex={setActiveCommandIndex}
       skills={skills}
       skillEditorRef={skillEditorRef}
+      writeAccess={runtime?.writeAccess}
       state={state}
       steerQueuedPrompt={(queuedPrompt) => {
         void composerQueue.sendQueuedPrompt(queuedPrompt).catch(setMutationError);
@@ -484,9 +485,7 @@ export function WorkbenchComposerBase({
         onAdd={(attachment) => {
           handleAttachmentsChange([...attachments, attachment]);
         }}
-        onClose={() => {
-          setAttachmentPickerKind(undefined);
-        }}
+        onClose={setAttachmentPickerKind.bind(null, undefined)}
         projectId={projectId}
       />
     </>

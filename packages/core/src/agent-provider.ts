@@ -151,6 +151,8 @@ export type StartAgentTaskOptions = Readonly<{
 }>;
 
 export type ReadAgentTaskInput = Readonly<{
+  // 首屏需要确认写入权；历史续页不重复恢复会话。
+  checkWriteAccess?: boolean;
   cursor?: string;
   summary?: boolean;
   signal?: AbortSignal;

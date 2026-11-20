@@ -55,6 +55,7 @@ export const workbench = {
     showFileTree: "Switch to file tree",
   },
   composer: {
+    threadBusy: "This task is being edited in another app. Sending is temporarily disabled.",
     addedAttachments: "Added attachments",
     applyTodo: "Apply todo",
     applyTodoDescription: "Applying this todo will replace the current composer content. Continue?",

@@ -57,3 +57,11 @@
 - 更新限应用托管的 Registry 安装，使用新目录准备运行时，失败保留原启动记录。移除只回收应用私有运行时，保留原生 CLI、共享工具缓存及会话数据；私有移除记录阻止重新自动发现，手动添加可覆盖它。
 - 旧全局设置 Schema 保持 v0.53.0 回滚兼容，其他 Agent 的生成偏好和计划配置只保存到独立 ACP 记录。默认值和预览遇到未实现 close 扩展的第三方 Agent 时回收独占设置进程，不遗留临时会话。
 - 参考 [Agent 使用说明](../../../../docs/agent-engines.md)；回归入口为 `agent-catalog.test.ts`、`agent-installer.test.ts`、`runtime.test.ts`、`app-acp.test.ts` 与 `desktop/tests/browser/acp-catalog.browser.test.tsx`。
+
+## 外部客户端占用的 Codex 历史
+
+- ACP `session/load` / `resume` 需要写入权。仅精确匹配 `RequestError(-32600)` 的 `data.reason=thread_active_writer` 与任务原生 ID 时，历史读取改为无订阅的 Codex 只读分页；不调用 resume/start、不换绑、不写入 ACP 缓存，也不把失败伪造成空历史。临时读取进程在完成、取消及失败后回收。发送、配置与执行继续走 ACP。
+- 首屏通过 `checkWriteAccess` 校验暖缓存中的写入权；续页使用独立只读游标。快照携带 `writeAccess=external`，两端保留历史与草稿、禁用输入并解释占用，重新打开后重新确认，无后台轮询。
+- 测试入口：`provider-acp/src/task-snapshot-ownership.test.ts` 与 `provider-acp/src/codex-read-only-history.test.ts`；真实场景须在其他客户端仍持有写入权时确认历史非空，不能只模拟 HTTP 成功响应。
+
+- 输入占用遮罩必须限定在编辑框的边框内，居中显示提示，不覆盖项目底栏、阴影或外部留白；沿用明暗主题的浮层底色与控件灰度。外层仍负责禁用和 Portal 事件拦截，无障碍状态提示放在 inert 之外。布局回归核对四边与编辑框一致，覆盖宽窄屏及明暗主题。

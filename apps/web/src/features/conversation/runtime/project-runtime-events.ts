@@ -100,6 +100,8 @@ export class ProjectEventRuntime {
       this.#disposed ||
       projectId !== this.#projectId ||
       snapshotMetadata === null ||
+      // 离开后订阅可能已经释放；缓存的可写或只读状态都不能代替当前写入权。
+      snapshotMetadata.writeAccess !== undefined ||
       checkpoint === null ||
       this.#connectionState !== "connected" ||
       this.#snapshotRecoveryRequired ||

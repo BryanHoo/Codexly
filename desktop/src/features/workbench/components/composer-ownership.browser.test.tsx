@@ -100,7 +100,7 @@ test.each([640, 960].flatMap((width) => [false, true].flatMap((multiple) =>
   }
 });
 
-test.each([1280, 1920])("locks the whole composer while preserving the draft and rejecting imperative actions (%s)", async (width) => {
+test.each([390, 1280, 1920])("locks the whole composer while preserving the draft and rejecting imperative actions (%s)", async (width) => {
   await page.viewport(width, 720);
   await i18n.changeLanguage("zh-CN");
   const composerRef = createRef<WorkbenchComposerHandle>();
@@ -125,15 +125,21 @@ test.each([1280, 1920])("locks the whole composer while preserving the draft and
   const editor = coldEditor;
   expect(editor.value).toContain("保留未发送草稿");
   await screen.rerender(view("external"));
-  await expect.element(screen.getByText("当前任务正在其他客户端进行")).toBeVisible();
+
   expect(editor.disabled).toBe(true);
   expect(editor.closest("[inert]")).not.toBeNull();
-  const overlay = screen.getByText("当前任务正在其他客户端进行").element().parentElement!;
   const form = editor.closest("form")!;
+  const overlay = form.querySelector<HTMLElement>("[data-composer-write-notice]")!;
+  expect(overlay).not.toBeNull();
+  expect(overlay.textContent).toContain("此任务正在其他应用中编辑，暂时无法发送消息");
+  expect(document.querySelector("[data-composer-write-announcement]")?.closest("[inert]")).toBeNull();
   const overlayRect = overlay.getBoundingClientRect();
   const formRect = form.getBoundingClientRect();
-  expect(overlayRect.top).toBeLessThanOrEqual(formRect.top);
-  expect(overlayRect.bottom).toBeGreaterThanOrEqual(formRect.bottom);
+  // 遮罩严格限定在编辑框内，不能冲淡底栏或覆盖外部留白。
+  expect(Math.abs(overlayRect.top - formRect.top)).toBeLessThanOrEqual(2);
+  expect(Math.abs(overlayRect.bottom - formRect.bottom)).toBeLessThanOrEqual(2);
+  expect(Math.abs(overlayRect.left - formRect.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(overlayRect.right - formRect.right)).toBeLessThanOrEqual(2);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
   for (const button of form.querySelectorAll("button")) expect(button.matches(":disabled")).toBe(true);
   // 锁定提交完成后立即失焦，不依赖各浏览器异步处理 disabled/inert。
@@ -147,7 +153,7 @@ test.each([1280, 1920])("locks the whole composer while preserving the draft and
   expect(editor.value).toContain("保留未发送草稿");
   await screen.rerender(view("writable", "task-b"));
   expect(screen.getByRole("textbox").element().hasAttribute("disabled")).toBe(false);
-  await expect.element(screen.getByText("当前任务正在其他客户端进行")).not.toBeInTheDocument();
+  expect(document.querySelector("[data-composer-write-notice]")).toBeNull();
 });
 
 test("preserves immediate text selection after choosing a skill", async () => {
