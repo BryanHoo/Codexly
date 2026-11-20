@@ -224,7 +224,8 @@ export function TimelineOperationGroupDisclosure({
   // 聚合组件只订阅组内 revision，命令输出 Delta 不会让外层 Timeline 重渲染。
   useSyncExternalStore(subscribe, getRevisionSnapshot, getRevisionSnapshot);
   const summary = summarizeTimelineOperations(itemStores.map((itemStore) => itemStore.peek()));
-  const collapseTrigger = collapseTriggerStore?.peek();
+  // 流式正文可能仍在增量缓冲中；peek 只含初始实体，不能据空正文阻止自动收起。
+  const collapseTrigger = collapseTriggerStore?.read();
   const hasFollowingAssistantText =
     collapseTrigger?.type === "message" &&
     collapseTrigger.role === "assistant" &&

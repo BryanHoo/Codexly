@@ -3,6 +3,7 @@ import {
   isAssistantProcessMessage,
   isAsyncQuestionMessage,
   resolveInterruptedTurnProcessItemIds,
+  resolveFinalAnswerIndex,
 } from "@codexly/frontend-core";
 
 export function resolveCompletedTurnProcessItemIds(
@@ -10,6 +11,7 @@ export function resolveCompletedTurnProcessItemIds(
   turnStatus: AgentTurn["status"],
   hasNextSubmission = false,
   independentFileDiffs = false,
+  inferUnphased = false,
 ): string[] {
   const interruptedItems = resolveInterruptedTurnProcessItemIds(
     items,
@@ -27,13 +29,7 @@ export function resolveCompletedTurnProcessItemIds(
   if (turnStatus === "running") {
     return [];
   }
-  const finalAnswerIndex = items.findLastIndex(
-    (item) =>
-      item.type === "message" &&
-      item.role === "assistant" &&
-      item.phase === "final_answer" &&
-      !isAsyncQuestionMessage(item),
-  );
+  const finalAnswerIndex = resolveFinalAnswerIndex(items, inferUnphased);
 
   return items.flatMap((item, index) => {
     // 独立差异只在运行中直接展示；完成后统一收入过程，兼容无最终答复和迟到文件事件。
@@ -44,7 +40,7 @@ export function resolveCompletedTurnProcessItemIds(
     if (isAsyncQuestionMessage(item)) return [item.id];
     if (index >= finalAnswerIndex) return [];
     if (item.type === "message") {
-      return isAssistantProcessMessage(item) ? [item.id] : [];
+      return isAssistantProcessMessage(item, inferUnphased) ? [item.id] : [];
     }
     // File Change 继续由最终摘要统一展示。
     return item.type === "file_change" || item.type === "review" ? [] : [item.id];

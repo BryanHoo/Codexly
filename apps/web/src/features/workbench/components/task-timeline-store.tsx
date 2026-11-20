@@ -101,6 +101,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
         source.status,
         hasNextSubmission || index < sourceTurns.length - 1,
         independentFileDiffs,
+        store.getState().snapshotMetadata?.runtime === "acp",
       ),
     );
     for (const key of keys) {
