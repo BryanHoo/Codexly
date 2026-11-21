@@ -65,7 +65,8 @@ export function projectAcpFileChanges(content: ToolCallContent[] | null, budget:
             : "update";
       const projected: Change = {
         path: change.path,
-        diff: "",
+        // 同批后续记录可能只补充元数据，不能用空正文清除已关联的有效补丁。
+        diff: changes.get(path)?.diff ?? "",
         kind,
         acp: {
           operation: change.operation,
@@ -84,6 +85,8 @@ export function projectAcpFileChanges(content: ToolCallContent[] | null, budget:
 
     const patch = block.patch;
     if (patch?.format !== "git_patch" || patch.text.length > MAX_PATCH || !budget) continue;
+    // 仅在本块内去重补丁；继承的正文仍可被本块可唯一匹配的新补丁替换。
+    const patched = new Set<Change>();
     for (const section of patch.text.split(/(?=^diff --git )/m)) {
       const hunk = section.search(/^@@ /m);
       const header = hunk === -1 ? section : section.slice(0, hunk);
@@ -95,10 +98,11 @@ export function projectAcpFileChanges(content: ToolCallContent[] | null, budget:
       const files = [...current].filter(([file]) => file === path || file.endsWith("/" + path));
       if (files.length !== 1) continue;
       const file = files[0]?.[1];
-      if (!file || file.diff) continue;
+      if (!file || patched.has(file)) continue;
       const bytes = Buffer.byteLength(JSON.stringify(section));
       if (bytes > budget) continue;
       file.diff = section;
+      patched.add(file);
       budget -= bytes;
     }
   }
