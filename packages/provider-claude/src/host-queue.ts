@@ -125,9 +125,7 @@ export class ClaudeHostQueue {
     if (method === "queue.delete") {
       if (!id) throw new Error("Claude 队列消息不存在");
       return {
-        deleted: await this.#queue.delete(runtime, id, () => {
-          process.stderr.write("Claude queue dispatch failed\n");
-        }),
+        deleted: await this.#queue.delete(runtime, id),
         queue: { data: await this.#queue.list(runtime) },
       };
     }

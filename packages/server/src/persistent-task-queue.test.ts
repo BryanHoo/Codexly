@@ -289,48 +289,6 @@ describe("server-owned queue dispatch", () => {
 });
 
 describe("persistent queue execution recovery", () => {
-  it("dispatches the next message after deleting a head with an unknown start result", async () => {
-    const { runtime, createQueue, startTurn, steerTurn } = setup();
-    const queue = createQueue();
-    const first = await queue.add(runtime, prompt, "first");
-    const second = await queue.add(runtime, { ...prompt, text: "Next" }, "second");
-    const third = await queue.add(runtime, { ...prompt, text: "Later" }, "third");
-    startTurn.mockRejectedValueOnce(new Error("response lost"));
-    await expect(queue.startNext(runtime)).rejects.toThrow("response lost");
-
-    // 重建队列服务，确保阻塞来自持久化执行标记，并模拟删除请求重放。
-    const restored = createQueue();
-    await expect(restored.startNext(runtime)).rejects.toThrow("blocked");
-    await expect(restored.delete(runtime, first.id)).resolves.toBe(true);
-    await expect(restored.delete(runtime, first.id)).resolves.toBe(false);
-
-    expect(startTurn).toHaveBeenCalledTimes(2);
-    expect(startTurn).toHaveBeenLastCalledWith(
-      runtime.taskId,
-      expect.objectContaining({ text: second.text }),
-      turnOptions,
-    );
-    expect(steerTurn).not.toHaveBeenCalled();
-    expect(await restored.list(runtime)).toEqual([third]);
-  });
-
-  it("keeps deletion successful when the next message has an unknown start result", async () => {
-    const { runtime, createQueue, startTurn } = setup();
-    const queue = createQueue();
-    const first = await queue.add(runtime, prompt, "first");
-    await queue.update(runtime, first.id, prompt, "editing");
-    const second = await queue.add(runtime, { ...prompt, text: "Next" }, "second");
-    const error = new Error("response lost");
-    const reportDispatchError = vi.fn();
-    startTurn.mockRejectedValueOnce(error);
-
-    await expect(queue.delete(runtime, first.id, reportDispatchError)).resolves.toBe(true);
-    expect(reportDispatchError).toHaveBeenCalledExactlyOnceWith(error);
-    expect(await queue.list(runtime)).toEqual([second]);
-    await expect(queue.startNext(runtime)).rejects.toThrow("blocked");
-    expect(startTurn).toHaveBeenCalledOnce();
-  });
-
   it("retries only the result write after launch succeeds", async () => {
     const { repository, runtime, createQueue, startTurn } = setup();
     const queue = createQueue();

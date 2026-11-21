@@ -179,10 +179,7 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         ["queue-delete", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         { queuedSubmissionId: request.params.queuedSubmissionId },
-        () =>
-          taskQueue.delete(runtime, request.params.queuedSubmissionId, (error) => {
-            request.log.error({ err: error }, "Failed to dispatch queued submission");
-          }),
+        () => taskQueue.delete(runtime, request.params.queuedSubmissionId),
       );
       return { deleted, queue: { data: await taskQueue.list(runtime) } };
     },

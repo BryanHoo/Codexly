@@ -117,11 +117,7 @@ export class PersistentTaskQueue {
     });
   }
 
-  public async delete(
-    runtime: QueueRuntime,
-    queuedSubmissionId: string,
-    onDispatchError?: (error: unknown) => void,
-  ): Promise<boolean> {
+  public async delete(runtime: QueueRuntime, queuedSubmissionId: string): Promise<boolean> {
     return this.#withTaskLock(runtime, async () => {
       const deleted = await this.#repository.deleteQueue(
         runtime.projectId,
@@ -132,8 +128,6 @@ export class PersistentTaskQueue {
         this.#startResults.delete(queuedSubmissionId);
         await this.#attachmentStore.releaseQueue(runtime.projectId, queuedSubmissionId);
         this.#publishChanged(runtime);
-        // 删除可能解除队首阻塞。在同一任务锁内检查空闲并续发，投递失败时仍返回已持久化的删除结果。
-        await this.#startNextUnlocked(runtime).catch((error: unknown) => onDispatchError?.(error));
       }
       return deleted;
     });
