@@ -215,3 +215,77 @@ it("回执消息 ID 将断线后回放的正文合并到原回合，并保留已
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it.each([
+  { type: "resource_link", name: "方案.txt", uri: "file:///saved" },
+  { type: "text", text: "[@方案.txt](file:///saved)" },
+] as const)("重放将不同消息 ID 的引导和回答留在原回合并恢复原附件（$type）", async (attachment) => {
+  const directory = await mkdtemp(join(tmpdir(), "acp-replay-steering-"));
+  try {
+    const history = new AcpHistory(directory);
+    const old: AgentTurn = {
+      id: "local-turn",
+      status: "failed",
+      error: "任务结果待确认",
+      startedAt: "2026-11-21T08:00:00.000Z",
+      completedAt: null,
+      items: [
+        { id: "local-input", type: "message", role: "user", text: "原始问题" },
+        {
+          id: "local-steer",
+          type: "message",
+          role: "user",
+          text: "改用这个方案",
+          attachments: [
+            { id: "file-ref", kind: "file", name: "方案.txt", mediaType: "text/plain", size: 4 },
+          ],
+        },
+      ],
+    };
+    await history.append("task", old, "原始问题", undefined, true, "agent-original");
+    const next: AgentTurn = {
+      ...old,
+      id: "local-next",
+      items: [{ id: "local-next-input", type: "message", role: "user", text: "改用这个方案" }],
+    };
+    await history.append("task", next, "改用这个方案", undefined, false, "agent-next");
+    const replay = new AcpReplay(history, "task");
+    await replay.update({
+      sessionUpdate: "user_message",
+      messageId: "agent-original",
+      content: [{ type: "text", text: "原始问题" }],
+    });
+    for (const content of [
+      { type: "text", text: "改用" } as const,
+      { type: "text", text: "这个方案" } as const,
+      attachment,
+    ]) {
+      await replay.update({
+        sessionUpdate: "user_message_chunk",
+        messageId: "agent-steer",
+        content,
+      });
+    }
+    await replay.update({
+      sessionUpdate: "agent_message",
+      messageId: "agent-reply",
+      content: [{ type: "text", text: "按引导生成的回答" }],
+    });
+    await replay.update({
+      sessionUpdate: "user_message",
+      messageId: "agent-next",
+      content: [{ type: "text", text: "改用这个方案" }],
+    });
+    await replay.complete();
+    expect((await history.read("task")).turns).toMatchObject([
+      {
+        id: old.id,
+        status: old.status,
+        items: [...old.items, { role: "assistant", text: "按引导生成的回答" }],
+      },
+      { id: next.id, items: next.items },
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
