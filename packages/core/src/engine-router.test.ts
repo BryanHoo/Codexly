@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentProviderEventListener } from "./agent-provider.js";
+import type {
+  AgentProviderEventListener,
+  AgentProviderEventSubscriptionOptions,
+} from "./agent-provider.js";
 import type { LocalCatalogStore, LocalTask } from "./local-catalog.js";
 import { EngineProjectRouter, type AgentExecutionAdapter } from "./engine-router.js";
 
@@ -35,10 +38,14 @@ describe("application task engine routing", () => {
         }),
       ),
       setSessionConfiguration: vi.fn(() => Promise.resolve([])),
-      subscribeEvents: (listener: AgentProviderEventListener) => {
-        listeners.set(engine, listener);
+      subscribeEvents: (
+        listener: AgentProviderEventListener,
+        options?: AgentProviderEventSubscriptionOptions,
+      ) => {
+        const key = options?.includeEphemeral ? `${engine}:ephemeral` : engine;
+        listeners.set(key, listener);
         return () => {
-          listeners.delete(engine);
+          listeners.delete(key);
         };
       },
     });
@@ -153,9 +160,42 @@ describe("application task engine routing", () => {
     expect(tasks.has(task.id)).toBe(false);
     await router.startTurn(task.id, {} as never, {} as never);
     expect(codex.startTurn).toHaveBeenCalledOnce();
-    listeners.get("codex")?.({ type: "task.metadata_changed", taskId: task.id, payload: {} });
+    listeners.get("codex:ephemeral")?.({
+      type: "task.metadata_changed",
+      taskId: task.id,
+      payload: {},
+    });
     expect(visible).not.toHaveBeenCalled();
     expect(helper).toHaveBeenCalledOnce();
+  });
+
+  it.each(["codex", "claude"])("隐藏 %s 底层直接创建的标题生成事件，内部订阅仍可接收", (engine) => {
+    const { router, listeners } = setup();
+    const visible = vi.fn(),
+      helper = vi.fn();
+    const stopVisible = router.subscribeEvents(visible);
+    const stopHelper = router.subscribeEvents(helper, { includeEphemeral: true });
+    // 标题生成绕过路由创建临时任务，只有底层 Provider 知道它属于内部会话。
+    const hidden = {
+      type: "task.status_updated",
+      taskId: "internal-title",
+      payload: { status: "running" },
+    } as const;
+    listeners.get(`${engine}:ephemeral`)?.(hidden);
+    expect(visible).not.toHaveBeenCalled();
+    expect(helper).toHaveBeenCalledExactlyOnceWith({ ...hidden, provider: engine });
+    visible.mockClear();
+    helper.mockClear();
+    const normal = { ...hidden, taskId: engine };
+    listeners.get(engine)?.(normal);
+    listeners.get(`${engine}:ephemeral`)?.(normal);
+    expect(visible).toHaveBeenCalledExactlyOnceWith({ ...normal, provider: engine });
+    expect(helper).toHaveBeenCalledExactlyOnceWith({ ...normal, provider: engine });
+    stopHelper();
+    expect(listeners.has(`${engine}:ephemeral`)).toBe(false);
+    expect(listeners.has(engine)).toBe(true);
+    stopVisible();
+    expect(listeners.size).toBe(0);
   });
 
   it("keeps offline mixed-engine lists and rejects cross-project task access", async () => {

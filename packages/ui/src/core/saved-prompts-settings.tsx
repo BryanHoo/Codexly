@@ -4,7 +4,7 @@ import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import type { SavedPrompt, SavedPromptDraft } from "@codexly/frontend-core/saved-prompts";
 import { Button } from "./button.js";
 import { Input } from "./input.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
+import { SettingsDropdown } from "./settings-dropdown.js";
 import {
   Dialog,
   DialogContent,
@@ -110,26 +110,20 @@ export function SavedPromptsSettings({
             className="pl-9"
           />
         </div>
-        <Select value={scope} onValueChange={setScope}>
-          <SelectTrigger
-            aria-label={copy.filter}
-            className="min-w-0 flex-1 basis-36 sm:w-44 sm:flex-none sm:basis-auto"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" className="max-w-[calc(100vw-2rem)]">
-            <SelectItem value="all">{copy.all}</SelectItem>
-            <SelectItem value="global">{copy.global}</SelectItem>
-            {projects.map((project) => (
-              <SelectItem key={project.id} value={`project:${project.id}`}>
-                {project.name}
-              </SelectItem>
-            ))}
-            {scope.startsWith("project:") && !projectNames.has(scope.slice(8)) ? (
-              <SelectItem value={scope}>{copy.unavailable}</SelectItem>
-            ) : null}
-          </SelectContent>
-        </Select>
+        <SettingsDropdown
+          label={copy.filter}
+          className="h-9 flex-1 basis-36 sm:w-44 sm:flex-none sm:basis-auto"
+          value={scope}
+          onValueChange={setScope}
+          options={[
+            { value: "all", label: copy.all },
+            { value: "global", label: copy.global },
+            ...projects.map((project) => ({ value: `project:${project.id}`, label: project.name })),
+            ...(scope.startsWith("project:") && !projectNames.has(scope.slice(8))
+              ? [{ value: scope, label: copy.unavailable }]
+              : []),
+          ]}
+        />
         <Button
           type="button"
           onClick={() => {

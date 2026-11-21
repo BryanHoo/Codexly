@@ -1,5 +1,8 @@
 import { Select } from "@base-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
+import type { ComponentProps } from "react";
+import { cn } from "../lib/utils.js";
+
 export interface SettingsDropdownOption {
   value: string;
   label: string;
@@ -13,14 +16,19 @@ export function SettingsDropdown({
   options,
   onValueChange,
   disabled = false,
+  valueLabel,
+  className,
+  ...triggerProps
 }: Readonly<{
   label: string;
   value: string;
   options: readonly SettingsDropdownOption[];
   onValueChange: (value: string) => void;
   disabled?: boolean;
-}>) {
-  // ACP 允许空字符串代表默认值；Select 内部使用非空编码，写回仍保留原值。
+  valueLabel?: string;
+}> &
+  Pick<ComponentProps<typeof Select.Trigger>, "className" | "aria-describedby" | "aria-invalid">) {
+  // ACP 允许空字符串代表默认值，浮层使用非空编码，写回时还原原始值。
   const groups = [...new Set(options.map((option) => option.group))];
   return (
     <Select.Root<string>
@@ -31,11 +39,18 @@ export function SettingsDropdown({
       disabled={disabled}
     >
       <Select.Trigger
+        data-slot="select-trigger"
         aria-label={label}
-        className="flex h-8 w-full min-w-0 max-w-[22rem] items-center justify-between gap-2 rounded-control border border-separator-strong bg-control px-3 text-body-small outline-none hover:bg-control-hover focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          "flex h-8 w-full min-w-0 max-w-[22rem] items-center justify-between gap-2 rounded-control border border-separator-strong bg-control px-3 text-body-small outline-none hover:bg-control-hover focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
+        {...triggerProps}
       >
         <Select.Value className="min-w-0 truncate">
-          {options.find((option) => option.value === value)?.label ?? (value || label)}
+          {valueLabel ??
+            options.find((option) => option.value === value)?.label ??
+            (value || label)}
         </Select.Value>
         <Select.Icon className="shrink-0 text-muted-foreground" aria-hidden="true">
           <ChevronDown className="size-4 opacity-50" />

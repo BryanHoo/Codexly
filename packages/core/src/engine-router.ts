@@ -34,7 +34,7 @@ export class EngineProjectRouter implements AgentProvider {
   readonly #listeners = new Map<AgentProviderEventListener, boolean>();
   readonly #subscriptions = new Map<
     AgentEngine,
-    { adapter: AgentExecutionAdapter; dispose: () => void }
+    { adapter: AgentExecutionAdapter; dispose: () => void; disposeEphemeral?: () => void }
   >();
   constructor(
     readonly scope: AgentTaskScope,
@@ -48,22 +48,35 @@ export class EngineProjectRouter implements AgentProvider {
     const source = this.adapters[engine];
     const adapter = typeof source === "function" ? source() : source;
     if (!adapter) throw new Error("ACP Agent 未注册");
-    const subscription = this.#subscriptions.get(engine);
+    let subscription = this.#subscriptions.get(engine);
     if (this.#listeners.size && subscription?.adapter !== adapter) {
       // 路由可比执行适配器存活更久；回收或断开后，先迁移订阅再调用新适配器。
       subscription?.dispose();
-      this.#subscriptions.set(engine, {
+      subscription?.disposeEphemeral?.();
+      subscription = {
         adapter,
-        dispose: adapter.subscribeEvents(
-          (event) => {
-            for (const [listener, includeEphemeral] of this.#listeners) {
-              if (!this.#ephemeral.has(event.taskId) || includeEphemeral)
-                listener({ ...event, provider: engine });
-            }
-          },
-          { includeEphemeral: true },
-        ),
-      });
+        // 普通订阅沿用底层过滤：内部生成可绕过路由创建会话，不能只依赖路由的临时任务表。
+        dispose: adapter.subscribeEvents((event) => {
+          if (this.#ephemeral.has(event.taskId)) return;
+          for (const [listener, includeEphemeral] of this.#listeners)
+            if (!includeEphemeral) listener({ ...event, provider: engine });
+        }),
+      };
+      this.#subscriptions.set(engine, subscription);
+    }
+    // 仅有内部消费者时才额外订阅临时事件；独立派发以免普通任务事件重复送达。
+    if (
+      subscription &&
+      !subscription.disposeEphemeral &&
+      [...this.#listeners.values()].some(Boolean)
+    ) {
+      subscription.disposeEphemeral = adapter.subscribeEvents(
+        (event) => {
+          for (const [listener, includeEphemeral] of this.#listeners)
+            if (includeEphemeral) listener({ ...event, provider: engine });
+        },
+        { includeEphemeral: true },
+      );
     }
     return adapter;
   }
@@ -167,6 +180,12 @@ export class EngineProjectRouter implements AgentProvider {
   }
 
   #disposeSubscriptions(): void {
+    if (![...this.#listeners.values()].some(Boolean)) {
+      for (const subscription of this.#subscriptions.values()) {
+        subscription.disposeEphemeral?.();
+        delete subscription.disposeEphemeral;
+      }
+    }
     if (this.#listeners.size) return;
     for (const subscription of this.#subscriptions.values()) subscription.dispose();
     this.#subscriptions.clear();

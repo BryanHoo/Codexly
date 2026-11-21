@@ -4,7 +4,7 @@ import type { AgentEngine } from "@codexly/protocol";
 import { isAcpConfigOption } from "@codexly/protocol/acp-config-validation";
 import type { AcpDefaultsClient } from "./acp-default-settings.js";
 import { useSelectedEngines } from "./engine-selection.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
+import { SettingsDropdown } from "./settings-dropdown.js";
 import { Button } from "./button.js";
 
 const fallbackEngines: readonly AgentEngine[] = ["codex"];
@@ -48,57 +48,61 @@ export function AcpGenerationSettings({
       : [];
   const choices = [...new Map(raw.map((option) => [option.value, option])).values()];
   const configured = settings.defaultModel;
-  const label =
-    configured === null
-      ? zh
-        ? "沿用智能体默认"
-        : "Use agent default"
-      : (choices.find((option) => option.value === configured)?.name ?? configured);
-  const selectClass = "w-48 max-w-[50%] text-body-small";
+  const agentLabel = zh ? "默认 Agent" : "Default agent";
+  const modelLabel = zh ? "默认模型" : "Default model";
+  const selectClass = "w-48 max-w-[50%]";
   return (
     <div className="space-y-2">
       <div className="divide-y divide-separator rounded-surface border border-separator bg-panel px-4">
         <div className="flex items-center justify-between gap-4 py-3">
-          <span className="text-body-small font-medium">{zh ? "默认 Agent" : "Default agent"}</span>
-          <Select
+          <span className="text-body-small font-medium">{agentLabel}</span>
+          <SettingsDropdown
+            label={agentLabel}
+            valueLabel={engine ?? (zh ? "请选择智能体" : "Choose agent")}
+            className={selectClass}
             value={engine ?? ""}
+            options={[
+              ...(engine && !enabled
+                ? [
+                    {
+                      value: engine,
+                      label: `${engine} (${zh ? "未启用" : "disabled"})`,
+                      disabled: true,
+                    },
+                  ]
+                : []),
+              ...engines.map((value) => ({ value, label: agentEngineName(value) })),
+            ]}
             onValueChange={(value) => {
               if (isAgentEngine(value)) onChange({ defaultAgent: value, defaultModel: null });
             }}
-          >
-            <SelectTrigger
-              size="sm"
-              className={selectClass}
-              aria-label={zh ? "默认 Agent" : "Default agent"}
-            >
-              <SelectValue>{engine ?? (zh ? "请选择智能体" : "Choose agent")}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {engine && !enabled ? (
-                <SelectItem disabled value={engine}>
-                  {engine} ({zh ? "未启用" : "disabled"})
-                </SelectItem>
-              ) : null}
-              {engines.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {agentEngineName(value)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
         <div className="flex items-center justify-between gap-4 py-3">
           <span className="min-w-0 text-body-small font-medium">
-            {zh ? "默认模型" : "Default model"}
+            {modelLabel}
             <span className="mt-1 block text-label font-normal text-muted-foreground">
               {zh
                 ? "供任务标题、Git 提交信息和输入优化使用。"
                 : "For task titles, Git commit messages and prompt optimization."}
             </span>
           </span>
-          <Select
+          <SettingsDropdown
+            label={modelLabel}
+            className={selectClass}
             disabled={!enabled}
             value={configured === null ? automatic : modelKey(configured)}
+            options={[
+              { value: automatic, label: zh ? "沿用智能体默认" : "Use agent default" },
+              ...(configured !== null && !choices.some((option) => option.value === configured)
+                ? [{ value: modelKey(configured), label: configured, disabled: true }]
+                : []),
+              ...choices.map((option) => ({
+                value: modelKey(option.value),
+                label: option.name,
+                disabled: option.value.length === 0,
+              })),
+            ]}
             onValueChange={(value) => {
               if (!engine) return;
               if (value === automatic) onChange({ defaultAgent: engine, defaultModel: null });
@@ -107,36 +111,7 @@ export function AcpGenerationSettings({
                 if (option) onChange({ defaultAgent: engine, defaultModel: option.value });
               }
             }}
-          >
-            <SelectTrigger
-              size="sm"
-              className={selectClass}
-              aria-label={zh ? "默认模型" : "Default model"}
-            >
-              <SelectValue>
-                <span className="block truncate">{label}</span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={automatic}>
-                {zh ? "沿用智能体默认" : "Use agent default"}
-              </SelectItem>
-              {configured !== null && !choices.some((option) => option.value === configured) ? (
-                <SelectItem disabled value={modelKey(configured)}>
-                  {configured}
-                </SelectItem>
-              ) : null}
-              {choices.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={modelKey(option.value)}
-                  disabled={option.value.length === 0}
-                >
-                  {option.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
       </div>
       {!enabled ? (

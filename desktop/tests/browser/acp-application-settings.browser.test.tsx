@@ -1,5 +1,5 @@
 import { afterEach,beforeEach,expect,it,vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
 import { GlobalSettingsPage as WebPage } from "../../../apps/web/src/features/settings/components/global-settings-page.js";
@@ -31,15 +31,32 @@ for(const [platform,Page,Container] of [["Web",WebPage,WebContainer],["Native",N
     const getAcpDefaults=vi.fn(async()=>defaults);
     vi.spyOn(nativeClient,"getAcpDefaults").mockImplementation(getAcpDefaults as never);
     const onSave=vi.fn(async()=>undefined);
+    const onClose = vi.fn();
     const client={getAcpDefaults,getEngineProfile:vi.fn(()=>{throw new Error("旧模型不得被调用");})} as unknown as SettingsClient;
     const cache=new QueryClient({defaultOptions:{queries:{retry:false}}});
     const screen=await render(<QueryClientProvider client={cache}><SelectedEnginesContext value={["codex","claude"]}><TooltipProvider>
       <div style={{height:"100dvh"}}><Page client={client} agentRuntime="acp" initialSection="git" apps={[]} error={null} isPending={false}
-        models={[]} settings={preferences} onClose={()=>undefined} onRetry={()=>undefined} onSave={onSave}/></div>
+        models={[]} settings={preferences} onClose={onClose} onRetry={()=>undefined} onSave={onSave}/></div>
     </TooltipProvider></SelectedEnginesContext></QueryClientProvider>);
     await expect.element(screen.getByText("沿用智能体默认",{exact:true})).toBeVisible();
     expect(onSave).not.toHaveBeenCalled();
-    await screen.getByRole("combobox",{name:"默认模型",exact:true}).click();
+    const model = screen.getByRole("combobox", { name: "默认模型", exact: true });
+    await model.click();
+    await expect.element(page.getByRole("listbox")).toBeVisible();
+    const backdrop = page.elementLocator(document.querySelector('[data-slot="dialog-overlay"]')!);
+    // 在弹窗外的真实坐标点击，让浏览器决定哪一层接收指针事件。
+    await backdrop.click({ force: true, position: { x: 2, y: 2 } });
+    expect(onClose).not.toHaveBeenCalled();
+    await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+    await expect.element(model).toHaveFocus();
+    expect(onSave).not.toHaveBeenCalled();
+    await model.click();
+    await expect.element(page.getByRole("listbox")).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("listbox")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await expect.element(model).toHaveFocus();
+    await model.click();
     await page.getByRole("option",{name:"原始模型乙",exact:true}).click();
     await expect.poll(()=>onSave.mock.calls.length).toBe(1);
     expect(onSave.mock.calls[0]?.[0]).toMatchObject({defaultAgent:"codex",defaultModel:"raw/b"});

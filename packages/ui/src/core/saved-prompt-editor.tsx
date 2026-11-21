@@ -6,7 +6,7 @@ import {
 } from "@codexly/frontend-core/saved-prompts";
 import { Button } from "./button.js";
 import { Input } from "./input.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
+import { SettingsDropdown } from "./settings-dropdown.js";
 import { Textarea } from "./textarea.js";
 import {
   Dialog,
@@ -137,11 +137,29 @@ export default function SavedPromptEditor({
               />
             </div>
             <div className="space-y-1.5">
-              <label id={`${id}-scope-label`} className="text-body-small font-medium">
-                {copy.scope}
-              </label>
-              <Select
+              <span className="text-body-small font-medium">{copy.scope}</span>
+              <SettingsDropdown
+                label={copy.scope}
+                className="h-9 max-w-full"
+                aria-describedby={`${id}-scope-hint${error === "project" ? ` ${errorId}` : ""}`}
+                aria-invalid={error === "project"}
                 value={draft.projectId ? `project:${draft.projectId}` : "global"}
+                options={[
+                  { value: "global", label: copy.global },
+                  ...projects.map((project) => ({
+                    value: `project:${project.id}`,
+                    label: project.name,
+                  })),
+                  ...(draft.projectId && !projectNames.has(draft.projectId)
+                    ? [
+                        {
+                          disabled: true,
+                          value: `project:${draft.projectId}`,
+                          label: copy.unavailable,
+                        },
+                      ]
+                    : []),
+                ]}
                 onValueChange={(value) => {
                   setDraft((current) => {
                     const { projectId: _projectId, ...fields } = current;
@@ -149,29 +167,7 @@ export default function SavedPromptEditor({
                   });
                   setError(undefined);
                 }}
-              >
-                <SelectTrigger
-                  className="w-full"
-                  aria-labelledby={`${id}-scope-label`}
-                  aria-describedby={`${id}-scope-hint${error === "project" ? ` ${errorId}` : ""}`}
-                  aria-invalid={error === "project"}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" className="max-w-[calc(100vw-2rem)]">
-                  <SelectItem value="global">{copy.global}</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={`project:${project.id}`}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                  {draft.projectId && !projectNames.has(draft.projectId) ? (
-                    <SelectItem disabled value={`project:${draft.projectId}`}>
-                      {copy.unavailable}
-                    </SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
+              />
               <p
                 id={`${id}-scope-hint`}
                 className="text-label leading-relaxed text-muted-foreground"
