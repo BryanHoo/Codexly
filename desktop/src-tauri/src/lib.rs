@@ -156,6 +156,19 @@ pub fn run() {
             tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
                 infrastructure::app_data::initialize(&storage_app)
             }))??;
+            // 首个设置查询、聊天回合和计划任务都能读取已提交的应用指令。
+            if tauri::async_runtime::block_on(
+                application::application_preferences_commands::migrate_global_instructions(
+                    app.handle(),
+                ),
+            )
+            .is_err()
+            {
+                diagnostics::record_error(
+                    "global_instructions_migration_failed",
+                    "旧全局指令导入失败，原文件已保留",
+                );
+            }
             infrastructure::network_proxy::initialize(&infrastructure::app_data::directory(
                 app.handle(),
             )?)?;

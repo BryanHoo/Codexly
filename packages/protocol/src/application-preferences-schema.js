@@ -30,7 +30,7 @@ export default {
       [Kind]: "Union",
     },
     globalInstructions: {
-      maxLength: 8000,
+      maxLength: 65536,
       type: "string",
       [Kind]: "String",
       [OptionalKind]: "Optional",

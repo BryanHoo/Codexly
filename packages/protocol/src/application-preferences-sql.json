@@ -11,5 +11,30 @@
     "defaultOpenAppId": null,
     "followUpBehavior": "queue",
     "pet": { "enabled": false, "selectedPetId": null }
+  },
+  "legacyInstructions": {
+    "maxFileBytes": 262144,
+    "maxLength": 65536,
+    "sources": [
+      {
+        "env": "CLAUDE_CONFIG_DIR",
+        "directory": ".claude",
+        "file": "CLAUDE.md",
+        "label": "Claude · CLAUDE.md"
+      },
+      {
+        "env": "CODEX_HOME",
+        "directory": ".codex",
+        "file": "AGENTS.md",
+        "label": "Codex · AGENTS.md"
+      },
+      {
+        "env": "CODEX_HOME",
+        "directory": ".codex",
+        "file": "AGENTS.override.md",
+        "label": "Codex · AGENTS.override.md"
+      }
+    ],
+    "merge": "WITH sources AS (\n        SELECT CAST(key AS INTEGER) AS position, value ->> 'label' AS label, value ->> 'content' AS content\n        FROM json_each(?)\n    ), unique_sources AS (\n        SELECT label, content FROM sources GROUP BY content ORDER BY MIN(position)\n    )\n    SELECT CASE count(*) WHEN 1 THEN max(content)\n      ELSE group_concat('## ' || label || char(10,10) || content, char(10,10)) END\n    FROM unique_sources"
   }
 }

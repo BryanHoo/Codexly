@@ -12,7 +12,7 @@ const baseline = {
   defaultOpenAppId: null,
   followUpBehavior: "queue",
   pet: { enabled: false, selectedPetId: null },
-};
+} as const;
 
 it("应用偏好不读取引擎，首次保存建私有快照并跨连接合并无关补丁", async () => {
   const root = await createWorkspace();
@@ -91,4 +91,21 @@ it("私有记录损坏必须明确失败，不能重新导入或覆盖；旧数�
   } finally {
     db.close();
   }
+});
+
+it("启动导入与另一连接同时清空指令时保留用户决定", async () => {
+  const root = await createWorkspace();
+  const first = await openRepository(root);
+  const second = await openRepository(root);
+  await Promise.all([
+    first.catalog("app.preferences.importInstructions", {
+      baseline,
+      sources: [{ label: "Claude", content: "旧全局指令" }],
+    }),
+    second.catalog("app.preferences.patch", {
+      baseline,
+      changes: { globalInstructions: "" },
+    }),
+  ]);
+  expect(await first.catalog("app.preferences.read", {})).toMatchObject({ globalInstructions: "" });
 });

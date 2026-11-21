@@ -8,8 +8,94 @@ use crate::infrastructure::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use tauri::Manager;
 use tokio::io::AsyncReadExt;
+
+async fn read_legacy_instructions(path: &Path, max_bytes: u64) -> Result<String, AppError> {
+    let metadata = match tokio::fs::metadata(path).await {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(String::new()),
+        Err(_) => return Err(AppError::FilesystemRequestFailed),
+    };
+    if !metadata.is_file() || metadata.len() > max_bytes {
+        return Err(AppError::FilesystemRequestFailed);
+    }
+    let file = tokio::fs::File::open(path)
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let mut content = String::new();
+    // 多读一个字节识别被同时扩写的文件，不能提交截断内容。
+    file.take(max_bytes + 1)
+        .read_to_string(&mut content)
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    if content.len() as u64 > max_bytes {
+        return Err(AppError::FilesystemRequestFailed);
+    }
+    Ok(content)
+}
+
+async fn import_legacy_instructions(
+    directory: &Path,
+    home: &Path,
+    get_directory: impl Fn(&str) -> Option<PathBuf>,
+) -> Result<(), AppError> {
+    let catalog = LocalCatalog::at(directory)?;
+    let saved = catalog.call("app.preferences.read", json!({})).await?;
+    if saved.get("globalInstructions").is_some() {
+        return Ok(());
+    }
+    let rules = &contract()?["legacyInstructions"];
+    let max_bytes = rules["maxFileBytes"]
+        .as_u64()
+        .ok_or(AppError::FilesystemRequestFailed)?;
+    let mut sources = Vec::new();
+    for source in rules["sources"]
+        .as_array()
+        .ok_or(AppError::FilesystemRequestFailed)?
+    {
+        let field = |key: &str| {
+            source[key]
+                .as_str()
+                .ok_or(AppError::FilesystemRequestFailed)
+        };
+        let folder = get_directory(field("env")?).unwrap_or(home.join(field("directory")?));
+        let content = read_legacy_instructions(&folder.join(field("file")?), max_bytes).await?;
+        if !content.trim().is_empty() {
+            sources.push(json!({"label":field("label")?, "content":content}));
+        }
+    }
+    if sources.is_empty() {
+        return Ok(());
+    }
+    let baseline = if saved.is_null() {
+        legacy(directory).await?
+    } else {
+        saved
+    };
+    catalog
+        .call(
+            "app.preferences.importInstructions",
+            json!({"baseline":baseline,"sources":sources}),
+        )
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn migrate_global_instructions(app: &tauri::AppHandle) -> Result<(), AppError> {
+    let home = app
+        .path()
+        .home_dir()
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let directory = app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)?;
+    import_legacy_instructions(&directory, &home, |key| {
+        std::env::var_os(key)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+    })
+    .await
+}
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]

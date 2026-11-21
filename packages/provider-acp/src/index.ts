@@ -16,6 +16,7 @@ export {
   type AcpLegacySettingsSnapshot,
   type AcpLegacySettingsSource,
 } from "./settings-store.js";
+export { importAcpLegacyGlobalInstructions } from "./legacy-global-instructions.js";
 export { readAcpLegacyApplicationSettings } from "./legacy-settings.js";
 export { AcpAgentService } from "./agent-service.js";
 export { importAcpCatalog } from "./catalog-import.js";

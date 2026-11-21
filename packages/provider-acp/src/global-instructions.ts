@@ -3,7 +3,7 @@ import { MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH } from "@codexly/protocol/applicatio
 
 const tag = "<codexly-global-instructions ";
 const end = "\n</codexly-global-instructions>\n\n";
-const header = new RegExp("^" + tag + 'length="([1-9][0-9]{0,3})">\n', "u");
+const header = new RegExp("^" + tag + 'length="([1-9][0-9]{0,4})">\n', "u");
 
 export function addAcpGlobalInstructions(
   prompt: ContentBlock[],

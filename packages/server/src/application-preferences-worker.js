@@ -39,8 +39,22 @@ export function createApplicationPreferencesOperations(db) {
     db.prepare(sql.write).run(validate(next));
     return next;
   });
+  const importInstructions = db.transaction(({ baseline, sources }) => {
+    const current = read();
+    // 并发导入或用户已清空时仍保留先获得写锁的已保存值。
+    if (current?.globalInstructions !== undefined) return null;
+    const globalInstructions = db
+      .prepare(sql.legacyInstructions.merge)
+      .pluck()
+      .get(JSON.stringify(sources));
+    if (globalInstructions === null) return null;
+    if (!current) validate(baseline);
+    db.prepare(sql.write).run(validate({ ...(current ?? baseline), globalInstructions }));
+    return null;
+  });
   return {
     "app.preferences.read": read,
+    "app.preferences.importInstructions": (input) => importInstructions.immediate(input),
     // 先取得写锁再读，避免 Web / Native 或多个 Worker 同时首次保存时丢失字段。
     "app.preferences.patch": (input) => patch.immediate(input),
   };

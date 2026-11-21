@@ -3,7 +3,10 @@ import { Value } from "@sinclair/typebox/value";
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { AgentEngineSchema } from "./agent-engine.js";
 
-export const MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH = 8_000;
+import contract from "./application-preferences-sql.json" with { type: "json" };
+
+export const legacyGlobalInstructions = contract.legacyInstructions;
+export const MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH = legacyGlobalInstructions.maxLength;
 
 /** 应用偏好不包含模型运行参数；null 模型表示沿用 ACP agent 当前默认值。 */
 export const ApplicationPreferencesSchema = Type.Object(

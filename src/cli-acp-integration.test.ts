@@ -1,10 +1,11 @@
 import { expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { AgentTaskSnapshotResponse } from "@codexly/protocol";
+import { createCliAcpRuntime } from "./cli-acp-runtime.js";
 import { AcpApplicationRuntime } from "@codexly/provider-acp";
 import { createPersistentAgentPeer } from "../packages/provider-acp/test/persistent-agent.test-support.js";
 import {
@@ -213,3 +214,59 @@ it.each(["codex", "claude"] as const)(
     }
   },
 );
+
+it("Web 启动迁移两个引擎的旧指令，仅填充缺失字段并保留原文件", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "cli-acp-instructions-"));
+  const codex = join(directory, "codex-home");
+  const claude = join(directory, "claude-home");
+  await Promise.all([mkdir(codex), mkdir(claude)]);
+  const codexBody = "# Codex 旧指令\r\n  " + "保留".repeat(5000);
+  const override = "Codex 临时覆盖\n";
+  const claudeBody = "Claude 旧指令\n";
+  const codexFile = join(codex, "AGENTS.md");
+  const claudeFile = join(claude, "CLAUDE.md");
+  await Promise.all([
+    writeFile(codexFile, codexBody),
+    writeFile(join(codex, "AGENTS.override.md"), override),
+    writeFile(claudeFile, claudeBody),
+  ]);
+  const store = await SqliteStateRepository.open(join(directory, "state.sqlite3"));
+  const baseline = {
+    defaultAgent: "codex",
+    defaultModel: null,
+    commitMessagePrompt: "",
+    taskTitlePrompt: "保留现有偏好",
+    promptOptimizationPrompt: "",
+    defaultOpenAppId: null,
+    followUpBehavior: "queue",
+    pet: { enabled: false, selectedPetId: null },
+  } as const;
+  const start = () =>
+    createCliAcpRuntime({
+      applicationDirectory: directory,
+      store,
+      environment: { CODEX_HOME: codex, CLAUDE_CONFIG_DIR: claude },
+    });
+  try {
+    await store.catalog("app.preferences.patch", {
+      baseline,
+      changes: { followUpBehavior: "steer" },
+    });
+    await (await start()).close();
+    const migrated = await store.catalog("app.preferences.read", {});
+    expect(migrated?.taskTitlePrompt).toBe("保留现有偏好");
+    expect(migrated?.followUpBehavior).toBe("steer");
+    expect(migrated?.globalInstructions).toContain(codexBody);
+    expect(migrated?.globalInstructions).toContain(claudeBody);
+    expect(migrated?.globalInstructions).toContain(override);
+    expect(await readFile(codexFile, "utf8")).toBe(codexBody);
+    expect(await readFile(claudeFile, "utf8")).toBe(claudeBody);
+
+    await store.catalog("app.preferences.patch", { baseline, changes: { globalInstructions: "" } });
+    await (await start()).close();
+    expect((await store.catalog("app.preferences.read", {}))?.globalInstructions).toBe("");
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

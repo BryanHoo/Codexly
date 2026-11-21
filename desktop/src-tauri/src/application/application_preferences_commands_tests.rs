@@ -91,3 +91,55 @@ async fn application_preferences_delivery_should_reject_injection_and_allow_sour
             .is_null()
     );
 }
+
+#[tokio::test]
+async fn application_preferences_startup_should_import_legacy_instructions_once_after_read_error() {
+    let directory = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let claude = home.path().join(".claude");
+    let codex = home.path().join("custom-codex");
+    tokio::fs::create_dir_all(&claude).await.unwrap();
+    tokio::fs::create_dir_all(&codex).await.unwrap();
+    let claude_file = claude.join("CLAUDE.md");
+    let codex_file = codex.join("AGENTS.md");
+    let body = "Claude 的全局指令\r\n  ";
+    tokio::fs::write(&claude_file, body).await.unwrap();
+    tokio::fs::write(&codex_file, [0xff]).await.unwrap();
+    let migrate = || {
+        import_legacy_instructions(directory.path(), home.path(), |key| {
+            (key == "CODEX_HOME").then(|| codex.clone())
+        })
+    };
+    assert!(migrate().await.is_err());
+    assert!(
+        deliver(directory.path(), json!({"type":"read"}))
+            .await
+            .unwrap()
+            .get("globalInstructions")
+            .is_none()
+    );
+
+    tokio::fs::remove_file(&codex_file).await.unwrap();
+    migrate().await.unwrap();
+    assert_eq!(
+        deliver(directory.path(), json!({"type":"read"}))
+            .await
+            .unwrap()["globalInstructions"],
+        body
+    );
+    assert_eq!(tokio::fs::read_to_string(&claude_file).await.unwrap(), body);
+
+    deliver(
+        directory.path(),
+        json!({"type":"patch","changes":{"globalInstructions":""}}),
+    )
+    .await
+    .unwrap();
+    migrate().await.unwrap();
+    assert_eq!(
+        deliver(directory.path(), json!({"type":"read"}))
+            .await
+            .unwrap()["globalInstructions"],
+        ""
+    );
+}

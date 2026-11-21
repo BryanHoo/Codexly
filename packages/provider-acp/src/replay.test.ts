@@ -110,7 +110,7 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
   try {
     await history.append("task", original, "原始正文[资料.txt](file:///saved)");
     const replay = new AcpReplay(history, "task");
-    const instructions = addAcpGlobalInstructions([], "使用中文📝")[0];
+    const instructions = addAcpGlobalInstructions([], "使用中文📝".repeat(2_500))[0];
     if (instructions?.type !== "text") throw new Error("缺少指令文本块");
     for (const text of [instructions.text.slice(0, 9), instructions.text.slice(9)]) {
       await replay.update({

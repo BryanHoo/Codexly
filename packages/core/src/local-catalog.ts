@@ -133,6 +133,10 @@ export interface CatalogOperations {
   ];
   "acp.title.finish": [{ id: string; token: string; title: string | null }, string | null];
   "app.preferences.read": [Record<string, never>, ApplicationPreferences | null];
+  "app.preferences.importInstructions": [
+    { baseline: ApplicationPreferences; sources: { label: string; content: string }[] },
+    null,
+  ];
   "app.preferences.patch": [
     { baseline: ApplicationPreferences; changes: ApplicationPreferencesPatch },
     ApplicationPreferences,

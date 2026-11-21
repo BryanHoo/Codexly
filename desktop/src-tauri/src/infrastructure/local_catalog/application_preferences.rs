@@ -29,7 +29,10 @@ fn valid_field(key: &str, value: &Value) -> bool {
         "defaultAgent" => value
             .as_str()
             .is_some_and(crate::infrastructure::acp_runtime::valid_agent_engine),
-        "globalInstructions" => text(value, 0, 8_000),
+        "globalInstructions" => contract()
+            .ok()
+            .and_then(|c| c["legacyInstructions"]["maxLength"].as_u64())
+            .is_some_and(|max| text(value, 0, max as usize)),
         "defaultModel" => value.is_null() || text(value, 1, 16384),
         "commitMessagePrompt" | "taskTitlePrompt" | "promptOptimizationPrompt" => {
             text(value, 0, 4000)
@@ -105,26 +108,60 @@ pub(super) fn execute(db: &mut Connection, op: &str, input: &Value) -> Result<Va
     if op == "app.preferences.read" {
         return read(db);
     }
-    encode(&input["changes"], true)?;
+    let importing = op == "app.preferences.importInstructions";
+    if !importing {
+        encode(&input["changes"], true)?;
+    }
     // 先锁后读；与 Node Worker 的 immediate 事务保证同机跨端字段合并。
     let transaction = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(db_error)?;
     let mut current = read(&transaction)?;
+    let imported = if importing {
+        // 空字符串也是用户已保存的值，禁止并发导入重新填充。
+        if current.get("globalInstructions").is_some() {
+            return Ok(Value::Null);
+        }
+        let sources = &input["sources"];
+        if !sources.is_array() {
+            return Err(CatalogError::InvalidMessage);
+        }
+        let merged: Option<String> = transaction
+            .query_row(
+                string(&contract()?["legacyInstructions"], "merge")?,
+                [sources.to_string()],
+                |row| row.get(0),
+            )
+            .map_err(db_error)?;
+        let Some(merged) = merged else {
+            return Ok(Value::Null);
+        };
+        Some(merged)
+    } else {
+        None
+    };
     if current.is_null() {
         encode(&input["baseline"], false)?;
         current = input["baseline"].clone();
     }
-    let changes = input["changes"]
-        .as_object()
-        .ok_or(CatalogError::InvalidMessage)?;
-    for (key, value) in changes {
-        current[key] = value.clone();
+    if let Some(content) = imported {
+        current["globalInstructions"] = Value::String(content);
+    } else {
+        let changes = input["changes"]
+            .as_object()
+            .ok_or(CatalogError::InvalidMessage)?;
+        for (key, value) in changes {
+            current[key] = value.clone();
+        }
     }
     let text = encode(&current, false)?;
     transaction
         .execute(string(contract()?, "write")?, [text])
         .map_err(db_error)?;
     transaction.commit().map_err(db_error)?;
-    Ok(current)
+    if importing {
+        Ok(Value::Null)
+    } else {
+        Ok(current)
+    }
 }

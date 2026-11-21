@@ -83,8 +83,8 @@ export async function createAcpPrompt(
       });
     }
     if (!prompt.length) throw new Error("ACP 输入不能为空");
-    // 官方 agent 的标准 NDJSON 入站限制为32MiB，超出时在发送前明确拒绝，避免提交结果不确定。
-    if (Buffer.byteLength(JSON.stringify(prompt)) > 32 * 1024 * 1024 - 64 * 1024)
+    // NDJSON 入站限制为 32 MiB。为后续附加的全局指令预留 JSON 转义后的最大体积。
+    if (Buffer.byteLength(JSON.stringify(prompt)) > 32 * 1024 * 1024 - 512 * 1024)
       throw new Error("ACP 输入超过传输预算");
     // 内部准备成功后交给提交边界管理；后续历史、会话、配置等准备失败仍可回滚。
     onRollback?.(cleanup);

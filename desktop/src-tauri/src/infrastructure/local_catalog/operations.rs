@@ -105,7 +105,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             .map_err(db_error)
         }
         "acp.title.claim" | "acp.title.finish" => super::acp_task_titles::execute(db, op, p),
-        "app.preferences.read" | "app.preferences.patch" => {
+        "app.preferences.read" | "app.preferences.patch" | "app.preferences.importInstructions" => {
             super::application_preferences::execute(db, op, p)
         }
         "acp.plan.view" | "acp.plan.commit" => super::acp_plan_commit::execute(db, op, p),
