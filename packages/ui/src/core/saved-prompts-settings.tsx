@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { toast } from "./notifications.js";
 import { Bookmark, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { lazy, Suspense, useMemo, useRef, useState } from "react";
@@ -5,14 +6,7 @@ import type { SavedPrompt, SavedPromptDraft } from "@codexly/frontend-core/saved
 import { Button } from "./button.js";
 import { Input } from "./input.js";
 import { SettingsDropdown } from "./settings-dropdown.js";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./dialog.js";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog.js";
 import {
   removeSharedPrompt,
   useSavedPrompts,
@@ -81,9 +75,11 @@ export function SavedPromptsSettings({
       {syncStatus === "error" ? (
         <div role="alert" className="space-y-2 text-body-small text-danger">
           <p>{copy.loadError}</p>
-          <Button type="button" variant="ghost" onClick={refreshSavedPrompts}>
-            {copy.retry}
-          </Button>
+          <SettingsActions>
+            <Button type="button" variant="ghost" onClick={refreshSavedPrompts}>
+              {copy.retry}
+            </Button>
+          </SettingsActions>
         </div>
       ) : syncStatus === "loading" ? (
         <p role="status">{copy.loading}</p>
@@ -241,7 +237,7 @@ export function SavedPromptsSettings({
               {copy.errors.storage}
             </p>
           ) : null}
-          <DialogFooter>
+          <SettingsActions>
             <Button
               type="button"
               variant="ghost"
@@ -278,7 +274,7 @@ export function SavedPromptsSettings({
             >
               {copy.confirmDelete}
             </Button>
-          </DialogFooter>
+          </SettingsActions>
         </DialogContent>
       </Dialog>
     </section>

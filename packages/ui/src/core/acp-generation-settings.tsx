@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { isAgentEngine, agentEngineName } from "@codexly/protocol";
 import { useQuery } from "@tanstack/react-query";
 import type { AgentEngine } from "@codexly/protocol";
@@ -123,9 +124,11 @@ export function AcpGenerationSettings({
       ) : query.error ? (
         <div role="alert" className="text-label text-danger">
           {query.error.message}
-          <Button variant="ghost" onClick={() => void query.refetch()}>
-            {zh ? "重试" : "Retry"}
-          </Button>
+          <SettingsActions>
+            <Button variant="ghost" onClick={() => void query.refetch()}>
+              {zh ? "重试" : "Retry"}
+            </Button>
+          </SettingsActions>
         </div>
       ) : !query.isPending && !model ? (
         <p role="status" className="text-label text-muted-foreground">

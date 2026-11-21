@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { useRef, useState, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -6,14 +7,7 @@ import {
   type ApplicationPreferences,
   type SaveAgentInstructions,
 } from "@codexly/protocol/application-preferences";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./dialog.js";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog.js";
 import { Button } from "./button.js";
 
 /** 两种引擎共用全宽指令编辑区；读取、冲突处理和保存由各自页面管理。 */
@@ -158,12 +152,31 @@ export function AcpGlobalInstructionsSettings({
         {failed ? (
           <div role="alert" className="text-body-small text-danger">
             {chinese ? "读取全局指令失败。" : "Could not load global instructions."}
-            <Button variant="ghost" onClick={onRetry}>
-              {chinese ? "重试" : "Retry"}
-            </Button>
           </div>
         ) : null}
-        <div className="flex items-center gap-3">
+        <SettingsActions>
+          {saved ? (
+            <span role="status" className="text-body-small text-muted-foreground">
+              {chinese ? "已保存" : "Saved"}
+            </span>
+          ) : null}
+          {!saved && draft !== undefined && draft !== (content ?? "") ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={loading || saving}
+              onClick={() => {
+                setDraft(undefined);
+              }}
+            >
+              {chinese ? "取消" : "Cancel"}
+            </Button>
+          ) : null}
+          {failed ? (
+            <Button type="button" variant="ghost" onClick={onRetry}>
+              {chinese ? "重试" : "Retry"}
+            </Button>
+          ) : null}
           <Button
             type="button"
             ref={saveButton}
@@ -174,12 +187,7 @@ export function AcpGlobalInstructionsSettings({
           >
             {chinese ? "保存" : "Save"}
           </Button>
-          {saved ? (
-            <span role="status" className="text-body-small text-muted-foreground">
-              {chinese ? "已保存" : "Saved"}
-            </span>
-          ) : null}
-        </div>
+        </SettingsActions>
       </PersonalizationInstructionsEditor>
       <Dialog
         open={open}
@@ -240,7 +248,7 @@ export function AcpGlobalInstructionsSettings({
               </p>
             ) : null}
           </div>
-          <DialogFooter>
+          <SettingsActions>
             <Button
               type="button"
               variant="ghost"
@@ -254,24 +262,24 @@ export function AcpGlobalInstructionsSettings({
             {error ? (
               <Button
                 type="button"
+                variant="outline"
                 onClick={() => {
                   void preview();
                 }}
               >
-                {chinese ? "重新检查" : "Check again"}
+                {chinese ? "重试" : "Retry"}
               </Button>
-            ) : (
-              <Button
-                type="button"
-                disabled={!targets || saving}
-                onClick={() => {
-                  void confirm();
-                }}
-              >
-                {chinese ? "确认保存" : "Confirm save"}
-              </Button>
-            )}
-          </DialogFooter>
+            ) : null}
+            <Button
+              type="button"
+              disabled={!targets || saving}
+              onClick={() => {
+                void confirm();
+              }}
+            >
+              {chinese ? "确认保存" : "Confirm save"}
+            </Button>
+          </SettingsActions>
         </DialogContent>
       </Dialog>
     </section>

@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { useId, useMemo, useRef, useState } from "react";
 import {
   savedPromptLimits,
@@ -8,14 +9,7 @@ import { Button } from "./button.js";
 import { Input } from "./input.js";
 import { SettingsDropdown } from "./settings-dropdown.js";
 import { Textarea } from "./textarea.js";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./dialog.js";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog.js";
 import { saveSharedPrompt } from "./saved-prompts-store.js";
 import { savedPromptsCopy } from "./saved-prompts-copy.js";
 import { toast } from "./notifications.js";
@@ -202,14 +196,26 @@ export default function SavedPromptEditor({
                 {copy.errors[error]}
               </p>
             ) : null}
-            <DialogFooter>
+            <SettingsActions>
               <Button type="button" variant="ghost" disabled={pending} onClick={closeEditor}>
                 {copy.cancel}
               </Button>
+              {error === "storage" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    void save();
+                  }}
+                >
+                  {copy.retry}
+                </Button>
+              ) : null}
               <Button type="submit" disabled={pending}>
                 {copy.save}
               </Button>
-            </DialogFooter>
+            </SettingsActions>
           </form>
         </DialogContent>
       </Dialog>
@@ -221,7 +227,7 @@ export default function SavedPromptEditor({
               <DialogTitle>{copy.discardTitle}</DialogTitle>
               <DialogDescription>{copy.discardDescription}</DialogDescription>
             </DialogHeader>
-            <DialogFooter>
+            <SettingsActions>
               <Button
                 type="button"
                 variant="ghost"
@@ -242,7 +248,7 @@ export default function SavedPromptEditor({
               >
                 {copy.discard}
               </Button>
-            </DialogFooter>
+            </SettingsActions>
           </DialogContent>
         </Dialog>
       ) : null}

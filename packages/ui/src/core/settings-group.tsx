@@ -1,4 +1,20 @@
 import { useId, type ReactNode } from "react";
+import { cn } from "../lib/utils.js";
+
+/** 表单与确认弹窗共用右对齐操作栏，窄屏换行时保留按钮顺序。 */
+export function SettingsActions({
+  children,
+  className,
+}: Readonly<{ children: ReactNode; className?: string }>) {
+  return (
+    <div
+      data-slot="settings-actions"
+      className={cn("flex flex-wrap items-center justify-end gap-2", className)}
+    >
+      {children}
+    </div>
+  );
+}
 /** 设置模块统一外观；ACP 与常规设置共享同一张卡片和字段分隔样式。 */
 export function SettingsCard({ children }: Readonly<{ children: ReactNode }>) {
   return (

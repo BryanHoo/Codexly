@@ -1,3 +1,4 @@
+import { SettingsActions } from "@codexly/ui/core/settings-group";
 import { AcpGlobalInstructionsSettings } from "@codexly/ui/core/personalization-instructions-editor";
 import type { AgentEngine } from "@codexly/protocol";
 import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
@@ -287,9 +288,11 @@ export function GlobalSettingsPage<
             {error !== null ? (
               <div role="alert" className="text-body-small text-danger">
                 <p>{t("errors.load")}</p>
-                <Button variant="ghost" onClick={() => void onRetry()}>
-                  {t("common:actions.retry")}
-                </Button>
+                <SettingsActions>
+                  <Button variant="ghost" onClick={() => void onRetry()}>
+                    {t("common:actions.retry")}
+                  </Button>
+                </SettingsActions>
               </div>
             ) : isPending || settings === undefined || draft === undefined ? (
               <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />
@@ -328,16 +331,18 @@ export function GlobalSettingsPage<
             )}
           </section>
         ) : activeSection === "about" ? null : error !== null ? (
-          <div className="flex min-h-40 flex-col items-center justify-center gap-3" role="alert">
+          <div className="flex min-h-40 flex-col justify-center gap-3" role="alert">
             <p className="text-body-small text-danger">{t("errors.load")}</p>
-            <Button
-              variant="ghost"
-              className="h-8 rounded-control bg-control px-3 text-body-small font-medium hover:bg-control-hover"
-              onClick={() => void onRetry()}
-              type="button"
-            >
-              {t("common:actions.retry")}
-            </Button>
+            <SettingsActions>
+              <Button
+                variant="ghost"
+                className="h-8 rounded-control bg-control px-3 text-body-small font-medium hover:bg-control-hover"
+                onClick={() => void onRetry()}
+                type="button"
+              >
+                {t("common:actions.retry")}
+              </Button>
+            </SettingsActions>
           </div>
         ) : isPending || settings === undefined || draft === undefined ? (
           <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />

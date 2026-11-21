@@ -39,7 +39,7 @@ for (const [platform, SettingsPage, width] of [
       files: [{ agents: ["Codex"], path: "/fixture/codex/AGENTS.md", exists: true }],
       unsupported: [],
     };
-    const getAgentInstructionsTargets = vi.fn(async () => targets);
+    const getAgentInstructionsTargets = vi.fn(async () => targets).mockRejectedValueOnce(new Error("offline"));
     const saveAgentInstructions = vi.fn(async ({ content }: SaveAgentInstructions) => ({
       ...initial, globalInstructions: content,
     }));
@@ -98,8 +98,29 @@ for (const [platform, SettingsPage, width] of [
       expect(saveAgentInstructions).not.toHaveBeenCalled();
       expect(onSave).not.toHaveBeenCalled();
       const save = screen.getByRole("button", { name: "保存", exact: true });
+      await screen.getByRole("button", { name: "取消", exact: true }).click();
+      await expect.element(editor).toHaveValue("");
+      expect(saveAgentInstructions).not.toHaveBeenCalled();
+      await editor.fill("使用中文");
+      const saveElement = save.element();
+      const actionBar = saveElement.parentElement;
+      expect(actionBar).not.toBeNull();
+      expect(Math.abs(saveElement.getBoundingClientRect().right - (actionBar?.getBoundingClientRect().right ?? 0))).toBeLessThan(2);
       const dialog = screen.getByRole("dialog", { name: "确认保存全局指令" });
       await save.click();
+      const retry = dialog.getByRole("button", { name: "重试", exact: true });
+      await expect.element(retry).toBeVisible();
+      const cancel = dialog.getByRole("button", { name: "取消" });
+      const confirm = dialog.getByRole("button", { name: "确认保存" });
+      await expect.element(confirm).toBeDisabled();
+      const rects = [cancel, retry, confirm].map((button) => button.element().getBoundingClientRect());
+      const [cancelRect, retryRect, confirmRect] = rects;
+      expect(cancelRect?.right).toBeLessThan(retryRect?.left ?? 0);
+      expect(retryRect?.right).toBeLessThan(confirmRect?.left ?? 0);
+      expect(Math.abs((cancelRect?.top ?? 0) - (confirmRect?.top ?? 0))).toBeLessThan(2);
+      const footer = confirm.element().parentElement;
+      expect(Math.abs((confirmRect?.right ?? 0) - (footer?.getBoundingClientRect().right ?? 0))).toBeLessThan(2);
+      await retry.click();
       await expect.element(dialog.getByText("/fixture/codex/AGENTS.md", { exact: true })).toBeVisible();
       await expect.element(dialog.getByText("Codex · 覆盖")).toBeVisible();
       await dialog.getByRole("button", { name: "取消" }).click();

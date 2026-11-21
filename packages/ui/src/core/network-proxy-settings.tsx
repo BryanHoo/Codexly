@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import {
   useEffect,
   useRef,
@@ -44,7 +45,8 @@ export const NETWORK_PROXY_LABELS = {
     success: "连接成功",
     error: "操作失败，请检查代理配置与网络后重试",
     loading: "正在读取代理设置…",
-    retry: "重新读取",
+    retry: "重试",
+    cancel: "取消",
   },
   en: {
     title: "Network",
@@ -72,7 +74,8 @@ export const NETWORK_PROXY_LABELS = {
     success: "Connection successful",
     error: "Operation failed. Check proxy settings and network, then retry",
     loading: "Loading proxy settings…",
-    retry: "Reload",
+    retry: "Retry",
+    cancel: "Cancel",
   },
 };
 type Labels = { [K in keyof typeof NETWORK_PROXY_LABELS.en]: string };
@@ -199,14 +202,16 @@ export function NetworkProxySettingsPanel({
         failed ? (
           <div role="alert" className="space-y-3 text-body-small text-danger">
             <p>{labels.error}</p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setReload((value) => value + 1);
-              }}
-            >
-              {labels.retry}
-            </Button>
+            <SettingsActions>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setReload((value) => value + 1);
+                }}
+              >
+                {labels.retry}
+              </Button>
+            </SettingsActions>
           </div>
         ) : (
           <LoadingSkeleton variant="settings" label={labels.loading} className="p-0" />
@@ -283,7 +288,19 @@ export function NetworkProxySettingsPanel({
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-separator pt-4">
               <p className="text-label text-muted-foreground">{labels.restart}</p>
-              <div className="flex gap-2">
+              <SettingsActions className="ml-auto">
+                {dirty ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setDraft(initial);
+                      setMessage("");
+                    }}
+                  >
+                    {labels.cancel}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -296,13 +313,24 @@ export function NetworkProxySettingsPanel({
                   ) : null}
                   {busy && operation === "test" ? labels.testing : labels.test}
                 </Button>
+                {message === labels.error && operation ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(event) => {
+                      if (event.currentTarget.form?.reportValidity()) void run(operation);
+                    }}
+                  >
+                    {labels.retry}
+                  </Button>
+                ) : null}
                 <Button type="submit" disabled={!dirty}>
                   {busy && operation === "save" ? (
                     <LoaderCircle aria-hidden="true" className="animate-spin" />
                   ) : null}
                   {busy && operation === "save" ? labels.saving : labels.save}
                 </Button>
-              </div>
+              </SettingsActions>
             </div>
           </fieldset>
           {message ? (

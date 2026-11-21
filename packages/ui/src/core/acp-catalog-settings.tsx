@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuid } from "uuid";
@@ -160,14 +161,16 @@ export function AcpAgentPicker({
       />
       {error ? <p role="alert">{error}</p> : null}
       {query.isError ? (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            void query.refetch();
-          }}
-        >
-          {zh ? "重试" : "Retry"}
-        </Button>
+        <SettingsActions>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              void query.refetch();
+            }}
+          >
+            {zh ? "重试" : "Retry"}
+          </Button>
+        </SettingsActions>
       ) : null}
       {!query.data && !query.isError ? <p role="status">{zh ? "加载中…" : "Loading…"}</p> : null}
       {/* 搜索框留在滚动区外，四周完整显示键盘焦点描边。 */}
@@ -310,10 +313,7 @@ export function AcpAgentPicker({
                 />
               </label>
             ) : null}
-            <div className="flex gap-2">
-              <Button type="submit" disabled={busy}>
-                {zh ? "保存配置" : "Save configuration"}
-              </Button>
+            <SettingsActions>
               <Button
                 type="button"
                 variant="ghost"
@@ -324,7 +324,10 @@ export function AcpAgentPicker({
               >
                 {zh ? "取消" : "Cancel"}
               </Button>
-            </div>
+              <Button type="submit" disabled={busy}>
+                {zh ? "保存配置" : "Save configuration"}
+              </Button>
+            </SettingsActions>
           </form>
         )}
       </div>

@@ -124,7 +124,14 @@ it.each([false, true])("实际设置导航可搜索网络且常规没有代理�
   await expect.element(screen.getByRole("button", { name: "保存代理设置" })).toBeDisabled();
   await screen.getByRole("combobox", { name: "连接方式" }).selectOptions("custom");
   await expect.element(screen.getByRole("textbox", { name: "网关地址" })).toBeVisible();
-  expect(screen.container.querySelector('input[data-slot="input"]')).not.toBeNull();
+  await expect
+    .element(screen.getByRole("textbox", { name: "网关地址" }))
+    .toHaveAttribute("data-slot", "input");
+  const cancel = screen.getByRole("button", { name: "取消", exact: true });
+  const save = screen.getByRole("button", { name: "保存代理设置" });
+  expect(cancel.element().getBoundingClientRect().right).toBeLessThan(save.element().getBoundingClientRect().left);
+  await cancel.click();
+  await expect.element(screen.getByRole("combobox", { name: "连接方式" })).toHaveValue("system");
   await screen.getByRole("combobox", { name: "连接方式" }).selectOptions("direct");
   await expect.element(screen.getByRole("textbox", { name: "网关地址" })).not.toBeInTheDocument();
 });

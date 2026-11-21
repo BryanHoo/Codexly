@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
@@ -234,9 +235,11 @@ export function AcpProviderSettings({
       ) : query.isError ? (
         <div role="alert">
           <p>{copy.readError}</p>
-          <Button type="button" variant="ghost" onClick={() => void query.refetch()}>
-            {copy.retry}
-          </Button>
+          <SettingsActions>
+            <Button type="button" variant="ghost" onClick={() => void query.refetch()}>
+              {copy.retry}
+            </Button>
+          </SettingsActions>
         </div>
       ) : !query.data ? (
         <LoadingSkeleton variant="settings" className="p-0" label={copy.loading} />
@@ -388,27 +391,37 @@ export function AcpProviderSettings({
                     ) : status === "error" ? (
                       <p role="alert">{copy.saveError}</p>
                     ) : null}
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" disabled={!!provider.current && !editing.replace}>
-                        {copy.save}
-                      </Button>
+                    <SettingsActions>
                       <Button type="button" variant="ghost" onClick={reset}>
                         {copy.cancel}
                       </Button>
-                    </div>
+                      {status === "error" ? (
+                        <Button type="button" variant="outline" onClick={submit}>
+                          {copy.retry}
+                        </Button>
+                      ) : null}
+                      <Button type="submit" disabled={!!provider.current && !editing.replace}>
+                        {copy.save}
+                      </Button>
+                    </SettingsActions>
                   </form>
                 ) : confirming ? (
                   <div className="space-y-2">
                     <p>{copy.disableNotice}</p>
                     {status === "error" ? <p role="alert">{copy.saveError}</p> : null}
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" onClick={submit}>
-                        {copy.confirm}
-                      </Button>
+                    <SettingsActions>
                       <Button type="button" variant="ghost" onClick={reset}>
                         {copy.cancel}
                       </Button>
-                    </div>
+                      {status === "error" ? (
+                        <Button type="button" variant="outline" onClick={submit}>
+                          {copy.retry}
+                        </Button>
+                      ) : null}
+                      <Button type="button" onClick={submit}>
+                        {copy.confirm}
+                      </Button>
+                    </SettingsActions>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">

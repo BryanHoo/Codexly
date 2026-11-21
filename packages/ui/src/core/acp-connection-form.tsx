@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import { SettingsDropdown } from "./settings-dropdown.js";
 import { useEffect, useRef, useState } from "react";
 import type { AcpAgentProfile, AcpProviderPage } from "@codexly/protocol";
@@ -314,7 +315,7 @@ export function AcpConnectionForm({
           </p>
         ) : null}
       </fieldset>
-      <div className="flex flex-wrap justify-end gap-2 border-t border-separator py-3">
+      <SettingsActions className="border-t border-separator py-3">
         {busy && draft.mode === "native" ? (
           <Button
             type="button"
@@ -325,6 +326,36 @@ export function AcpConnectionForm({
             }}
           >
             {chinese ? "取消" : "Cancel"}
+          </Button>
+        ) : null}
+        {!busy && dirty ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setDraft(connectionDraft(profile, providers));
+              setDirty(false);
+              setFailure("");
+              setStatus("idle");
+            }}
+          >
+            {chinese ? "取消修改" : "Cancel changes"}
+          </Button>
+        ) : null}
+        {failure ? (
+          <Button type="button" variant="outline" disabled={busy} onClick={run}>
+            {labels.retry}
+          </Button>
+        ) : null}
+        {!busy && !dirty ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              void refresh();
+            }}
+          >
+            {chinese ? "重新检测" : "Detect again"}
           </Button>
         ) : null}
         <Button type="submit" disabled={busy || (draft.mode === "custom" && !provider)}>
@@ -348,18 +379,7 @@ export function AcpConnectionForm({
                     ? "使用本机配置"
                     : "Use local configuration"}
         </Button>
-        {!busy && !dirty ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              void refresh();
-            }}
-          >
-            {chinese ? "重新检测" : "Detect again"}
-          </Button>
-        ) : null}
-      </div>
+      </SettingsActions>
     </form>
   );
 }

@@ -1,3 +1,4 @@
+import { SettingsActions } from "@codexly/ui/core/settings-group";
 import { AcpGlobalInstructionsSettings } from "@codexly/ui/core/personalization-instructions-editor";
 import type { AgentEngine } from "@codexly/protocol";
 import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
@@ -170,9 +171,11 @@ export function GlobalSettingsPage<
   const failure = (
     <div role="alert">
       <p className="text-danger">{t("errors.load")}</p>
-      <Button variant="ghost" onClick={() => void onRetry()}>
-        {t("common:actions.retry")}
-      </Button>
+      <SettingsActions>
+        <Button variant="ghost" onClick={() => void onRetry()}>
+          {t("common:actions.retry")}
+        </Button>
+      </SettingsActions>
     </div>
   );
   const ready = error === null && !isPending && settings !== undefined && draft !== undefined;

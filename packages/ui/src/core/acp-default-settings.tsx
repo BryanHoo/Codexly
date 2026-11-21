@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -146,9 +147,11 @@ export function AcpDefaultSettings({
       {error ? (
         <div role="alert" className="mb-3 space-y-2 text-label text-danger">
           <p>{labels.saveError}</p>
-          <Button type="button" variant="ghost" onClick={retry}>
-            {labels.retry}
-          </Button>
+          <SettingsActions>
+            <Button type="button" variant="ghost" onClick={retry}>
+              {labels.retry}
+            </Button>
+          </SettingsActions>
         </div>
       ) : null}
       {query.data ? (
