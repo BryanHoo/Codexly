@@ -1,4 +1,5 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
+import { normalizeFileChangePatch } from "@codexly/frontend-core/file-change-patch";
 import {
   getFiletypeFromFileName,
   parsePatchFiles,
@@ -74,6 +75,7 @@ function handleDiffWheel(event: WheelEvent<HTMLDivElement>) {
 type PatchDiffViewerProps = Readonly<{
   path: string;
   patch: string;
+  kind?: "create" | "delete" | "update";
   preloadLanguage?: boolean;
   unavailableLabel?: string;
 }>;
@@ -160,11 +162,15 @@ function PreloadedDiff({ path, fileDiff }: ParsedDiffProps & Readonly<{ path: st
 export function PatchDiffViewer({
   path,
   patch,
+  kind = "update",
   preloadLanguage = false,
   unavailableLabel = path,
 }: PatchDiffViewerProps) {
   // 每次正文变化仅解析一次，直接传递解析结果，避免 PatchDiff 内部重复扫描全文。
-  const fileDiff = useMemo(() => parsePreviewPatch(patch), [patch]);
+  const fileDiff = useMemo(
+    () => parsePreviewPatch(normalizeFileChangePatch({ diff: patch, kind, path })),
+    [kind, patch, path],
+  );
   const fallback = (
     <div
       className="grid min-h-24 place-items-center text-body-small text-muted-foreground"

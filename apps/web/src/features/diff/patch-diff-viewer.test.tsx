@@ -20,3 +20,11 @@ it("正常文本补丁仍进入 Diff 渲染器", () => {
   );
   expect(markup).toContain("diffs-container");
 });
+
+it.each([
+  "@@ -42 +42 @@\n-old\n+new\n",
+  "--- a/a.ts\n+++ b/a.ts\n@@\n-old\n+new\n@@ function example()\n-previous\n+next\n*** End of File\n",
+])("历史和流式补丁缺少标准头部时仍可预览", (patch) => {
+  const markup = renderToStaticMarkup(<PatchDiffViewer path="a.ts" patch={patch} />);
+  expect(markup).toContain("diffs-container");
+});

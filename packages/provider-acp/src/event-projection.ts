@@ -244,13 +244,11 @@ export class AcpEventProjection {
   #fileChanges(fileId: string, content: ToolCallContent[] | null, append = false): void {
     const previousFiles = this.#items.get(fileId);
     const oldFiles = previousFiles?.type === "file_change" ? previousFiles : undefined;
-    if (oldFiles) this.#diffBytes -= Buffer.byteLength(JSON.stringify(oldFiles.changes)) - 1;
-    const remaining = 256 * 1024 - this.#diffBytes;
+    const previousBytes = oldFiles ? Buffer.byteLength(JSON.stringify(oldFiles.changes)) : 0;
+    const remaining = 256 * 1024 - this.#diffBytes + previousBytes;
     const projected = projectAcpFileChanges(content, remaining);
-    if (append && !projected.length) {
-      if (oldFiles) this.#diffBytes += Buffer.byteLength(JSON.stringify(oldFiles.changes)) - 1;
-      return;
-    }
+    // 结束更新可以只包含文字摘要。已经报告的文件修改要保留到会话历史。
+    if (!projected.length) return;
     if (append && oldFiles) {
       // 内容分块追加，完整 content 更新则替换整份工具内容。
       const combined = new Map(oldFiles.changes.map((change) => [change.path, change]));
@@ -258,14 +256,15 @@ export class AcpEventProjection {
       projected.splice(0, projected.length, ...combined.values());
     }
     const changes: typeof projected = [];
+    let bytesUsed = 1;
     for (const change of projected) {
       const bytes = Buffer.byteLength(JSON.stringify(change)) + 1;
-      if (this.#diffBytes + bytes > 256 * 1024) break;
+      if (bytesUsed + bytes > remaining) break;
       changes.push(change);
-      this.#diffBytes += bytes;
+      bytesUsed += bytes;
     }
-    if (!changes.length && !oldFiles) return;
-    this.#diffBytes += 1;
+    if (!changes.length) return;
+    this.#diffBytes += bytesUsed - previousBytes;
     // 结构化 diff 已报告发生的更改；工具运行状态继续由独立的工具条目维护。
     const files: AgentItem = { id: fileId, type: "file_change", changes, status: "completed" };
     this.#items.set(fileId, files);

@@ -331,12 +331,15 @@ fn parse_codex_cli_version(output: &str) -> Option<&str> {
 }
 
 // 正式服务与配置诊断共用功能参数，只关闭发现预取，保留已安装插件同步。
-pub(super) const APP_SERVER_ARGUMENTS: [&str; 5] = [
+pub(super) const APP_SERVER_ARGUMENTS: [&str; 7] = [
     "app-server",
     "--enable",
     "plugins",
     "-c",
     "features.plugin_discovery_prefetch=false",
+    // 上游默认关闭参数增量，开启后可在补丁应用前显示文件差异。
+    "-c",
+    "features.apply_patch_streaming_events=true",
 ];
 
 fn build_app_server_command(program: &OsStr, runtime_path: Option<&OsStr>) -> Command {

@@ -9,6 +9,35 @@ function normalizePath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
+const gitPathEscapes: Readonly<Record<string, string>> = {
+  a: "\x07",
+  b: "\b",
+  f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  v: "\v",
+  '"': '"',
+  "\\": "\\",
+};
+
+function readGitPatchPath(header: string): string {
+  const path = header.split("\t", 1)[0] ?? "";
+  if (!path.startsWith('"') || !path.endsWith('"')) return path;
+  // Git 在引用路径中按 UTF-8 字节写入八进制转义。连续字节一起解码才能匹配中文路径。
+  return path
+    .slice(1, -1)
+    .replace(/(?:\\[0-3][0-7]{2})+|\\[abfnrtv"\\]/gu, (encoded) =>
+      encoded.length === 2
+        ? (gitPathEscapes[encoded[1] ?? ""] ?? encoded)
+        : Buffer.from(
+            [...encoded.matchAll(/\\([0-3][0-7]{2})/gu)].map((match) =>
+              parseInt(match[1] ?? "", 8),
+            ),
+          ).toString("utf8"),
+    );
+}
+
 /** 结构化路径是事实来源。只在补丁文件头能唯一匹配时挂载预览。 */
 export function projectAcpFileChanges(content: ToolCallContent[] | null, budget: number): Change[] {
   const changes = new Map<string, Change>();
@@ -58,11 +87,11 @@ export function projectAcpFileChanges(content: ToolCallContent[] | null, budget:
     for (const section of patch.text.split(/(?=^diff --git )/m)) {
       const hunk = section.search(/^@@ /m);
       const header = hunk === -1 ? section : section.slice(0, hunk);
-      const before = /^--- ([^\r\n]+)/m.exec(header)?.[1];
-      const after = /^\+\+\+ ([^\r\n]+)/m.exec(header)?.[1];
+      const before = readGitPatchPath(/^--- ([^\r\n]+)/m.exec(header)?.[1] ?? "");
+      const after = readGitPatchPath(/^\+\+\+ ([^\r\n]+)/m.exec(header)?.[1] ?? "");
       const rawPath = after === "/dev/null" ? before : after;
       if (!rawPath) continue;
-      const path = normalizePath(rawPath.split("\t", 1)[0] ?? "").replace(/^[ab]\//, "");
+      const path = normalizePath(rawPath).replace(/^[ab]\//, "");
       const files = [...current].filter(([file]) => file === path || file.endsWith("/" + path));
       if (files.length !== 1) continue;
       const file = files[0]?.[1];

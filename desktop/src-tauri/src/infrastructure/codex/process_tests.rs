@@ -22,6 +22,8 @@ fn command_should_use_stdio_and_inherit_official_codex_home() {
         "plugins",
         "-c",
         "features.plugin_discovery_prefetch=false",
+        "-c",
+        "features.apply_patch_streaming_events=true",
         "--listen",
         "stdio://",
     ];

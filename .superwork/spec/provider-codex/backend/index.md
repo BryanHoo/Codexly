@@ -55,6 +55,12 @@
 - 只检查已加载的条目，不为计时追读过程分页或完整历史；Rust 借用原始正文，公开事件与 UI 不携带额外上游元数据。
 - 两端共用 `packages/provider-codex/test/fixtures/codex-166-item-timings.json`，测试入口为 `codex-166-contract.test.ts` 和原生 `codex_166_contract_tests.rs`。
 
+## 流式文件差异
+
+- 两端启动 App Server 时启用 `features.apply_patch_streaming_events`，补丁应用前消费 `item/fileChange/patchUpdated`，应用后由同一条目的完成事件替换预览。启动配置预检沿用相同参数。
+- `turn/diff/updated` 是已跟踪补丁的回合累计结果。时间线按逐条文件变更报告呈现，普通命令直接写入而未上报文件变更时，仅显示命令记录。
+- 正式启动参数和实时映射分别通过 `app-server-process.test.ts`、`codex-protocol-realtime.test.ts` 及对应的 Rust 单元测试验证。
+
 ## 插件发现按需查询
 
 - Web 服务与桌面启动 Codex App Server 时以进程参数设置 `features.plugin_discovery_prefetch=false`，保留 `plugins` 启用及官方已安装插件同步，不写用户全局配置。正式服务和配置诊断共用各端功能参数，避免有效配置不一致。

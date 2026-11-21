@@ -12,6 +12,55 @@ function fixture() {
   return { projection, events };
 }
 
+it("工具结束时的文字摘要保留此前分块报告的文件差异", () => {
+  const { projection } = fixture();
+  projection.update({
+    sessionUpdate: "tool_call_content_chunk",
+    toolCallId: "edit",
+    content: {
+      type: "diff",
+      changes: [{ operation: "modify", path: "/repo/a.ts" }],
+      patch: { format: "git_patch", text: "--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new\n" },
+    },
+  });
+  projection.update({
+    sessionUpdate: "tool_call_update",
+    toolCallId: "edit",
+    status: "completed",
+    content: [{ type: "content", content: { type: "text", text: "Edited a.ts" } }],
+  });
+  const files = projection.finish("end_turn").items.find((item) => item.type === "file_change");
+  expect(files?.changes[0]?.path).toBe("/repo/a.ts");
+  expect(files?.changes[0]?.diff).toContain("+new");
+});
+
+it("将 Git 引用的中文路径映射回同一批次的结构化文件", () => {
+  const { projection } = fixture();
+  const encodedName = String.raw`\345\272\217.ts`;
+  const diff = [
+    `diff --git "a/${encodedName}" "b/${encodedName}"`,
+    `--- "a/${encodedName}"`,
+    `+++ "b/${encodedName}"`,
+    "@@ -1 +1 @@",
+    "-old",
+    "+new",
+  ].join("\n");
+  projection.update({
+    sessionUpdate: "tool_call_update",
+    toolCallId: "edit",
+    status: "completed",
+    content: [
+      {
+        type: "diff",
+        changes: [{ operation: "modify", path: "/repo/序.ts" }],
+        patch: { format: "git_patch", text: diff },
+      },
+    ],
+  });
+  const files = projection.finish("end_turn").items.find((item) => item.type === "file_change");
+  expect(files?.changes).toMatchObject([{ path: "/repo/序.ts", diff }]);
+});
+
 describe("ACP 增量事件投影", () => {
   it("将当前上下文用量映射到共享事件，保留下降和归零，不混入费用", () => {
     const { projection, events } = fixture();

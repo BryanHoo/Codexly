@@ -84,9 +84,20 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(separators[0]!.getBoundingClientRect().top - card()!.querySelector('[data-file-diff-content]')!.getBoundingClientRect().top).toBeLessThanOrEqual(1);
 
     const base = { version: 2 as const, provider: "codex", sessionId: "session", taskId: "task", turnId: "turn", timestamp: time };
-    const largeDiff = "--- a/profile.js\n+++ b/profile.js\n@@ -1 +1,151 @@\n-oldValue\n+latestValue\n" + Array.from({ length: 150 }, (_, i) => `+const value${i} = ${i};`).join("\n");
+    const changes = [
+      { ...change, diff: "@@\n-oldValue\n+previewValue\n" },
+      { ...change, path: "second.js", diff: "@@ export function second()\n-before\n+secondPreview\n*** End of File\n" },
+    ];
+    // Codex 推送的是整条文件操作当前的预览，单个事件可以带来多个独立卡片。
+    store.getState().applyEvents([{ ...base, sequence: 1, type: "file_change.updated", itemId: "file", payload: { changes, originalByteLength: 100, truncated: false } }]);
+    await expect.poll(() => document.querySelectorAll('[data-file-diff-card]').length).toBe(2);
+    const previewContents = () => [...document.querySelectorAll('[data-file-diff-card] .file-diff-renderer')].map(renderer => renderer.shadowRoot?.textContent).join("\n");
+    await expect.poll(previewContents, { timeout: 10000 }).toContain("previewValue");
+    await expect.poll(previewContents, { timeout: 10000 }).toContain("secondPreview");
+
+    const largeDiff = "@@ -1 +1,151 @@\n-oldValue\n+latestValue\n" + Array.from({ length: 150 }, (_, i) => `+const value${i} = ${i};`).join("\n");
     // 真实单条文件事件只更新卡片正文；随后回合完成仍保留同一个文件模块。
-    store.getState().applyEvents([{ ...base, sequence: 1, type: "item.completed", itemId: "file", payload: { item: { ...file, status: "completed", changes: [{ ...change, diff: largeDiff, stats: { additions: 151, removals: 1 } }] } } }]);
+    store.getState().applyEvents([{ ...base, sequence: 2, type: "item.completed", itemId: "file", payload: { item: { ...file, status: "completed", changes: [{ ...change, diff: largeDiff, stats: { additions: 151, removals: 1 } }] } } }]);
     await expect.poll(() => card()?.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '', { timeout: 10000 }).toContain('latestValue');
     const content = () => card()?.querySelector<HTMLElement>('[data-file-diff-content]');
     await expect.poll(() => content()?.scrollHeight ?? 0).toBeGreaterThan(320);
@@ -94,7 +105,7 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(card()!.getBoundingClientRect().height).toBeLessThan(230);
     content()!.scrollTop = 200;
     expect(content()!.scrollTop).toBeGreaterThan(0);
-    store.getState().applyEvents([{ ...base, sequence: 2, type: "turn.completed", payload: { turn: { id: "turn", status: "completed", startedAt: time, completedAt: time, error: null, items: [] } } }]);
+    store.getState().applyEvents([{ ...base, sequence: 3, type: "turn.completed", payload: { turn: { id: "turn", status: "completed", startedAt: time, completedAt: time, error: null, items: [] } } }]);
     await expect.poll(card).toBeNull();
     await screen.getByRole('button', { name: '展开执行过程', exact: true }).click();
     await expect.poll(() => card()?.textContent).toContain('已应用');

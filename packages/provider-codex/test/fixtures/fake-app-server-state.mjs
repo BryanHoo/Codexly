@@ -5,6 +5,8 @@ const expectedArgs = [
   "plugins",
   "-c",
   "features.plugin_discovery_prefetch=false",
+  "-c",
+  "features.apply_patch_streaming_events=true",
   "--listen",
   "stdio://",
 ];

@@ -24,6 +24,8 @@ const fakeAppServer = spawn(
     // 与正式启动及 Fake App Server 的参数契约保持一致，不在测试启动时预取插件。
     "-c",
     "features.plugin_discovery_prefetch=false",
+    "-c",
+    "features.apply_patch_streaming_events=true",
     "--listen",
     "stdio://",
   ],

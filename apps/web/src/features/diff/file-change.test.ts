@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parsePatchFiles } from "@pierre/diffs";
+import { normalizeFileChangePatch } from "@codexly/frontend-core/file-change-patch";
 
-import {
-  countFileChangeLines,
-  normalizeFileChangePatch,
-  summarizeFileChanges,
-} from "./file-change.js";
+import { countFileChangeLines, summarizeFileChanges } from "./file-change.js";
 
 describe("file change view model", () => {
   it.each([false, true])("保留尾部空白上下文，确保补丁可解析（已有文件头：%s）", (headers) => {

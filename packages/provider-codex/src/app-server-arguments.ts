@@ -6,4 +6,7 @@ export const CODEX_APP_SERVER_ARGUMENTS = [
   "plugins",
   "-c",
   "features.plugin_discovery_prefetch=false",
+  // 上游默认关闭参数增量，开启后可在补丁应用前显示文件差异。
+  "-c",
+  "features.apply_patch_streaming_events=true",
 ] as const;

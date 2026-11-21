@@ -20,6 +20,8 @@ describe("readCodexStartupConfig", () => {
         "plugins",
         "-c",
         "features.plugin_discovery_prefetch=false",
+        "-c",
+        "features.apply_patch_streaming_events=true",
         "--print-startup-config",
         "--startup-client-info",
         JSON.stringify({ name: "codexly", title: "Codexly", version: "1.2.3" }),

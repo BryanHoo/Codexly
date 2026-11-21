@@ -13,7 +13,7 @@
 
 ## 契约与检查项
 
-- Unified Diff 的尾部空格、空白上下文行与换行属于补丁内容，不得使用 `trimEnd()` 清理；文件头补齐后须保持 hunk 行数可解析。Web 回归入口为 `features/diff/file-change.test.ts`。
+- Web 和桌面差异预览共用 `file-change-patch.ts`。已有标准补丁保留原文，缺少文件头的历史补丁补齐文件头，Codex 未编号的 `@@` 流式片段按已收到的正文生成预览范围。尾部空格、空白上下文行与换行属于补丁内容。回归入口为 Web `features/diff/file-change.test.ts` 和双端 `streaming-file-diff.browser.test.tsx`。
 - 流式 Markdown 的延迟预览只能独立保留已结束的段落，不能把“我”等未结束前缀渲染成额外段落。共享 `streaming-prefix.test.ts` 与跨端 `desktop/tests/browser/stream-prefix.browser.test.tsx` 覆盖长段落追加、最终解析和权威正文替换。
 
 - [ ] 不导入具体 Web / 桌面应用、Client、Core、Provider、Server 或根 CLI，传输与原生副作用由平台适配器承接。

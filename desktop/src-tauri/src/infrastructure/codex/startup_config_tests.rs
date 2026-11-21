@@ -59,18 +59,20 @@ fn startup_config_command_should_preserve_identity_and_path_without_side_effect_
         .map(|value| value.to_string_lossy().into_owned())
         .collect();
     assert_eq!(
-        &args[..7],
+        &args[..9],
         [
             "app-server",
             "--enable",
             "plugins",
             "-c",
             "features.plugin_discovery_prefetch=false",
+            "-c",
+            "features.apply_patch_streaming_events=true",
             "--print-startup-config",
             "--startup-client-info"
         ]
     );
-    let client: Value = serde_json::from_str(&args[7]).unwrap();
+    let client: Value = serde_json::from_str(&args[9]).unwrap();
     assert_eq!(client["name"], "codeagent");
     assert_eq!(client["version"], env!("CARGO_PKG_VERSION"));
     assert!(
