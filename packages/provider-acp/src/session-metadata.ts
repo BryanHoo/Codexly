@@ -22,15 +22,6 @@ export class AcpSessionMetadataStore {
   readonly #entries = new Map<string, Entry>();
   #bytes = 0;
 
-  /** 保持 Agent 广播的命令语法，只为模型回合添加应用指令。 */
-  isSlashCommand(sessionId: string, text: string): boolean {
-    const command = /^\s*\/([^\s]+)/u.exec(text)?.[1];
-    return (
-      command !== undefined &&
-      (this.#entries.get(sessionId)?.value.availableCommands.some(({ name }) => name === command) ??
-        false)
-    );
-  }
   read(sessionId: string): AcpSessionMetadata {
     return structuredClone(
       this.#entries.get(sessionId)?.value ?? { configOptions: [], availableCommands: [] },

@@ -263,20 +263,15 @@ export function GlobalSettingsPage<
             language={language === "zh-CN" ? "zh-CN" : "en"}
             label={t("sections.global-instructions")}
             content={
-              draft === undefined
+              settings === undefined
                 ? undefined
-                : (("globalInstructions" in draft ? draft.globalInstructions : undefined) ?? "")
+                : (("globalInstructions" in settings ? settings.globalInstructions : undefined) ?? "")
             }
             failed={error !== null}
             onRetry={() => {
               void onRetry();
             }}
-            onChange={(globalInstructions) => {
-              updateDraft((current) => ({ ...current, globalInstructions }), true);
-            }}
-            onBlur={() => {
-              void saveQueue.flush(draftRef.current);
-            }}
+            client={nativeClient}
           />
         ) : activeSection === "network" ? (
           <NetworkProxySettingsField />

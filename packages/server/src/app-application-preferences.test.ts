@@ -166,3 +166,54 @@ it("局域网偏好读写沿用配对认证，认证前不读取旧配置", asyn
   expect(response.statusCode, response.body).toBe(200);
   expect(source).toHaveBeenCalledOnce();
 });
+
+it("全局指令预览为只读，只有携带确认版本的请求会提交文件同步", async () => {
+  const store = await openRepository(await createWorkspace());
+  const options = createServerOptions(createProvider().provider);
+  const targets = {
+    version: "a".repeat(64),
+    files: [{ agents: ["Codex"], path: "/fixture/AGENTS.md", exists: true }],
+    unsupported: [],
+  };
+  const saveAgentInstructions = vi.fn();
+  const app = await createCodexlyServer({
+    ...options,
+    provider: {
+      ...options.provider,
+      getAgentInstructionsTargets: () => Promise.resolve(targets),
+      saveAgentInstructions: (input) => {
+        saveAgentInstructions();
+        return Promise.resolve({
+          defaultAgent: "codex",
+          defaultModel: null,
+          commitMessagePrompt: "",
+          taskTitlePrompt: "",
+          promptOptimizationPrompt: "",
+          defaultOpenAppId: null,
+          followUpBehavior: "queue",
+          pet: { enabled: false, selectedPetId: null },
+          globalInstructions: input.content,
+        });
+      },
+    },
+    localCatalogStore: store,
+    settingsRepository: store,
+  });
+  closeCallbacks.push(() => app.close());
+  const url = "/v1/application-preferences/instructions";
+  expect((await app.inject({ url: url + "/targets" })).json()).toEqual(targets);
+  const post = (payload: object) =>
+    app.inject({
+      method: "POST",
+      url,
+      headers: { "idempotency-key": "instructions-test" },
+      payload,
+    });
+  expect((await post({ content: "测试" })).statusCode).toBe(400);
+  expect(saveAgentInstructions).not.toHaveBeenCalled();
+  expect((await post({ content: "测试", version: targets.version })).json()).toMatchObject({
+    globalInstructions: "测试",
+  });
+  expect((await post({ content: "测试", version: targets.version })).statusCode).toBe(200);
+  expect(saveAgentInstructions).toHaveBeenCalledOnce();
+});

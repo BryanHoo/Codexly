@@ -1,3 +1,5 @@
+import type { SaveAgentInstructions } from "@codexly/protocol/application-preferences";
+import { nativeInstructionsPlan, replaceNativeInstructions } from "./native-global-instructions.js";
 import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -50,6 +52,7 @@ export class AcpRuntime {
   readonly #environment: NodeJS.ProcessEnv;
   readonly #preferences: ApplicationPreferencesService;
   readonly #initialization: AcpSessionInitialization;
+  readonly #leases: AcpStorageLeases;
   #closed = false;
   readonly #generations = new Set<Promise<string>>();
   readonly #searches = new Map<Promise<unknown>, () => void>();
@@ -81,6 +84,7 @@ export class AcpRuntime {
     launch = this.launch;
     this.#preferences = new ApplicationPreferencesService(store, readPreferences);
     const leases = new AcpStorageLeases(store);
+    this.#leases = leases;
     this.#history = new AcpHistory(join(directory, "history"), leases);
     this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource, leases);
     this.#initialization = new AcpSessionInitialization(
@@ -216,6 +220,31 @@ export class AcpRuntime {
       this.#generations.delete(pending);
     }
   }
+  async getAgentInstructionsTargets() {
+    this.#checkOpen();
+    const current = await this.#preferences.read();
+    return (
+      await nativeInstructionsPlan(this.catalog, this.#environment, current.globalInstructions)
+    ).targets;
+  }
+  async saveAgentInstructions(input: SaveAgentInstructions) {
+    this.#checkOpen();
+    const release = await this.#leases.acquire("application:global-instructions");
+    try {
+      const current = await this.#preferences.read();
+      const plan = await nativeInstructionsPlan(
+        this.catalog,
+        this.#environment,
+        current.globalInstructions,
+      );
+      if (plan.targets.version !== input.version) throw new Error("全局指令文件已变化，请重新确认");
+      return await replaceNativeInstructions(plan.files, input.content, () =>
+        this.#preferences.patch({ globalInstructions: input.content }),
+      );
+    } finally {
+      await release();
+    }
+  }
   async startConfiguredTurn(scope: AgentTaskScope, id: string, input: AgentProviderTurnInput) {
     this.forScope(scope);
     const task = await this.store.catalog("task.read", { id });
@@ -296,8 +325,6 @@ export class AcpRuntime {
           return (await prepareAcpDefaults(connection, sessionId, options, saved)).configOptions;
         },
         this.#initialization,
-        // 每次提交只读取应用已保存的私有快照，让排队与恢复后的回合使用最新值。
-        async () => (await this.store.catalog("app.preferences.read", {}))?.globalInstructions,
       );
     const providers: AcpAgentProvider[] = [];
     const titles: AcpTaskTitles[] = [];

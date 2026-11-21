@@ -1,5 +1,4 @@
 import * as acp from "@agentclientprotocol/sdk/unstable";
-import { addAcpGlobalInstructions } from "./global-instructions.js";
 import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 
@@ -263,16 +262,11 @@ export class AcpConnection {
     if (--this.#pendingBindings === 0) this.metadata.retain(this.#sessions);
   }
 
-  async prompt(request: acp.PromptRequest, instructions?: string): Promise<acp.PromptResponse> {
+  async prompt(request: acp.PromptRequest): Promise<acp.PromptResponse> {
     const id = request.sessionId;
     this.assertSessionReady(id);
     if (!this.#sessions.has(id)) throw new Error("ACP 会话尚未加载");
     if (this.#activePrompts.has(id)) throw new Error("会话已有输入进行中");
-    if (instructions?.trim()) {
-      const first = request.prompt[0];
-      if (first?.type !== "text" || !this.metadata.isSlashCommand(id, first.text))
-        request = { ...request, prompt: addAcpGlobalInstructions(request.prompt, instructions) };
-    }
     const abandoned = Promise.withResolvers<never>();
     this.#activePrompts.set(id, abandoned.reject);
     // 本地超时可以结束目标回合，但原请求仍持有会话，直到 Agent 确认或连接被安全回收。

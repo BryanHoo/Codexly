@@ -94,6 +94,7 @@ pub(super) async fn catalog_loop(
                 | "task.list"
                 | "task.remove"
                 | "app.preferences.read"
+                | "app.preferences.patch"
                 | "acp.title.claim"
                 | "acp.title.finish"
                 | "acp.session.rebind"

@@ -66,15 +66,7 @@ it.each(["title", "commit", "optimize"] as const)(
     const acp = await import("@agentclientprotocol/sdk/unstable");
     const { AcpConnection } = await import("./connection.js");
     const root = await mkdtemp(join(tmpdir(), "acp-generation-"));
-    let instructions = "使用简体中文";
-    const catalog = vi.fn((operation: string) =>
-      operation === "app.preferences.read"
-        ? Promise.resolve({
-            ...applicationPreferencesFromLegacy(undefined),
-            globalInstructions: instructions,
-          })
-        : Promise.reject(new Error("不应访问任务目录")),
-    );
+    const catalog = vi.fn(() => Promise.reject(new Error("不应访问任务目录")));
     const received: string[] = [];
     const closed = vi.fn(() => ({}));
     const launch: AcpAgentLauncher = async (_engine, _scope, callbacks) => {
@@ -137,8 +129,7 @@ it.each(["title", "commit", "optimize"] as const)(
           runtime.generateText.bind(runtime),
         ),
       ).toBe("辅助回答");
-      expect(received[0]).toContain(instructions);
-      instructions = "";
+      expect(received).toHaveLength(1);
       received.length = 0;
       await runtime.generateText(
         "acp-gemini",
@@ -148,7 +139,7 @@ it.each(["title", "commit", "optimize"] as const)(
         new AbortController().signal,
       );
       expect(received).toEqual(["第二个问题"]);
-      expect(catalog).toHaveBeenCalledTimes(2);
+      expect(catalog).not.toHaveBeenCalled();
       expect(closed).toHaveBeenCalledTimes(2);
     } finally {
       await runtime.close();

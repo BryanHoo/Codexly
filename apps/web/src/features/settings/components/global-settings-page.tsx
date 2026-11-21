@@ -234,20 +234,16 @@ export function GlobalSettingsPage<
             language={language === "zh-CN" ? "zh-CN" : "en"}
             label={t("sections.global-instructions")}
             content={
-              draft === undefined
+              settings === undefined
                 ? undefined
-                : (("globalInstructions" in draft ? draft.globalInstructions : undefined) ?? "")
+                : (("globalInstructions" in settings ? settings.globalInstructions : undefined) ??
+                  "")
             }
             failed={error !== null}
             onRetry={() => {
               void onRetry();
             }}
-            onChange={(globalInstructions) => {
-              update((current) => ({ ...current, globalInstructions }), true);
-            }}
-            onBlur={() => {
-              void queue.flush(draftRef.current);
-            }}
+            client={client}
           />
         ) : activeSection === "prompts" ? (
           <SavedPromptsSettings

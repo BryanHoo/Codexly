@@ -57,4 +57,6 @@ export type SettingsClient = Pick<
   | "getAgentPreferences"
   | "updateAgentPreferences"
 > &
-  Partial<AcpAuthClient>;
+  Partial<
+    AcpAuthClient & Pick<CodexlyClient, "getAgentInstructionsTargets" | "saveAgentInstructions">
+  >;

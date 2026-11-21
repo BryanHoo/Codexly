@@ -81,7 +81,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       saved?: AcpStoredSettings,
     ) => Promise<acp.SessionConfigOption[]>,
     readonly initialization?: AcpSessionInitialization,
-    readonly readGlobalInstructions?: () => Promise<string | undefined>,
   ) {
     this.#historyUse = new AcpHistoryUse(history);
     this.attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
@@ -267,7 +266,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           ),
           onRollback,
         );
-        const instructions = await this.readGlobalInstructions?.();
         const attachments = await this.attachments.prepare(id, input);
         await this.#load(task, initialConfig !== undefined);
         const sessionId = this.#sessions.get(id);
@@ -317,7 +315,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         // ACP prompt 的响应直到回合结束才返回；提交立即返回，持续输出走已有事件通道。
         submitted();
         const settlement = agent
-          .prompt({ sessionId, prompt }, instructions)
+          .prompt({ sessionId, prompt })
           .then(
             (result) => projection.finish(result.stopReason),
             (error: unknown) =>

@@ -1,5 +1,5 @@
 import { Value } from "@sinclair/typebox/value";
-import { ApplicationPreferencesSchema, type ApplicationPreferencesPatch } from "@codexly/protocol/application-preferences";
+import { AgentInstructionsTargetsSchema, ApplicationPreferencesSchema, type ApplicationPreferencesPatch, type SaveAgentInstructions } from "@codexly/protocol/application-preferences";
 import type { ReadOptions, MutationOptions } from "@/platform/native-client-types.js";
 import { TauriAcpPlanClient } from "./acp-plan-client.js";
 
@@ -9,6 +9,14 @@ export class TauriApplicationPreferencesClient extends TauriAcpPlanClient {
     const value: unknown = await this.call("application_preferences_request", {request}, options.signal);
     if (!Value.Check(ApplicationPreferencesSchema,value)) throw new TypeError("Invalid application preferences response");
     return value;
+  }
+  async getAgentInstructionsTargets(options: ReadOptions = {}) {
+    const value: unknown = await this.call("application_preferences_request", { request: { type: "instructionsTargets" } }, options.signal);
+    if (!Value.Check(AgentInstructionsTargetsSchema, value)) throw new TypeError("Invalid global instructions targets");
+    return value;
+  }
+  saveAgentInstructions(input: SaveAgentInstructions, options: MutationOptions = {}) {
+    return this.preferences({ type: "saveInstructions", input }, options);
   }
   getApplicationPreferences(options: ReadOptions = {}) {
     return this.preferences({type:"read"}, options);

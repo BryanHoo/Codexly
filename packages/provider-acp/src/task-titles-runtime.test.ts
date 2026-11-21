@@ -183,8 +183,7 @@ it("首发真实 ACP 输出后才生成标题，主回合不等待辅助生成�
     await f.provider.startConfiguredTurn(f.task.id, f.input);
     await f.entered.promise;
     expect(f.prompts).toHaveLength(1);
-    // 主回合只读取一次全局指令，标题偏好仍在首次输出后读取。
-    expect(f.catalog.mock.calls.filter(([op]) => op === "app.preferences.read")).toHaveLength(1);
+    expect(f.catalog.mock.calls.some(([op]) => op === "app.preferences.read")).toBe(false);
     f.output.resolve(undefined);
     await vi.waitFor(() => {
       expect(f.prompts).toHaveLength(2);

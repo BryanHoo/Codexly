@@ -1,3 +1,4 @@
+import { SaveAgentInstructionsSchema } from "@codexly/protocol/application-preferences";
 import type { AcpQueue } from "./queue.js";
 import type { AcpTaskSubscriptions } from "./task-subscriptions.js";
 import type { AgentTaskScope } from "@codexly/core";
@@ -110,6 +111,12 @@ export async function dispatchAcpHost(
       throw new Error("Invalid Agent configuration");
     await runtime.catalog.configure(params["registration"]);
     return runtime.catalog.list(false);
+  }
+  if (method === "application.instructions.targets") return runtime.getAgentInstructionsTargets();
+  if (method === "application.instructions.save") {
+    if (!Value.Check(SaveAgentInstructionsSchema, params))
+      throw new Error("Invalid global instructions");
+    return runtime.saveAgentInstructions(params);
   }
   if (method === "application.generate") {
     if (!Value.Check(Scope, message["scope"]) || !Value.Check(ApplicationGeneration, params))

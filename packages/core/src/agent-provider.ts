@@ -1,3 +1,8 @@
+import type {
+  AgentInstructionsTargets,
+  ApplicationPreferences,
+  SaveAgentInstructions,
+} from "@codexly/protocol/application-preferences";
 import type { ApplicationTextGenerator } from "./application-generation.js";
 import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AcpAgentServices } from "./acp-service.js";
@@ -358,6 +363,8 @@ export type AgentModelCatalogFallback =
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
   readonly acpAgents?: AcpAgentServices;
+  getAgentInstructionsTargets?(): Promise<AgentInstructionsTargets>;
+  saveAgentInstructions?(input: SaveAgentInstructions): Promise<ApplicationPreferences>;
   /** 通用 ACP 临时文本生成；交付层负责授权，Core 负责偏好和结果校验。 */
   generateText?: ApplicationTextGenerator;
   /** 仅保存至宿主提供的全新临时 ZIP 路径，不上传反馈或接受浏览器文件路径。 */

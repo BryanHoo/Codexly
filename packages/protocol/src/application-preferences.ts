@@ -48,6 +48,27 @@ export const ApplicationPreferencesSchema = Type.Object(
 );
 export type ApplicationPreferences = Static<typeof ApplicationPreferencesSchema>;
 
+export const AgentInstructionsTargetsSchema = Type.Object({
+  version: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+  files: Type.Array(
+    Type.Object({
+      agents: Type.Array(Type.String()),
+      path: Type.String(),
+      exists: Type.Boolean(),
+    }),
+  ),
+  unsupported: Type.Array(Type.String()),
+});
+export type AgentInstructionsTargets = Static<typeof AgentInstructionsTargetsSchema>;
+export const SaveAgentInstructionsSchema = Type.Object(
+  {
+    content: Type.String({ maxLength: MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH }),
+    version: AgentInstructionsTargetsSchema.properties.version,
+  },
+  { additionalProperties: false },
+);
+export type SaveAgentInstructions = Static<typeof SaveAgentInstructionsSchema>;
+
 // 引擎和模型必须作为一组修改，避免把旧引擎的原始模型 ID 绑定给新引擎。
 export const ApplicationPreferencesPatchSchema = Type.Union([
   Type.Partial(Type.Omit(ApplicationPreferencesSchema, ["defaultAgent", "defaultModel"]), {

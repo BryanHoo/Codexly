@@ -175,6 +175,22 @@ pub async fn application_preferences_request(
     app: tauri::AppHandle,
     request: Value,
 ) -> Result<Value, AppError> {
+    // 写入委托给 Web 与桌面共用的 ACP 宿主，前端仅能回传确认版本和正文。
+    let method = match request["type"].as_str() {
+        Some("instructionsTargets") => Some(("application.instructions.targets", json!({}))),
+        Some("saveInstructions") => {
+            Some(("application.instructions.save", request["input"].clone()))
+        }
+        _ => None,
+    };
+    if let Some((method, params)) = method {
+        return app
+            .state::<super::state::AppState>()
+            .acp
+            .host
+            .request(&app, method, None, params)
+            .await;
+    }
     let directory = app_data::directory(&app).map_err(|_| AppError::FilesystemRequestFailed)?;
     deliver(&directory, request).await
 }
