@@ -56,7 +56,14 @@ export function AcpAgentMaintenance({
         if (next === "remove") {
           removed.current = true;
           setConfirming(false);
-        } else toast.success(zh ? "已更新 Agent" : "Agent updated");
+        } else {
+          const installed = result.agents.find((entry) => entry.engine === agent.engine);
+          if (!installed?.installedVersion) throw new Error("更新响应缺少已安装版本");
+          // 直接使用宿主返回的安装记录，检查成功但版本相同也会给出明确反馈。
+          if (installed.installedVersion === agent.installedVersion)
+            toast.info(zh ? "Agent 已是最新版本" : "Agent is up to date");
+          else toast.success(zh ? "已更新 Agent" : "Agent updated");
+        }
         onChanged(result, next === "remove");
         return true;
       })
@@ -139,10 +146,15 @@ export function AcpAgentMaintenance({
       {action === "update" || error === "update" ? (
         <div className="col-span-full row-start-2 mt-2">
           {action === "update" ? (
-            <AcpStage zh={zh} progress={current?.progress} />
+            <AcpStage
+              zh={zh}
+              progress={current?.action === "update" ? current.progress : { stage: "checking" }}
+            />
           ) : (
             <p className="text-label text-danger" role="alert">
-              {zh ? "未能确认更新结果，请重试" : "Could not confirm the update. Try again."}
+              {zh
+                ? "检查或安装更新失败，请重试"
+                : "Could not check for or install the update. Try again."}
             </p>
           )}
         </div>

@@ -218,7 +218,7 @@ for (const width of [390, 1280])
     await expect
       .element(page.getByText("正在后台检测和准备 Agent…", { exact: true }))
       .toBeVisible();
-    await expect.element(page.getByText(/已检测 3\/14.*Gemini.*正在安装依赖/)).toBeVisible();
+    await expect.element(page.getByText(/已检测 3\/14.*Gemini.*正在下载并安装依赖/)).toBeVisible();
     await screen.getByRole("button", { name: "工作区操作 0" }).click();
     pending.resolve({
       agents: [
@@ -287,13 +287,21 @@ it("已安装 Agent 显示更新进度，确认后才从目录移除", async () 
     }],
   };
   const pendingUpdate = Promise.withResolvers<AcpAgentCatalogPage>();
-  const updateAcpAgent = vi.fn(() => pendingUpdate.promise);
+  const updated: AcpAgentCatalogPage = {
+    agents: data.agents.map((agent) => ({ ...agent, installedVersion: "1.2.4" })),
+  };
+  let updateProgress: AcpAgentCatalogProgress["operations"][number]["progress"] = {
+    stage: "checking",
+  };
+  const updateAcpAgent = vi
+    .fn(async () => updated)
+    .mockImplementationOnce(() => pendingUpdate.promise);
   const removeAcpAgent = vi.fn(async () => ({ agents: [] }));
   const client = {
     getAcpAgentCatalog: async () => data,
     getAcpAgentCatalogProgress: vi.fn(async (): Promise<AcpAgentCatalogProgress> => ({
       operations: [{
-        engine: "codex", name: "Codex", action: "update", progress: { stage: "extracting" },
+        engine: "codex", name: "Codex", action: "update", progress: updateProgress,
       }],
     })),
     installAcpAgent: async () => data,
@@ -314,6 +322,7 @@ it("已安装 Agent 显示更新进度，确认后才从目录移除", async () 
             Field={SettingsField}
             Select={SettingsSelect}
           />
+          <Toaster />
         </TooltipProvider>
       </SettingsSaveFeedbackProvider>
     </QueryClientProvider>,
@@ -336,16 +345,25 @@ it("已安装 Agent 显示更新进度，确认后才从目录移除", async () 
   await update.hover();
   await expect.element(page.getByRole("tooltip", { name: "更新 Agent" })).toBeVisible();
   await update.click();
-  await expect.element(screen.getByText("正在解压安装包", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("正在检查更新", { exact: true })).toBeVisible();
+  updateProgress = { stage: "installing" };
+  await expect.element(screen.getByRole("progressbar", { name: "正在下载并安装依赖" }))
+    .not.toHaveAttribute("aria-valuenow");
+  updateProgress = { stage: "downloading", received: 25, total: 100 };
+  await expect.element(screen.getByRole("progressbar", { name: "正在下载安装包" }))
+    .toHaveAttribute("aria-valuenow", "25");
   await expect.element(screen.getByRole("button", { name: "移除 Agent" })).toBeDisabled();
-  pendingUpdate.resolve(data);
+  pendingUpdate.resolve(updated);
+  await expect.element(screen.getByText("v1.2.4", { exact: true })).toBeVisible();
+  await update.click();
+  await expect.element(screen.getByText("Agent 已是最新版本", { exact: true })).toBeVisible();
   await screen.getByRole("button", { name: "移除 Agent" }).click();
   const dialog = page.getByRole("dialog", { name: "移除 Codex？" });
   await expect.element(dialog).toBeVisible();
   expect(removeAcpAgent).not.toHaveBeenCalled();
   await dialog.getByRole("button", { name: "移除", exact: true }).click();
   await expect.element(screen.getByRole("button", { name: "Codex", exact: true })).not.toBeInTheDocument();
-  expect(updateAcpAgent).toHaveBeenCalledOnce();
+  expect(updateAcpAgent).toHaveBeenCalledTimes(2);
   expect(removeAcpAgent).toHaveBeenCalledOnce();
   await screen.unmount();
 });

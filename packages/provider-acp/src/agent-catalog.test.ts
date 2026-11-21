@@ -3,8 +3,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AcpAgentCatalog } from "./agent-catalog.js";
+import snapshot from "./registry-snapshot.json" with { type: "json" };
 const directories: string[] = [];
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
@@ -148,8 +150,82 @@ test("后台安装期间可以独立读取当前 Agent、阶段和检测数量",
   expect(catalog.progress()).toEqual({ operations: [] });
 });
 
+function serveCodexVersion(version?: string) {
+  const entry = snapshot.agents.find((agent) => agent.id === "codex-acp");
+  if (!entry) throw new Error("快照缺少 Codex");
+  const release = version
+    ? {
+        ...entry,
+        version,
+        distribution: { npx: { package: `@agentclientprotocol/codex-acp@${version}` } },
+      }
+    : entry;
+  const fetch = vi.fn(() =>
+    Promise.resolve(Response.json({ version: "1.0.0", agents: [release] })),
+  );
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+test.each(["current", "newer"])("已安装版本为 %s 时只检查官方目录", async (version) => {
+  const { catalog, install, path } = await fixture();
+  const fetch = serveCodexVersion();
+  await catalog.install("codex");
+  if (version === "newer") await setInstalledCodexVersion(path, "9999.0.0");
+  const installed = (await catalog.list(false)).agents.find((agent) => agent.engine === "codex");
+
+  // 模拟旧页面或另一宿主仍提交更新请求，验证服务端独立阻止重复下载和降级。
+  await catalog.update("codex");
+
+  expect(fetch).toHaveBeenCalledExactlyOnceWith(
+    "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json",
+    expect.any(Object),
+  );
+  expect(install).toHaveBeenCalledTimes(1);
+  expect(installed?.canUpdate).toBe(true);
+  expect((await catalog.list(false)).agents.find((agent) => agent.engine === "codex")).toEqual(
+    installed,
+  );
+});
+
+async function setInstalledCodexVersion(path: string, version: string) {
+  const file = join(path, "codex.json");
+  const record = JSON.parse(await readFile(file, "utf8")) as { managed: { version: string } };
+  record.managed.version = version;
+  await writeFile(file, JSON.stringify(record));
+}
+
+test("并行更新合并检查，目录不可达时保留安装", async () => {
+  const { catalog, install } = await fixture();
+  await catalog.install("codex");
+  const first = await catalog.command("codex");
+  const checked = Promise.withResolvers<Response>();
+  const entered = Promise.withResolvers<undefined>();
+  const fetch = vi.fn(() => {
+    entered.resolve(undefined);
+    return checked.promise;
+  });
+  vi.stubGlobal("fetch", fetch);
+
+  const failed = expect(
+    Promise.all([catalog.update("codex"), catalog.update("codex")]),
+  ).rejects.toThrow("无法检查 ACP Agent 更新");
+  await entered.promise;
+  expect(catalog.progress().operations).toMatchObject([
+    { engine: "codex", action: "update", progress: { stage: "checking" } },
+  ]);
+  checked.resolve(new Response(null, { status: 503 }));
+  await failed;
+
+  expect(fetch).toHaveBeenCalledOnce();
+  expect(install).toHaveBeenCalledOnce();
+  expect(await catalog.command("codex")).toEqual(first);
+  expect(catalog.progress().operations).toEqual([]);
+});
+
 test("更新保留启用状态和私有环境，失败时保留原运行时", async () => {
   const { path } = await fixture();
+  serveCodexVersion("3.0.0");
   let version = 0;
   const catalog = new AcpAgentCatalog(path, {
     install: async (_entry, directory, _signal, report) => {
@@ -162,10 +238,14 @@ test("更新保留启用状态和私有环境，失败时保留原运行时", as
     },
   });
   await catalog.install("codex");
+  const installed = (await catalog.list(false)).agents.find((a) => a.engine === "codex");
   const first = await catalog.command("codex");
   await expect(catalog.update("codex")).rejects.toThrow("offline");
   expect(await catalog.command("codex")).toEqual(first);
   expect(await readFile(first.command, "utf8")).toBe("1");
+  expect(
+    (await catalog.list(false)).agents.find((a) => a.engine === "codex")?.installedVersion,
+  ).toBe(installed?.installedVersion);
   await catalog.configure({
     ...first,
     name: "我的 Codex",
@@ -175,10 +255,17 @@ test("更新保留启用状态和私有环境，失败时保留原运行时", as
   });
   await catalog.update("codex");
   const row = (await catalog.list(false)).agents.find((a) => a.engine === "codex");
-  expect(row).toMatchObject({ enabled: false, name: "我的 Codex", canUpdate: true });
+  expect(row).toMatchObject({
+    enabled: false,
+    name: "我的 Codex",
+    installedVersion: "3.0.0",
+    canUpdate: true,
+  });
   expect(row?.environmentKeys).toContain("CODEX_PATH");
   if (!row?.command) throw new Error("更新后缺少运行时路径");
   expect(await readFile(row.command, "utf8")).toBe("3");
+  await catalog.update("codex");
+  expect(version).toBe(3);
 });
 
 test("移除清理私有运行时但不删除本机命令，重新检测不会恢复已移除的 Agent", async () => {

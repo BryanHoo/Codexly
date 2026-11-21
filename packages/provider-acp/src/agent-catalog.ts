@@ -17,6 +17,7 @@ import {
 import snapshot from "./registry-snapshot.json" with { type: "json" };
 import type { AcpStorageLeases } from "./storage-lease.js";
 import { installRegistryAgent, type RegistryAgent } from "./agent-installer.js";
+import { findRegistryUpdate, isStableAgentVersion } from "./agent-registry-update.js";
 interface Dependencies {
   find(name: string): Promise<string | undefined>;
   install(
@@ -195,6 +196,22 @@ export class AcpAgentCatalog {
       record.args[4] === "--"
     );
   }
+  async #installedVersion(record: Installation, entry: RegistryAgent): Promise<string | undefined> {
+    if (record.managed) return record.managed.version;
+    // 旧版托管安装没有版本字段；优先读取已固定的包版本，避免迁移时重装同一版本。
+    if (entry.distribution.uvx) {
+      const version = record.args[3]?.split("==")[1];
+      return isStableAgentVersion(version) ? version : undefined;
+    }
+    const npm = entry.distribution.npx;
+    if (!npm) return undefined;
+    const name = npm.package.slice(0, npm.package.lastIndexOf("@"));
+    const file = join(this.#runtime(record.engine), "node_modules", name, "package.json");
+    const version = await readFile(file, "utf8")
+      .then((value) => (JSON.parse(value) as { version?: unknown }).version)
+      .catch(() => undefined);
+    return isStableAgentVersion(version) ? version : undefined;
+  }
   async #discover(): Promise<void> {
     // 本进程只扫描一次；安装串行执行，避免启动时同时下载几十个运行时。
     this.#checked = 0;
@@ -282,15 +299,17 @@ export class AcpAgentCatalog {
           if (stored && "removed" in stored && !registry.has(engine)) return undefined;
           const record = registered(stored);
           const distribution = registry.get(engine);
+          const canUpdate = record && distribution && this.#managed(record, distribution);
+          const installedVersion = canUpdate
+            ? await this.#installedVersion(record, distribution)
+            : undefined;
           return {
             engine,
             name: record?.name ?? entry.name,
             description: entry.description,
             ...(entry.version ? { version: entry.version } : {}),
-            ...(record?.managed ? { installedVersion: record.managed.version } : {}),
-            ...(record && distribution && this.#managed(record, distribution)
-              ? { canUpdate: true }
-              : {}),
+            ...(installedVersion ? { installedVersion } : {}),
+            ...(canUpdate ? { canUpdate: true } : {}),
             installed: !!record,
             enabled: record?.enabled ?? false,
             detected: this.#detected.has(engine),
@@ -353,16 +372,28 @@ export class AcpAgentCatalog {
         async (stored) => {
           if (action === "automatic" && stored) return;
           const record = registered(stored);
-          if (action === "update" && (!record || !this.#managed(record, entry)))
-            throw new Error("此 Agent 由本机管理，请通过原安装方式更新");
-          if (record && action !== "update") return { ...record, enabled: true };
+          let release = entry;
+          if (action === "update") {
+            if (!record || !this.#managed(record, entry))
+              throw new Error("此 Agent 由本机管理，请通过原安装方式更新");
+            report({ stage: "checking" });
+            // 持安装锁重读本地版本，另一宿主已更新时只检查目录，不重复下载。
+            const installedVersion = await this.#installedVersion(record, entry);
+            const update = await findRegistryUpdate(
+              entry,
+              installedVersion,
+              this.#controller.signal,
+            );
+            if (!update) return;
+            release = update;
+          } else if (record) return { ...record, enabled: true };
           await this.#checkRuntimeParent(engine);
           // 每次安装使用新目录；更新失败或记录尚未发布时，旧路径仍然可用。
           const revision = `revision-${randomUUID()}`;
           const directory = join(this.#runtime(engine), revision);
           staged = directory;
           const command = await this.#dependencies.install(
-            entry,
+            release,
             directory,
             this.#controller.signal,
             report,
@@ -378,7 +409,7 @@ export class AcpAgentCatalog {
             name: record?.name ?? entry.name,
             env,
             enabled: record?.enabled ?? true,
-            managed: { version: entry.version, revision },
+            managed: { version: release.version, revision },
           };
         },
         async () => {

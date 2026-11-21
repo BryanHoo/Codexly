@@ -13,6 +13,11 @@
 
 事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
 
+## ACP Agent 更新进度
+
+- Web 和桌面共用 `AcpAgentCatalogProgress`。手动更新从 `checking` 开始，宿主持安装锁比较官方目录和已安装版本，仅在发现更高版本时进入安装。更新操作返回保存后的目录快照，界面从其中读取已安装版本。
+- `downloading` 仅在知道真实字节总量时提供 `total`，界面据此计算百分比。npm 与 uv 的依赖安装使用 `installing` 并显示不定量进度。回归覆盖 `agent-catalog.test.ts` 和 `acp-catalog.browser.test.tsx`。
+
 ## ACP 停止原因
 
 - Web 与桌面回合通过可选 `stopReason` 保留 ACP 原始停止原因，事件和历史读取不得丢弃；旧历史和其他 Provider 可省略。

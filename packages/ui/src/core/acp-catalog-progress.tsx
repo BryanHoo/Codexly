@@ -24,7 +24,8 @@ export function useAcpCatalogProgress(client: Partial<AcpCatalogProgressReader>,
 
 const stages = {
   preparing: ["正在准备", "Preparing"],
-  installing: ["正在安装依赖", "Installing dependencies"],
+  checking: ["正在检查更新", "Checking for updates"],
+  installing: ["正在下载并安装依赖", "Downloading and installing dependencies"],
   downloading: ["正在下载安装包", "Downloading package"],
   verifying: ["正在校验安装包", "Verifying package"],
   extracting: ["正在解压安装包", "Extracting package"],
@@ -52,13 +53,25 @@ export function AcpStage({
   zh,
 }: Readonly<{ progress?: AcpAgentInstallationStage | undefined; zh: boolean }>) {
   const { label, percent, detail } = acpStage(progress, zh);
+  // 包管理器不提供可汇总的字节数，安装依赖时显示不定量进度。
+  const indeterminate =
+    percent === undefined &&
+    (progress?.stage === "installing" || progress?.stage === "downloading");
   return (
     <div className="w-full min-w-0 space-y-1.5 text-label text-muted-foreground">
       <p className="flex flex-wrap justify-between gap-x-2">
         <span role="status">{label}</span>
         {detail ? <span className="tabular-nums">{detail}</span> : null}
       </p>
-      {percent === undefined ? null : <Progress value={percent} aria-label={label} />}
+      {percent !== undefined ? (
+        <Progress value={percent} aria-label={label} />
+      ) : indeterminate ? (
+        <div
+          role="progressbar"
+          aria-label={label}
+          className="h-1.5 w-full rounded-pill bg-brand/40 motion-safe:animate-pulse"
+        />
+      ) : null}
     </div>
   );
 }

@@ -22,7 +22,7 @@ export const AcpAgentRegistrationSchema = Type.Object(
   { additionalProperties: false },
 );
 export type AcpAgentRegistration = Static<typeof AcpAgentRegistrationSchema>;
-const ByteCount = Type.Integer({ minimum: 0, maximum: 256 * 1024 * 1024 });
+const ByteCount = Type.Integer({ minimum: 0, maximum: 512 * 1024 * 1024 });
 const InstallationStage = Type.Union([
   Type.Object(
     { stage: Type.Literal("downloading"), received: ByteCount, total: Type.Optional(ByteCount) },
@@ -32,6 +32,7 @@ const InstallationStage = Type.Union([
     {
       stage: Type.Union([
         Type.Literal("preparing"),
+        Type.Literal("checking"),
         Type.Literal("installing"),
         Type.Literal("verifying"),
         Type.Literal("extracting"),
