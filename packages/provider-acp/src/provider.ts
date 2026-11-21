@@ -30,8 +30,7 @@ import type { AcpStoredSettings } from "./settings-store.js";
 import { AcpEventProjection } from "./event-projection.js";
 import { AcpPermissions } from "./permissions.js";
 import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
-import { migrateAcpSettings } from "./migration.js";
-import { applyAcpConfig } from "./configuration.js";
+import { applyAcpConfig, configureAcpTurn } from "./configuration.js";
 import { prepareAcpPrompt, sendAcpPrompt, submitAcpTurn } from "./turn-submission.js";
 import { steerAcpTurn } from "./steering.js";
 import { startAcpLocalTask } from "./task-creation.js";
@@ -274,17 +273,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
             await this.initialization?.complete({ ...task, sessionId }, sessionId);
           this.#needsDefaults.delete(id);
         }
-        const selected = migrateAcpSettings(
-          {
-            ...(options.model ? { model: options.model } : {}),
-            ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),
-          },
-          agent.readSessionState(sessionId).configOptions,
+        await configureAcpTurn(
+          agent,
+          sessionId,
+          options,
+          task,
+          this.#ephemeral.has(id) ? undefined : this.initialization,
         );
-        if (selected.unmapped.length) throw new Error("ACP agent 未提供选定的模型或思考配置");
-        for (const [configId, value] of Object.entries(selected.values)) {
-          await agent.setConfigOption(sessionId, configId, value);
-        }
         await this.#patch(id, {
           status: "active",
           updatedAt: Math.floor(Date.now() / 1000),
@@ -424,11 +419,15 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     value: string | boolean,
   ): Promise<AcpConfigOption[]> {
     return this.#serial(id, async () => {
-      const agent = await this.#load(await this.#task(id));
+      const task = await this.#task(id);
+      const agent = await this.#load(task);
       const session = this.#link.sessions.get(id);
       if (!session) throw new Error("ACP 会话绑定缺失");
       const current = agent.readSessionState(session).configOptions;
-      return applyAcpConfig(agent, session, current, { [configId]: value });
+      const options = await applyAcpConfig(agent, session, current, { [configId]: value });
+      if (!this.#ephemeral.has(id))
+        await this.initialization?.saveConfiguration(task, session, options);
+      return options;
     });
   }
   getCapabilities() {

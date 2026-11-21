@@ -2,9 +2,48 @@ import { expect, it, vi } from "vitest";
 import { readdir, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentCapabilities } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { fixture, input } from "./provider.test-support.js";
 
 const engine = "acp-test";
+
+it.each(["reopen", "restart"] as const)("历史任务 %s 后保留审核和快速模式选择", async (action) => {
+  const f = await fixture(engine, undefined, undefined, {
+    capabilities: { session: {} },
+    persistConfiguration: true,
+  });
+  const options = [
+    { configId: "approval", name: "审核", type: "boolean" as const, currentValue: true },
+    { configId: "fast", name: "快速模式", type: "boolean" as const, currentValue: false },
+  ];
+  f.created.mockReturnValue({ sessionId: "native", configOptions: options });
+  let current = structuredClone(options);
+  const set = vi.fn(({ params }: acp.AgentRequestContext<acp.SetSessionConfigOptionRequest>) => {
+    current = current.map((option) =>
+      option.configId === params.configId
+        ? { ...option, currentValue: params.value as boolean }
+        : option,
+    );
+    return { configOptions: current };
+  });
+  f.app.onRequest(acp.methods.agent.session.setConfigOption, set);
+  f.resumed.mockImplementation(() => {
+    current = structuredClone(options);
+    return { configOptions: current };
+  });
+  const task = await f.provider.startTask();
+  await f.provider.setSessionConfiguration(task.id, "approval", false);
+  await f.provider.setSessionConfiguration(task.id, "fast", true);
+  await f.provider.startConfiguredTurn(task.id, input);
+  await vi.waitFor(() => {
+    expect(f.provider.hasPendingTurn(task.id)).toBe(false);
+  });
+  await f.provider.unsubscribeTask(task.id);
+  const provider = action === "restart" ? await f.restart() : f.provider;
+  const state = await provider.readSessionState(task.id);
+  expect(f.resumed).toHaveBeenCalledOnce();
+  expect(state.configOptions.map((option) => option.currentValue)).toEqual([false, true]);
+});
 
 it.each([{}])("普通退订保留不可恢复的会话（能力：%j）", async (capabilities) => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });

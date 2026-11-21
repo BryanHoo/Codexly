@@ -6,6 +6,7 @@ import type { AcpHistory } from "./history.js";
 import { AcpReplay } from "./replay.js";
 import type { AcpStoredSettings } from "./settings-store.js";
 import type { AcpSessionInitialization } from "./session-initialization.js";
+import { applyAcpConfig } from "./configuration.js";
 
 interface Loader {
   sessions: Map<string, string>;
@@ -71,6 +72,13 @@ export async function loadAcpSession(
     task = { ...task, sessionId };
   };
   const pending = await journal?.read(task);
+  const rememberConfiguration = async (sessionId: string) => {
+    await journal?.saveConfiguration(
+      task,
+      sessionId,
+      connection.readSessionState(sessionId).configOptions,
+    );
+  };
   if (pending) {
     await publishBinding(pending.sessionId);
     if (pending.phase === "pending") source.needsDefaults.add(task.id);
@@ -104,6 +112,7 @@ export async function loadAcpSession(
     await journal?.prepare(task, session.sessionId);
     await publishBinding(session.sessionId);
     await initialize(session.sessionId);
+    await rememberConfiguration(session.sessionId);
     source.updated(connection, session.sessionId);
   } else {
     const sessionId = bound ?? task.sessionId;
@@ -146,11 +155,24 @@ export async function loadAcpSession(
       source.needsDefaults.add(task.id);
       await publishBinding(replacement);
       await initialize(replacement);
+      await rememberConfiguration(replacement);
       source.updated(connection, replacement);
       return connection;
     }
-    source.sessions.set(task.id, sessionId);
     await initialize(sessionId);
+    if (pending?.configuration) {
+      // 历史会话以本任务最后确认值恢复，不能被 Agent 的启动默认值或新的全局偏好覆盖。
+      // 只恢复当前公布且仍合法的值；过期值留在私有记录，供选项重新出现时匹配。
+      await applyAcpConfig(
+        connection,
+        sessionId,
+        connection.readSessionState(sessionId).configOptions,
+        pending.configuration,
+        [],
+      );
+    } else await rememberConfiguration(sessionId);
+    // 恢复和落盘成功后再发布暖绑定，失败重试仍需经过完整恢复流程。
+    source.sessions.set(task.id, sessionId);
     source.updated(connection, sessionId);
   }
   return connection;

@@ -4,6 +4,30 @@ import type { AcpConnection } from "./connection.js";
 import type { AcpStoredSettings } from "./settings-store.js";
 import { migrateAcpSettings } from "./migration.js";
 import { acpSelectOptions } from "./session-options.js";
+import type { LocalTask } from "@codexly/core";
+import type { AgentTurnOptions } from "@codexly/protocol";
+import type { AcpSessionInitialization } from "./session-initialization.js";
+
+/** 发送前完成旧选项映射，并持久化 Agent 已确认值，保证重启后继续使用本任务配置。 */
+export async function configureAcpTurn(
+  connection: AcpConnection,
+  sessionId: string,
+  options: Partial<Pick<AgentTurnOptions, "model" | "reasoningEffort">>,
+  task: LocalTask,
+  initialization?: AcpSessionInitialization,
+): Promise<void> {
+  const current = connection.readSessionState(sessionId).configOptions;
+  const selected = migrateAcpSettings(
+    {
+      ...(options.model ? { model: options.model } : {}),
+      ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),
+    },
+    current,
+  );
+  if (selected.unmapped.length) throw new Error("ACP agent 未提供选定的模型或思考配置");
+  const confirmed = await applyAcpConfig(connection, sessionId, current, selected.values);
+  await initialization?.saveConfiguration({ ...task, sessionId }, sessionId, confirmed);
+}
 
 /** 每次设置响应都以 agent 返回的完整列表替换旧列表，模型切换可能改变后续选项。 */
 export async function applyAcpConfig(

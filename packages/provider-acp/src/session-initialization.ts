@@ -1,4 +1,9 @@
-import { isAgentEngine, AgentEngineSchema } from "@codexly/protocol";
+import {
+  isAgentEngine,
+  AgentEngineSchema,
+  AcpConfigValuesSchema,
+  type AcpConfigOption,
+} from "@codexly/protocol";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -20,6 +25,7 @@ const RecordSchema = Type.Object(
     firstPromptUnsent: Type.Optional(Type.Literal(true)),
     replacesSessionId: Type.Optional(Type.String({ minLength: 1 })),
     settings: Type.Optional(StoredSchema),
+    configuration: Type.Optional(AcpConfigValuesSchema),
   },
   { additionalProperties: false },
 );
@@ -123,6 +129,36 @@ export class AcpSessionInitialization {
       }
       const { settings: _settings, ...binding } = previous;
       await this.#write(task.id, { ...binding, phase: "done" });
+    });
+  }
+  /** 保存 Agent 已确认的任务配置，与仅用于新会话的全局默认值独立。 */
+  async saveConfiguration(
+    task: LocalTask,
+    sessionId: string,
+    options: AcpConfigOption[],
+  ): Promise<void> {
+    if (!isAgentEngine(task.provider)) throw new Error("未知 ACP 引擎");
+    const provider = task.provider;
+    await this.#locked(task.id, async () => {
+      const previous = await this.read(task);
+      if (previous && previous.sessionId !== sessionId) throw new Error("ACP 初始化会话身份冲突");
+      // Agent 暂时不公布的配置仍保留，后续恢复时可以重新匹配。
+      const configuration = {
+        ...previous?.configuration,
+        ...Object.fromEntries(options.map((option) => [option.id, option.currentValue])),
+      };
+      if (JSON.stringify(previous?.configuration) === JSON.stringify(configuration)) return;
+      await this.#write(task.id, {
+        version: 1,
+        taskId: task.id,
+        provider,
+        projectId: task.projectId,
+        cwd: task.cwd,
+        sessionId,
+        phase: "done",
+        ...previous,
+        configuration,
+      });
     });
   }
   async markFirstPrompt(task: LocalTask, sessionId: string): Promise<void> {

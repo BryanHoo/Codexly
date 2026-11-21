@@ -9,6 +9,9 @@ import type { AgentEngine, AcpConfigOption } from "@codexly/protocol";
 import { AcpConnection } from "./connection.js";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
+import { AcpSessionInitialization } from "./session-initialization.js";
+import { AcpSettingsStore } from "./settings-store.js";
+import { AcpStorageLeases } from "./storage-lease.js";
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const close of cleanup.splice(0)) await close();
@@ -26,12 +29,16 @@ export async function fixture(
   management?: {
     capabilities?: acp.InitializeResponse["capabilities"];
     steering?: boolean;
+    persistConfiguration?: boolean;
     deleteSession?: (sessionId: string) => Record<string, never> | Promise<Record<string, never>>;
   },
 ) {
   const directory = await mkdtemp(join(tmpdir(), "acp-provider-"));
   const tasks = new Map<string, LocalTask>();
   const catalog = vi.fn((op: string, input: LocalTask) => {
+    // 测试目录按顺序执行，存储锁用于覆盖真实初始化文件的读写路径。
+    if (op === "acp.storage.read") return null;
+    if (op === "acp.storage.claim" || op === "acp.storage.release") return true;
     if (op === "task.read") return tasks.get(input.id) ?? null;
     if (op === "task.remove") return tasks.delete(input.id);
     if (op === "task.put") {
@@ -127,36 +134,67 @@ export async function fixture(
       }),
     );
   const history = new AcpHistory(directory);
-  const provider = new AcpAgentProvider(
-    engine,
-    { id: "project", kind: "project", rootPath: directory, runtimeWorkspaceRoots: [directory] },
-    {
-      catalog: <K extends keyof CatalogOperations>(
-        operation: K,
-        payload: CatalogOperations[K][0],
-      ) =>
-        Promise.resolve(
-          catalog(operation, payload as unknown as LocalTask) as CatalogOperations[K][1],
-        ),
-    } satisfies LocalCatalogStore,
-    history,
-    async (callbacks) => {
-      connected();
-      const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
-      const b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
-      const agent = app.connect({ readable: a.readable, writable: b.writable });
-      cleanup.push(() => {
-        agent.close();
-        return Promise.resolve();
-      });
-      return AcpConnection.connect({ readable: b.readable, writable: a.writable }, callbacks);
-    },
-    initializeSession,
-  );
+  const createProvider = () =>
+    new AcpAgentProvider(
+      engine,
+      { id: "project", kind: "project", rootPath: directory, runtimeWorkspaceRoots: [directory] },
+      {
+        catalog: <K extends keyof CatalogOperations>(
+          operation: K,
+          payload: CatalogOperations[K][0],
+        ) =>
+          Promise.resolve(
+            catalog(operation, payload as unknown as LocalTask) as CatalogOperations[K][1],
+          ),
+      } satisfies LocalCatalogStore,
+      history,
+      async (callbacks) => {
+        connected();
+        const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
+        const b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
+        const agent = app.connect({ readable: a.readable, writable: b.writable });
+        cleanup.push(() => {
+          agent.close();
+          return Promise.resolve();
+        });
+        return AcpConnection.connect({ readable: b.readable, writable: a.writable }, callbacks);
+      },
+      initializeSession,
+      management?.persistConfiguration
+        ? new AcpSessionInitialization(
+            join(directory, "session-initialization"),
+            new AcpSettingsStore(join(directory, "settings")),
+            new AcpStorageLeases({
+              catalog: (operation, payload) =>
+                Promise.resolve(catalog(operation, payload as unknown as LocalTask) as never),
+            }),
+          )
+        : undefined,
+    );
+  const provider = createProvider();
+  let restarted: AcpAgentProvider | undefined;
+  const restart = async () => {
+    await provider.close();
+    restarted = createProvider();
+    return restarted;
+  };
   cleanup.push(async () => {
+    await restarted?.close();
     await provider.close();
     await rm(directory, { recursive: true, force: true });
   });
-  return { provider, tasks, created, loaded, resumed, closed, connected, history, catalog, app };
+  return {
+    provider,
+    restart,
+    tasks,
+    created,
+    loaded,
+    resumed,
+    closed,
+    connected,
+    history,
+    catalog,
+    app,
+  };
 }
 export const input = { text: "问题", files: [], images: [], skills: [], textAttachments: [] };
