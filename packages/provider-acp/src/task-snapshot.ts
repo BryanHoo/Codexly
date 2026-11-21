@@ -1,3 +1,4 @@
+import { stripAcpGlobalInstructions } from "./global-instructions.js";
 import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import {
@@ -82,7 +83,16 @@ export async function readAcpTaskSnapshot(
   if (external) {
     const nativePage = await readOnlyHistory();
     page = {
-      turns: [...nativePage.turns],
+      // Codex 原生只读页也可能返回客户端附加的文本块。
+      turns: nativePage.turns.map((turn) => ({
+        ...turn,
+        items: turn.items.flatMap((item) => {
+          if (item.type !== "message" || item.role !== "user") return [item];
+          const text = stripAcpGlobalInstructions(item.text);
+          if (text === "") return item.attachments?.length ? [{ ...item, text }] : [];
+          return text === null || text === item.text ? [item] : [{ ...item, text }];
+        }),
+      })),
       cursor: nativePage.cursor === null ? null : `codex-readonly:${nativePage.cursor}`,
     };
   }

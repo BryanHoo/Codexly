@@ -1,5 +1,5 @@
 // 由 应用偏好契约生成；符号元数据供原生 Node Worker 使用，回归测试防止契约漂移。
-import { Kind } from "@sinclair/typebox";
+import { Kind, OptionalKind } from "@sinclair/typebox";
 export default {
   additionalProperties: false,
   type: "object",
@@ -18,7 +18,7 @@ export default {
       anyOf: [
         { const: "codex", type: "string", [Kind]: "Literal" },
         { const: "claude", type: "string", [Kind]: "Literal" },
-        { type: "string", pattern: "^acp-[a-z0-9][a-z0-9-]{0,95}$", [Kind]: "String" },
+        { pattern: "^acp-[a-z0-9][a-z0-9-]{0,95}$", type: "string", [Kind]: "String" },
       ],
       [Kind]: "Union",
     },
@@ -28,6 +28,12 @@ export default {
         { type: "null", [Kind]: "Null" },
       ],
       [Kind]: "Union",
+    },
+    globalInstructions: {
+      maxLength: 8000,
+      type: "string",
+      [Kind]: "String",
+      [OptionalKind]: "Optional",
     },
     commitMessagePrompt: { maxLength: 4000, type: "string", [Kind]: "String" },
     taskTitlePrompt: { maxLength: 4000, type: "string", [Kind]: "String" },

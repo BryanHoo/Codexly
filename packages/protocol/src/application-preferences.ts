@@ -3,11 +3,17 @@ import { Value } from "@sinclair/typebox/value";
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { AgentEngineSchema } from "./agent-engine.js";
 
+export const MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH = 8_000;
+
 /** 应用偏好不包含模型运行参数；null 模型表示沿用 ACP agent 当前默认值。 */
 export const ApplicationPreferencesSchema = Type.Object(
   {
     defaultAgent: AgentEngineSchema,
     defaultModel: Type.Union([Type.String({ minLength: 1, maxLength: 16384 }), Type.Null()]),
+    // 旧版已保存的应用快照可省略，空字符串表示主动清除。
+    globalInstructions: Type.Optional(
+      Type.String({ maxLength: MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH }),
+    ),
     commitMessagePrompt: Type.String({ maxLength: 4000 }),
     taskTitlePrompt: Type.String({ maxLength: 4000 }),
     promptOptimizationPrompt: Type.String({ maxLength: 4000 }),

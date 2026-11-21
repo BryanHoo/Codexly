@@ -66,6 +66,7 @@
 
 - Web、移动浏览器与桌面设置导航统一使用 ACP；不再展示 Codex / Claude 的独立模型服务、智能体配置和个性化子菜单。旧 section 跳转通过 `resolveSettingsSection` 保留引擎归属并进入统一页面。
 - 共用 `core/acp-settings-panel.tsx`：左侧选择和开关 Agent，右侧以紧凑设置行展示原生认证、自定义供应商和新会话默认值，版本收进标题行。仅呈现实际支持的 Agent，不虚构安装、登录或注销状态。
+- ACP 的全局指令入口独立于各 Agent。两端复用应用偏好和保存屏障，旧记录缺少该字段时展示空白。共享 ACP 运行时在执行时读取已保存值，通过 v1 文本块传入模型回合，历史投影仅保留用户正文。
 - 未启用 Agent 继续经过 ACP 准备边界；未选 Agent 不挂载查询或启动进程。配置按 Agent 返回的 `configOptions` 原始顺序、类型和选项呈现，不硬编码模型或权限。
 - Agent 切换和设置分类导航通过共享 `SettingsSaveFeedbackProvider` 管理正在提交的保存；连接草稿可直接丢弃，不得在失焦、切页、卸载或读取时写入；会话默认值失焦自动保存，离开前等待自动保存完成。浏览器登录未完成时取消独立认证请求，不解除原有应用覆盖。
 - 回归入口：共享 `settings-navigation.test.ts`，桌面浏览器 `acp-settings-panel.browser.test.tsx`、`acp-auth-settings.browser.test.tsx`、`acp-engine-enable.browser.test.tsx`，Web `app-shell-acp-auth.spec.ts` 与 `app-shell-acp-enable.spec.ts`（390px / 1280px，三浏览器）。

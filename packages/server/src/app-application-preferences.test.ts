@@ -55,6 +55,7 @@ it("应用偏好从旧仓储只读投影，读写不调用任何引擎或原生�
       defaultAgent: "claude",
       defaultModel: "raw/provider/model",
       taskTitlePrompt: "标题",
+      globalInstructions: "  回复使用中文。\n",
     },
   });
   expect(saved.statusCode, saved.body).toBe(200);
@@ -62,6 +63,7 @@ it("应用偏好从旧仓储只读投影，读写不调用任何引擎或原生�
     defaultAgent: "claude",
     defaultModel: "raw/provider/model",
     taskTitlePrompt: "标题",
+    globalInstructions: "  回复使用中文。\n",
     commitMessagePrompt: "旧提交规则",
     promptOptimizationPrompt: "旧优化规则",
     followUpBehavior: "steer",
@@ -85,6 +87,7 @@ it("应用偏好从旧仓储只读投影，读写不调用任何引擎或原生�
       defaultAgent: "claude",
       defaultModel: "raw/provider/model",
       taskTitlePrompt: "标题",
+      globalInstructions: "  回复使用中文。\n",
     },
   });
   expect(replay.json()).toEqual(saved.json());

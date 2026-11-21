@@ -66,7 +66,16 @@ it.each(["title", "commit", "optimize"] as const)(
     const acp = await import("@agentclientprotocol/sdk/unstable");
     const { AcpConnection } = await import("./connection.js");
     const root = await mkdtemp(join(tmpdir(), "acp-generation-"));
-    const catalog = vi.fn(() => Promise.reject(new Error("不应访问目录")));
+    let instructions = "使用简体中文";
+    const catalog = vi.fn((operation: string) =>
+      operation === "app.preferences.read"
+        ? Promise.resolve({
+            ...applicationPreferencesFromLegacy(undefined),
+            globalInstructions: instructions,
+          })
+        : Promise.reject(new Error("不应访问任务目录")),
+    );
+    const received: string[] = [];
     const closed = vi.fn(() => ({}));
     const launch: AcpAgentLauncher = async (_engine, _scope, callbacks) => {
       const a = new TransformStream<AnyMessage, AnyMessage>();
@@ -80,6 +89,9 @@ it.each(["title", "commit", "optimize"] as const)(
         .onRequest(acp.methods.agent.session.new, () => ({ sessionId: "helper" }))
         .onRequest(acp.methods.agent.session.close, closed)
         .onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
+          received.push(
+            ...params.prompt.flatMap((block) => (block.type === "text" ? [block.text] : [])),
+          );
           const permission = await client.request(acp.methods.client.session.requestPermission, {
             sessionId: params.sessionId,
             options: [{ optionId: "allow", name: "允许", kind: "allow_once" }],
@@ -125,8 +137,19 @@ it.each(["title", "commit", "optimize"] as const)(
           runtime.generateText.bind(runtime),
         ),
       ).toBe("辅助回答");
-      expect(catalog).not.toHaveBeenCalled();
-      expect(closed).toHaveBeenCalledOnce();
+      expect(received[0]).toContain(instructions);
+      instructions = "";
+      received.length = 0;
+      await runtime.generateText(
+        "acp-gemini",
+        root,
+        "第二个问题",
+        undefined,
+        new AbortController().signal,
+      );
+      expect(received).toEqual(["第二个问题"]);
+      expect(catalog).toHaveBeenCalledTimes(2);
+      expect(closed).toHaveBeenCalledTimes(2);
     } finally {
       await runtime.close();
       await rm(root, { recursive: true, force: true });

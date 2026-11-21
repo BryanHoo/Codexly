@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { it, expect, vi } from "vitest";
 import { AcpHistory } from "./history.js";
+import { addAcpGlobalInstructions } from "./global-instructions.js";
 import { AcpReplay } from "./replay.js";
 import type { AgentTurn } from "@codexly/protocol";
 it("完整重放分批保存并稳定消息身份，失败不替换旧历史", async () => {
@@ -109,6 +110,15 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
   try {
     await history.append("task", original, "原始正文[资料.txt](file:///saved)");
     const replay = new AcpReplay(history, "task");
+    const instructions = addAcpGlobalInstructions([], "使用中文📝")[0];
+    if (instructions?.type !== "text") throw new Error("缺少指令文本块");
+    for (const text of [instructions.text.slice(0, 9), instructions.text.slice(9)]) {
+      await replay.update({
+        sessionUpdate: "user_message_chunk",
+        messageId: "native-user",
+        content: { type: "text", text },
+      });
+    }
     await replay.update({
       sessionUpdate: "user_message_chunk",
       messageId: "native-user",

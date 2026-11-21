@@ -29,6 +29,7 @@ fn valid_field(key: &str, value: &Value) -> bool {
         "defaultAgent" => value
             .as_str()
             .is_some_and(crate::infrastructure::acp_runtime::valid_agent_engine),
+        "globalInstructions" => text(value, 0, 8_000),
         "defaultModel" => value.is_null() || text(value, 1, 16384),
         "commitMessagePrompt" | "taskTitlePrompt" | "promptOptimizationPrompt" => {
             text(value, 0, 4000)
@@ -70,8 +71,12 @@ fn valid_field(key: &str, value: &Value) -> bool {
 }
 pub(crate) fn encode(value: &Value, partial: bool) -> Result<String, CatalogError> {
     let object = value.as_object().ok_or(CatalogError::InvalidMessage)?;
+    let defaults = contract()?["defaults"]
+        .as_object()
+        .ok_or(CatalogError::InvalidMessage)?;
+    // 必填字段沿用旧快照契约，新增全局指令为可选字段。
     if object.is_empty()
-        || (!partial && object.len() != 8)
+        || (!partial && !defaults.keys().all(|key| object.contains_key(key)))
         || !object.iter().all(|(k, v)| valid_field(k, v))
         || (partial && object.contains_key("defaultAgent") != object.contains_key("defaultModel"))
     {

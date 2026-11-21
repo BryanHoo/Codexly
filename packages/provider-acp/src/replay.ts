@@ -3,6 +3,7 @@ import type { AgentTurn } from "@codexly/protocol";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection } from "./event-projection.js";
 import { replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
+import { stripAcpGlobalInstructions } from "./global-instructions.js";
 import type { AcpTurnContent } from "./turn-content.js";
 
 const ALIGNMENT_WINDOW = 8;
@@ -19,6 +20,8 @@ export class AcpReplay {
   #replySeen = false;
   #userId: string | undefined;
   #counter = 0;
+  // 只暂存可能属于应用指令的用户文本前缀，普通消息的后续分块直接进入投影。
+  #userPrefix: string | undefined = "";
   constructor(
     history: AcpHistory,
     readonly taskId: string,
@@ -102,6 +105,21 @@ export class AcpReplay {
       )
         await this.#flush();
       this.#userId = id;
+      if (this.#userPrefix !== undefined && update.content.type === "text") {
+        const prefix = this.#userPrefix + update.content.text;
+        const text = stripAcpGlobalInstructions(prefix);
+        if (text === null) {
+          this.#userPrefix = prefix;
+          return;
+        }
+        this.#userPrefix = undefined;
+        if (!text && prefix) return;
+        update = { ...update, content: { ...update.content, text } };
+      } else {
+        this.#flushUserPrefix();
+      }
+    } else if (update.sessionUpdate === "agent_message_chunk") {
+      this.#flushUserPrefix();
     }
     const content =
       update.sessionUpdate === "user_message_chunk" ||
@@ -121,7 +139,25 @@ export class AcpReplay {
     if (update.sessionUpdate !== "user_message_chunk") this.#replySeen = true;
     this.#current.update(update);
   }
+  #flushUserPrefix(): void {
+    const text = this.#userPrefix;
+    this.#userPrefix = undefined;
+    // 前缀残缺时按普通用户文本保留，避免截断用户实际输入。
+    if (!text) return;
+    this.#current ??= new AcpEventProjection(
+      this.taskId,
+      "acp:history:" + (this.#userId ?? String(++this.#counter)),
+      () => undefined,
+    );
+    this.#current.update({
+      sessionUpdate: "user_message_chunk",
+      ...(this.#userId === undefined ? {} : { messageId: this.#userId }),
+      content: { type: "text", text },
+    });
+  }
   async #flush(): Promise<void> {
+    this.#flushUserPrefix();
+    this.#userPrefix = "";
     if (!this.#current) return;
     const turn = this.#current.finish("end_turn");
     // 上游重放缺少回合时间，保持未知，不能以本次读取时间伪造历史发生时间。

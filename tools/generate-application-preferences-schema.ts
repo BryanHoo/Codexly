@@ -1,6 +1,7 @@
 // 原生 Node Worker 无 TS 加载器；生成保留 TypeBox 符号的 JS，并由契约测试校验。
 import { ApplicationPreferencesSchema as schema } from "../packages/protocol/src/application-preferences.js";
 const Kind = Symbol.for("TypeBox.Kind");
+const OptionalKind = Symbol.for("TypeBox.Optional");
 import { writeFileSync } from "node:fs";
 function emit(v: unknown): string {
   if (Array.isArray(v)) return "[" + v.map(emit).join(",") + "]";
@@ -9,9 +10,10 @@ function emit(v: unknown): string {
       "{" +
       Reflect.ownKeys(v)
         .map((k) => {
-          if (typeof k === "symbol" && k !== Kind) throw Error("Unexpected schema symbol");
+          if (typeof k === "symbol" && k !== Kind && k !== OptionalKind)
+            throw Error("Unexpected schema symbol");
           return (
-            (k === Kind ? "[Kind]" : JSON.stringify(k)) +
+            (k === Kind ? "[Kind]" : k === OptionalKind ? "[OptionalKind]" : JSON.stringify(k)) +
             ":" +
             emit((v as Record<PropertyKey, unknown>)[k])
           );
@@ -23,7 +25,7 @@ function emit(v: unknown): string {
 }
 writeFileSync(
   "packages/protocol/src/application-preferences-schema.js",
-  '// 由 应用偏好契约生成；符号元数据供原生 Node Worker 使用，回归测试防止契约漂移。\nimport { Kind } from "@sinclair/typebox";\nexport default ' +
+  '// 由 应用偏好契约生成；符号元数据供原生 Node Worker 使用，回归测试防止契约漂移。\nimport { Kind, OptionalKind } from "@sinclair/typebox";\nexport default ' +
     emit(schema) +
     ";\n",
 );

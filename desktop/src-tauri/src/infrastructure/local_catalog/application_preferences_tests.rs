@@ -20,7 +20,7 @@ fn application_preferences_should_merge_cross_connection_patches_and_preserve_nu
     );
     let gate = Arc::new(std::sync::Barrier::new(2));
     let workers: Vec<_> = [
-        json!({"taskTitlePrompt":"标题"}),
+        json!({"taskTitlePrompt":"标题","globalInstructions":"  回复使用中文。\n"}),
         json!({"followUpBehavior":"steer"}),
     ]
     .into_iter()
@@ -46,6 +46,7 @@ fn application_preferences_should_merge_cross_connection_patches_and_preserve_nu
     drop(store);
     let store = LocalCatalog::at(dir.path()).unwrap();
     let actual = store.execute("app.preferences.read", &json!({})).unwrap();
+    assert_eq!(actual["globalInstructions"], "  回复使用中文。\n");
     assert_eq!(actual["taskTitlePrompt"], "标题");
     assert_eq!(actual["followUpBehavior"], "steer");
     assert!(actual["defaultModel"].is_null());

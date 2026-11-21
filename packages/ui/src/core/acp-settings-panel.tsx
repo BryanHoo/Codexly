@@ -1,3 +1,5 @@
+import { MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH } from "@codexly/protocol/application-preferences";
+import { PersonalizationInstructionsEditor } from "./personalization-instructions-editor.js";
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog.js";
 import { toast } from "./notifications.js";
@@ -33,13 +35,22 @@ export function AcpSettingsPanel({
   Field,
   Select,
   initialEngine = "codex",
+  instructions,
 }: Readonly<{
   client: Partial<AcpAuthClient & AcpCatalogClient> & AcpDefaultsClient;
   language: "zh-CN" | "en";
   initialEngine?: AgentEngine;
+  instructions?: {
+    content: string | undefined;
+    failed: boolean;
+    retry: () => void;
+    change: (content: string) => void;
+    flush: () => void;
+  };
 }> &
   Pick<AcpConfigOptionsProps, "Field" | "Select">) {
   const [selection, setEngine] = useState(initialEngine);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [adding, setAdding] = useState(false);
   const addButton = useRef<HTMLButtonElement>(null);
   const [installing, setInstalling] = useState(false);
@@ -59,7 +70,10 @@ export function AcpSettingsPanel({
   const agents: readonly { engine: AgentEngine; name: string }[] = managed
     ? (catalog.data?.agents.filter((agent) => agent.installed) ?? [])
     : legacyAgents;
-  const engine = agents.some((agent) => agent.engine === selection) ? selection : agents[0]?.engine;
+  const selectedEngine = agents.some((agent) => agent.engine === selection)
+    ? selection
+    : agents[0]?.engine;
+  const engine = showInstructions ? undefined : selectedEngine;
   const selected = catalog.data?.agents.find((agent) => agent.engine === engine && agent.installed);
 
   const navigate = useSettingsNavigation();
@@ -133,6 +147,7 @@ export function AcpSettingsPanel({
                     onClick={() => {
                       if (engine !== agent.engine)
                         navigate(() => {
+                          setShowInstructions(false);
                           setEngine(agent.engine);
                         });
                     }}
@@ -230,8 +245,56 @@ export function AcpSettingsPanel({
               </Button>
             </div>
           ) : null}
+          {instructions ? (
+            <Button
+              type="button"
+              variant="ghost"
+              contentAlign="start"
+              className="mt-1 w-full shrink-0 px-2.5 font-medium aria-[current=page]:bg-control-hover"
+              aria-current={showInstructions ? "page" : undefined}
+              disabled={maintaining}
+              onClick={() => {
+                navigate(() => {
+                  setShowInstructions(true);
+                });
+              }}
+            >
+              {chinese ? "全局指令" : "Global instructions"}
+            </Button>
+          ) : null}
         </aside>
-        {engine ? (
+        {showInstructions && instructions ? (
+          <div
+            data-slot="settings-detail-scroll"
+            className="min-h-0 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6"
+          >
+            <PersonalizationInstructionsEditor
+              id="acp-global-instructions"
+              label={chinese ? "全局指令" : "Global instructions"}
+              description={
+                chinese
+                  ? "保存在 Codexly 中，应用到所有 ACP Agent 的后续对话与辅助生成。"
+                  : "Saved in Codexly and applied to subsequent conversations and background generation across ACP agents."
+              }
+              disabled={instructions.content === undefined || instructions.failed}
+              value={instructions.content ?? ""}
+              maxLength={MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH}
+              onChange={(event) => {
+                instructions.change(event.target.value);
+              }}
+              onBlur={instructions.flush}
+            >
+              {instructions.failed ? (
+                <div role="alert" className="text-body-small text-danger">
+                  {chinese ? "读取全局指令失败。" : "Could not load global instructions."}
+                  <Button variant="ghost" onClick={instructions.retry}>
+                    {chinese ? "重试" : "Retry"}
+                  </Button>
+                </div>
+              ) : null}
+            </PersonalizationInstructionsEditor>
+          </div>
+        ) : engine ? (
           <div
             className="flex min-h-0 min-w-0 flex-col overflow-hidden"
             aria-label={chinese ? `${name} 配置` : `${name} settings`}
@@ -328,6 +391,7 @@ export function AcpSettingsPanel({
               language={language}
               onPendingChange={setInstalling}
               onAdded={(target) => {
+                setShowInstructions(false);
                 setEngine(target);
                 setAdding(false);
               }}

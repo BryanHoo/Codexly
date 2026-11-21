@@ -226,6 +226,28 @@ export function GlobalSettingsPage<
               initialEngine={settingsSectionEngine(initialSection) ?? "codex"}
               Field={SettingsField}
               Select={SettingsSelect}
+              {...(agentRuntime === "acp"
+                ? {
+                    instructions: {
+                      content:
+                        draft === undefined
+                          ? undefined
+                          : "globalInstructions" in draft
+                            ? (draft.globalInstructions ?? "")
+                            : "",
+                      failed: error !== null,
+                      retry: () => {
+                        void onRetry();
+                      },
+                      change: (globalInstructions) => {
+                        update((current) => ({ ...current, globalInstructions }), true);
+                      },
+                      flush: () => {
+                        void queue.flush(draftRef.current);
+                      },
+                    },
+                  }
+                : {})}
             />
           )
         ) : activeSection === "prompts" ? (

@@ -296,6 +296,8 @@ export class AcpRuntime {
           return (await prepareAcpDefaults(connection, sessionId, options, saved)).configOptions;
         },
         this.#initialization,
+        // 每次提交只读取应用已保存的私有快照，让排队与恢复后的回合使用最新值。
+        async () => (await this.store.catalog("app.preferences.read", {}))?.globalInstructions,
       );
     const providers: AcpAgentProvider[] = [];
     const titles: AcpTaskTitles[] = [];
