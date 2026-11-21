@@ -103,6 +103,12 @@
 - 卡片加载使用 `LoadingSkeleton` 的 settings-fields 变体，只占位字段而非重复整页标题，保留上下留白，与实际行高一致。
 - 回归为 `desktop/tests/browser/acp-settings-layout.browser.test.tsx`，覆盖两端、Chromium/WebKit、390px/1280px：长内容滚动不移动 Agent 与关闭区，不导致横向溢出，骨架屏间距和控件尺寸符合公共规格。
 
+## ACP 后台任务
+
+- Web 与桌面的后台终端、工具调用和子 Agent 展示在右栏「上下文」的「后台任务」区域。共享组件订阅当前任务 Store 的会话元数据，随清单更新，空清单隐藏区域。
+- 后台任务复用共享 `InspectorSection` 标题、主题及间距；列表用类型图标、名称和次级状态组成。停止按钮沿用共享 Button/Tooltip，支持键盘操作、请求中禁用和失败重试。明暗主题与窄栏回归为 `desktop/tests/browser/acp-activity.browser.test.tsx`。
+- 右栏沿用会话内的单项停止能力与写入权限校验。切换任务立即隔离旧清单，只读任务可查看后台状态。回归入口为 `desktop/tests/browser/acp-inspector-boundary.browser.test.tsx`，覆盖双端实际右栏、清单更新与停止操作。
+
 ## ACP 聊天模型选择
 
 - Web、移动浏览器与桌面共用 `core/acp-model-selector.tsx`，以 AI Elements Model Selector 的 Command 模式提供搜索、收藏和 Agent 标签；当前选择显示为“Agent / 模型”。思考量固定在模型右侧、发送按钮左侧，其余原始配置同样复用公共紧凑下拉直接显示，不再添加独立 Agent 切换器或带说明段落的配置表单。

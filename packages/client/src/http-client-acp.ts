@@ -1,5 +1,7 @@
+import { Type } from "@sinclair/typebox";
 import {
   AcpConfigPreviewSchema,
+  type AcpBackgroundTarget,
   AcpAgentCatalogPageSchema,
   AcpAgentCatalogProgressSchema,
   type AcpAgentRegistration,
@@ -140,6 +142,14 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
       `${projectPath(projectId)}/tasks/${encodeURIComponent(taskId)}/acp/config`,
       AcpSessionConfigSchema,
       options,
+    );
+  }
+  cancelAcpBackground(projectId: string, taskId: string, target: AcpBackgroundTarget) {
+    return this.mutation(
+      `${projectPath(projectId)}/tasks/${encodeURIComponent(taskId)}/acp/background/cancel`,
+      target,
+      Type.Object({}),
+      {},
     );
   }
   setAcpSessionConfig(

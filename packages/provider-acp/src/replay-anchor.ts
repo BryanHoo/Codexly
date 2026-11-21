@@ -3,21 +3,31 @@ import type { AgentTurn } from "@codexly/protocol";
 
 /** 输入使用真正发给 ACP 的内容投影；只落盘摘要，不复制附件正文或携带本地凭据。 */
 export function replayFingerprint(turn: AgentTurn, userText?: string): string {
-  const items = turn.items.map((item) => {
-    const { id: _id, ...body } = item;
-    if (item.type !== "message") return body;
-    return {
-      type: item.type,
-      role: item.role,
-      text: item.role === "user" && userText !== undefined ? userText : item.text,
-    };
-  });
+  // 文件卡片是工具内容的派生视图，旧版锚点已经包含原始工具内容。
+  const items = turn.items
+    .filter((item) => !isAcpDiffItem(item))
+    .map((item) => {
+      const { id: _id, ...body } = item;
+      if (item.type !== "message") return body;
+      return {
+        type: item.type,
+        role: item.role,
+        text: item.role === "user" && userText !== undefined ? userText : item.text,
+      };
+    });
   return createHash("sha256").update(JSON.stringify(items)).digest("hex");
+}
+
+export function isAcpDiffItem(item: AgentTurn["items"][number]): boolean {
+  return (
+    item.type === "file_change" && item.id.startsWith("acp:tool:") && item.id.endsWith(":files")
+  );
 }
 
 export interface AcpHistoryEntry {
   turn: AgentTurn;
   replayFingerprint?: string;
+  acpMessageId?: string;
 }
 
 /** 私有包络与旧裸回合均可读；公开快照始终只返回 turn，不泄漏内部恢复元数据。 */
@@ -26,6 +36,7 @@ export function decodeHistoryEntry(line: string): AcpHistoryEntry {
     version?: number;
     turn?: AgentTurn;
     replayFingerprint?: string;
+    acpMessageId?: string;
   };
   if (parsed.version !== 2) return { turn: parsed };
   if (
@@ -34,5 +45,11 @@ export function decodeHistoryEntry(line: string): AcpHistoryEntry {
     !/^[a-f0-9]{64}$/.test(parsed.replayFingerprint)
   )
     throw new Error("ACP 历史恢复锚点损坏");
-  return { turn: parsed.turn, replayFingerprint: parsed.replayFingerprint };
+  return {
+    turn: parsed.turn,
+    replayFingerprint: parsed.replayFingerprint,
+    ...(typeof parsed.acpMessageId === "string" && parsed.acpMessageId
+      ? { acpMessageId: parsed.acpMessageId }
+      : {}),
+  };
 }

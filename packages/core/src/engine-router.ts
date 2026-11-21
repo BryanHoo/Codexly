@@ -197,6 +197,9 @@ export class EngineProjectRouter implements AgentProvider {
   async readSessionConfiguration(id: string) {
     return (await this.#method(id, "readSessionConfiguration"))(id);
   }
+  async cancelBackground(...args: Parameters<NonNullable<AgentProvider["cancelBackground"]>>) {
+    return (await this.#method(args[0], "cancelBackground"))(...args);
+  }
   async readSessionState(id: string) {
     return (await this.#method(id, "readSessionState"))(id);
   }

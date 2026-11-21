@@ -173,19 +173,20 @@ export type CodexlyScheduledTaskClient = Pick<
   | "setScheduledTaskEnabled"
   | "updateScheduledTask"
 >;
-export type CodexlyWorkbenchClient = Pick<
-  CodexlyClient,
-  | "subscribeAcpPlans"
-  | "readAcpPlanHistory"
-  | "listAcpPlans"
-  | "readAcpPlan"
-  | "saveAcpPlan"
-  | "deleteAcpPlan"
-  | "stageAcpPlanAttachment"
-  | "getTaskActivities"
-  | "acknowledgeTaskActivity"
-  | "subscribeWorkbenchChanges"
-> &
+export type CodexlyWorkbenchClient = Partial<Pick<CodexlyClient, "cancelAcpBackground">> &
+  Pick<
+    CodexlyClient,
+    | "subscribeAcpPlans"
+    | "readAcpPlanHistory"
+    | "listAcpPlans"
+    | "readAcpPlan"
+    | "saveAcpPlan"
+    | "deleteAcpPlan"
+    | "stageAcpPlanAttachment"
+    | "getTaskActivities"
+    | "acknowledgeTaskActivity"
+    | "subscribeWorkbenchChanges"
+  > &
   Pick<
     CodexlyClient,
     "listTaskCatalog" | "queryCompletedTasks" | "listClaudeExtensions" | "mutateClaudeExtension"

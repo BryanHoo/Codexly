@@ -534,3 +534,119 @@ it("重放请求缺少完成标记时拒绝发布历史", async () => {
     }),
   ).rejects.toThrow("replay_complete");
 });
+
+it("前台终态到达前发布 Agent 的消息写入回执", async () => {
+  const f = fixture();
+  const states = vi.fn();
+  const end = Promise.withResolvers<undefined>();
+  let finish = Promise.resolve();
+  f.app.onRequest(acp.methods.agent.session.prompt, ({ params, client }) => {
+    finish = end.promise.then(async () => {
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: "user_message",
+          messageId: "agent-message",
+          content: params.prompt,
+        },
+      });
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: { sessionUpdate: "state_update", state: "idle", stopReason: "end_turn" },
+      });
+    });
+    return { messageId: "agent-message" };
+  });
+  const connection = await connect(f, { onSessionState: states });
+  const { sessionId } = await connection.newSession({ cwd: "/workspace" });
+  const result = connection.prompt({
+    sessionId,
+    prompt: [{ type: "text", text: "你好" }],
+    idempotencyKey: "turn-1",
+  });
+  void result.catch(() => undefined);
+  try {
+    await Promise.race([
+      result,
+      vi.waitFor(() => {
+        expect(states).toHaveBeenCalledWith(
+          sessionId,
+          expect.objectContaining({
+            promptReceipt: { turnId: "turn-1", messageId: "agent-message" },
+          }),
+        );
+      }),
+    ]);
+  } finally {
+    end.resolve(undefined);
+  }
+  await finish;
+  await expect(result).resolves.toEqual({ stopReason: "end_turn" });
+});
+
+it("以回放完成标记划分历史和实时事件", async () => {
+  const f = fixture();
+  f.load.mockImplementation(async ({ params: { sessionId }, client }) => {
+    for (const update of [
+      {
+        sessionUpdate: "user_message_chunk",
+        messageId: "old",
+        content: { type: "text", text: "旧" },
+      },
+      { sessionUpdate: "replay_complete" },
+      { sessionUpdate: "state_update", state: "running" },
+    ] satisfies acp.SessionUpdate[]) {
+      await client.notify(acp.methods.client.session.update, { sessionId, update });
+    }
+    return {};
+  });
+  const calls = vi.fn<(event: acp.UpdateSessionNotification, historical: boolean) => void>();
+  const connection = await connect(f, { onUpdate: calls });
+  await connection.resumeSession({
+    sessionId: "old",
+    cwd: "/workspace",
+    replayFrom: { type: "start" },
+  });
+  expect(
+    calls.mock.calls.map(([event, historical]) => [event.update.sessionUpdate, historical]),
+  ).toEqual([
+    ["user_message_chunk", true],
+    ["state_update", false],
+  ]);
+});
+
+it("只有当前会话确认可取消的后台实体才发送单项停止请求", async () => {
+  const f = fixture();
+  const cancel = vi.fn((_context: acp.AgentRequestContext<acp.CancelTerminalRequest>) => ({}));
+  f.app.onRequest(acp.methods.agent.terminal.cancel, cancel);
+  f.load.mockImplementation(async ({ params: { sessionId }, client }) => {
+    await client.notify(acp.methods.client.session.update, {
+      sessionId,
+      update: {
+        sessionUpdate: "terminal_update",
+        terminalId: "runner",
+        capabilities: { cancel: {} },
+      },
+    });
+    await client.notify(acp.methods.client.session.update, {
+      sessionId,
+      update: {
+        sessionUpdate: "state_update",
+        state: "idle",
+        background: [{ type: "terminal", terminalId: "runner" }],
+      },
+    });
+    return {};
+  });
+  const connection = await connect(f);
+  await connection.resumeSession({ sessionId: "owner", cwd: "/workspace" });
+  await expect(
+    connection.cancelBackground("other", { kind: "terminal", id: "runner" }),
+  ).rejects.toThrow("不可停止");
+  await expect(
+    connection.cancelBackground("owner", { kind: "terminal", id: "runner" }),
+  ).resolves.toBeUndefined();
+  expect(cancel.mock.calls[0]?.[0].params).toEqual({ sessionId: "owner", terminalId: "runner" });
+  expect(cancel).toHaveBeenCalledTimes(1);
+  expect(connection.hasBackgroundWork("owner")).toBe(true);
+});

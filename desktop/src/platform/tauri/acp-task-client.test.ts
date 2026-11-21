@@ -273,3 +273,13 @@ it("配置变更重试传递原提交恢复键，不复用旧发送入口", asyn
     },
   });
 });
+
+it("ACP 后台停止只向共享宿主发送当前任务和实体身份", async () => {
+  const invoke = vi.fn(async () => ({}));
+  const client = new TauriCatalogClient({ invoke: invoke as InvokeImplementation, ensureRuntime: vi.fn() });
+  await client.cancelAcpBackground("p", "t", { kind: "tool_call", id: "watcher" });
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("acp_task_request", {
+    projectId: "p", method: "session.background.cancel",
+    params: { taskId: "t", target: { kind: "tool_call", id: "watcher" } },
+  });
+});

@@ -22,8 +22,9 @@ export function FileChangeButton({
   change,
   onOpen,
 }: Readonly<{ change: AgentFileChange; onOpen: (change: AgentFileChange) => void }>) {
-  const fileName = getFileName(change.path);
-  const operationLabel = i18n.t(`timeline.fileOperation.${change.kind}`, {
+  const name = getFileName(change.path);
+  const fileName = change.acp?.oldPath ? `${getFileName(change.acp.oldPath)} → ${name}` : name;
+  const operationLabel = i18n.t(`timeline.fileOperation.${change.acp?.operation === "move" || change.acp?.operation === "copy" ? change.acp.operation : change.kind}`, {
     ns: "conversation",
   });
   const { additions, removals } = getFileChangeStats(change);
@@ -43,9 +44,11 @@ export function FileChangeButton({
       onClick={() => {
         onOpen(change);
       }}
-      operation={operationLabel}
+      operation={change.acp?.fileType === "binary"
+        ? `${operationLabel} · ${i18n.t("timeline.fileOperation.binary", { ns: "conversation" })}`
+        : operationLabel}
       removals={removals}
-      title={change.path}
+      title={change.acp?.oldPath ? `${change.acp.oldPath} → ${change.path}` : change.path}
     />
   );
 }

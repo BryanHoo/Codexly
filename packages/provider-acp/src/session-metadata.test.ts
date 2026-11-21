@@ -102,3 +102,41 @@ it("元数据有单会话及总字节预算，超限不会覆盖上次有效状�
   for (let index = 0; index < 17; index++) store.configure(`large-${String(index)}`, large);
   expect(() => store.configure("too-many", large)).toThrow("预算");
 });
+
+it("前台结束后保留后台工作，按最新实体能力控制取消", () => {
+  const store = new AcpSessionMetadataStore();
+  store.update({
+    sessionId: "s",
+    update: {
+      sessionUpdate: "terminal_update",
+      terminalId: "tests",
+      command: "pnpm test",
+      capabilities: { cancel: {} },
+    },
+  });
+  expect(
+    store.update({
+      sessionId: "s",
+      update: {
+        sessionUpdate: "state_update",
+        state: "idle",
+        background: [{ type: "terminal", terminalId: "tests" }],
+      },
+    }),
+  ).toMatchObject({
+    foreground: "idle",
+    background: [{ kind: "terminal", id: "tests", label: "pnpm test", cancellable: true }],
+  });
+  expect(
+    store.update({
+      sessionId: "s",
+      update: { sessionUpdate: "terminal_update", terminalId: "tests", capabilities: null },
+    })?.background?.[0]?.cancellable,
+  ).toBe(false);
+  expect(
+    store.update({
+      sessionId: "s",
+      update: { sessionUpdate: "state_update", state: "idle", background: [] },
+    })?.background,
+  ).toEqual([]);
+});

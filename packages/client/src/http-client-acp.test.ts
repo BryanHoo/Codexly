@@ -245,3 +245,14 @@ it("Agent 目录进度独立读取，更新和移除各自持有幂等键", asyn
     });
   }
 });
+
+it("后台停止复用会话归属和写入幂等传输", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(new Response("{}")));
+  const client = new CodexlyClient({ baseUrl: "https://example.test", fetch });
+  await client.cancelAcpBackground("project/id", "task/id", { kind: "terminal", id: "test" });
+  expect(fetch.mock.calls[0]).toMatchObject([
+    "https://example.test/v1/projects/project%2Fid/tasks/task%2Fid/acp/background/cancel",
+    { method: "POST", body: '{"kind":"terminal","id":"test"}' },
+  ]);
+  expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).has("idempotency-key")).toBe(true);
+});

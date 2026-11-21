@@ -16,15 +16,25 @@ pub(super) fn normalize_turn(turn: &mut Value) {
     for item in items {
         if item["type"] == "reasoning" {
             *item = json!({"id":item["id"],"type":"reasoning","text":item["summary"].as_str().or_else(|| item["text"].as_str()).unwrap_or_default()});
-        } else if item["type"] == "file_change"
-            && let Some(changes) = item["changes"].as_array_mut()
-        {
-            for change in changes {
-                let stats = crate::domain::file_change::FileChangeStats::patch(
-                    change["diff"].as_str().unwrap_or_default(),
-                );
-                change["stats"] = json!({"additions":stats.additions,"removals":stats.removals});
+        }
+        normalize_file_change(item);
+    }
+}
+
+pub(super) fn normalize_file_change(item: &mut Value) {
+    if item["type"] != "file_change" {
+        return;
+    }
+    if let Some(changes) = item["changes"].as_array_mut() {
+        for change in changes {
+            // 原生 Codex 自带统计。ACP 用相同算法补齐桌面视图所需字段。
+            if change["stats"].is_object() {
+                continue;
             }
+            let stats = crate::domain::file_change::FileChangeStats::patch(
+                change["diff"].as_str().unwrap_or_default(),
+            );
+            change["stats"] = json!({"additions": stats.additions, "removals": stats.removals});
         }
     }
 }

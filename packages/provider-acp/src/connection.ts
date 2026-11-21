@@ -1,5 +1,5 @@
 import { projectAcpConfig } from "./session-options.js";
-import type { AcpConfigOption } from "@codexly/protocol";
+import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
@@ -11,6 +11,9 @@ interface ActivePrompt {
   terminal: PromiseWithResolvers<acp.IdleStateUpdate | null>;
   abandoned: PromiseWithResolvers<never>;
   observedForeground: boolean;
+  echoedMessageId?: string;
+  acceptedMessageId?: string;
+  idleAfterEcho?: acp.IdleStateUpdate;
 }
 
 interface PendingCancellation {
@@ -22,7 +25,7 @@ interface PendingCancellation {
 
 export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
-  onUpdate?(notification: acp.UpdateSessionNotification): void | Promise<void>;
+  onUpdate?(notification: acp.UpdateSessionNotification, historical: boolean): void | Promise<void>;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
   requestPermission?(
     request: acp.RequestPermissionRequest,
@@ -44,6 +47,11 @@ export class AcpConnection {
     private readonly authStatus: AcpAuthStatusTracker,
     private readonly replaying: Map<string, boolean>,
     private readonly metadata: AcpSessionMetadataStore,
+    private readonly publishReceipt: (
+      sessionId: string,
+      turnId: string,
+      messageId: string,
+    ) => Promise<void>,
     private readonly updateConfiguration: (
       sessionId: string,
       options: AcpConfigOption[],
@@ -101,13 +109,20 @@ export class AcpConnection {
       )
       .onNotification(acp.methods.client.session.update, ({ params }) => {
         return enqueue(async () => {
-          const state = metadata.update(params);
-          if (state) await callbacks.onSessionState?.(params.sessionId, state);
-          await callbacks.onUpdate?.(params);
           const { sessionId, update } = params;
-          if (update.sessionUpdate === "replay_complete" && replaying.has(sessionId))
-            replaying.set(sessionId, true);
-          connection?.observePrompt(sessionId, update);
+          const historical = replaying.get(sessionId) === false;
+          // 标记后的通知属于实时流，即使 resume 的 RPC 响应还没有返回。
+          if (update.sessionUpdate === "replay_complete") {
+            if (historical) replaying.set(sessionId, true);
+            return;
+          }
+          // 回放可补充历史上下文用量，其余历史快照不覆盖当前活动状态。
+          if (!historical || acp.SessionUpdate.isUsageUpdate(update)) {
+            const state = metadata.update(params);
+            if (state) await callbacks.onSessionState?.(sessionId, state);
+          }
+          await callbacks.onUpdate?.(params, historical);
+          if (!historical) connection?.observePrompt(sessionId, update);
         });
       })
       .onRequest(acp.methods.client.session.requestPermission, ({ params, signal }) => {
@@ -132,16 +147,17 @@ export class AcpConnection {
       });
       if (initialization.protocolVersion !== acp.PROTOCOL_VERSION)
         throw new Error(`不支持 ACP 协议版本 ${String(initialization.protocolVersion)}`);
-      void transport.closed.then(
-        () => {
-          authStatus.close();
+      const cleanUp = async () => {
+        authStatus.close();
+        try {
+          for (const [id, state] of metadata.disconnected()) {
+            await callbacks.onSessionState?.(id, state);
+          }
+        } finally {
           metadata.clear();
-        },
-        () => {
-          authStatus.close();
-          metadata.clear();
-        },
-      );
+        }
+      };
+      void transport.closed.then(cleanUp, cleanUp).catch(() => undefined);
       connection = new AcpConnection(
         initialization,
         transport,
@@ -149,6 +165,11 @@ export class AcpConnection {
         authStatus,
         replaying,
         metadata,
+        (sessionId, turnId, messageId) =>
+          enqueue(async () => {
+            const state = metadata.confirmPrompt(sessionId, turnId, messageId);
+            if (state) await callbacks.onSessionState?.(sessionId, state);
+          }),
         (id, options, commands) =>
           enqueue(async () => {
             const state = metadata.configure(id, options, commands);
@@ -279,18 +300,28 @@ export class AcpConnection {
     const active = this.#activePrompts.get(sessionId);
     if (!active) return;
     // Agent 可能重复报告上一回合的 idle。先观察收到新消息或前台状态，再接受终态。
-    if (update.sessionUpdate === "user_message" || update.sessionUpdate === "user_message_chunk") {
-      active.observedForeground = true;
+    if (acp.SessionUpdate.isUserMessage(update) || acp.SessionUpdate.isUserMessageChunk(update)) {
+      if (active.echoedMessageId !== update.messageId) delete active.idleAfterEcho;
+      active.echoedMessageId = update.messageId;
       return;
     }
     if (update.sessionUpdate !== "state_update" || !acp.SessionUpdate.isStateUpdate(update)) return;
     if (update.state === "running" || update.state === "requires_action")
       active.observedForeground = true;
-    else if (active.observedForeground && acp.StateUpdate.isIdle(update))
-      active.terminal.resolve(update);
+    else if (acp.StateUpdate.isIdle(update)) {
+      if (active.observedForeground) active.terminal.resolve(update);
+      else if (active.echoedMessageId) {
+        active.idleAfterEcho ??= update;
+        if (active.echoedMessageId === active.acceptedMessageId)
+          active.terminal.resolve(active.idleAfterEcho);
+      }
+    }
   }
 
-  async prompt(request: acp.PromptRequest): Promise<{ stopReason: string }> {
+  async prompt(
+    request: acp.PromptRequest,
+    receipt?: { turnId: string; accept(messageId: string): void },
+  ): Promise<{ stopReason: string }> {
     const id = request.sessionId;
     this.assertSessionReady(id);
     if (!this.#sessions.has(id)) throw new Error("ACP 会话尚未加载");
@@ -304,7 +335,14 @@ export class AcpConnection {
     // 回执只确认消息写入。等待前台终态以及此前的增量投影完成后再结算本地回合。
     const response = this.transport.agent
       .request(acp.methods.agent.session.prompt, request)
-      .then(async () => {
+      .then(async ({ messageId }) => {
+        // 即时命令可能直接报告 idle。只接受同一消息回显之后的候选终态。
+        active.acceptedMessageId = messageId;
+        if (active.echoedMessageId === messageId && active.idleAfterEcho)
+          active.terminal.resolve(active.idleAfterEcho);
+        receipt?.accept(messageId);
+        const turnId = receipt?.turnId ?? request.idempotencyKey;
+        if (turnId) await this.publishReceipt(id, turnId, messageId);
         const terminal = await active.terminal.promise;
         if (!terminal) throw new Error("ACP 连接已关闭，回合结果未知");
         if (terminal.stopReason === "error")
@@ -372,6 +410,31 @@ export class AcpConnection {
       if (!(error instanceof acp.RequestError) || error.code !== -32002) throw error;
     }
     this.forgetSession(sessionId);
+  }
+
+  hasBackgroundWork(sessionId?: string): boolean {
+    return this.metadata.hasBackgroundWork(sessionId);
+  }
+
+  async cancelBackground(sessionId: string, target: AcpBackgroundTarget): Promise<void> {
+    this.assertSessionReady(sessionId);
+    const work = this.metadata
+      .read(sessionId)
+      .background?.find((item) => item.kind === target.kind && item.id === target.id);
+    // 每次以当前会话及实体能力为准。RPC 回执只表示接受取消，清单由后续通知更新。
+    if (!this.#sessions.has(sessionId) || !work?.cancellable)
+      throw new Error("ACP 后台工作已结束或不可停止");
+    if (target.kind === "terminal") {
+      await this.transport.agent.request(acp.methods.agent.terminal.cancel, {
+        sessionId,
+        terminalId: target.id,
+      });
+    } else {
+      await this.transport.agent.request(acp.methods.agent.toolCall.cancel, {
+        sessionId,
+        toolCallId: target.id,
+      });
+    }
   }
 
   cancel(sessionId: string): Promise<void> {

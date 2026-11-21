@@ -177,3 +177,41 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it("回执消息 ID 将断线后回放的正文合并到原回合，并保留已知状态", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "acp-replay-receipt-"));
+  try {
+    const history = new AcpHistory(directory);
+    const old: AgentTurn = {
+      id: "local-turn",
+      status: "failed",
+      error: "任务结果待确认",
+      startedAt: "2026-11-21T08:00:00.000Z",
+      completedAt: null,
+      items: [{ id: "local-input", type: "message", role: "user", text: "原始问题" }],
+    };
+    await history.append("task", old, "原始问题", undefined, true, "agent-message");
+    const replay = new AcpReplay(history, "task");
+    await replay.update({
+      sessionUpdate: "user_message",
+      messageId: "agent-message",
+      content: [{ type: "text", text: "原始问题" }],
+    });
+    await replay.update({
+      sessionUpdate: "agent_message",
+      messageId: "reply",
+      content: [{ type: "text", text: "断线后保存的回答" }],
+    });
+    await replay.complete();
+    const page = await history.read("task");
+    expect(page.turns).toHaveLength(1);
+    expect(page.turns[0]).toMatchObject({
+      id: old.id,
+      status: old.status,
+      startedAt: old.startedAt,
+      items: [old.items[0], { role: "assistant", text: "断线后保存的回答" }],
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

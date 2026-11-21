@@ -18,6 +18,7 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
             | "session.config.read"
             | "session.state.read"
             | "session.config.write"
+            | "session.background.cancel"
             | "turn.start"
             | "prompt.start"
             | "turn.interrupt"
@@ -34,6 +35,19 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
         return Err(AppError::Acp("Invalid ACP task request".into()));
     }
     super::acp_task_management::validate(method, params)?;
+    // 单项停止只接受会话内的实体标识，实际控制能力由共享宿主再次核验。
+    if method == "session.background.cancel" {
+        let target = &params["target"];
+        if !matches!(target["kind"].as_str(), Some("terminal" | "tool_call"))
+            || !target["id"]
+                .as_str()
+                .is_some_and(|id| !id.is_empty() && id.chars().count() <= 1024)
+            || !target.as_object().is_some_and(|value| value.len() == 2)
+            || !params.as_object().is_some_and(|value| value.len() == 2)
+        {
+            return Err(AppError::Acp("Invalid ACP background target".into()));
+        }
+    }
     // 订阅只消费应用生成的稳定身份，不允许前端夹带执行目录或宿主作用域。
     if matches!(method, "task.retain" | "task.release")
         && (!params["leaseId"]

@@ -196,3 +196,57 @@ describe("ACP 增量事件投影", () => {
     }).toThrow("结束");
   });
 });
+
+it("保留 ACP 结构化文件变更，区分清空、删除、重命名和二进制复制", () => {
+  const { projection, events } = fixture();
+  projection.update({
+    sessionUpdate: "tool_call_update",
+    toolCallId: "changes",
+    status: "completed",
+    content: [
+      {
+        type: "diff",
+        changes: [
+          { operation: "modify", path: "/repo/empty.txt", fileType: "text" },
+          { operation: "delete", path: "/repo/deleted.txt" },
+          { operation: "move", path: "/repo/new.ts", oldPath: "/repo/old.ts" },
+          {
+            operation: "copy",
+            path: "/repo/logo.png",
+            oldPath: "/repo/original.png",
+            fileType: "binary",
+          },
+        ],
+        patch: {
+          format: "git_patch",
+          text: "diff --git a/empty.txt b/empty.txt\n--- a/empty.txt\n+++ b/empty.txt\n@@ -1 +0,0 @@\n-old\n",
+        },
+      },
+    ],
+  });
+  const turn = projection.finish("end_turn");
+  expect(Value.Check(AgentTurnSchema, turn)).toBe(true);
+  const item = turn.items.find((entry) => entry.type === "file_change");
+  expect(item?.changes[0]?.diff).toContain("-old");
+  expect(item?.changes).toMatchObject([
+    { path: "/repo/empty.txt", kind: "update", acp: { operation: "modify" } },
+    { path: "/repo/deleted.txt", kind: "delete", diff: "", acp: { operation: "delete" } },
+    {
+      path: "/repo/new.ts",
+      kind: "update",
+      diff: "",
+      acp: { operation: "move", oldPath: "/repo/old.ts" },
+    },
+    {
+      path: "/repo/logo.png",
+      kind: "create",
+      diff: "",
+      acp: { operation: "copy", fileType: "binary" },
+    },
+  ]);
+  expect(
+    events.some(
+      (event) => event.type === "item.completed" && event.payload.item.type === "file_change",
+    ),
+  ).toBe(true);
+});

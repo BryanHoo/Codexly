@@ -289,6 +289,9 @@ export const conversation = {
     expandProcess: "展开执行过程",
     fileChange: "{{operation}} {{name}}，新增 {{additions}} 行，删除 {{removals}} 行，打开 Diff",
     fileOperation: {
+      move: "已重命名",
+      copy: "已复制",
+      binary: "二进制",
       create: "已创建",
       delete: "已删除",
       update: "已编辑",

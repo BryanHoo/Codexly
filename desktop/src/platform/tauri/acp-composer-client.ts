@@ -25,6 +25,7 @@ export type AcpComposerClient = Pick<
   | "createAcpTask"
   | "getAcpTask"
   | "getAcpSessionState"
+  | "cancelAcpBackground"
   | "setAcpSessionConfig"
   | "startConfiguredAcpPrompt"
   | "interruptAcpTurn"

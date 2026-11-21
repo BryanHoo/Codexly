@@ -50,9 +50,13 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
   } = context;
   // 只挂载活动窗口的右栏；沿用该窗口的运行时，避免另读一次任务历史。
   if (pane !== null && (!pane.active || inspector?.target == null)) return null;
+  const cancelBackground = taskId
+    ? client.cancelAcpBackground?.bind(client, projectId, taskId)
+    : undefined;
   const content = (
           <WorkbenchInspector
-            backgroundTerminals={backgroundTerminals.terminals}
+            {...(cancelBackground ? { onCancelAcpBackground: cancelBackground } : {})}
+      backgroundTerminals={backgroundTerminals.terminals}
             contextOnly={temporary}
             expandedFileTreePaths={expandedFileTreePaths}
             gitStatusError={gitStatusQuery.error}

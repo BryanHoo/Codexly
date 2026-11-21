@@ -27,7 +27,12 @@ export class AcpProviderConnection {
     const agent = this.#instance;
     if (session && agent) {
       // 正在隔离的会话只能退订视图；持久会话无恢复能力时也保留原绑定。
-      if (agent.isAwaitingCancellation(session) || (!ephemeral && !agent.canRestoreSessions)) {
+      // 普通退订保留 Agent 公布的后台工作。v2 的 session/close 会停止它。
+      if (
+        agent.isAwaitingCancellation(session) ||
+        agent.hasBackgroundWork(session) ||
+        (!ephemeral && !agent.canRestoreSessions)
+      ) {
         this.detached.add(taskId);
         return false;
       }
@@ -47,8 +52,8 @@ export class AcpProviderConnection {
           onSessionState: (...args) => {
             if (current()) return this.callbacks.onSessionState?.(...args);
           },
-          onUpdate: (notification) => {
-            if (current()) return this.callbacks.onUpdate?.(notification);
+          onUpdate: (...args) => {
+            if (current()) return this.callbacks.onUpdate?.(...args);
           },
           requestPermission: (request, signal) =>
             (current() ? this.callbacks.requestPermission?.(request, signal) : undefined) ??
@@ -75,7 +80,7 @@ export class AcpProviderConnection {
 
   recycleIdle(): void {
     const agent = this.#instance;
-    if (!agent || this.#closed || !this.isIdle()) return;
+    if (!agent || this.#closed || !this.isIdle() || agent.hasBackgroundWork()) return;
     if (agent.recycleAbandoned()) {
       this.#clear();
       return;
@@ -88,7 +93,12 @@ export class AcpProviderConnection {
     } else if (this.#allDetached && !this.#idleTimer) {
       this.#idleTimer = setTimeout(() => {
         this.#idleTimer = undefined;
-        if (this.#instance === agent && this.isIdle() && this.#allDetached) {
+        if (
+          this.#instance === agent &&
+          this.isIdle() &&
+          this.#allDetached &&
+          !agent.hasBackgroundWork()
+        ) {
           this.#clear();
           agent.close();
         }

@@ -2,10 +2,12 @@ import {
   ContentBlock,
   SessionUpdate,
   type ToolCallUpdate,
+  type ToolCallContent,
   PlanUpdateContent,
 } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@codexly/protocol";
+import { projectAcpFileChanges } from "./file-changes.js";
 import { AcpTurnContent } from "./turn-content.js";
 import { acpContextUsage } from "./context-usage.js";
 
@@ -35,6 +37,8 @@ export class AcpEventProjection {
   #planId: string | undefined;
   #settlementError: string | undefined;
   #published = false;
+  #diffBytes = 0;
+  acpMessageId: string | undefined;
   plan: AgentPlan | null = null;
 
   constructor(
@@ -87,6 +91,11 @@ export class AcpEventProjection {
       case "tool_call_update":
         this.#tool(update as ToolCallUpdate);
         break;
+      case "tool_call_content_chunk": {
+        if (SessionUpdate.isToolCallContentChunk(update))
+          this.#fileChanges(`acp:tool:${update.toolCallId}:files`, [update.content], true);
+        break;
+      }
       case "plan_update": {
         if (!SessionUpdate.isPlanUpdate(update)) break;
         const plan = update.plan;
@@ -228,6 +237,40 @@ export class AcpEventProjection {
     const completed = status === "completed" || status === "failed" || status === "interrupted";
     this.#emitItem(completed ? "item.completed" : "item.started", item);
     if (completed) this.#finished.add(id);
+
+    if (update.content !== undefined) this.#fileChanges(`${id}:files`, update.content);
+  }
+
+  #fileChanges(fileId: string, content: ToolCallContent[] | null, append = false): void {
+    const previousFiles = this.#items.get(fileId);
+    const oldFiles = previousFiles?.type === "file_change" ? previousFiles : undefined;
+    if (oldFiles) this.#diffBytes -= Buffer.byteLength(JSON.stringify(oldFiles.changes)) - 1;
+    const remaining = 256 * 1024 - this.#diffBytes;
+    const projected = projectAcpFileChanges(content, remaining);
+    if (append && !projected.length) {
+      if (oldFiles) this.#diffBytes += Buffer.byteLength(JSON.stringify(oldFiles.changes)) - 1;
+      return;
+    }
+    if (append && oldFiles) {
+      // 内容分块追加，完整 content 更新则替换整份工具内容。
+      const combined = new Map(oldFiles.changes.map((change) => [change.path, change]));
+      for (const change of projected) combined.set(change.path, change);
+      projected.splice(0, projected.length, ...combined.values());
+    }
+    const changes: typeof projected = [];
+    for (const change of projected) {
+      const bytes = Buffer.byteLength(JSON.stringify(change)) + 1;
+      if (this.#diffBytes + bytes > 256 * 1024) break;
+      changes.push(change);
+      this.#diffBytes += bytes;
+    }
+    if (!changes.length && !oldFiles) return;
+    this.#diffBytes += 1;
+    // 结构化 diff 已报告发生的更改；工具运行状态继续由独立的工具条目维护。
+    const files: AgentItem = { id: fileId, type: "file_change", changes, status: "completed" };
+    this.#items.set(fileId, files);
+    this.#emitItem("item.completed", files);
+    this.#finished.add(fileId);
   }
 
   snapshot(): AgentTurn {

@@ -6,11 +6,13 @@ import {
   ProjectRelativePathSchema,
   ProjectSchema,
 } from "./project-files.js";
+import { AcpFileChangeDetailsSchema } from "./acp-file-change.js";
 import { ProjectRootPathSchema } from "./project-root.js";
 
 export const AgentFileChangeSchema = Type.Object(
   {
     diff: Type.String(),
+    acp: Type.Optional(AcpFileChangeDetailsSchema),
     kind: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("delete")]),
     // Provider 历史可能保留绝对路径；只有 Project Git API 收紧为相对路径。
     path: Type.String({ minLength: 1 }),

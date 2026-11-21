@@ -1,3 +1,5 @@
+import { AcpBackgroundSection } from "@codexly/ui/core/acp-activity";
+import type { AcpBackgroundTarget } from "@codexly/protocol";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
@@ -69,6 +71,7 @@ const LazyInspectorSources = lazy(async () => {
   return { default: module.InspectorSources };
 });
 type WorkbenchInspectorProps = Readonly<{
+  onCancelAcpBackground?: (target: AcpBackgroundTarget) => Promise<unknown>;
   backgroundTerminals?: readonly AgentBackgroundTerminal[];
   contextOnly?: boolean;
   legacyContext?: boolean;
@@ -130,6 +133,7 @@ type WorkbenchInspectorProps = Readonly<{
 export type { WorkbenchInspectorTab } from "./workbench-inspector-tabs.js";
 
 export function WorkbenchInspector({
+  onCancelAcpBackground,
   backgroundTerminals = [],
   contextOnly = false,
   legacyContext = true,
@@ -216,6 +220,11 @@ export function WorkbenchInspector({
       className="h-full space-y-5 overflow-y-auto p-2.5"
       key={`${projectId ?? projectName}:${taskId ?? "draft"}:context`}
     >
+      {!legacyContext && taskStore && projectId && taskId ? (
+        <AcpBackgroundSection key={`${projectId}:${taskId}`}
+          source={taskStore} projectId={projectId} taskId={taskId} language={i18n.language}
+          {...(onCancelAcpBackground ? { onCancel: onCancelAcpBackground } : {})} />
+      ) : null}
       {legacyContext && activeTab === "context" && projectId !== undefined && taskId !== undefined ? <ThreadMemorySection
         client={gitClient ?? nativeClient} projectId={projectId} taskId={taskId}
         revision={`${task?.turns.at(-1)?.id ?? ""}:${task?.turns.at(-1)?.status ?? ""}`}

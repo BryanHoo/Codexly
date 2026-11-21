@@ -44,6 +44,8 @@
 - 可重放正文是共享缓存：v2 握手确认会话能力后才允许淘汰，闲置正文容量目标 256 MiB；会话能力未知时保守保留历史。视图、运行、搜索和导出通过 SQLite owner CAS 使用租约保护，释放后按最近访问回收；新生成的回答续文与工具详情附件计入缓存，用户上传和旧版混合附件保守保留，不能删除任务或独有附件。重放只留当前及一个旧代际，过期游标明确失效，历史被淘汰后即使仍有暖绑定也必须重新请求重放。原生 stdio 已断开时不再请求释放租约，由下一进程确认旧 PID 死亡后接管。回归入口为 `history-cache.test.ts`、`provider-history-cache.test.ts` 与根 `src/acp-history-cache.test.ts`。
 - 历史重放按顺序及正文指纹保留原回合 / 消息身份和附件。错位后仅在有界窗口内按唯一的完整指纹重新对齐，不以相似内容推断。近期回合提交凭证与历史字节边界一并原子发布，正常追加不再扫描历史页。搜索只匹配可见正文，缓存搜索不启动 agent，冷搜索仅加载原会话且必须可取消、关闭和限制并发。
 - 共享连接仅接受 ACP v2。完整的本地历史可以通过 `session/resume` 重新绑定原会话。缓存缺失或确认损坏时，带 `replayFrom: { type: "start" }` 请求重放，在收到 `replay_complete` 和成功响应后提交投影。旧游标、普通 I/O 错误和活动回合不能触发重放。[ACP v2 会话规范](https://agentclientprotocol.com/protocol/v2/session-setup)
+- 应用提交幂等键经散列传入同一原生会话。运行时收到 Agent 消息 ID 后记录发送回执，聊天活动区省略发送成功提示。前台终态与持久化继续独立。断线后按 Agent 消息 ID 合并已知回执对应的历史并保留本地回合身份。发送结果不明时保留去重保护，不能自动重复执行。[ACP v2 回合生命周期](https://agentclientprotocol.com/protocol/v2/prompt-lifecycle)
+- 后台清单来自 Agent 当前状态，单项停止按当前会话、实体身份和最新能力校验。前台回合结束与部分视图退订不能停止后台工作。结构化文件变更以 Agent 声明的路径和操作为准，预览补丁只关联可唯一匹配的文件。[ACP v2 工具契约](https://agentclientprotocol.com/protocol/v2/tool-calls)
 - v2 有会话能力的 Agent 在退订后使用 `session/close` 释放会话。取消尚未确认时继续保留绑定。回收不得打断正在执行或待落盘的回合，重连等待旧进程退出。[Provider 生命周期测试](../../../../packages/provider-acp/src/provider-lifecycle.test.ts)
 - 验证覆盖真实 SQLite / 子进程崩溃、SDK 双向流、编译宿主及真实账号首发 / 重启续聊；不能以跳过的可选测试或空历史重放替代证明。
 

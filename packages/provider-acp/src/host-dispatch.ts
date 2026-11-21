@@ -10,6 +10,7 @@ import { ApplicationGenerationRequestSchema } from "@codexly/protocol/applicatio
 import { ApplicationPreferencesSchema } from "@codexly/protocol/application-preferences";
 import {
   AcpConfigValuesSchema,
+  AcpBackgroundTargetSchema,
   AcpAgentRegistrationSchema,
   AcpAuthCredentialsSchema,
   AcpConfigPreviewRequestSchema,
@@ -243,18 +244,24 @@ export async function dispatchAcpHost(
         ? subscriptions.retain(provider, scope.id, id, lease)
         : subscriptions.release(scope.id, id, lease);
     }
-    case "prompt.start":
+    case "prompt.start": {
       if (!Value.Check(Input, params["input"]) || Object.hasOwn(params, "options"))
         throw new Error("Invalid configured ACP prompt");
       signal.throwIfAborted();
       if (!provider.startConfiguredTurn)
         throw new AgentTurnNotSubmittedError("ACP 配置会话执行端口不可用");
+      const key = params["idempotencyKey"];
+      const input =
+        typeof key === "string" && key.length <= 128 && key.trim()
+          ? { ...params["input"], submissionKey: key }
+          : params["input"];
       if (params["initialConfig"] !== undefined) {
         if (!Value.Check(AcpConfigValuesSchema, params["initialConfig"]))
           throw new Error("Invalid initial config");
-        return provider.startConfiguredTurn(id, params["input"], params["initialConfig"]);
+        return provider.startConfiguredTurn(id, input, params["initialConfig"]);
       }
-      return provider.startConfiguredTurn(id, params["input"]);
+      return provider.startConfiguredTurn(id, input);
+    }
     case "queue.add": {
       if (!Value.Check(Input, params["input"])) throw new Error("Invalid queue input");
       const queuedSubmission = await queue.add(
@@ -393,6 +400,14 @@ export async function dispatchAcpHost(
       if (!provider.readSessionState) throw new Error("Unsupported ACP session state");
       signal.throwIfAborted();
       return provider.readSessionState(id);
+    case "session.background.cancel": {
+      const target = params["target"];
+      if (!Value.Check(AcpBackgroundTargetSchema, target))
+        throw new Error("Invalid ACP background target");
+      if (!provider.cancelBackground) throw new Error("ACP background cancellation is unavailable");
+      await provider.cancelBackground(id, target);
+      return {};
+    }
     case "session.config.write": {
       const value = params["value"];
       if (typeof value !== "boolean" && typeof value !== "string")

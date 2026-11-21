@@ -2,7 +2,7 @@ import { ContentBlock, SessionUpdate } from "@agentclientprotocol/sdk/experiment
 import type { AgentTurn } from "@codexly/protocol";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection } from "./event-projection.js";
-import { replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
+import { isAcpDiffItem, replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
 import { stripAcpGlobalInstructions } from "./global-instructions.js";
 import type { AcpTurnContent } from "./turn-content.js";
 
@@ -10,6 +10,7 @@ const ALIGNMENT_WINDOW = 8;
 interface ReplayTurn {
   turn: AgentTurn;
   content: AcpTurnContent;
+  messageId?: string;
 }
 
 /** ACP v2 以会话通知回放历史；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
@@ -49,37 +50,86 @@ export class AcpReplay {
         for (;;) {
           const next = await reader.read();
           if (next.done) break;
-          const { turn, content } = next.value;
+          const { turn, content, messageId } = next.value;
           const fingerprint = content.fingerprint(turn);
           await fill(1);
-          let index = candidates[0]?.fingerprint === fingerprint && aligned ? 0 : -1;
+          const matches = (candidate: (typeof candidates)[number]) =>
+            messageId && candidate.entry.acpMessageId
+              ? candidate.entry.acpMessageId === messageId
+              : candidate.fingerprint === fingerprint;
+          const firstCandidate = candidates[0];
+          let index = firstCandidate && aligned && matches(firstCandidate) ? 0 : -1;
           if (index < 0 && candidates.length) {
-            // 短暂错位后只按有界窗口内唯一的完整指纹恢复顺序，重复内容不猜测身份。
+            // 优先比较 Agent 消息 ID；旧回合仅在有界窗口内用唯一指纹恢复顺序。
             aligned = false;
             const moving = candidates.length === ALIGNMENT_WINDOW;
             await fill(ALIGNMENT_WINDOW);
-            const first = candidates.findIndex(
-              (candidate) => candidate.fingerprint === fingerprint,
-            );
-            if (
-              first >= 0 &&
-              !candidates
-                .slice(first + 1)
-                .some((candidate) => candidate.fingerprint === fingerprint)
-            )
-              index = first;
+            const matchedId = messageId
+              ? candidates.findIndex(({ entry }) => entry.acpMessageId === messageId)
+              : -1;
+            const first = candidates.findIndex(matches);
+            if (matchedId >= 0) index = matchedId;
+            else if (first >= 0 && !candidates.slice(first + 1).some(matches)) index = first;
             else if (moving) candidates.shift();
           }
           if (index >= 0) {
             const matched = candidates.splice(0, index + 1).at(-1);
-            if (matched) yield matched.entry;
+            if (
+              matched &&
+              messageId &&
+              matched.fingerprint !== fingerprint &&
+              messageId === matched.entry.acpMessageId
+            ) {
+              // Agent 重放补齐了断线后的输出。保留本地回合身份、发送时间和原始用户附件。
+              const old = matched.entry.turn;
+              const user = old.items.find(
+                (item) => item.type === "message" && item.role === "user",
+              );
+              const projected = await content.materialize(turn, attachments, taskId);
+              const { stopReason: _replayReason, ...recovered } = projected;
+              yield {
+                turn: {
+                  ...recovered,
+                  id: old.id,
+                  status: old.status,
+                  error: old.error,
+                  startedAt: old.startedAt,
+                  completedAt: old.completedAt,
+                  ...(old.stopReason ? { stopReason: old.stopReason } : {}),
+                  items: projected.items.map((item) =>
+                    user && item.type === "message" && item.role === "user" ? user : item,
+                  ),
+                },
+                replayFingerprint: fingerprint,
+                acpMessageId: messageId,
+              };
+            } else if (matched) {
+              const missing = turn.items.filter(
+                (item) =>
+                  isAcpDiffItem(item) &&
+                  !matched.entry.turn.items.some((old) => old.id === item.id),
+              );
+              yield missing.length
+                ? {
+                    ...matched.entry,
+                    turn: {
+                      ...matched.entry.turn,
+                      items: [...matched.entry.turn.items, ...missing],
+                    },
+                  }
+                : matched.entry;
+            }
             aligned = true;
             continue;
           }
           const projected = await content.materialize(turn, attachments, taskId);
           yield {
             turn: projected,
-            ...(turn !== projected ? { replayFingerprint: fingerprint } : {}),
+            ...(messageId
+              ? { acpMessageId: messageId, replayFingerprint: fingerprint }
+              : turn !== projected
+                ? { replayFingerprint: fingerprint }
+                : {}),
           } satisfies AcpHistoryEntry;
         }
       } finally {
@@ -141,6 +191,7 @@ export class AcpReplay {
       update.sessionUpdate === "agent_message" ||
       update.sessionUpdate === "agent_thought" ||
       update.sessionUpdate === "tool_call_update" ||
+      update.sessionUpdate === "tool_call_content_chunk" ||
       update.sessionUpdate === "plan_update" ||
       update.sessionUpdate === "plan_removed";
     if (!content) return;
@@ -175,6 +226,7 @@ export class AcpReplay {
     await this.#writer.write({
       turn: { ...turn, startedAt: null, completedAt: null },
       content: this.#current.content,
+      ...(this.#userId ? { messageId: this.#userId } : {}),
     });
     this.#current = undefined;
     this.#userId = undefined;

@@ -1,4 +1,4 @@
-import type { AcpConfigOption } from "@codexly/protocol";
+import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
@@ -24,20 +24,21 @@ import type { AcpConfigValues, AgentEngine, AgentTurnOptions, AgentTurn } from "
 import type { AcpConnection, AcpClientCallbacks } from "./connection.js";
 import type { AcpHistory } from "./history.js";
 import type { AcpReplay } from "./replay.js";
+import { routeAcpUpdate, taskForAcpSession } from "./provider-session-events.js";
 import { loadAcpSession } from "./session-loading.js";
 import type { AcpSessionInitialization } from "./session-initialization.js";
 import type { AcpStoredSettings } from "./settings-store.js";
-import { AcpEventProjection, contentText } from "./event-projection.js";
+import { AcpEventProjection } from "./event-projection.js";
 import { AcpPermissions } from "./permissions.js";
 import { createAcpPrompt } from "./turn-input.js";
 import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
 import { migrateAcpSettings } from "./migration.js";
 import { applyAcpConfig } from "./configuration.js";
-import { submitAcpTurn } from "./turn-submission.js";
+import { sendAcpPrompt, submitAcpTurn } from "./turn-submission.js";
 import { startAcpLocalTask } from "./task-creation.js";
 import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
-import { prepareAcpHistoryCommit } from "./turn-persistence.js";
+import { persistAcpTurn } from "./turn-persistence.js";
 import { AcpHistoryUse } from "./history-use.js";
 import { AcpProviderConnection } from "./provider-connection.js";
 /** 同一实现接入任意 ACP agent；应用任务管理与 agent 的原生会话身份保持分离。 */
@@ -47,9 +48,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #taskSettlements = new Map<string, Promise<void>>();
   readonly #failedCommits = new Map<string, () => Promise<void>>();
   readonly #link: AcpProviderConnection;
-  get #sessions() {
-    return this.#link.sessions;
-  }
   readonly #needsDefaults = new Set<string>();
   readonly #replays = new Map<string, AcpReplay>();
   readonly #active = new Map<string, AcpEventProjection>();
@@ -90,9 +88,16 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       connect,
       {
         onSessionState: this.#emitSessionState,
-        onUpdate: (notification) => this.#update(notification),
+        onUpdate: (notification, historical) =>
+          routeAcpUpdate(
+            notification,
+            historical,
+            this.#link.sessions,
+            this.#replays,
+            this.#active,
+          ),
         requestPermission: (request, signal) => {
-          const task = [...this.#sessions].find(([, id]) => id === request.sessionId)?.[0];
+          const task = taskForAcpSession(this.#link.sessions, request.sessionId);
           const active = task ? this.#active.get(task) : undefined;
           return task && active?.running && !this.#ephemeral.has(task)
             ? this.#permissions.request(task, active.turnId, request, signal)
@@ -111,7 +116,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       (id) => this.#active.has(id),
       async (task) => {
         if (task.sessionId) await (await this.#link.get()).deleteSession(task.sessionId);
-        this.#sessions.delete(task.id);
+        this.#link.sessions.delete(task.id);
         this.#link.detached.delete(task.id);
         this.#needsDefaults.delete(task.id);
       },
@@ -171,31 +176,15 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       .catch(() => undefined);
     return operation;
   }
-  async #update(notification: acp.UpdateSessionNotification): Promise<void> {
-    const replay = this.#replays.get(notification.sessionId);
-    if (replay) {
-      await replay.update(notification.update);
-      return;
-    }
-    const task = [...this.#sessions].find(([, session]) => session === notification.sessionId)?.[0];
-    if (!task) return;
-    const active = this.#active.get(task);
-    // 本地投影已有原始用户输入，实时回显可能含应用指令或由 Agent 展开的附件。
-    if (
-      active?.running &&
-      notification.update.sessionUpdate !== "user_message_chunk" &&
-      notification.update.sessionUpdate !== "user_message"
-    )
-      active.update(notification.update);
-  }
   readonly #emitSessionState = (sessionId: string, state: AcpSessionMetadata): void => {
-    const task = [...this.#sessions].find(([, native]) => native === sessionId)?.[0];
+    const task = taskForAcpSession(this.#link.sessions, sessionId);
     if (task && !this.#link.detached.has(task))
       this.#emit({ type: "acp.session.updated", taskId: task, payload: { state } });
+    else if (task && state.background?.length === 0) this.#link.recycleIdle();
   };
   async #load(task: LocalTask, explicitConfig = false, repairHistory = false) {
     const connection = await loadAcpSession(task, explicitConfig, {
-      sessions: this.#sessions,
+      sessions: this.#link.sessions,
       needsDefaults: this.#needsDefaults,
       replays: this.#replays,
       ephemeral: this.#ephemeral.has(task.id),
@@ -229,9 +218,12 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         history: this.history,
         load: (repairHistory) => this.#load(task, false, repairHistory),
         active: () => this.#active.get(id),
+        needsReplay: async () =>
+          !this.#link.sessions.has(id) && (await this.history.needsReplay(id)),
         pending: () => this.#permissions.list(id),
-        contextUsage: () => this.#link.instance?.readSessionUsage(this.#sessions.get(id)) ?? null,
-        sessionState: () => readAcpTaskSessionState(this.#link.instance, this.#sessions, id),
+        contextUsage: () =>
+          this.#link.instance?.readSessionUsage(this.#link.sessions.get(id)) ?? null,
+        sessionState: () => readAcpTaskSessionState(this.#link.instance, this.#link.sessions, id),
       });
     });
   }
@@ -258,7 +250,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           throw new AgentTurnNotSubmittedError("任务已有运行中或待持久化回合");
         const task = await this.#task(id);
         const agent = await this.#link.get();
-        const bound = this.#sessions.get(id);
+        const bound = this.#link.sessions.get(id);
         if (bound) agent.assertSessionReady(bound);
         const prompt = await createAcpPrompt(
           input,
@@ -272,7 +264,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         );
         const attachments = await this.attachments.prepare(id, input);
         await this.#load(task, initialConfig !== undefined);
-        const sessionId = this.#sessions.get(id);
+        const sessionId = this.#link.sessions.get(id);
         if (!sessionId) throw new Error("ACP 会话绑定缺失");
         if (initialConfig !== undefined) {
           if (await this.history.hasTurns(id))
@@ -317,8 +309,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           signal.throwIfAborted();
         }
         submitted();
-        const settlement = agent
-          .prompt({ sessionId, prompt, idempotencyKey: projection.turnId })
+        const settlement = sendAcpPrompt(agent, sessionId, prompt, projection, input.submissionKey)
           .then(
             (result) => projection.finish(result.stopReason),
             (error: unknown) =>
@@ -347,13 +338,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       projection.publishCompletion(final);
       return;
     }
-    const userText = prompt.map(contentText).join("");
-    const fingerprint = projection.content.fingerprint(final, userText);
-    const persist = prepareAcpHistoryCommit(
-      () => projection.content.materialize(final, this.history.cache.content(id), id),
-      // prompt 未确认时，本地终态可能缺少 Agent 在断线后写入的消息，下次应优先同步历史。
-      (stored) => this.history.append(id, stored, userText, fingerprint, final.status === "failed"),
-      () => this.#patch(id, { status: "idle", updatedAt: Math.floor(Date.now() / 1000) }),
+    const persist = persistAcpTurn(this.history, projection, final, prompt, () =>
+      this.#patch(id, { status: "idle", updatedAt: Math.floor(Date.now() / 1000) }),
     );
     const commit = async () => {
       const stored = await persist();
@@ -407,10 +393,17 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   deleteTask(id: string) {
     return this.#serial(id, () => this.#management.deleteTask(id));
   }
+  async cancelBackground(id: string, target: AcpBackgroundTarget): Promise<void> {
+    await this.#task(id);
+    const session = this.#link.sessions.get(id);
+    const connection = this.#link.instance;
+    if (!connection || !session) throw new Error("ACP 会话已断开");
+    await connection.cancelBackground(session, target);
+  }
   async readSessionState(id: string): Promise<AcpSessionMetadata> {
     return this.#serial(id, async () => {
       const agent = await this.#load(await this.#task(id));
-      const session = this.#sessions.get(id);
+      const session = this.#link.sessions.get(id);
       if (!session) throw new Error("ACP 会话绑定缺失");
       return agent.readSessionState(session);
     });
@@ -425,13 +418,10 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   ): Promise<AcpConfigOption[]> {
     return this.#serial(id, async () => {
       const agent = await this.#load(await this.#task(id));
-      const options = await applyAcpConfig(
-        agent,
-        this.#sessions.get(id) ?? "",
-        agent.readSessionState(this.#sessions.get(id) ?? "").configOptions,
-        { [configId]: value },
-      );
-      return structuredClone(options);
+      const session = this.#link.sessions.get(id);
+      if (!session) throw new Error("ACP 会话绑定缺失");
+      const current = agent.readSessionState(session).configOptions;
+      return applyAcpConfig(agent, session, current, { [configId]: value });
     });
   }
   getCapabilities() {
@@ -442,7 +432,10 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   }
   async unsubscribeTask(id: string) {
     return this.#serial(id, async () => {
-      if (!this.#ephemeral.has(id) && (!this.#sessions.has(id) || this.#link.detached.has(id))) {
+      if (
+        !this.#ephemeral.has(id) &&
+        (!this.#link.sessions.has(id) || this.#link.detached.has(id))
+      ) {
         await this.#historyUse.release(id);
         return "notLoaded" as const;
       }
@@ -460,7 +453,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     // 中断与新输入串行，防止旧取消通知落到后来回合。
     return this.#serial(id, async () => {
       await this.#task(id);
-      const session = this.#sessions.get(id);
+      const session = this.#link.sessions.get(id);
       const active = this.#active.get(id);
       if (!session || !active?.running || active.turnId !== turnId) return;
       const agent = await this.#link.get();

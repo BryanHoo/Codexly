@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import type { ContentBlock } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { AcpConnection } from "./connection.js";
+import type { AcpEventProjection } from "./event-projection.js";
 import { AgentTurnNotSubmittedError } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";
 
@@ -36,4 +40,26 @@ export async function submitAcpTurn(
       { cause: error },
     );
   }
+}
+
+/** 应用持久化的发送身份贯穿 ACP。回执继续绑定本地回合，供界面及历史合并使用。 */
+export function sendAcpPrompt(
+  agent: AcpConnection,
+  sessionId: string,
+  prompt: ContentBlock[],
+  projection: AcpEventProjection,
+  submissionKey?: string,
+) {
+  const idempotencyKey = submissionKey
+    ? createHash("sha256").update("codexly-acp:").update(submissionKey).digest("hex")
+    : projection.turnId;
+  return agent.prompt(
+    { sessionId, prompt, idempotencyKey },
+    {
+      turnId: projection.turnId,
+      accept: (messageId) => {
+        projection.acpMessageId = messageId;
+      },
+    },
+  );
 }

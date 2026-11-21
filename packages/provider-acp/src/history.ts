@@ -208,11 +208,16 @@ export class AcpHistory {
     userText?: string,
     fingerprint?: string,
     incomplete = false,
+    acpMessageId?: string,
   ): Promise<void> {
     const data = this.#encode(
       userText === undefined
         ? turn
-        : { turn, replayFingerprint: fingerprint ?? replayFingerprint(turn, userText) },
+        : {
+            turn,
+            replayFingerprint: fingerprint ?? replayFingerprint(turn, userText),
+            ...(acpMessageId ? { acpMessageId } : {}),
+          },
     );
     const next = receipt(turn);
     await this.#locked(task, async (root) => {
@@ -263,6 +268,10 @@ export class AcpHistory {
     return ((await this.#head(this.#root(task)))?.end ?? 0) > 0;
   }
   /** 提交指针已原子发布，只校验覆盖标记和文件边界，不为续聊读取或解析整份历史。 */
+  async needsReplay(task: string): Promise<boolean> {
+    return (await this.#head(this.#root(task)))?.incomplete === true;
+  }
+
   async hasCompleteHistory(task: string): Promise<boolean> {
     const root = this.#root(task);
     const head = await this.#head(root).catch((error: unknown) => {

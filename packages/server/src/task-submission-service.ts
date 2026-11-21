@@ -175,14 +175,15 @@ export async function executeTaskSubmission(
         if (prepared === undefined) throw new Error("Submission input is unavailable");
         if (input.type === "acp-prompt") {
           if (!runtime.provider.startConfiguredTurn) throw new Error("ACP prompt is unavailable");
+          const providerInput = { ...prepared.providerInput, submissionKey: key };
           const turn =
             "initialConfig" in input
               ? await runtime.provider.startConfiguredTurn(
                   taskId,
-                  prepared.providerInput,
+                  providerInput,
                   input.initialConfig,
                 )
-              : await runtime.provider.startConfiguredTurn(taskId, prepared.providerInput);
+              : await runtime.provider.startConfiguredTurn(taskId, providerInput);
           return { taskId, turn, checkpoint };
         }
         const turn = await runtime.provider.startTurn(

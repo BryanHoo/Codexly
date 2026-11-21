@@ -1,5 +1,34 @@
 import { setTimeout } from "node:timers/promises";
 import type { AgentTurn } from "@codexly/protocol";
+import type { ContentBlock } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import { contentText, type AcpEventProjection } from "./event-projection.js";
+import type { AcpHistory } from "./history.js";
+
+export function persistAcpTurn(
+  history: AcpHistory,
+  projection: AcpEventProjection,
+  final: AgentTurn,
+  prompt: ContentBlock[],
+  idle: () => Promise<void>,
+): () => Promise<AgentTurn> {
+  const id = projection.taskId;
+  const userText = prompt.map(contentText).join("");
+  const fingerprint = projection.content.fingerprint(final, userText);
+  return prepareAcpHistoryCommit(
+    () => projection.content.materialize(final, history.cache.content(id), id),
+    // 保存 Agent 回执身份，恢复时可准确合并同一条发送记录及随后到达的输出。
+    (turn) =>
+      history.append(
+        id,
+        turn,
+        userText,
+        fingerprint,
+        final.status === "failed",
+        projection.acpMessageId,
+      ),
+    idle,
+  );
+}
 
 /** 只重试可能由短暂存储竞争引起的错误，不重发 ACP prompt。 */
 async function retryAcpHistoryWrite(write: () => Promise<void>): Promise<void> {

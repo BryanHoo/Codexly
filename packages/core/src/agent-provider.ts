@@ -11,6 +11,7 @@ import type {
   AcpConfigValues,
   AcpConfigOption,
   AcpSessionState,
+  AcpBackgroundTarget,
   AgentGlobalApprovalPolicy,
   AgentGlobalSettings,
   AgentEngine,
@@ -169,6 +170,8 @@ export type ReadAgentTaskInput = Readonly<{
 }>;
 
 export type AgentProviderTurnInput = Readonly<{
+  /** 已通过应用提交记录校验的发送身份，仅由 Web 服务或桌面宿主设置。 */
+  submissionKey?: string;
   files: readonly Readonly<{
     mediaType: string;
     name: string;
@@ -280,6 +283,7 @@ export interface AgentProvider {
   /** ACP 原始会话配置；所有变更仍需由任务所属 agent 校验。 */
   readSessionConfiguration?(taskId: string): Promise<AcpConfigOption[]>;
   /** 原始配置与可用命令以同一 ACP 会话为准；加载失败不得返回伪造空状态。 */
+  cancelBackground?(taskId: string, target: AcpBackgroundTarget): Promise<void>;
   readSessionState?(taskId: string): Promise<AcpSessionState>;
   setSessionConfiguration?(
     taskId: string,

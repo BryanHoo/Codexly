@@ -36,3 +36,59 @@ for (const [platform, Inspector, query, reload] of [["Web", WebInspector, webQue
     expect(client.listMcpServers).not.toHaveBeenCalled(); expect(client.retryMcpServers).not.toHaveBeenCalled(); cache.clear();
   });
 }
+
+it.each(["Web", "Native"] as const)("%s：后台任务在右栏上下文随会话状态更新", async (platform) => {
+  const { createTaskStore: createWebStore } = await import("../../../apps/web/src/features/conversation/runtime/task-store.js");
+  const { createTaskStore: createNativeStore } = await import("../../src/features/conversation/runtime/task-store.js");
+  const { createResponse: webResponse } = await import("../../../apps/web/src/features/conversation/runtime/task-store.test-support.js");
+  const { changeAppLanguage } = await import("../../../apps/web/src/i18n/i18n.js");
+  const { i18n: nativeI18n } = await import("../../src/i18n/i18n.js");
+  await changeAppLanguage("zh-CN");
+  await nativeI18n.changeLanguage("zh-CN");
+  const acpSession = {
+    configOptions: [], availableCommands: [], foreground: "idle" as const,
+    background: [
+      { kind: "terminal" as const, id: "tests", label: "pnpm test", cancellable: true },
+      { kind: "tool_call" as const, id: "watcher", label: "监视文件", cancellable: true },
+      { kind: "subagent" as const, id: "child", label: "检查变更", cancellable: false },
+    ],
+  };
+  const web = createWebStore({ projectId: "project-1", taskId: "task-1" });
+  const native = createNativeStore({ projectId: "project-1", taskId: "task-1" });
+  web.getState().hydrate(webResponse({ acpSession }));
+  native.getState().hydrate(webResponse({ acpSession }));
+  native.getState().setWriteAccess("writable");
+  const store = platform === "Web" ? web : native;
+  const Inspector = platform === "Web" ? WebInspector : NativeInspector;
+  const cancel = vi.fn(async () => ({}));
+  const cache = new QueryClient();
+  const screen = await render(
+    <QueryClientProvider client={cache}><TooltipProvider>
+      <Inspector contextOnly legacyContext={false} projectId="project-1" taskId="task-1"
+        projectName="项目" projectPath="/workspace" projectRootId="root"
+        taskStore={store as never} onCancelAcpBackground={cancel} />
+    </TooltipProvider></QueryClientProvider>,
+  );
+  await expect.element(screen.getByRole("region", { name: "后台任务" })).toBeVisible();
+  await expect.element(screen.getByText("pnpm test", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("监视文件", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("检查变更", { exact: true })).toBeVisible();
+  if (platform === "Native") native.getState().setWriteAccess("external");
+  await expect.poll(() => document.querySelector('button[aria-label="停止 pnpm test"]') !== null)
+    .toBe(platform === "Web");
+  await expect.element(screen.getByText("pnpm test", { exact: true })).toBeVisible();
+  if (platform === "Native") native.getState().setWriteAccess("writable");
+  const stopButton = screen.getByRole("button", { name: "停止 pnpm test" });
+  await expect.element(stopButton).toBeVisible();
+  expect(stopButton.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(32);
+  expect(stopButton.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(32);
+  await stopButton.click();
+  expect(cancel).toHaveBeenCalledWith({ kind: "terminal", id: "tests" });
+  const response = platform === "Web" ? webResponse({ acpSession: { ...acpSession, background: [] } }) :
+    webResponse({ acpSession: { ...acpSession, background: [] } });
+  if (platform === "Web") web.getState().hydrate(response as ReturnType<typeof webResponse>);
+  else native.getState().hydrate(response as ReturnType<typeof webResponse>);
+  await expect.element(screen.getByRole("region", { name: "后台任务" })).not.toBeInTheDocument();
+  await screen.unmount();
+  cache.clear();
+});

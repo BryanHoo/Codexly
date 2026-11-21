@@ -290,6 +290,9 @@ export const conversation = {
     fileChange:
       "{{operation}} {{name}}, {{additions}} additions, {{removals}} deletions, open Diff",
     fileOperation: {
+      move: "Renamed",
+      copy: "Copied",
+      binary: "Binary",
       create: "Created",
       delete: "Deleted",
       update: "Edited",

@@ -1,3 +1,4 @@
+import { AcpActivity } from "@codexly/ui/core/acp-activity";
 import { useMemo } from "react";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
 import {
@@ -94,6 +95,13 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     ? { ...props.capabilities, turns: { ...props.capabilities.turns, steer: false } }
     : undefined;
   return (
+    <>
+    <AcpActivity
+      key={props.taskId}
+      session={session.session}
+      turnId={props.runtime?.activeTurnId ?? null}
+      language={configuration.language}
+    />
     <WorkbenchComposerBase
       {...props}
       settings={undefined}
@@ -104,5 +112,6 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
       modelsError={null}
       fastModeAvailable={false}
     />
+    </>
   );
 }

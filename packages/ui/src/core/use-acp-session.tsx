@@ -5,10 +5,15 @@ import {
   type AcpSessionSource,
   type AcpSessionView,
 } from "@codexly/frontend-core/acp-session-binding";
-import type { AcpConfigOption, AcpSessionState } from "@codexly/protocol";
+import type { AcpBackgroundTarget, AcpConfigOption, AcpSessionState } from "@codexly/protocol";
 
 /** HTTP 与原生客户端均满足此端口；Hook 不导入任何平台传输。 */
 export interface AcpSessionClient extends AcpProfileClient {
+  cancelAcpBackground?: (
+    projectId: string,
+    taskId: string,
+    target: AcpBackgroundTarget,
+  ) => Promise<unknown>;
   getAcpSessionState: (
     projectId: string,
     taskId: string,

@@ -17,6 +17,8 @@ import {
   AcpDefaultsRequestSchema,
   AcpSessionConfigSchema,
   AcpSessionStateSchema,
+  AcpBackgroundTargetSchema,
+  type AcpBackgroundTarget,
   AcpSessionConfigRequestSchema,
   AcpProviderConfigSchema,
   AcpProviderPageSchema,
@@ -253,6 +255,39 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         throw new MutationHttpError("PROVIDER_ERROR", "ACP session state is unavailable", 503);
       return provider.readSessionState(request.params.taskId);
     },
+  );
+  app.post<{
+    Params: { projectId: string; taskId: string };
+    Body: AcpBackgroundTarget;
+    Headers: { "idempotency-key": string };
+  }>(
+    "/v1/projects/:projectId/tasks/:taskId/acp/background/cancel",
+    {
+      validatorCompiler,
+      schema: {
+        params: TaskParams,
+        body: AcpBackgroundTargetSchema,
+        headers: IdempotencyHeadersSchema,
+        response: { 200: Type.Object({}) },
+      },
+    },
+    (request) =>
+      context.runIdempotent(
+        ["acp-background-cancel", request.params.projectId, request.params.taskId],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          const provider = await taskProvider(request.params);
+          if (!provider.cancelBackground)
+            throw new MutationHttpError(
+              "PROVIDER_ERROR",
+              "ACP background cancellation is unavailable",
+              503,
+            );
+          await provider.cancelBackground(request.params.taskId, request.body);
+          return {};
+        },
+      ),
   );
   app.get<{ Params: { engine: AgentEngine } }>(
     "/v1/acp/agents/:engine",

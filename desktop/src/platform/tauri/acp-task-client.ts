@@ -1,6 +1,7 @@
 import type { AgentTaskSnapshotResponse as NativeSnapshotResponse, AgentTurn as NativeAgentTurn } from "@/protocol/index.js";
 import type {
   AcpConfigValues,
+  AcpBackgroundTarget,
   AcpConfigOption,
   AcpSessionState,
   AgentPromptInput,
@@ -50,6 +51,9 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
       },
       {},
     );
+  }
+  cancelAcpBackground(projectId: string, taskId: string, target: AcpBackgroundTarget): Promise<unknown> {
+    return this.mutateAcpTask(projectId, "session.background.cancel", { taskId, target }, {});
   }
   getAcpSessionState(
     projectId: string,

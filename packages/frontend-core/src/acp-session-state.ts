@@ -50,8 +50,8 @@ export class AcpSessionStateController {
     if (!this.#accepts(token) || !this.#snapshot) return false;
     // ACP 返回的是整份配置；保留最新命令，不把已消失的依赖选项合并回来。
     this.receive({
+      ...this.#snapshot,
       configOptions: [...configOptions],
-      availableCommands: this.#snapshot.availableCommands,
     });
     return true;
   }

@@ -26,6 +26,7 @@ export async function readAcpTaskSnapshot(
       cursor: string | null;
     }>;
     active(): AcpEventProjection | undefined;
+    needsReplay?(): Promise<boolean>;
     pending(): AgentProviderTaskSnapshot["pendingRequests"];
     contextUsage(): AgentProviderTaskSnapshot["contextUsage"];
     sessionState(): AcpSessionState | undefined;
@@ -71,14 +72,23 @@ export async function readAcpTaskSnapshot(
       });
   if (page === null)
     page = external ? { turns: [], cursor: null } : await source.history.read(task.id);
-  else if (
-    !input.cursor &&
-    !previous &&
-    task.sessionId &&
-    (page.turns.length === 0 || (task.provider === "codex" && input.checkWriteAccess === true))
-  ) {
-    await load();
-    if (!external) page = await source.history.read(task.id);
+  else if (!input.cursor && !previous && task.sessionId) {
+    const recover = !external && (await source.needsReplay?.());
+    if (recover) {
+      // 只通过原会话补齐历史。流尚未完整时保留最近一次成功保存的本地快照。
+      input.signal?.throwIfAborted();
+      const recovered = await load(true).then(
+        () => true,
+        () => false,
+      );
+      if (recovered && !external) page = await source.history.read(task.id);
+    } else if (
+      page.turns.length === 0 ||
+      (task.provider === "codex" && input.checkWriteAccess === true)
+    ) {
+      await load();
+      if (!external) page = await source.history.read(task.id);
+    }
   }
   if (external) {
     const nativePage = await readOnlyHistory();

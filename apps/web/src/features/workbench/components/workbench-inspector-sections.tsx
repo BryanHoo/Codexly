@@ -3,7 +3,8 @@ import { McpServerPanel } from "@codexly/ui/core/mcp-server-panel";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import type { AgentBackgroundTerminal, AgentMcpServer } from "@codexly/protocol";
 import { Bot, LoaderCircle, Square, SquareTerminal } from "lucide-react";
-import type { ReactNode } from "react";
+import { InspectorSection } from "@codexly/ui/core/inspector-section";
+export { InspectorSection } from "@codexly/ui/core/inspector-section";
 
 import { i18n } from "../../../i18n/i18n.js";
 import { Task, TaskTrigger } from "../../../shared/components/agent/task.js";
@@ -208,27 +209,5 @@ export function McpServerSection({
       statusLabel={(status) => i18n.t(`inspector.mcpStatus.${status}`, { ns: "conversation" })}
       toolCountLabel={(count) => i18n.t("inspector.mcpToolCount", { count, ns: "conversation" })}
     />
-  );
-}
-
-type InspectorSectionProps = Readonly<{
-  action?: ReactNode;
-  children: ReactNode;
-  icon: ReactNode;
-  title: string;
-}>;
-
-export function InspectorSection({ action, children, icon, title }: InspectorSectionProps) {
-  return (
-    <section aria-label={title}>
-      <div className="mb-2 flex min-h-7 items-center justify-between gap-2 text-xs font-medium text-foreground">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-muted-foreground">{icon}</span>
-          {title}
-        </div>
-        {action}
-      </div>
-      <div className="space-y-0.5">{children}</div>
-    </section>
   );
 }

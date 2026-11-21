@@ -1,4 +1,5 @@
 import { Type, type Static } from "@sinclair/typebox";
+import { AcpFileChangeDetailsSchema } from "@codexly/protocol";
 
 // 独立推送没有原生扩展字段，直接复用两端协议，避免重复定义。
 export { PushProjectCommitsRequestSchema, PushProjectCommitsResponseSchema,
@@ -21,6 +22,7 @@ export const AgentFileChangeSchema = Type.Object(
   {
     // Rust 已规范化为补丁；不得再按 kind 将 create/delete 当作原始文件内容。
     diff: Type.String(),
+    acp: Type.Optional(AcpFileChangeDetailsSchema),
     truncated: Type.Optional(Type.Boolean()),
     stats: FileChangeStatsSchema,
     kind: Type.Union([Type.Literal("create"), Type.Literal("update"), Type.Literal("delete")]),

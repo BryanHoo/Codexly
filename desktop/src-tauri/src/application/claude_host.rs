@@ -39,6 +39,7 @@ pub fn normalize_item(item: &mut Value) {
         let id = item["id"].clone();
         *item = json!({"id":id,"type":"reasoning","text":text});
     }
+    super::acp_view::normalize_file_change(item);
 }
 pub fn normalize_event(event: &mut Value) {
     if event["type"] == "reasoning.delta" {
@@ -337,7 +338,18 @@ impl Drop for ClaudeHost {
     }
 }
 
-pub(super) async fn snapshot_response(state: &AppState, project: &str, snapshot: Value) -> Value {
+pub(super) async fn snapshot_response(
+    state: &AppState,
+    project: &str,
+    mut snapshot: Value,
+) -> Value {
+    if snapshot["runtime"] == "acp"
+        && let Some(turns) = snapshot["turns"].as_array_mut()
+    {
+        for turn in turns {
+            super::acp_view::normalize_turn(turn);
+        }
+    }
     let sequence = state.project_sequence(project).await;
     json!({"snapshot":snapshot,"checkpoint":{"sequence":sequence,
         "sessionId":crate::infrastructure::codex::runtime_session_id()}})
