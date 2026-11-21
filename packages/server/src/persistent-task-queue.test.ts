@@ -356,6 +356,30 @@ describe("server-owned queue dispatch", () => {
 });
 
 describe("persistent queue execution recovery", () => {
+  it.each(["idle", "running"])(
+    "checks whether the task is %s before resuming after deletion of an unresolved head",
+    async (status) => {
+      const { runtime, createQueue, readTask, startTurn, steerTurn } = setup();
+      const queue = createQueue();
+      const first = await queue.add(runtime, { ...prompt, text: "First" }, "first");
+      const second = await queue.add(runtime, { ...prompt, text: "Second" }, "second");
+      startTurn.mockRejectedValueOnce(new Error("response lost"));
+      await expect(queue.start(runtime, first.id)).rejects.toThrow("response lost");
+      await expect(queue.startNext(runtime)).rejects.toThrow("blocked");
+      if (status === "running") readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+
+      await expect(queue.delete(runtime, first.id)).resolves.toBe(true);
+
+      expect(startTurn.mock.calls.map(([, input]) => input.text)).toEqual(
+        status === "idle" ? ["First", "Second"] : ["First"],
+      );
+      expect(steerTurn).not.toHaveBeenCalled();
+      expect((await queue.list(runtime)).map(({ id }) => id)).toEqual(
+        status === "idle" ? [] : [second.id],
+      );
+    },
+  );
+
   it("retries only the result write after launch succeeds", async () => {
     const { repository, runtime, createQueue, startTurn } = setup();
     const queue = createQueue();

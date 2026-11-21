@@ -133,6 +133,10 @@ export class PersistentTaskQueue {
         this.#startResults.delete(queuedSubmissionId);
         await this.#attachmentStore.releaseQueue(runtime.projectId, queuedSubmissionId);
         this.#publishChanged(runtime);
+        // 删除可能解除队首阻塞，在同一任务锁内按现有规则检查会话是否可以续发。
+        await this.#startNextUnlocked(runtime).catch(() => {
+          // 后续投递失败时保留队列的恢复状态，已持久化的删除仍返回成功。
+        });
       }
       return deleted;
     });
