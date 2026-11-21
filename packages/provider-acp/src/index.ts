@@ -1,5 +1,5 @@
 export { AcpConnection, type AcpClientCallbacks } from "./connection.js";
-export { bindAcpTask, migrateAcpSettings, selectSessionOperation } from "./migration.js";
+export { bindAcpTask, migrateAcpSettings } from "./migration.js";
 export { AcpProcess, type AcpProcessCommand } from "./process.js";
 export { AcpEventProjection } from "./event-projection.js";
 export { AcpHistory } from "./history.js";

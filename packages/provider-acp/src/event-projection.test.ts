@@ -79,7 +79,7 @@ describe("ACP 增量事件投影", () => {
   it("工具保留 ACP 输入、输出和状态，局部更新不丢失已有字段", () => {
     const { projection } = fixture();
     projection.update({
-      sessionUpdate: "tool_call",
+      sessionUpdate: "tool_call_update",
       toolCallId: "t",
       title: "读取文件",
       status: "in_progress",
@@ -107,14 +107,20 @@ describe("ACP 增量事件投影", () => {
     const { projection, events } = fixture();
     projection.update({
       sessionUpdate: "agent_thought_chunk",
+      messageId: "test-message",
       content: { type: "text", text: "思考" },
     });
     projection.update({
-      sessionUpdate: "plan",
-      entries: [{ content: "实现", priority: "high", status: "in_progress" }],
+      sessionUpdate: "plan_update",
+      plan: {
+        type: "items",
+        planId: "test-plan",
+        entries: [{ content: "实现", priority: "high", status: "in_progress" }],
+      },
     });
     projection.update({
       sessionUpdate: "agent_message_chunk",
+      messageId: "test-message",
       content: { type: "text", text: "部分回答" },
     });
     expect(events.find((event) => event.type === "reasoning.delta")?.payload).toEqual({
@@ -136,18 +142,23 @@ describe("ACP 增量事件投影", () => {
     ]);
   });
 
-  it("无 messageId 时连续正文合并，工具分隔后的文字创建新条目", () => {
+  it("相同消息 ID 合并分块，新 ID 创建新条目", () => {
     const { projection } = fixture();
     for (const text of ["A", "B"])
-      projection.update({ sessionUpdate: "agent_message_chunk", content: { type: "text", text } });
+      projection.update({
+        sessionUpdate: "agent_message_chunk",
+        messageId: "test-message",
+        content: { type: "text", text },
+      });
     projection.update({
-      sessionUpdate: "tool_call",
+      sessionUpdate: "tool_call_update",
       toolCallId: "t",
       title: "工具",
       status: "completed",
     });
     projection.update({
       sessionUpdate: "agent_message_chunk",
+      messageId: "new-message",
       content: { type: "text", text: "C" },
     });
     expect(
@@ -179,6 +190,7 @@ describe("ACP 增量事件投影", () => {
     expect(() => {
       projection.update({
         sessionUpdate: "agent_message_chunk",
+        messageId: "test-message",
         content: { type: "text", text: "迟到" },
       });
     }).toThrow("结束");

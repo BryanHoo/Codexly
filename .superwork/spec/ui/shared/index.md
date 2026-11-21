@@ -71,7 +71,7 @@
 - 未启用 Agent 继续经过 ACP 准备边界；未选 Agent 不挂载查询或启动进程。配置按 Agent 返回的 `configOptions` 原始顺序、类型和选项呈现，不硬编码模型或权限。
 - Agent 切换和设置分类导航通过共享 `SettingsSaveFeedbackProvider` 管理正在提交的保存；连接草稿可直接丢弃，不得在失焦、切页、卸载或读取时写入；会话默认值失焦自动保存，离开前等待自动保存完成。浏览器登录未完成时取消独立认证请求，不解除原有应用覆盖。
 - 回归入口：共享 `settings-navigation.test.ts`，桌面浏览器 `acp-settings-panel.browser.test.tsx`、`acp-auth-settings.browser.test.tsx`、`acp-engine-enable.browser.test.tsx`，Web `app-shell-acp-auth.spec.ts` 与 `app-shell-acp-enable.spec.ts`（390px / 1280px，三浏览器）。
-- 官方依据：[ACP 会话配置](https://agentclientprotocol.com/protocol/v1/session-config-options)、[ACP 认证](https://agentclientprotocol.com/protocol/v1/authentication)、[shadcn AI Elements](https://ui.shadcn.com/docs/ai-elements)。
+- 官方依据：[ACP 会话配置](https://agentclientprotocol.com/protocol/v2/session-config-options)、[ACP 认证](https://agentclientprotocol.com/protocol/v2/authentication)、[shadcn AI Elements](https://ui.shadcn.com/docs/ai-elements)。
 
 ### 原生认证状态
 

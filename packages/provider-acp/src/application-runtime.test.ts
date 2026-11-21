@@ -1,5 +1,6 @@
+import { testPrompt } from "./acp-v2-peer.test-support.js";
 import { withStorageCatalog } from "./storage-catalog.test-support.js";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,7 +17,7 @@ it("全局端口消费 ACP 模型与默认配置，辅助生成只连接偏好�
       b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
     const options: acp.SessionConfigOption[] = [
       {
-        id: "model",
+        configId: "model",
         name: "模型",
         type: "select",
         category: "model",
@@ -27,25 +28,31 @@ it("全局端口消费 ACP 模型与默认配置，辅助生成只连接偏好�
     const peer = acp
       .agent({ name: "global" })
       .onRequest(acp.methods.agent.initialize, () => ({
-        protocolVersion: 1,
-        agentCapabilities: { sessionCapabilities: { close: {} } },
+        protocolVersion: 2,
+        info: { name: "test-agent", version: "1" },
+        capabilities: { session: {} },
       }))
       .onRequest(acp.methods.agent.session.new, () => ({
         sessionId: "helper",
         configOptions: options,
       }))
+      .onRequest(acp.methods.agent.session.list, () => ({ sessions: [] }))
       .onRequest(acp.methods.agent.session.close, () => ({}))
       .onRequest(acp.methods.agent.session.setConfigOption, () => ({ configOptions: options }))
-      .onRequest(acp.methods.agent.session.prompt, async ({ client, params }) => {
-        await client.notify(acp.methods.client.session.update, {
-          sessionId: params.sessionId,
-          update: {
-            sessionUpdate: "agent_message_chunk",
-            content: { type: "text", text: '{"title":"修复登录"}' },
-          },
-        });
-        return { stopReason: "end_turn" };
-      })
+      .onRequest(
+        acp.methods.agent.session.prompt,
+        testPrompt(async ({ client, params }) => {
+          await client.notify(acp.methods.client.session.update, {
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              messageId: "test-message",
+              content: { type: "text", text: '{"title":"修复登录"}' },
+            },
+          });
+          return { stopReason: "end_turn" };
+        }),
+      )
       .connect({ readable: a.readable, writable: b.writable });
     const connection = await AcpConnection.connect(
       { readable: b.readable, writable: a.writable },
@@ -63,7 +70,9 @@ it("全局端口消费 ACP 模型与默认配置，辅助生成只连接偏好�
   const catalog = vi.fn((operation: string) =>
     operation === "app.preferences.read"
       ? Promise.resolve(null)
-      : Promise.reject(new Error("辅助生成不访问任务目录")),
+      : operation === "project.list" || operation === "task.bindings"
+        ? Promise.resolve([])
+        : Promise.reject(new Error("辅助生成不访问任务目录")),
   );
   const runtime = new AcpApplicationRuntime(
     root,

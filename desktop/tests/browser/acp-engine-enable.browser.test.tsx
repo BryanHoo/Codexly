@@ -106,7 +106,7 @@ for (const [platform, client] of [
         .element(screen.getByRole("button", { name: "正在准备…", exact: true }))
         .toBeDisabled();
 
-      resolve({ engine: "claude", protocolVersion: 1, authMethods: [] });
+      resolve({ engine: "claude", protocolVersion: 2, authMethods: [] });
       await expect
         .element(screen.getByRole("heading", { name: "连接配置", exact: true }))
         .toBeVisible();

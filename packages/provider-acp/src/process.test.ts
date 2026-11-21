@@ -26,16 +26,18 @@ async function script(source: string) {
   await writeFile(path, source);
   return { root, path };
 }
-const sdkUrl = import.meta.resolve("@agentclientprotocol/sdk");
+const sdkUrl = import.meta.resolve("@agentclientprotocol/sdk/experimental/v2");
 const agentSource = `
 import * as acp from ${JSON.stringify(sdkUrl)};
 import {Readable,Writable} from "node:stream";
 acp.agent({name:"fixture"})
- .onRequest(acp.methods.agent.initialize,()=>({protocolVersion:1,agentCapabilities:{loadSession:true}}))
+ .onRequest(acp.methods.agent.initialize,()=>({protocolVersion:2,info:{name:"fixture",version:"1"},capabilities:{session:{}}}))
  .onRequest(acp.methods.agent.session.new,()=>({sessionId:"native"}))
  .onRequest(acp.methods.agent.session.prompt,async({params,client})=>{
-  await client.notify(acp.methods.client.session.update,{sessionId:params.sessionId,update:{sessionUpdate:"agent_message_chunk",content:{type:"text",text:"真实 stdio"}}});
-  return {stopReason:"end_turn"};
+  await client.notify(acp.methods.client.session.update,{sessionId:params.sessionId,update:{sessionUpdate:"state_update",state:"running"}});
+  await client.notify(acp.methods.client.session.update,{sessionId:params.sessionId,update:{sessionUpdate:"agent_message_chunk",messageId:"answer",content:{type:"text",text:"真实 stdio"}}});
+  await client.notify(acp.methods.client.session.update,{sessionId:params.sessionId, update:{sessionUpdate:"state_update",state:"idle",stopReason:"end_turn"}});
+  return {messageId:"prompt"};
  })
  .connect(acp.ndJsonStream(Writable.toWeb(process.stdout),Readable.toWeb(process.stdin)));
 `;
@@ -118,7 +120,7 @@ writeFileSync("worker-pid",String(worker.pid));
         prompt: [{ type: "text", text: "你好" }],
       }),
     ).toEqual({ stopReason: "end_turn" });
-    expect(updates).toEqual(["agent_message_chunk"]);
+    expect(updates).toEqual(["state_update", "agent_message_chunk", "state_update"]);
     const pid = process.pid;
     if (pid === undefined) throw new Error("子进程缺少 PID");
     await process.close();

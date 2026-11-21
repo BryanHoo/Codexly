@@ -1,4 +1,4 @@
-import type { ContentBlock } from "@agentclientprotocol/sdk/unstable";
+import type { ContentBlock } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH } from "@codexly/protocol/application-preferences";
 
 const tag = "<codexly-global-instructions ";
@@ -10,7 +10,7 @@ export function addAcpGlobalInstructions(
   instructions: string | undefined,
 ): ContentBlock[] {
   if (!instructions?.trim()) return prompt;
-  // ACP v1 的必选文本块不依赖厂商扩展。长度字段用于重放时识别并移除客户端附加段。
+  // ACP v2 的必选文本块不依赖厂商扩展。长度字段用于重放时识别并移除客户端附加段。
   return [
     {
       type: "text",

@@ -1,4 +1,4 @@
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -24,8 +24,9 @@ async function fixture(enabled = true) {
   const peer = acp
     .agent({ name: "routing" })
     .onRequest(acp.methods.agent.initialize, () => ({
-      protocolVersion: 1,
-      agentCapabilities: enabled ? { providers: {} } : {},
+      protocolVersion: 2,
+      info: { name: "test-agent", version: "1" },
+      capabilities: enabled ? { providers: {} } : {},
     }))
     .onRequest(acp.methods.agent.providers.list, () => ({
       providers: [

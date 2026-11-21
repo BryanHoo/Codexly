@@ -1,10 +1,11 @@
+import { testPrompt, type Reason } from "./acp-v2-peer.test-support.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { LocalTask, LocalCatalogStore, CatalogOperations } from "@codexly/core";
-import type { AgentEngine } from "@codexly/protocol";
+import type { AgentEngine, AcpConfigOption } from "@codexly/protocol";
 import { AcpConnection } from "./connection.js";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
@@ -14,14 +15,16 @@ afterEach(async () => {
 });
 export async function fixture(
   engine: AgentEngine,
-  handler?: (context: acp.AgentRequestContext<acp.PromptRequest>) => Promise<acp.PromptResponse>,
+  handler?: (
+    context: acp.AgentRequestContext<acp.PromptRequest>,
+  ) => Promise<{ stopReason: Reason }>,
   initializeSession?: (
     connection: AcpConnection,
     sessionId: string,
-    options: acp.SessionConfigOption[],
-  ) => Promise<acp.SessionConfigOption[]>,
+    options: AcpConfigOption[],
+  ) => Promise<AcpConfigOption[]>,
   management?: {
-    capabilities?: acp.InitializeResponse["agentCapabilities"];
+    capabilities?: acp.InitializeResponse["capabilities"];
     deleteSession?: (sessionId: string) => Record<string, never> | Promise<Record<string, never>>;
   },
 ) {
@@ -52,7 +55,7 @@ export async function fixture(
     configOptions: [],
   }));
   const loaded = vi.fn(
-    async ({ params, client }: acp.AgentRequestContext<acp.LoadSessionRequest>) => {
+    async ({ params, client }: acp.AgentRequestContext<acp.ResumeSessionRequest>) => {
       await client.notify(acp.methods.client.session.update, {
         sessionId: params.sessionId,
         update: {
@@ -78,32 +81,47 @@ export async function fixture(
   const app = acp
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
-      protocolVersion: 1,
-      agentCapabilities: management?.capabilities ?? {
-        loadSession: true,
-        sessionCapabilities: { close: {} },
+      protocolVersion: 2,
+      info: { name: "test-agent", version: "1" },
+      capabilities: management?.capabilities ?? {
+        session: {},
       },
     }))
     .onRequest(acp.methods.agent.session.new, created)
     .onRequest(acp.methods.agent.session.close, closed)
-    .onRequest(acp.methods.agent.session.resume, resumed)
     .onRequest(acp.methods.agent.session.delete, ({ params }) => {
       if (!management?.deleteSession) throw new Error("未配置测试删除处理器");
       return management.deleteSession(params.sessionId);
     })
-    .onRequest(acp.methods.agent.session.load, loaded)
-    .onRequest(acp.methods.agent.session.prompt, async (context) => {
-      if (handler) return handler(context);
-      const { params, client } = context;
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: "ACP 回答" },
-        },
+    .onRequest(acp.methods.agent.session.resume, async (context) => {
+      const result = context.params.replayFrom ? await loaded(context) : resumed(context);
+      if (context.params.replayFrom)
+        await context.client.notify(acp.methods.client.session.update, {
+          sessionId: context.params.sessionId,
+          update: { sessionUpdate: "replay_complete" },
+        });
+      await context.client.notify(acp.methods.client.session.update, {
+        sessionId: context.params.sessionId,
+        update: { sessionUpdate: "state_update", state: "idle" },
       });
-      return { stopReason: "end_turn" };
-    });
+      return result;
+    })
+    .onRequest(
+      acp.methods.agent.session.prompt,
+      testPrompt(async (context) => {
+        if (handler) return handler(context);
+        const { params, client } = context;
+        await client.notify(acp.methods.client.session.update, {
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            messageId: "test-message",
+            content: { type: "text", text: "ACP 回答" },
+          },
+        });
+        return { stopReason: "end_turn" };
+      }),
+    );
   const history = new AcpHistory(directory);
   const provider = new AcpAgentProvider(
     engine,

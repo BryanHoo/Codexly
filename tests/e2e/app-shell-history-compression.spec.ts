@@ -17,7 +17,7 @@ for (const mobile of [false, true]) {
       route.fulfill({ json: createAcpCapabilities("codex") }),
     );
     await page.route("**/v1/acp/agents/codex", (route) =>
-      route.fulfill({ json: { engine: "codex", protocolVersion: 1, authMethods: [] } }),
+      route.fulfill({ json: { engine: "codex", protocolVersion: 2, authMethods: [] } }),
     );
     await page.route("**/v1/acp/agents/codex/defaults", (route) =>
       route.fulfill({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
-import { migrateAcpSettings, bindAcpTask, selectSessionOperation } from "./migration.js";
+import type { AcpConfigOption as SessionConfigOption } from "@codexly/protocol";
+import { migrateAcpSettings, bindAcpTask } from "./migration.js";
 
 const options: SessionConfigOption[] = [
   {
@@ -58,23 +58,6 @@ describe("ACP 历史和配置迁移", () => {
     expect(() =>
       bindAcpTask({ id: "a", provider: "unknown", sessionId: "s", cwd: "/workspace" }),
     ).toThrow("引擎");
-  });
-
-  it("只有未绑定任务才新建，旧任务不支持恢复时失败", () => {
-    expect(selectSessionOperation(null, {}, true)).toBe("new");
-    expect(selectSessionOperation("old", { loadSession: true }, true)).toBe("load");
-    expect(
-      selectSessionOperation(
-        "old",
-        { loadSession: true, sessionCapabilities: { resume: {} } },
-        false,
-      ),
-    ).toBe("resume");
-    expect(selectSessionOperation("old", { loadSession: true }, false)).toBe("load");
-    expect(() => selectSessionOperation("old", {}, true)).toThrow("历史");
-    expect(() =>
-      selectSessionOperation("old", { sessionCapabilities: { resume: {} } }, true),
-    ).toThrow("历史");
   });
 
   it("按协商值迁移模型和思考，保留未知配置且不修改原对象", () => {

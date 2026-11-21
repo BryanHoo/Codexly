@@ -1,7 +1,8 @@
+import type { AcpConfigOption } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import type * as acp from "@agentclientprotocol/sdk/unstable";
+import type * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpTaskManagement } from "./task-management.js";
 import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { readAcpTaskSnapshot, readAcpTaskSessionState } from "./task-snapshot.js";
@@ -77,9 +78,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     readonly initializeSession?: (
       connection: AcpConnection,
       sessionId: string,
-      options: acp.SessionConfigOption[],
+      options: AcpConfigOption[],
       saved?: AcpStoredSettings,
-    ) => Promise<acp.SessionConfigOption[]>,
+    ) => Promise<AcpConfigOption[]>,
     readonly initialization?: AcpSessionInitialization,
   ) {
     this.#historyUse = new AcpHistoryUse(history);
@@ -98,7 +99,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
             : Promise.resolve({ outcome: { outcome: "cancelled" } });
         },
       },
-      // 回合得到 Agent 响应后仍占用连接，直到其历史成功落盘。
       () => this.#operations.size === 0 && this.#active.size === 0,
       () => {
         this.#needsDefaults.clear();
@@ -171,7 +171,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       .catch(() => undefined);
     return operation;
   }
-  async #update(notification: acp.SessionNotification): Promise<void> {
+  async #update(notification: acp.UpdateSessionNotification): Promise<void> {
     const replay = this.#replays.get(notification.sessionId);
     if (replay) {
       await replay.update(notification.update);
@@ -181,7 +181,11 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     if (!task) return;
     const active = this.#active.get(task);
     // 本地投影已有原始用户输入，实时回显可能含应用指令或由 Agent 展开的附件。
-    if (active?.running && notification.update.sessionUpdate !== "user_message_chunk")
+    if (
+      active?.running &&
+      notification.update.sessionUpdate !== "user_message_chunk" &&
+      notification.update.sessionUpdate !== "user_message"
+    )
       active.update(notification.update);
   }
   readonly #emitSessionState = (sessionId: string, state: AcpSessionMetadata): void => {
@@ -258,7 +262,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         if (bound) agent.assertSessionReady(bound);
         const prompt = await createAcpPrompt(
           input,
-          agent.initialization.agentCapabilities?.promptCapabilities ?? {},
+          agent.initialization.capabilities?.session?.prompt ?? {},
           join(
             this.history.directory,
             "attachments",
@@ -312,10 +316,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           this.#active.delete(id);
           signal.throwIfAborted();
         }
-        // ACP prompt 的响应直到回合结束才返回；提交立即返回，持续输出走已有事件通道。
         submitted();
         const settlement = agent
-          .prompt({ sessionId, prompt })
+          .prompt({ sessionId, prompt, idempotencyKey: projection.turnId })
           .then(
             (result) => projection.finish(result.stopReason),
             (error: unknown) =>
@@ -412,14 +415,14 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       return agent.readSessionState(session);
     });
   }
-  readSessionConfiguration(id: string): Promise<acp.SessionConfigOption[]> {
+  readSessionConfiguration(id: string): Promise<AcpConfigOption[]> {
     return this.readSessionState(id).then((state) => state.configOptions);
   }
   async setSessionConfiguration(
     id: string,
     configId: string,
     value: string | boolean,
-  ): Promise<acp.SessionConfigOption[]> {
+  ): Promise<AcpConfigOption[]> {
     return this.#serial(id, async () => {
       const agent = await this.#load(await this.#task(id));
       const options = await applyAcpConfig(
@@ -463,7 +466,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       const agent = await this.#link.get();
       const current = this.#active.get(id);
       if (!current?.running || current.turnId !== turnId) return;
-      this.#permissions.cancelTurn(id, turnId);
       await agent.cancel(session);
     });
   }

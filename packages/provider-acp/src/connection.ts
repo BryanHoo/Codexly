@@ -1,9 +1,17 @@
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import { projectAcpConfig } from "./session-options.js";
+import type { AcpConfigOption } from "@codexly/protocol";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 
 const CANCEL_GRACE_MS = 5_000;
 const SESSION_CAPACITY = 64;
+
+interface ActivePrompt {
+  terminal: PromiseWithResolvers<acp.IdleStateUpdate | null>;
+  abandoned: PromiseWithResolvers<never>;
+  observedForeground: boolean;
+}
 
 interface PendingCancellation {
   sent: boolean;
@@ -14,7 +22,7 @@ interface PendingCancellation {
 
 export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
-  onUpdate?(notification: acp.SessionNotification): void | Promise<void>;
+  onUpdate?(notification: acp.UpdateSessionNotification): void | Promise<void>;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
   requestPermission?(
     request: acp.RequestPermissionRequest,
@@ -24,7 +32,7 @@ export interface AcpClientCallbacks {
 
 /** 仅对接 ACP 稳定接口，不解释 Codex 或 Claude 的私有协议。 */
 export class AcpConnection {
-  readonly #activePrompts = new Map<string, (error: Error) => void>();
+  readonly #activePrompts = new Map<string, ActivePrompt>();
   readonly #cancellations = new Map<string, PendingCancellation>();
   readonly #sessions = new Set<string>();
   #pendingBindings = 0;
@@ -34,15 +42,19 @@ export class AcpConnection {
     readonly transport: acp.ClientConnection,
     readonly drainUpdates: () => Promise<void>,
     private readonly authStatus: AcpAuthStatusTracker,
+    private readonly replaying: Map<string, boolean>,
     private readonly metadata: AcpSessionMetadataStore,
     private readonly updateConfiguration: (
       sessionId: string,
-      options: acp.SessionConfigOption[],
+      options: AcpConfigOption[],
+      commands?: acp.AvailableCommand[],
     ) => Promise<void>,
   ) {
-    void transport.closed.then(() => {
+    const release = () => {
+      for (const active of this.#activePrompts.values()) active.terminal.resolve(null);
       for (const cancellation of this.#cancellations.values()) cancellation.finish();
-    });
+    };
+    void transport.closed.then(release, release);
   }
 
   static async connect(
@@ -51,6 +63,8 @@ export class AcpConnection {
     options: { handshakeTimeoutMs?: number } = {},
   ): Promise<AcpConnection> {
     let updates = Promise.resolve();
+    let connection: AcpConnection | undefined;
+    const replaying = new Map<string, boolean>();
     const metadata = new AcpSessionMetadataStore();
     const authStatus = new AcpAuthStatusTracker();
     const enqueue = (operation: () => void | Promise<void>) => {
@@ -89,7 +103,11 @@ export class AcpConnection {
         return enqueue(async () => {
           const state = metadata.update(params);
           if (state) await callbacks.onSessionState?.(params.sessionId, state);
-          return callbacks.onUpdate?.(params);
+          await callbacks.onUpdate?.(params);
+          const { sessionId, update } = params;
+          if (update.sessionUpdate === "replay_complete" && replaying.has(sessionId))
+            replaying.set(sessionId, true);
+          connection?.observePrompt(sessionId, update);
         });
       })
       .onRequest(acp.methods.client.session.requestPermission, ({ params, signal }) => {
@@ -108,9 +126,9 @@ export class AcpConnection {
     try {
       const initialization = await transport.agent.request(acp.methods.agent.initialize, {
         protocolVersion: acp.PROTOCOL_VERSION,
-        clientInfo: { name: "codexly", version: "0.53.0" },
+        info: { name: "codexly", version: "0.53.0" },
         // 文件与终端由 agent 自行执行，只有实现了对应客户端方法才能声明能力。
-        clientCapabilities: { session: { configOptions: { boolean: {} } } },
+        capabilities: {},
       });
       if (initialization.protocolVersion !== acp.PROTOCOL_VERSION)
         throw new Error(`不支持 ACP 协议版本 ${String(initialization.protocolVersion)}`);
@@ -124,18 +142,20 @@ export class AcpConnection {
           metadata.clear();
         },
       );
-      return new AcpConnection(
+      connection = new AcpConnection(
         initialization,
         transport,
         () => updates,
         authStatus,
+        replaying,
         metadata,
-        (id, options) =>
+        (id, options, commands) =>
           enqueue(async () => {
-            const state = metadata.configure(id, options);
+            const state = metadata.configure(id, options, commands);
             if (state) await callbacks.onSessionState?.(id, state);
           }),
       );
+      return connection;
     } catch (error) {
       transport.close(error);
       throw error;
@@ -151,8 +171,7 @@ export class AcpConnection {
     return this.#sessions.size + this.#pendingBindings >= SESSION_CAPACITY;
   }
   get canRestoreSessions(): boolean {
-    const capabilities = this.initialization.agentCapabilities;
-    return capabilities?.loadSession === true || Boolean(capabilities?.sessionCapabilities?.resume);
+    return Boolean(this.initialization.capabilities?.session);
   }
 
   assertSessionReady(sessionId: string): void {
@@ -180,7 +199,7 @@ export class AcpConnection {
     return [...this.#sessions].every((id) => this.#cancellations.get(id)?.timedOut);
   }
   readAuthStatus() {
-    const marker = this.initialization.agentCapabilities?._meta?.["authStatus"];
+    const marker = this.initialization.capabilities?._meta?.["authStatus"];
     return this.authStatus.read(marker !== undefined && marker !== null);
   }
   readSessionState(sessionId: string): AcpSessionMetadata {
@@ -189,7 +208,7 @@ export class AcpConnection {
   readSessionUsage(sessionId: string | undefined) {
     return sessionId ? this.metadata.readUsage(sessionId) : null;
   }
-  cacheSessionConfiguration(sessionId: string, options: acp.SessionConfigOption[]): Promise<void> {
+  cacheSessionConfiguration(sessionId: string, options: AcpConfigOption[]): Promise<void> {
     // 默认值初始化只能提交已经由 ACP 响应确认的完整选项，不建立另一份配置缓存。
     return this.updateConfiguration(sessionId, options);
   }
@@ -198,56 +217,50 @@ export class AcpConnection {
     this.metadata.delete(sessionId);
   }
 
-  async newSession(request: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
+  async newSession(
+    request: acp.NewSessionRequest,
+  ): Promise<Omit<acp.NewSessionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }> {
     this.#beginBinding();
     try {
       const result = await this.transport.agent.request(acp.methods.agent.session.new, request);
+      const configOptions = projectAcpConfig(result.configOptions ?? []);
       await this.updateConfiguration(
         result.sessionId,
-        result.configOptions ?? this.metadata.read(result.sessionId).configOptions,
+        configOptions,
+        result.availableCommands ?? [],
       );
       this.#sessions.add(result.sessionId);
       await this.drainUpdates();
-      return result;
+      return { ...result, configOptions };
     } finally {
       this.#finishBinding();
     }
   }
 
-  async loadSession(request: acp.LoadSessionRequest): Promise<acp.LoadSessionResponse> {
-    if (!this.initialization.agentCapabilities?.loadSession)
-      throw new Error("此 ACP agent 不支持 session/load，无法加载原会话");
-    return this.#restoreSession(request.sessionId, () =>
-      this.transport.agent.request(acp.methods.agent.session.load, request),
-    );
-  }
-
-  async resumeSession(request: acp.ResumeSessionRequest): Promise<acp.ResumeSessionResponse> {
-    if (!this.initialization.agentCapabilities?.sessionCapabilities?.resume)
-      throw new Error("此 ACP agent 不支持 session/resume，无法恢复原会话");
-    return this.#restoreSession(request.sessionId, () =>
-      this.transport.agent.request(acp.methods.agent.session.resume, request),
-    );
-  }
-
-  async #restoreSession<T extends acp.LoadSessionResponse | acp.ResumeSessionResponse>(
-    sessionId: string,
-    restore: () => Promise<T>,
-  ): Promise<T> {
+  async resumeSession(
+    request: acp.ResumeSessionRequest,
+  ): Promise<
+    Omit<acp.ResumeSessionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }
+  > {
+    const { sessionId, replayFrom } = request;
+    if (!this.canRestoreSessions) throw new Error("ACP Agent 未声明会话能力");
     this.assertSessionReady(sessionId);
     if (this.#activePrompts.has(sessionId)) throw new Error("会话正在进行中");
     // 必须保持原生会话身份；错误直接返回，禁止回退 newSession 丢失上下文。
     this.#beginBinding(sessionId);
+    if (replayFrom) this.replaying.set(sessionId, false);
     try {
-      const result = await restore();
-      await this.updateConfiguration(
-        sessionId,
-        result.configOptions ?? this.metadata.read(sessionId).configOptions,
-      );
-      this.#sessions.add(sessionId);
+      const result = await this.transport.agent.request(acp.methods.agent.session.resume, request);
       await this.drainUpdates();
-      return result;
+      // v2 用显式边界区分历史回放与实时事件，缺少边界时保留原历史。
+      if (replayFrom && !this.replaying.get(sessionId))
+        throw new Error("ACP 历史回放未收到 replay_complete");
+      const configOptions = projectAcpConfig(result.configOptions ?? []);
+      await this.updateConfiguration(sessionId, configOptions, result.availableCommands ?? []);
+      this.#sessions.add(sessionId);
+      return { ...result, configOptions };
     } finally {
+      this.replaying.delete(sessionId);
       this.#finishBinding();
     }
   }
@@ -262,52 +275,84 @@ export class AcpConnection {
     if (--this.#pendingBindings === 0) this.metadata.retain(this.#sessions);
   }
 
-  async prompt(request: acp.PromptRequest): Promise<acp.PromptResponse> {
+  private observePrompt(sessionId: string, update: acp.SessionUpdate): void {
+    const active = this.#activePrompts.get(sessionId);
+    if (!active) return;
+    // Agent 可能重复报告上一回合的 idle。先观察收到新消息或前台状态，再接受终态。
+    if (update.sessionUpdate === "user_message" || update.sessionUpdate === "user_message_chunk") {
+      active.observedForeground = true;
+      return;
+    }
+    if (update.sessionUpdate !== "state_update" || !acp.SessionUpdate.isStateUpdate(update)) return;
+    if (update.state === "running" || update.state === "requires_action")
+      active.observedForeground = true;
+    else if (active.observedForeground && acp.StateUpdate.isIdle(update))
+      active.terminal.resolve(update);
+  }
+
+  async prompt(request: acp.PromptRequest): Promise<{ stopReason: string }> {
     const id = request.sessionId;
     this.assertSessionReady(id);
     if (!this.#sessions.has(id)) throw new Error("ACP 会话尚未加载");
     if (this.#activePrompts.has(id)) throw new Error("会话已有输入进行中");
-    const abandoned = Promise.withResolvers<never>();
-    this.#activePrompts.set(id, abandoned.reject);
-    // 本地超时可以结束目标回合，但原请求仍持有会话，直到 Agent 确认或连接被安全回收。
+    const active: ActivePrompt = {
+      terminal: Promise.withResolvers<acp.IdleStateUpdate | null>(),
+      abandoned: Promise.withResolvers<never>(),
+      observedForeground: false,
+    };
+    this.#activePrompts.set(id, active);
+    // 回执只确认消息写入。等待前台终态以及此前的增量投影完成后再结算本地回合。
     const response = this.transport.agent
       .request(acp.methods.agent.session.prompt, request)
-      .then(async (result) => {
-        await this.drainUpdates();
-        return result;
+      .then(async () => {
+        const terminal = await active.terminal.promise;
+        if (!terminal) throw new Error("ACP 连接已关闭，回合结果未知");
+        if (terminal.stopReason === "error")
+          throw new Error(
+            "error" in terminal &&
+              typeof terminal.error === "object" &&
+              terminal.error !== null &&
+              "message" in terminal.error &&
+              typeof terminal.error.message === "string"
+              ? terminal.error.message
+              : "ACP 回合执行失败",
+          );
+        if (!terminal.stopReason) throw new Error("ACP Agent 未报告回合停止原因");
+        return { stopReason: terminal.stopReason };
       })
       .finally(() => {
         this.#activePrompts.delete(id);
         const cancellation = this.#cancellations.get(id);
         if (cancellation?.sent) cancellation.finish();
       });
-    return Promise.race([response, abandoned.promise]);
+    return Promise.race([response, active.abandoned.promise]);
   }
 
   async setConfigOption(
     sessionId: string,
     configId: string,
     value: string | boolean,
-  ): Promise<acp.SetSessionConfigOptionResponse> {
+  ): Promise<
+    Omit<acp.SetSessionConfigOptionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }
+  > {
     this.assertSessionReady(sessionId);
     if (!this.#sessions.has(sessionId)) throw new Error("ACP 会话尚未加载");
     const request: acp.SetSessionConfigOptionRequest =
       typeof value === "boolean"
         ? { sessionId, configId, type: "boolean", value }
-        : { sessionId, configId, value };
+        : { sessionId, configId, type: "id", value };
     const result = await this.transport.agent.request(
       acp.methods.agent.session.setConfigOption,
       request,
     );
-    await this.updateConfiguration(sessionId, result.configOptions);
+    const configOptions = projectAcpConfig(result.configOptions);
+    await this.updateConfiguration(sessionId, configOptions);
     await this.drainUpdates();
-    return result;
+    return { configOptions };
   }
 
   async closeSession(sessionId: string): Promise<void> {
     this.assertSessionReady(sessionId);
-    if (!this.initialization.agentCapabilities?.sessionCapabilities?.close)
-      throw new Error("ACP agent 不支持 session/close");
     try {
       await this.transport.agent.request(acp.methods.agent.session.close, { sessionId });
     } catch (error) {
@@ -319,7 +364,7 @@ export class AcpConnection {
 
   async deleteSession(sessionId: string): Promise<void> {
     this.assertSessionReady(sessionId);
-    if (!this.initialization.agentCapabilities?.sessionCapabilities?.delete)
+    if (!this.initialization.capabilities?.session?.delete)
       throw new Error("ACP agent 不支持原生会话删除");
     try {
       await this.transport.agent.request(acp.methods.agent.session.delete, { sessionId });
@@ -339,7 +384,8 @@ export class AcpConnection {
       if (cancellation.timedOut) return;
       cancellation.timedOut = true;
       clearTimeout(timer);
-      this.#activePrompts.get(sessionId)?.(new Error("Agent 未确认取消，回合结果未知"));
+      const active = this.#activePrompts.get(sessionId);
+      if (active) active.abandoned.reject(new Error("Agent 未确认取消，回合结果未知"));
       finished.resolve(undefined);
       if (this.#allSessionsAbandoned()) this.recycleAbandoned();
     };

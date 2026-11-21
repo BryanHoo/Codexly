@@ -23,7 +23,7 @@ for (const [platform, Frame] of [
       const client = {
         getAcpAgent: vi.fn(async () => ({
           engine: "codex" as const,
-          protocolVersion: 1,
+          protocolVersion: 2,
           authMethods: [],
         })),
         getAcpDefaults: vi.fn(async () => ({
@@ -81,7 +81,7 @@ for (const [platform, Frame] of [
     const client = {
       getAcpAgent: vi.fn(async () => ({
         engine: "codex" as const,
-        protocolVersion: 1,
+        protocolVersion: 2,
         authMethods: [],
       })),
       getAcpDefaults: vi.fn(() => new Promise<never>(() => {})),

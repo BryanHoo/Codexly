@@ -92,7 +92,7 @@ export async function inspectOfficialAcpAgents(environment: NodeJS.ProcessEnv) {
       const initialized = handle.connection.initialization;
       profiles.push({
         engine,
-        name: initialized.agentInfo?.name ?? engine,
+        name: initialized.info.name,
         protocolVersion: initialized.protocolVersion,
       });
     } finally {

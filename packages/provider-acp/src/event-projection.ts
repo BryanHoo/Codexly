@@ -1,10 +1,9 @@
-import type {
+import {
   ContentBlock,
   SessionUpdate,
-  StopReason,
-  ToolCall,
-  ToolCallUpdate,
-} from "@agentclientprotocol/sdk/unstable";
+  type ToolCallUpdate,
+  PlanUpdateContent,
+} from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@codexly/protocol";
 import { AcpTurnContent } from "./turn-content.js";
@@ -12,7 +11,15 @@ import { acpContextUsage } from "./context-usage.js";
 
 type TextUpdate = Extract<
   SessionUpdate,
-  { sessionUpdate: "agent_message_chunk" | "user_message_chunk" | "agent_thought_chunk" }
+  {
+    sessionUpdate:
+      | "agent_message_chunk"
+      | "user_message_chunk"
+      | "agent_thought_chunk"
+      | "agent_message"
+      | "user_message"
+      | "agent_thought";
+  }
 >;
 
 /** 仅映射 ACP 更新；正文按条目追加，不在每个 token 复制完整历史或写入存储。 */
@@ -24,9 +31,8 @@ export class AcpEventProjection {
   #completedAt: string | null = null;
   #status: AgentTurn["status"] = "running";
   #error: string | null = null;
-  #stopReason: StopReason | undefined;
-  #anonymous = 0;
-  #current: { kind: string; id: string } | undefined;
+  #stopReason: string | undefined;
+  #planId: string | undefined;
   #settlementError: string | undefined;
   #published = false;
   plan: AgentPlan | null = null;
@@ -52,7 +58,6 @@ export class AcpEventProjection {
       ...(attachments.length ? { attachments } : {}),
     };
     this.#items.set(id, item);
-    this.#current = { kind: "user", id };
     this.#emitItem("item.started", item);
   }
 
@@ -64,51 +69,74 @@ export class AcpEventProjection {
           type: "usage.updated",
           taskId: this.taskId,
           turnId: this.turnId,
-          payload: { usage: acpContextUsage(update) },
+          payload: {
+            usage: acpContextUsage(
+              update as Extract<SessionUpdate, { sessionUpdate: "usage_update" }>,
+            ),
+          },
         });
         break;
+      case "agent_message":
+      case "user_message":
+      case "agent_thought":
       case "agent_message_chunk":
       case "user_message_chunk":
       case "agent_thought_chunk":
-        this.#text(update);
+        this.#text(update as TextUpdate);
         break;
-      case "tool_call":
       case "tool_call_update":
-        this.#current = undefined;
-        this.#tool(update);
+        this.#tool(update as ToolCallUpdate);
         break;
-      case "plan": {
-        this.plan = {
-          explanation: null,
-          steps: update.entries.map((entry) => ({ text: entry.content, status: entry.status })),
-        };
-        this.emit({
-          type: "plan.updated",
-          taskId: this.taskId,
-          turnId: this.turnId,
-          payload: { plan: structuredClone(this.plan) },
-        });
+      case "plan_update": {
+        if (!SessionUpdate.isPlanUpdate(update)) break;
+        const plan = update.plan;
+        if (!PlanUpdateContent.isItems(plan) && !PlanUpdateContent.isMarkdown(plan)) break;
+        this.#planId = plan.planId;
+        this.plan = PlanUpdateContent.isItems(plan)
+          ? {
+              explanation: null,
+              steps: plan.entries.map((entry) => ({
+                text: entry.content,
+                status:
+                  entry.status === "in_progress" || entry.status === "completed"
+                    ? entry.status
+                    : "pending",
+              })),
+            }
+          : { explanation: plan.content, steps: [] };
+        this.#emitPlan(this.plan);
         break;
       }
+      case "plan_removed":
+        if (this.#planId === update.planId) {
+          this.plan = null;
+          this.#planId = undefined;
+          this.#emitPlan({ explanation: null, steps: [] });
+        }
+        break;
       // 配置、命令及会话元数据由 Provider 维护，不伪造成聊天正文。
       default:
         break;
     }
   }
 
+  #emitPlan(plan: AgentPlan): void {
+    this.emit({
+      type: "plan.updated",
+      taskId: this.taskId,
+      turnId: this.turnId,
+      payload: { plan: structuredClone(plan) },
+    });
+  }
+
   #text(update: TextUpdate): void {
     const kind =
-      update.sessionUpdate === "agent_thought_chunk"
+      update.sessionUpdate === "agent_thought_chunk" || update.sessionUpdate === "agent_thought"
         ? "thought"
-        : update.sessionUpdate === "user_message_chunk"
+        : update.sessionUpdate === "user_message_chunk" || update.sessionUpdate === "user_message"
           ? "user"
           : "assistant";
-    const id = update.messageId
-      ? `acp:message:${kind}:${update.messageId}`
-      : this.#current?.kind === kind
-        ? this.#current.id
-        : `acp:message:${kind}:anonymous-${String(++this.#anonymous)}`;
-    this.#current = { kind, id };
+    const id = `acp:message:${kind}:${update.messageId}`;
     let item = this.#items.get(id);
     if (!item) {
       item =
@@ -118,7 +146,25 @@ export class AcpEventProjection {
       this.#items.set(id, item);
       this.#emitItem("item.started", item);
     }
-    const delta = this.content.text(id, contentText(update.content), kind === "thought");
+    // 完整消息按 ID 替换既有正文，后续分块继续追加。空内容也必须清除旧投影。
+    const content = update.content;
+    if (content === undefined) return;
+    if (content === null || Array.isArray(content)) {
+      const previous =
+        item.type === "message" ? item.text : item.type === "reasoning" ? item.summary : "";
+      const text = this.content.replaceText(
+        id,
+        previous,
+        (content ?? []).map(contentText).join(""),
+        kind === "thought",
+      );
+      if (item.type === "message") item = { ...item, text };
+      else if (item.type === "reasoning") item = { ...item, summary: text };
+      this.#items.set(id, item);
+      this.#emitItem("item.started", item);
+      return;
+    }
+    const delta = this.content.text(id, contentText(content), kind === "thought");
     if (!delta) return;
     if (item.type === "reasoning") {
       // ACP 主动公开的 thought 属于可展示摘要；旧 content 字段不参与两端展示。
@@ -142,16 +188,30 @@ export class AcpEventProjection {
     }
   }
 
-  #tool(update: ToolCall | ToolCallUpdate): void {
+  #tool(update: ToolCallUpdate): void {
     const id = `acp:tool:${update.toolCallId}`;
     const previous = this.#items.get(id);
     const old = previous?.type === "tool" ? previous : undefined;
     const status =
-      update.status === "in_progress" ? "running" : (update.status ?? old?.status ?? "pending");
+      update.status === "in_progress"
+        ? "running"
+        : update.status === "cancelled"
+          ? "interrupted"
+          : update.status === "paused"
+            ? "running"
+            : update.status === undefined
+              ? (old?.status ?? "pending")
+              : update.status === "completed" || update.status === "failed"
+                ? update.status
+                : "pending";
     const item: AgentItem = {
       id,
       type: "tool",
-      name: update.title ?? old?.name ?? update.toolCallId,
+      name:
+        update.title ??
+        update.name ??
+        (update.title === undefined ? old?.name : undefined) ??
+        update.toolCallId,
       status,
       ...(old && "input" in old ? { input: old.input } : {}),
       ...(old && "output" in old ? { output: old.output } : {}),
@@ -165,7 +225,7 @@ export class AcpEventProjection {
           : {}),
     };
     this.#items.set(id, item);
-    const completed = status === "completed" || status === "failed";
+    const completed = status === "completed" || status === "failed" || status === "interrupted";
     this.#emitItem(completed ? "item.completed" : "item.started", item);
     if (completed) this.#finished.add(id);
   }
@@ -202,7 +262,7 @@ export class AcpEventProjection {
     });
   }
 
-  finish(reason: StopReason): AgentTurn {
+  finish(reason: string): AgentTurn {
     if (!this.running) return this.snapshot();
     this.#stopReason = reason;
     // 拒绝也是可展示的完整答复；取消及配额截断保留部分正文并显示中断。
@@ -263,16 +323,11 @@ export class AcpEventProjection {
 }
 
 export function contentText(content: ContentBlock): string {
-  switch (content.type) {
-    case "text":
-      return content.text;
-    case "resource_link":
-      return `[${content.name}](${content.uri})`;
-    case "resource":
-      return "text" in content.resource ? content.resource.text : "[资源]";
-    case "image":
-      return "[图片]";
-    case "audio":
-      return "[音频]";
-  }
+  if (ContentBlock.isText(content)) return content.text;
+  if (ContentBlock.isResourceLink(content)) return `[${content.name}](${content.uri})`;
+  if (ContentBlock.isResource(content))
+    return "text" in content.resource ? content.resource.text : "[资源]";
+  if (ContentBlock.isImage(content)) return "[图片]";
+  if (ContentBlock.isAudio(content)) return "[音频]";
+  return "";
 }

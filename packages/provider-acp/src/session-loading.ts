@@ -1,4 +1,5 @@
-import { RequestError, type SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
+import type { AcpConfigOption } from "@codexly/protocol";
+import { RequestError } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { LocalTask, LocalCatalogStore } from "@codexly/core";
 import type { AcpConnection } from "./connection.js";
 import type { AcpHistory } from "./history.js";
@@ -20,9 +21,9 @@ interface Loader {
   initialize?(
     connection: AcpConnection,
     sessionId: string,
-    options: SessionConfigOption[],
+    options: AcpConfigOption[],
     saved?: AcpStoredSettings,
-  ): Promise<SessionConfigOption[]>;
+  ): Promise<AcpConfigOption[]>;
   updated(connection: AcpConnection, sessionId: string): void;
 }
 
@@ -55,8 +56,6 @@ export async function loadAcpSession(
   source: Loader,
 ): Promise<AcpConnection> {
   const connection = await source.agent();
-  if (source.repairHistory && !connection.initialization.agentCapabilities?.loadSession)
-    throw new Error("本地 ACP 历史损坏，Agent 不支持 session/load，无法重建对话");
   const journal = source.ephemeral ? undefined : source.initialization;
   const publishBinding = async (sessionId: string) => {
     if (task.sessionId === sessionId) return;
@@ -90,9 +89,7 @@ export async function loadAcpSession(
     source.needsDefaults.delete(task.id);
   };
   const bound = source.sessions.get(task.id);
-  const evicted =
-    connection.initialization.agentCapabilities?.loadSession &&
-    (await source.history.cache.wasEvicted(task.id));
+  const evicted = await source.history.cache.wasEvicted(task.id);
   if (bound && !source.repairHistory && !evicted) {
     // 目录回执失败时先确认已落盘的初始化意图，再发布同一绑定；禁止创建替代会话。
     if (source.needsDefaults.has(task.id)) await journal?.prepare(task, bound);
@@ -100,8 +97,6 @@ export async function loadAcpSession(
     await initialize(bound);
     return connection;
   }
-  if (source.ephemeral && !connection.initialization.agentCapabilities?.sessionCapabilities?.close)
-    throw new Error("ACP agent 不支持辅助会话关闭");
   if (task.sessionId === null) {
     const session = await connection.newSession({ cwd: task.cwd, mcpServers: [] });
     source.sessions.set(task.id, session.sessionId);
@@ -112,24 +107,18 @@ export async function loadAcpSession(
     source.updated(connection, session.sessionId);
   } else {
     const sessionId = bound ?? task.sessionId;
-    const capabilities = connection.initialization.agentCapabilities;
-    const canResume = Boolean(capabilities?.sessionCapabilities?.resume);
     const request = { sessionId, cwd: task.cwd, mcpServers: [] };
     try {
       const complete =
         !source.repairHistory &&
-        canResume &&
         task.status === "idle" &&
         (await source.history.hasCompleteHistory(task.id));
-      if (!source.repairHistory && canResume && (complete || !capabilities?.loadSession)) {
-        // ACP v1 的 resume 只恢复模型上下文。仅支持 resume 时允许续聊，但保留本地历史缺口。
-        if (!complete) await source.history.markIncomplete(task.id);
-        await connection.resumeSession(request);
-      } else if (capabilities?.loadSession) {
+      if (complete) await connection.resumeSession(request);
+      else {
         const replay = new AcpReplay(source.history, task.id);
         source.replays.set(sessionId, replay);
         try {
-          await connection.loadSession(request);
+          await connection.resumeSession({ ...request, replayFrom: { type: "start" } });
           await replay.complete();
         } catch (error) {
           await replay.abort(error).catch(() => undefined);
@@ -137,8 +126,6 @@ export async function loadAcpSession(
         } finally {
           source.replays.delete(sessionId);
         }
-      } else {
-        throw new Error("此 ACP agent 不支持 session/load 或 session/resume，无法恢复原会话");
       }
     } catch (error) {
       if (

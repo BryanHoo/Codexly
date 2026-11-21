@@ -16,7 +16,7 @@ it("预览使用项目目录，关闭临时会话且不提供持久写入端口"
     },
   ];
   const connection = {
-    initialization: { agentCapabilities: { sessionCapabilities: { close: true } } },
+    initialization: { capabilities: { session: { close: true } } },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "preview", configOptions: options })),
     setConfigOption: vi.fn(() =>
       Promise.resolve({ configOptions: [{ ...options[0], currentValue: "b" }] }),
@@ -32,10 +32,10 @@ it("预览使用项目目录，关闭临时会话且不提供持久写入端口"
   expect(connection.closeSession).toHaveBeenCalledWith("preview");
   expect(saved.values).toEqual({ model: "a" });
 });
-it("配置拒绝时仍关闭会话，未公布关闭能力时不创建会话", async () => {
+it("配置拒绝时仍关闭预览会话", async () => {
   const closeSession = vi.fn(() => Promise.resolve({}));
   const connection = {
-    initialization: { agentCapabilities: { sessionCapabilities: { close: true } } },
+    initialization: { capabilities: { session: { close: true } } },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "preview", configOptions: [] })),
     closeSession,
   };
@@ -45,9 +45,6 @@ it("配置拒绝时仍关闭会话，未公布关闭能力时不创建会话", a
     }),
   ).rejects.toThrow();
   expect(closeSession).toHaveBeenCalledOnce();
-  connection.initialization.agentCapabilities.sessionCapabilities.close = false;
-  await expect(previewAcpConfig(connection as never, "/p", {} as never, {})).rejects.toThrow();
-  expect(connection.newSession).toHaveBeenCalledOnce();
 });
 
 it("模型切换丢弃旧依赖值并返回可交付首发的完整当前值", async () => {
@@ -70,7 +67,7 @@ it("模型切换丢弃旧依赖值并返回可交付首发的完整当前值", a
     options: [{ value: "low", name: "低" }],
   };
   const connection = {
-    initialization: { agentCapabilities: { sessionCapabilities: { close: true } } },
+    initialization: { capabilities: { session: { close: true } } },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "p", configOptions: [model, effort] })),
     setConfigOption: vi.fn(() =>
       Promise.resolve({ configOptions: [{ ...model, currentValue: "b" }] }),
@@ -87,10 +84,10 @@ it("模型切换丢弃旧依赖值并返回可交付首发的完整当前值", a
   expect(result.values).toEqual({ model: "b" });
   expect(connection.setConfigOption).toHaveBeenCalledExactlyOnceWith("p", "model", "b");
 });
-it("标准 Agent 没有 close 扩展时使用宿主提供的独占进程回收", async () => {
+it("预览支持宿主提供的临时会话释放回调", async () => {
   const release = vi.fn(() => Promise.resolve());
   const connection = {
-    initialization: { agentCapabilities: {} },
+    initialization: { capabilities: {} },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "standard", configOptions: [] })),
   };
   await expect(

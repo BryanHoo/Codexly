@@ -1,6 +1,6 @@
 # ACP 共享接入基础
 
-本包使用官方 `@agentclientprotocol/sdk/unstable` 的 ACP v1 入口：核心聊天采用稳定 v1，供应商设置仅在协商支持后调用官方可选草案 `providers/*`。SDK 和两个 adapter 固定版本；不使用 draft v2。Codex 与 Claude 的厂商协议由官方 ACP adapter 管理。
+Web 与桌面共用官方 `@agentclientprotocol/sdk/experimental/v2/unstable` 入口，所有 Agent 连接均使用 ACP v2。连接要求 `protocolVersion: 2`。核心交互按官方 v2 会话规则运行，供应商设置依赖 Agent 声明的可选 `providers/*` 能力。SDK 和两个官方适配器使用固定版本。
 
 当前已实现连接握手、会话创建/加载、prompt、取消、权限转发、配置选项设置、子进程生命周期、任务身份与配置迁移纯逻辑，以及文本、思考、工具和计划的增量事件投影。
 
@@ -20,10 +20,10 @@
 - `AcpPermissions`：保留原始授权选项并绑定项目/任务/回合/条目；精确回传 optionId；旧按钮仅兼容单次允许/拒绝，撤销和关闭清理等待。
 - `AcpHistory`：逐回合写入 JSONL，以原子指针公开已提交字节；每页最多 20 回合、最多读取 4 MiB。失败重放保留旧版本，游标绑定任务及版本。旧版本清理、崩溃残留写锁恢复尚待生命周期接入。
 - `AcpAgentProvider`：两种引擎共用文本回合、新会话绑定、旧会话恢复、流式事件及终态持久化；关闭等待历史提交。已提供临时辅助会话、模型配置发现、会话选项设置与本地任务管理；尚未满足生产运行时的完整能力契约。
-- `AcpConnection`：使用官方 SDK 连接消息流，拒绝同会话重叠 prompt；旧会话加载失败直接返回错误，不创建替代会话。握手有超时，prompt 不自动重试。异步投影形成背压，加载和 prompt 返回前等待投影完成。
+- `AcpConnection`：使用官方 SDK 连接消息流，拒绝同会话重叠 prompt；旧会话加载失败直接返回错误，不创建替代会话。握手有超时，prompt 不自动重试。异步投影形成背压，恢复等待 `replay_complete`，回合等待前台 `state_update`，两者都等待此前投影处理完成。
 - `AcpProcess`：以独立参数启动配置好的 ACP 可执行程序，使用 stdio；关闭时清理进程树。macOS 已验证，Windows/Linux 需要对应平台验证。
 - `AcpEventProjection`：将 ACP 更新映射到应用事件；只更新目标条目，显式快照和终态时才复制回合。配置和命令由后续 Provider 消费。
-- `bindAcpTask` / `selectSessionOperation`：保留应用 ID、原引擎和不透明的 session ID；没有历史恢复能力时显式失败。
+- `bindAcpTask`：保留应用 ID、原引擎和不透明的 session ID；没有历史恢复能力时显式失败。
 - `migrateAcpSettings`：保留完整旧配置，只映射 agent 已公布的精确选项。未映射配置可在后续发现能力后重新处理；不推断权限等价关系。本地记录可能含敏感配置，不得进入诊断日志或模型上下文。
 
 ## 验证

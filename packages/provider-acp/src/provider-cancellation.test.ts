@@ -1,12 +1,12 @@
 import { expect, it, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { fixture, input } from "./provider.test-support.js";
 import type { AcpConnection } from "./connection.js";
 
 it("取消超时只结束目标回合，其他回合仍可完成，稍后恢复原会话", async () => {
   const received = vi.fn();
-  const waiting = Promise.withResolvers<acp.PromptResponse>();
-  const healthy = Promise.withResolvers<acp.PromptResponse>();
+  const waiting = Promise.withResolvers<{ stopReason: "end_turn" | "cancelled" }>();
+  const healthy = Promise.withResolvers<{ stopReason: "end_turn" | "cancelled" }>();
   let attempts = 0;
   const f = await fixture("codex", () => {
     if (++attempts === 1) return waiting.promise;
@@ -58,25 +58,55 @@ it("取消超时只结束目标回合，其他回合仍可完成，稍后恢复�
 }, 10_000);
 
 it("中断准确回合时取消其待审批，保留其他会话审批与两份历史", async () => {
+  const permissionCancellation = new AbortController();
   const responses = new Map<string, acp.RequestPermissionResponse>();
   const lateResponses = new Map<string, acp.RequestPermissionResponse>();
   const f = await fixture("codex", async ({ client, params }) => {
-    const response = await client.request(acp.methods.client.session.requestPermission, {
-      sessionId: params.sessionId,
-      toolCall: { toolCallId: `tool-${params.sessionId}`, title: "写入" },
-      options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
-    });
+    const response = await client
+      .request(
+        acp.methods.client.session.requestPermission,
+        {
+          sessionId: params.sessionId,
+          title: "操作确认",
+          subject: {
+            type: "tool_call",
+            toolCall: { toolCallId: `tool-${params.sessionId}`, title: "写入" },
+          },
+          options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
+        },
+        params.sessionId === "native-one"
+          ? { cancellationSignal: permissionCancellation.signal }
+          : undefined,
+      )
+      .catch((error: unknown) => {
+        if (permissionCancellation.signal.aborted && params.sessionId === "native-one")
+          return { outcome: { outcome: "cancelled" as const } };
+        throw error;
+      });
     responses.set(params.sessionId, response);
     if (response.outcome.outcome === "cancelled") {
       // 模拟取消已发出、对端仍在收尾时到达的新审批，不能重新阻塞或弹窗。
-      const late = await client.request(acp.methods.client.session.requestPermission, {
-        sessionId: params.sessionId,
-        toolCall: { toolCallId: `late-${params.sessionId}`, title: "迟到写入" },
-        options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
-      });
+      const late = await client
+        .request(
+          acp.methods.client.session.requestPermission,
+          {
+            sessionId: params.sessionId,
+            title: "操作确认",
+            subject: {
+              type: "tool_call",
+              toolCall: { toolCallId: `late-${params.sessionId}`, title: "迟到写入" },
+            },
+            options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
+          },
+          { cancellationSignal: permissionCancellation.signal },
+        )
+        .catch(() => ({ outcome: { outcome: "cancelled" as const } }));
       lateResponses.set(params.sessionId, late);
     }
     return { stopReason: response.outcome.outcome === "cancelled" ? "cancelled" : "end_turn" };
+  });
+  f.app.onNotification(acp.methods.agent.session.cancel, ({ params }) => {
+    if (params.sessionId === "native-one") permissionCancellation.abort();
   });
   f.created
     .mockReturnValueOnce({ sessionId: "native-one", configOptions: [] })
@@ -117,7 +147,7 @@ it("中断准确回合时取消其待审批，保留其他会话审批与两份�
 });
 
 it("旧回合结束与取消通知等待并发时，新回合等待取消写出，续聊审批仍可正常处理", async () => {
-  const completed = Promise.withResolvers<acp.PromptResponse>();
+  const completed = Promise.withResolvers<{ stopReason: "end_turn" | "cancelled" }>();
   let connection: AcpConnection | undefined;
   let prompts = 0;
   const f = await fixture(
@@ -126,7 +156,8 @@ it("旧回合结束与取消通知等待并发时，新回合等待取消写出�
       if (++prompts === 1) return completed.promise;
       await client.request(acp.methods.client.session.requestPermission, {
         sessionId: params.sessionId,
-        toolCall: { toolCallId: "next", title: "继续写入" },
+        title: "操作确认",
+        subject: { type: "tool_call", toolCall: { toolCallId: "next", title: "继续写入" } },
         options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
       });
       return { stopReason: "end_turn" };

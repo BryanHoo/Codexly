@@ -1,10 +1,11 @@
+import { testPrompt } from "./acp-v2-peer.test-support.js";
 import { storageCatalog } from "./storage-catalog.test-support.js";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { PassThrough, Writable } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import {
   applicationPreferencesFromLegacy,
   type CatalogOperations,
@@ -78,8 +79,9 @@ async function fixture() {
     const peer = acp
       .agent({ name: "title-test" })
       .onRequest(acp.methods.agent.initialize, () => ({
-        protocolVersion: 1,
-        agentCapabilities: { sessionCapabilities: { close: {} } },
+        protocolVersion: 2,
+        info: { name: "test-agent", version: "1" },
+        capabilities: { session: {} },
       }))
       .onRequest(acp.methods.agent.session.new, () => ({
         sessionId: `session-${String(++session)}`,
@@ -92,30 +94,34 @@ async function fixture() {
         cancelled.resolve(undefined);
         finishTitle.resolve(undefined);
       })
-      .onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
-        const text = params.prompt
-          .filter((part) => part.type === "text")
-          .map((part) => part.text)
-          .join("\n");
-        prompts.push({ engine, text });
-        const helper = params.sessionId !== "session-1";
-        if (helper) {
-          titleEntered.resolve(undefined);
-          await finishTitle.promise;
-        } else {
-          entered.resolve(undefined);
-          await output.promise;
-        }
-        await client.notify(acp.methods.client.session.update, {
-          sessionId: params.sessionId,
-          update: {
-            sessionUpdate: "agent_message_chunk",
-            content: { type: "text", text: helper ? '{"title":"修复并发状态更新"}' : "正在修复" },
-          },
-        });
-        if (!helper) await finishMain.promise;
-        return { stopReason: "end_turn" };
-      })
+      .onRequest(
+        acp.methods.agent.session.prompt,
+        testPrompt(async ({ params, client }) => {
+          const text = params.prompt
+            .filter((part) => acp.ContentBlock.isText(part))
+            .map((part) => part.text)
+            .join("\n");
+          prompts.push({ engine, text });
+          const helper = params.sessionId !== "session-1";
+          if (helper) {
+            titleEntered.resolve(undefined);
+            await finishTitle.promise;
+          } else {
+            entered.resolve(undefined);
+            await output.promise;
+          }
+          await client.notify(acp.methods.client.session.update, {
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              messageId: "test-message",
+              content: { type: "text", text: helper ? '{"title":"修复并发状态更新"}' : "正在修复" },
+            },
+          });
+          if (!helper) await finishMain.promise;
+          return { stopReason: "end_turn" };
+        }),
+      )
       .connect({ readable: a.readable, writable: b.writable });
     const connection = await AcpConnection.connect(
       { readable: b.readable, writable: a.writable },

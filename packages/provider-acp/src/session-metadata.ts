@@ -1,15 +1,15 @@
-import type {
+import { projectAcpConfig } from "./session-options.js";
+import {
   AvailableCommand,
-  SessionConfigOption,
-  SessionNotification,
-} from "@agentclientprotocol/sdk/unstable";
-import type { AgentContextUsage } from "@codexly/protocol";
+  AvailableCommandInput,
+  SessionUpdate,
+  type UpdateSessionNotification,
+} from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { AcpConfigOption, AgentContextUsage } from "@codexly/protocol";
+import type { AcpSessionState } from "@codexly/protocol";
 import { acpContextUsage } from "./context-usage.js";
 
-export interface AcpSessionMetadata {
-  configOptions: SessionConfigOption[];
-  availableCommands: AvailableCommand[];
-}
+export type AcpSessionMetadata = AcpSessionState;
 interface Entry {
   value: AcpSessionMetadata;
   json: string;
@@ -31,14 +31,16 @@ export class AcpSessionMetadataStore {
     const usage = this.#entries.get(sessionId)?.usage;
     return usage ? { ...usage } : null;
   }
-  configure(sessionId: string, configOptions: SessionConfigOption[]) {
+  configure(sessionId: string, configOptions: AcpConfigOption[], commands?: AvailableCommand[]) {
     return this.#write(sessionId, {
       configOptions,
-      availableCommands: this.#entries.get(sessionId)?.value.availableCommands ?? [],
+      availableCommands: commands
+        ? this.#commands(commands)
+        : (this.#entries.get(sessionId)?.value.availableCommands ?? []),
     });
   }
-  update({ sessionId, update }: SessionNotification): AcpSessionMetadata | undefined {
-    if (update.sessionUpdate === "usage_update") {
+  update({ sessionId, update }: UpdateSessionNotification): AcpSessionMetadata | undefined {
+    if (SessionUpdate.isUsageUpdate(update)) {
       // 用量与会话共用容量及清理边界，创建/加载响应前也可缓存；回合结束后继续保留。
       if (!this.#entries.has(sessionId))
         this.#write(sessionId, { configOptions: [], availableCommands: [] });
@@ -46,12 +48,26 @@ export class AcpSessionMetadataStore {
       if (entry) entry.usage = acpContextUsage(update);
       return undefined;
     }
-    if (update.sessionUpdate === "config_option_update")
-      return this.configure(sessionId, update.configOptions);
-    if (update.sessionUpdate !== "available_commands_update") return undefined;
+    if (SessionUpdate.isConfigOptionUpdate(update))
+      return this.configure(sessionId, projectAcpConfig(update.configOptions));
+    if (!SessionUpdate.isAvailableCommandsUpdate(update)) return undefined;
     return this.#write(sessionId, {
       configOptions: this.#entries.get(sessionId)?.value.configOptions ?? [],
-      availableCommands: update.availableCommands,
+      availableCommands: this.#commands(update.availableCommands),
+    });
+  }
+  #commands(commands: AvailableCommand[]): AcpSessionMetadata["availableCommands"] {
+    return commands.flatMap((command): AcpSessionMetadata["availableCommands"] => {
+      if (!AvailableCommand.isCommand(command)) return [];
+      const { name, description, input, _meta } = command;
+      return [
+        {
+          name,
+          description,
+          ...(input && AvailableCommandInput.isText(input) ? { input: { hint: input.hint } } : {}),
+          ...(_meta === undefined ? {} : { _meta }),
+        },
+      ];
     });
   }
   #write(sessionId: string, value: AcpSessionMetadata): AcpSessionMetadata | undefined {

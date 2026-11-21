@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
+import type { AcpConfigOption as SessionConfigOption } from "@codexly/protocol";
 import { AcpSessionMetadataStore } from "./session-metadata.js";
 
 const model: SessionConfigOption = {
@@ -45,7 +45,14 @@ it("命令可先于会话绑定到达，配置响应保留命令，状态按sess
   const commands = [{ name: "review", description: "检查", input: { hint: "范围" } }];
   store.update({
     sessionId: "s",
-    update: { sessionUpdate: "available_commands_update", availableCommands: commands },
+    update: {
+      sessionUpdate: "available_commands_update",
+      availableCommands: commands.map((command) => ({
+        ...command,
+        type: "command",
+        input: { ...command.input, type: "text" },
+      })),
+    },
   });
   store.configure("s", [model]);
   const state = store.read("s");
@@ -68,7 +75,11 @@ it("聊天token不占元数据容量，未绑定缓存有界并可清理", () =>
     expect(
       store.update({
         sessionId: `text-${String(index)}`,
-        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "token" } },
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          messageId: "test-message",
+          content: { type: "text", text: "token" },
+        },
       }),
     ).toBeUndefined();
   }

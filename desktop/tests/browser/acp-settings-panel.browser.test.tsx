@@ -34,7 +34,7 @@ it("只读取选中 Agent，失焦保存完成后才切换", async () => {
   const client = {
     getAcpAgent: vi.fn(async (engine: AgentEngine) => ({
       engine,
-      protocolVersion: 1,
+      protocolVersion: 2,
       authMethods: [{ id: "login", name: "原生登录" }],
     })),
     authenticateAcpAgent: vi.fn(async () => ({})),
@@ -90,7 +90,7 @@ for (const width of [390, 1280])
       const client = {
         getAcpAgent: vi.fn(async (engine: AgentEngine) => ({
           engine,
-          protocolVersion: 1,
+          protocolVersion: 2,
           agentInfo: { name: "codex", version: "1.0" },
           authStatus: {
             kind: "account" as const,
@@ -185,7 +185,7 @@ it("保存失败时保留当前 Agent，重试成功后允许切换", async () =
   const client = {
     getAcpAgent: vi.fn(async (engine: AgentEngine) => ({
       engine,
-      protocolVersion: 1,
+      protocolVersion: 2,
       authMethods: [],
     })),
     authenticateAcpAgent: vi.fn(async () => ({})),
@@ -225,7 +225,7 @@ it("Agent 开关直接更新启用选择，独立于栏目选择且保留已有�
   const client = {
     getAcpAgent: vi.fn(async (engine: AgentEngine) => ({
       engine,
-      protocolVersion: 1,
+      protocolVersion: 2,
       authMethods: [],
     })),
     getAcpDefaults: vi.fn(async () => ({

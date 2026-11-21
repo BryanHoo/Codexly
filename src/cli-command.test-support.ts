@@ -286,8 +286,8 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     appVersion: "1.2.3",
     inspectAcpAgents: vi.fn(() =>
       Promise.resolve([
-        { engine: "codex" as const, name: "codex-acp", protocolVersion: 1 },
-        { engine: "claude" as const, name: "claude-acp", protocolVersion: 1 },
+        { engine: "codex" as const, name: "codex-acp", protocolVersion: 2 },
+        { engine: "claude" as const, name: "claude-acp", protocolVersion: 2 },
       ]),
     ),
     checkAppUpdate: vi.fn(() =>

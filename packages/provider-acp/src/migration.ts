@@ -1,9 +1,6 @@
+import type { AcpConfigOption } from "@codexly/protocol";
 import { isAgentEngine } from "@codexly/protocol";
-import type {
-  AgentCapabilities,
-  SessionConfigOption,
-  SessionConfigSelectOptions,
-} from "@agentclientprotocol/sdk/unstable";
+import { acpSelectOptions } from "./session-options.js";
 import type { LocalTask } from "@codexly/core";
 import type { AcpSettingsMigration, AcpTaskBinding } from "@codexly/protocol";
 
@@ -13,25 +10,6 @@ export function bindAcpTask(
   if (!isAgentEngine(task.provider)) throw new Error("无法迁移未知引擎的任务");
   if (!task.id || !task.cwd || task.sessionId === "") throw new Error("历史任务身份不完整");
   return { taskId: task.id, engine: task.provider, sessionId: task.sessionId, cwd: task.cwd };
-}
-
-export function selectSessionOperation(
-  sessionId: string | null,
-  capabilities: AgentCapabilities,
-  replayHistory: boolean,
-): "new" | "load" | "resume" {
-  if (sessionId === null) return "new";
-  if (!sessionId) throw new Error("历史会话标识无效");
-  // 已有可靠本地投影时才允许不重放恢复；不能拿 resume 代替读取旧历史。
-  if (!replayHistory && capabilities.sessionCapabilities?.resume) return "resume";
-  if (capabilities.loadSession) return "load";
-  throw new Error("ACP agent 不支持所需的历史恢复能力，原任务保持不变");
-}
-
-function selectValues(options: SessionConfigSelectOptions): string[] {
-  return options.flatMap((option) =>
-    "group" in option ? option.options.map((child) => child.value) : [option.value],
-  );
 }
 
 function isMigration(value: Readonly<Record<string, unknown>>): value is AcpSettingsMigration {
@@ -48,7 +26,7 @@ function isMigration(value: Readonly<Record<string, unknown>>): value is AcpSett
 /** 迁移只接受 agent 公布的精确值；不把旧权限枚举猜测成宽松的 ACP mode。 */
 export function migrateAcpSettings(
   source: Readonly<Record<string, unknown>>,
-  options: readonly SessionConfigOption[],
+  options: readonly AcpConfigOption[],
 ): AcpSettingsMigration {
   const legacy = structuredClone(isMigration(source) ? source.legacy : source);
   const migrated = new Map<string, string | boolean>();
@@ -69,7 +47,8 @@ export function migrateAcpSettings(
       target &&
       (target.type === "boolean"
         ? typeof value === "boolean"
-        : typeof value === "string" && selectValues(target.options).includes(value));
+        : typeof value === "string" &&
+          acpSelectOptions(target.options).some((item) => item.value === value));
     if (
       !valid ||
       (typeof value !== "boolean" && typeof value !== "string") ||

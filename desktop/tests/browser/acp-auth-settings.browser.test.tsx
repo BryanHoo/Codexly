@@ -58,7 +58,7 @@ async function fixture(
     })),
     getAcpAgent: vi.fn(async (): Promise<AcpAgentProfile> => ({
       engine: "codex",
-      protocolVersion: 1,
+      protocolVersion: 2,
       providerConfiguration: true,
       ...(connection ? { connection } : {}),
       ...(account ? { authStatus: account } : {}),

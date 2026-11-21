@@ -39,12 +39,12 @@
 - Web / 桌面生产入口统一使用共享 ACP Runtime；能力由共享协议纯函数声明，冷目录读取不得启动 agent。
 - 历史、设置及会话初始化写入以 SQLite owner CAS 协调。只有 PID 明确不存在才接管；权限不足、PID 重用或领取回执未知均不能按时间抢锁。原生领取超时关闭宿主，等待重启恢复。
 - 新会话先保存冻结的初始化配置再发布原厂会话绑定。只有日志能证明 Codex 首发尚未交给 Agent、原会话明确丢失且没有历史时，才用跨端共享的目录 CAS 更换原生 ID；应用任务 ID 保持不变。首发写入传输之前撤销未发送标记并移除配置快照。旧记录缺少该证据、已提交或结果未知时均不得自动换绑或重发。
-- 取消先结束目标回合的待审批，再给 Agent 有限时间完成原 prompt。超时只把目标回合结算为结果未知，原请求和取消通知收敛前隔离该会话；不得为回收取消占用而中断其他回合或销毁不可恢复的会话。
+- 发送取消通知后，Agent 通过请求取消信号终止关联审批，并通过前台状态通知报告回合结束。超时只把目标回合结算为结果未知，原请求和取消通知收敛前隔离该会话；不得为回收取消占用而中断其他回合或销毁不可恢复的会话。
 - ACP 回合增量正常流式交付；持久回合只在历史提交后发出完成事件并允许队列续发。短暂写入错误只按原回合 ID 有界重试，永久故障保留当前可见内容且不发布成功。超长正文与工具详情以任务归属校验的分块附件保留，聊天快照只携带内联预览和引用；实时与重放使用同一预算和内容指纹。
-- 可重放正文是共享缓存：实际握手确认 `loadSession` 后才允许淘汰，闲置正文容量目标 256 MiB；未知或仅 resume 的历史保守保留。视图、运行、搜索和导出通过 SQLite owner CAS 使用租约保护，释放后按最近访问回收；新生成的回答续文与工具详情附件计入缓存，用户上传和旧版混合附件保守保留，不能删除任务或独有附件。重放只留当前及一个旧代际，过期游标明确失效，已淘汰的暖绑定也必须重新 load。原生 stdio 已断开时不再请求释放租约，由下一进程确认旧 PID 死亡后接管。回归入口为 `history-cache.test.ts`、`provider-history-cache.test.ts` 与根 `src/acp-history-cache.test.ts`。
+- 可重放正文是共享缓存：v2 握手确认会话能力后才允许淘汰，闲置正文容量目标 256 MiB；会话能力未知时保守保留历史。视图、运行、搜索和导出通过 SQLite owner CAS 使用租约保护，释放后按最近访问回收；新生成的回答续文与工具详情附件计入缓存，用户上传和旧版混合附件保守保留，不能删除任务或独有附件。重放只留当前及一个旧代际，过期游标明确失效，历史被淘汰后即使仍有暖绑定也必须重新请求重放。原生 stdio 已断开时不再请求释放租约，由下一进程确认旧 PID 死亡后接管。回归入口为 `history-cache.test.ts`、`provider-history-cache.test.ts` 与根 `src/acp-history-cache.test.ts`。
 - 历史重放按顺序及正文指纹保留原回合 / 消息身份和附件。错位后仅在有界窗口内按唯一的完整指纹重新对齐，不以相似内容推断。近期回合提交凭证与历史字节边界一并原子发布，正常追加不再扫描历史页。搜索只匹配可见正文，缓存搜索不启动 agent，冷搜索仅加载原会话且必须可取消、关闭和限制并发。
-- 会话恢复遵循 [ACP v1 能力协商](https://agentclientprotocol.com/protocol/v1/session-setup)：本地历史确认完整时优先 `session/resume`，否则使用已声明的 `session/load` 补齐。打开任务时可重建已确认损坏的当前投影，但旧游标、普通 I/O 错误和活动回合不能触发回放。仅支持 resume 时仍可在原会话续聊，但必须保留历史缺口，不能把后续追加当成补齐。
-- 未声明 `session/close` 或不支持恢复时，持久会话只做视图退订，保留暖绑定。只有会话可重连时才因普通空闲或满载退订回收进程；回收不得打断正在执行或待落盘的回合，重连等待旧进程退出。回归入口为 [Provider 生命周期测试](../../../../packages/provider-acp/src/provider-lifecycle.test.ts)。
+- 共享连接仅接受 ACP v2。完整的本地历史可以通过 `session/resume` 重新绑定原会话。缓存缺失或确认损坏时，带 `replayFrom: { type: "start" }` 请求重放，在收到 `replay_complete` 和成功响应后提交投影。旧游标、普通 I/O 错误和活动回合不能触发重放。[ACP v2 会话规范](https://agentclientprotocol.com/protocol/v2/session-setup)
+- v2 有会话能力的 Agent 在退订后使用 `session/close` 释放会话。取消尚未确认时继续保留绑定。回收不得打断正在执行或待落盘的回合，重连等待旧进程退出。[Provider 生命周期测试](../../../../packages/provider-acp/src/provider-lifecycle.test.ts)
 - 验证覆盖真实 SQLite / 子进程崩溃、SDK 双向流、编译宿主及真实账号首发 / 重启续聊；不能以跳过的可选测试或空历史重放替代证明。
 
 ## ACP Agent 目录与身份
@@ -55,12 +55,12 @@
 - Registry 安装按实际分发格式解包，ZIP 不得依赖 Ubuntu GNU tar 的 ZIP 支持或额外系统 unzip；保持路径逃逸、链接及特殊文件拒绝和失败暂存清理。官方开发依赖版本必须与快照一致；发布门禁在 macOS、Windows、Ubuntu 从快照安装真实 npm / 二进制产物后握手，并在 Ubuntu 验证 Linux ZIP 条目。入口为 `agent-installer.test.ts`、`registry-release.test.ts` 与 `CODEXLY_REGISTRY_RELEASE_TEST=1`，不能用开发依赖握手或跳过的网络测试替代。
 - 操作进度是宿主内存中的轻量快照，独立于会等待自动发现的目录读取；只在已知真实总量时公布下载百分比所需的字节总数，不传原始安装日志。
 - 更新限应用托管的 Registry 安装，使用新目录准备运行时，失败保留原启动记录。移除只回收应用私有运行时，保留原生 CLI、共享工具缓存及会话数据；私有移除记录阻止重新自动发现，手动添加可覆盖它。
-- 旧全局设置 Schema 保持 v0.53.0 回滚兼容，其他 Agent 的生成偏好和计划配置只保存到独立 ACP 记录。默认值和预览遇到未实现 close 扩展的第三方 Agent 时回收独占设置进程，不遗留临时会话。
+- 旧全局设置 Schema 保持 v0.53.0 回滚兼容，其他 Agent 的生成偏好和计划配置只保存到独立 ACP 记录。默认值和预览的 `session/close` 失败时回收独占设置进程，不遗留临时会话。
 - 参考 [Agent 使用说明](../../../../docs/agent-engines.md)；回归入口为 `agent-catalog.test.ts`、`agent-installer.test.ts`、`runtime.test.ts`、`app-acp.test.ts` 与 `desktop/tests/browser/acp-catalog.browser.test.tsx`。
 
 ## 外部客户端占用的 Codex 历史
 
-- ACP `session/load` / `resume` 需要写入权。仅精确匹配 `RequestError(-32600)` 的 `data.reason=thread_active_writer` 与任务原生 ID 时，历史读取改为无订阅的 Codex 只读分页；不调用 resume/start、不换绑、不写入 ACP 缓存，也不把失败伪造成空历史。临时读取进程在完成、取消及失败后回收。发送、配置与执行继续走 ACP。
+- ACP `session/resume` 需要写入权。仅精确匹配 `RequestError(-32600)` 的 `data.reason=thread_active_writer` 与任务原生 ID 时，历史读取改为无订阅的 Codex 只读分页；不调用 resume/start、不换绑、不写入 ACP 缓存，也不把失败伪造成空历史。临时读取进程在完成、取消及失败后回收。发送、配置与执行继续走 ACP。
 - 首屏通过 `checkWriteAccess` 校验暖缓存中的写入权；续页使用独立只读游标。快照携带 `writeAccess=external`，两端保留历史与草稿、禁用输入并解释占用，重新打开后重新确认，无后台轮询。
 - 测试入口：`provider-acp/src/task-snapshot-ownership.test.ts` 与 `provider-acp/src/codex-read-only-history.test.ts`；真实场景须在其他客户端仍持有写入权时确认历史非空，不能只模拟 HTTP 成功响应。
 

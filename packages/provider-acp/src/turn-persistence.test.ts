@@ -1,4 +1,4 @@
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { AgentProviderEvent } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
@@ -30,7 +30,7 @@ it("超长回答和工具输出保存为受控附件，刷新后仍可读且可�
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,
       update: {
-        sessionUpdate: "tool_call",
+        sessionUpdate: "tool_call_update",
         toolCallId: "log",
         title: "运行",
         status: "completed",
@@ -42,6 +42,7 @@ it("超长回答和工具输出保存为受控附件，刷新后仍可读且可�
         sessionId: params.sessionId,
         update: {
           sessionUpdate: "agent_message_chunk",
+          messageId: "test-message",
           content: { type: "text", text: answer.slice(offset, offset + 32_000) },
         },
       });
@@ -76,10 +77,11 @@ it("超长回答和工具输出保存为受控附件，刷新后仍可读且可�
   const replay = new AcpReplay(reopened, task.id);
   await replay.update({
     sessionUpdate: "user_message_chunk",
+    messageId: "test-message",
     content: { type: "text", text: input.text },
   });
   await replay.update({
-    sessionUpdate: "tool_call",
+    sessionUpdate: "tool_call_update",
     toolCallId: "native-tool",
     title: "运行",
     status: "completed",
@@ -87,6 +89,7 @@ it("超长回答和工具输出保存为受控附件，刷新后仍可读且可�
   });
   await replay.update({
     sessionUpdate: "agent_message_chunk",
+    messageId: "test-message",
     content: { type: "text", text: answer },
   });
   await replay.complete();
@@ -102,6 +105,7 @@ it("磁盘空间不足时不宣告已保存，空间恢复后续发只补写同�
       sessionId: params.sessionId,
       update: {
         sessionUpdate: "agent_message_chunk",
+        messageId: "test-message",
         content: { type: "text", text: "回答可复制" },
       },
     });

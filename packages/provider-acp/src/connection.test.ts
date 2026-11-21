@@ -1,5 +1,7 @@
+import { projectAcpConfig } from "./session-options.js";
+import { testPrompt } from "./acp-v2-peer.test-support.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpConnection } from "./connection.js";
 
 const cleanup: (() => void)[] = [];
@@ -7,14 +9,18 @@ afterEach(() => {
   for (const close of cleanup.splice(0)) close();
 });
 
-function fixture(capabilities: acp.AgentCapabilities = { loadSession: true }) {
+function fixture(capabilities: acp.AgentCapabilities = { session: {} }) {
   const outbound = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
   const inbound = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
   const initialize = vi.fn<
     (
       context: acp.AgentRequestContext<acp.InitializeRequest>,
     ) => acp.InitializeResponse | Promise<acp.InitializeResponse>
-  >((_context) => ({ protocolVersion: acp.PROTOCOL_VERSION, agentCapabilities: capabilities }));
+  >((_context) => ({
+    protocolVersion: acp.PROTOCOL_VERSION,
+    info: { name: "test-agent", version: "1" },
+    capabilities: capabilities,
+  }));
   const create = vi.fn<
     (
       context: acp.AgentRequestContext<acp.NewSessionRequest>,
@@ -22,12 +28,16 @@ function fixture(capabilities: acp.AgentCapabilities = { loadSession: true }) {
   >(() => ({ sessionId: "native-session", configOptions: [] }));
   const load = vi.fn<
     (
-      context: acp.AgentRequestContext<acp.LoadSessionRequest>,
-    ) => acp.LoadSessionResponse | Promise<acp.LoadSessionResponse>
-  >(async ({ params, client }: acp.AgentRequestContext<acp.LoadSessionRequest>) => {
+      context: acp.AgentRequestContext<acp.ResumeSessionRequest>,
+    ) => acp.ResumeSessionResponse | Promise<acp.ResumeSessionResponse>
+  >(async ({ params, client }: acp.AgentRequestContext<acp.ResumeSessionRequest>) => {
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,
-      update: { sessionUpdate: "user_message_chunk", content: { type: "text", text: "旧问题" } },
+      update: {
+        sessionUpdate: "user_message_chunk",
+        messageId: "test-message",
+        content: { type: "text", text: "旧问题" },
+      },
     });
     return { configOptions: [] };
   });
@@ -36,7 +46,7 @@ function fixture(capabilities: acp.AgentCapabilities = { loadSession: true }) {
     .agent({ name: "test-agent" })
     .onRequest(acp.methods.agent.initialize, initialize)
     .onRequest(acp.methods.agent.session.new, create)
-    .onRequest(acp.methods.agent.session.load, load)
+    .onRequest(acp.methods.agent.session.resume, load)
     .onNotification(acp.methods.agent.session.cancel, cancel);
   const start = () => {
     const agent = app.connect({ readable: outbound.readable, writable: inbound.writable });
@@ -63,17 +73,13 @@ async function connect(
 it("仅声明已实现的客户端能力，启用标准布尔配置但不声明终端认证", async () => {
   const f = fixture();
   await connect(f);
-  expect(f.initialize.mock.calls[0]?.[0].params.clientCapabilities).toMatchObject({
-    session: { configOptions: { boolean: {} } },
-  });
-  expect(
-    f.initialize.mock.calls[0]?.[0].params.clientCapabilities?.auth?.terminal,
-  ).not.toBeTruthy();
+  expect(f.initialize.mock.calls[0]?.[0].params.protocolVersion).toBe(2);
+  expect(f.initialize.mock.calls[0]?.[0].params.capabilities?.auth?.terminal).not.toBeTruthy();
 });
 
 describe("共享 ACP 连接", () => {
   it("并发创建保留早于响应到达的命令，完整配置响应不丢命令或另一个待绑定会话", async () => {
-    const f = fixture({ loadSession: true, sessionCapabilities: { close: {} } });
+    const f = fixture({ session: {} });
     const secondEntered = Promise.withResolvers<undefined>(),
       release = Promise.withResolvers<undefined>();
     f.create.mockImplementation(async ({ params, client }) => {
@@ -82,7 +88,9 @@ describe("共享 ACP 连接", () => {
         sessionId,
         update: {
           sessionUpdate: "available_commands_update",
-          availableCommands: [{ name: `command-${sessionId}`, description: "命令" }],
+          availableCommands: [
+            { type: "command", name: `command-${sessionId}`, description: "Command" },
+          ],
         },
       });
       if (sessionId === "a") await secondEntered.promise;
@@ -90,11 +98,17 @@ describe("共享 ACP 连接", () => {
         secondEntered.resolve(undefined);
         await release.promise;
       }
-      return { sessionId, configOptions: [] };
+      return {
+        sessionId,
+        configOptions: [],
+        availableCommands: [
+          { type: "command", name: "command-" + sessionId, description: "Command" },
+        ],
+      };
     });
     f.app.onRequest(acp.methods.agent.session.close, () => ({}));
     const config: acp.SessionConfigOption[] = [
-      { id: "fast", name: "加速", type: "boolean", currentValue: true },
+      { configId: "fast", name: "加速", type: "boolean", currentValue: true },
     ];
     f.app.onRequest(acp.methods.agent.session.setConfigOption, () => ({ configOptions: config }));
     const onSessionState = vi.fn();
@@ -112,8 +126,8 @@ describe("共享 ACP 连接", () => {
     expect(connection.readSessionState("b").availableCommands[0]?.name).toBe("command-b");
     await connection.setConfigOption("a", "fast", true);
     expect(connection.readSessionState("a")).toEqual({
-      configOptions: config,
-      availableCommands: [{ name: "command-a", description: "命令" }],
+      configOptions: projectAcpConfig(config),
+      availableCommands: [{ name: "command-a", description: "Command" }],
     });
     expect(onSessionState).toHaveBeenCalled();
     await connection.closeSession("a");
@@ -129,24 +143,25 @@ describe("共享 ACP 连接", () => {
         sessionId: params.sessionId,
         update: {
           sessionUpdate: "available_commands_update",
-          availableCommands: [{ name: "review", description: "检查" }],
+          availableCommands: [{ type: "command", name: "review", description: "检查" }],
         },
       });
       if (params.sessionId === "missing") throw new acp.RequestError(-32002, "不存在");
       return {
+        availableCommands: [{ type: "command", name: "review", description: "Review" }],
         configOptions: [
-          { id: "mode", name: "模式", type: "boolean" as const, currentValue: false },
+          { configId: "mode", name: "模式", type: "boolean" as const, currentValue: false },
         ],
       };
     });
     const connection = await connect(f);
-    await connection.loadSession({ sessionId: "old", cwd: "/a", mcpServers: [] });
+    await connection.resumeSession({ sessionId: "old", cwd: "/a", mcpServers: [] });
     expect(connection.readSessionState("old")).toMatchObject({
       configOptions: [{ currentValue: false }],
       availableCommands: [{ name: "review" }],
     });
     await expect(
-      connection.loadSession({ sessionId: "missing", cwd: "/a", mcpServers: [] }),
+      connection.resumeSession({ sessionId: "missing", cwd: "/a", mcpServers: [] }),
     ).rejects.toThrow("不存在");
     expect(connection.readSessionState("missing").availableCommands).toEqual([]);
     expect(connection.readSessionState("old").availableCommands).toHaveLength(1);
@@ -155,11 +170,8 @@ describe("共享 ACP 连接", () => {
   it("使用稳定版本握手且不声明未实现的文件或终端能力", async () => {
     const f = fixture();
     const connection = await connect(f);
-    expect(connection.initialization.protocolVersion).toBe(acp.PROTOCOL_VERSION);
-    expect(f.initialize.mock.calls[0]?.[0].params.clientCapabilities).toMatchObject({
-      fs: { readTextFile: false, writeTextFile: false },
-      terminal: false,
-    });
+    expect(connection.initialization.protocolVersion).toBe(2);
+    expect(f.initialize.mock.calls[0]?.[0].params.capabilities).toEqual({});
     expect((await connection.newSession({ cwd: "/workspace", mcpServers: [] })).sessionId).toBe(
       "native-session",
     );
@@ -167,19 +179,23 @@ describe("共享 ACP 连接", () => {
 
   it("用原生会话身份加载旧历史，失败不创建替代会话", async () => {
     const f = fixture();
-    const updates: acp.SessionNotification[] = [];
+    const updates: acp.UpdateSessionNotification[] = [];
     const connection = await connect(f, {
       onUpdate: (update) => {
         updates.push(update);
       },
     });
-    await connection.loadSession({ sessionId: "old-native-id", cwd: "/workspace", mcpServers: [] });
+    await connection.resumeSession({
+      sessionId: "old-native-id",
+      cwd: "/workspace",
+      mcpServers: [],
+    });
     expect(updates[0]?.sessionId).toBe("old-native-id");
     expect(updates[0]?.update.sessionUpdate).toBe("user_message_chunk");
     expect(f.create).not.toHaveBeenCalled();
     f.load.mockRejectedValueOnce(new acp.RequestError(-32002, "历史不存在"));
     await expect(
-      connection.loadSession({ sessionId: "missing", cwd: "/workspace", mcpServers: [] }),
+      connection.resumeSession({ sessionId: "missing", cwd: "/workspace", mcpServers: [] }),
     ).rejects.toThrow("历史不存在");
     expect(f.create).not.toHaveBeenCalled();
   });
@@ -188,8 +204,8 @@ describe("共享 ACP 连接", () => {
     const f = fixture({});
     const connection = await connect(f);
     await expect(
-      connection.loadSession({ sessionId: "old", cwd: "/workspace", mcpServers: [] }),
-    ).rejects.toThrow("session/load");
+      connection.resumeSession({ sessionId: "old", cwd: "/workspace", mcpServers: [] }),
+    ).rejects.toThrow("会话能力");
     expect(f.load).not.toHaveBeenCalled();
     expect(f.create).not.toHaveBeenCalled();
   });
@@ -204,30 +220,45 @@ describe("共享 ACP 连接", () => {
         outcome: { outcome: "selected" as const, optionId: option.optionId },
       });
     });
-    f.app.onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "第一段" } },
-      });
-      const result = await client.request(acp.methods.client.session.requestPermission, {
-        sessionId: params.sessionId,
-        toolCall: { toolCallId: "tool", title: "修改文件" },
-        options: [
-          { kind: "allow_once", optionId: "allow", name: "允许" },
-          { kind: "reject_once", optionId: "reject", name: "拒绝" },
-        ],
-      });
-      expect(result.outcome).toEqual({ outcome: "selected", optionId: "reject" });
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "第二段" } },
-      });
-      return { stopReason: "end_turn" };
-    });
+    f.app.onRequest(
+      acp.methods.agent.session.prompt,
+      testPrompt(async ({ params, client }) => {
+        await client.notify(acp.methods.client.session.update, {
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            messageId: "test-message",
+            content: { type: "text", text: "第一段" },
+          },
+        });
+        const result = await client.request(acp.methods.client.session.requestPermission, {
+          sessionId: params.sessionId,
+          title: "操作确认",
+          subject: { type: "tool_call", toolCall: { toolCallId: "tool", title: "修改文件" } },
+          options: [
+            { kind: "allow_once", optionId: "allow", name: "允许" },
+            { kind: "reject_once", optionId: "reject", name: "拒绝" },
+          ],
+        });
+        expect(result.outcome).toEqual({ outcome: "selected", optionId: "reject" });
+        await client.notify(acp.methods.client.session.update, {
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            messageId: "test-message",
+            content: { type: "text", text: "第二段" },
+          },
+        });
+        return { stopReason: "end_turn" };
+      }),
+    );
     const connection = await connect(f, {
       requestPermission: permission,
       onUpdate: ({ update }) => {
-        if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text")
+        if (
+          acp.SessionUpdate.isAgentMessageChunk(update) &&
+          acp.ContentBlock.isText(update.content)
+        )
           updates.push(update.content.text);
       },
     });
@@ -244,41 +275,54 @@ describe("共享 ACP 连接", () => {
 
   it("缺少权限处理器时取消请求", async () => {
     const f = fixture();
-    f.app.onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
-      expect(
-        await client.request(acp.methods.client.session.requestPermission, {
-          sessionId: params.sessionId,
-          toolCall: { toolCallId: "t" },
-          options: [],
-        }),
-      ).toEqual({ outcome: { outcome: "cancelled" } });
-      return { stopReason: "end_turn" };
-    });
+    f.app.onRequest(
+      acp.methods.agent.session.prompt,
+      testPrompt(async ({ params, client }) => {
+        expect(
+          await client.request(acp.methods.client.session.requestPermission, {
+            sessionId: params.sessionId,
+            title: "操作确认",
+            subject: { type: "tool_call", toolCall: { toolCallId: "t" } },
+            options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+          }),
+        ).toEqual({ outcome: { outcome: "cancelled" } });
+        return { stopReason: "end_turn" };
+      }),
+    );
     const connection = await connect(f);
     await connection.newSession({ cwd: "/workspace", mcpServers: [] });
-    await connection.prompt({ sessionId: "native-session", prompt: [] });
+    await connection.prompt({
+      sessionId: "native-session",
+      prompt: [{ type: "text", text: "input" }],
+    });
   });
 
   it("同会话拒绝重叠 prompt，cancel 使用通知且保留最终结果", async () => {
     const f = fixture();
-    let finish!: (value: acp.PromptResponse) => void;
+    let finish!: (value: { stopReason: "cancelled" }) => void;
     const started = Promise.withResolvers<undefined>();
-    f.app.onRequest(acp.methods.agent.session.prompt, () => {
-      started.resolve(undefined);
-      return new Promise<acp.PromptResponse>((resolve) => {
-        finish = resolve;
-      });
-    });
+    f.app.onRequest(
+      acp.methods.agent.session.prompt,
+      testPrompt(() => {
+        started.resolve(undefined);
+        return new Promise<{ stopReason: "cancelled" }>((resolve) => {
+          finish = resolve;
+        });
+      }),
+    );
     f.cancel.mockImplementation(() => {
       finish({ stopReason: "cancelled" });
     });
     const connection = await connect(f);
     await connection.newSession({ cwd: "/workspace", mcpServers: [] });
-    const result = connection.prompt({ sessionId: "native-session", prompt: [] });
+    const result = connection.prompt({
+      sessionId: "native-session",
+      prompt: [{ type: "text", text: "input" }],
+    });
     await started.promise;
-    await expect(connection.prompt({ sessionId: "native-session", prompt: [] })).rejects.toThrow(
-      "进行中",
-    );
+    await expect(
+      connection.prompt({ sessionId: "native-session", prompt: [{ type: "text", text: "input" }] }),
+    ).rejects.toThrow("进行中");
     await connection.cancel("native-session");
     expect(await result).toEqual({ stopReason: "cancelled" });
   });
@@ -288,21 +332,26 @@ describe("共享 ACP 连接", () => {
     const started = Promise.withResolvers<undefined>();
     f.app.onRequest(
       acp.methods.agent.session.prompt,
-      ({ signal }) =>
-        new Promise((_resolve, reject) => {
-          started.resolve(undefined);
-          signal.addEventListener(
-            "abort",
-            () => {
-              reject(new Error("关闭"));
-            },
-            { once: true },
-          );
-        }),
+      testPrompt(
+        ({ signal }) =>
+          new Promise((_resolve, reject) => {
+            started.resolve(undefined);
+            signal.addEventListener(
+              "abort",
+              () => {
+                reject(new Error("关闭"));
+              },
+              { once: true },
+            );
+          }),
+      ),
     );
     const connection = await connect(f);
     await connection.newSession({ cwd: "/workspace", mcpServers: [] });
-    const result = connection.prompt({ sessionId: "native-session", prompt: [] });
+    const result = connection.prompt({
+      sessionId: "native-session",
+      prompt: [{ type: "text", text: "input" }],
+    });
     const rejected = expect(result).rejects.toThrow();
     await started.promise;
     connection.close();
@@ -312,9 +361,13 @@ describe("共享 ACP 连接", () => {
   });
   it("拒绝不支持的协议版本并关闭连接", async () => {
     const f = fixture();
-    f.initialize.mockReturnValueOnce({ protocolVersion: 999, agentCapabilities: {} });
+    f.initialize.mockReturnValueOnce({
+      protocolVersion: 1,
+      info: { name: "test-agent", version: "1" },
+      capabilities: {},
+    });
     f.start();
-    await expect(AcpConnection.connect(f.stream)).rejects.toThrow("协议版本");
+    await expect(AcpConnection.connect(f.stream)).rejects.toThrow(/protocol version|协议版本/);
   });
 
   it("握手超时会关闭连接，避免遗留永不完成的等待", async () => {
@@ -340,7 +393,7 @@ describe("共享 ACP 连接", () => {
   it("设置选项保留 agent 返回的完整配置，支持布尔值", async () => {
     const f = fixture();
     const config: acp.SessionConfigOption[] = [
-      { id: "fast", name: "加速", type: "boolean", currentValue: true },
+      { configId: "fast", name: "加速", type: "boolean", currentValue: true },
     ];
     const set = vi.fn(({ params }: acp.AgentRequestContext<acp.SetSessionConfigOptionRequest>) => {
       expect(params).toMatchObject({
@@ -355,7 +408,7 @@ describe("共享 ACP 连接", () => {
     const connection = await connect(f);
     await connection.newSession({ cwd: "/workspace", mcpServers: [] });
     expect(await connection.setConfigOption("native-session", "fast", true)).toEqual({
-      configOptions: config,
+      configOptions: projectAcpConfig(config),
     });
   });
   it("历史加载返回前等待异步投影完成，并按通知顺序交付", async () => {
@@ -371,7 +424,7 @@ describe("共享 ACP 连接", () => {
       },
     });
     const loading = connection
-      .loadSession({ sessionId: "old", cwd: "/workspace", mcpServers: [] })
+      .resumeSession({ sessionId: "old", cwd: "/workspace", mcpServers: [] })
       .then(() => {
         order.push("加载完成");
       });
@@ -383,33 +436,39 @@ describe("共享 ACP 连接", () => {
     expect(order).toEqual(["历史落盘", "加载完成"]);
   });
   it("仅在 agent 声明能力时关闭单个会话，并移除本地可发送状态", async () => {
-    const f = fixture({ loadSession: true, sessionCapabilities: { close: {} } });
+    const f = fixture({ session: {} });
     const close = vi.fn(() => ({}));
     f.app.onRequest(acp.methods.agent.session.close, close);
     const connection = await connect(f);
     await connection.newSession({ cwd: "/workspace", mcpServers: [] });
     await connection.closeSession("native-session");
     expect(close).toHaveBeenCalledOnce();
-    await expect(connection.prompt({ sessionId: "native-session", prompt: [] })).rejects.toThrow(
-      "尚未加载",
-    );
+    await expect(
+      connection.prompt({ sessionId: "native-session", prompt: [{ type: "text", text: "input" }] }),
+    ).rejects.toThrow("尚未加载");
     const unsupported = await connect(fixture({}));
-    await expect(unsupported.closeSession("old")).rejects.toThrow("session/close");
+    await expect(unsupported.closeSession("old")).rejects.toThrow();
   });
 });
 
 it("握手期间自动接收原生认证状态，仅保留公开身份字段", async () => {
   const f = fixture({ _meta: { authStatus: {} } });
-  f.initialize.mockImplementation(async ({ client }) => {
-    await client.notify("_auth/status_update", {
-      authStatus: {
-        kind: "account",
-        label: "ChatGPT Pro",
-        account: { email: "user@example.com", token: "must-not-leak" },
-        vendor: { secret: "must-not-leak" },
-      },
-    });
-    return { protocolVersion: 1, agentCapabilities: { _meta: { authStatus: {} } } };
+  f.initialize.mockImplementation(({ client }) => {
+    setTimeout(() => {
+      void client.notify("_auth/status_update", {
+        authStatus: {
+          kind: "account",
+          label: "ChatGPT Pro",
+          account: { email: "user@example.com", token: "must-not-leak" },
+          vendor: { secret: "must-not-leak" },
+        },
+      });
+    }, 10);
+    return {
+      protocolVersion: 2,
+      info: { name: "test-agent", version: "1" },
+      capabilities: { _meta: { authStatus: {} } },
+    };
   });
   const connection = await connect(f);
   expect(await connection.readAuthStatus()).toEqual({
@@ -425,4 +484,53 @@ it("未声明认证状态能力时保持未知，不创建会话推测登录", a
   const connection = await connect(f);
   expect(await connection.readAuthStatus()).toBeUndefined();
   expect(f.create).not.toHaveBeenCalled();
+});
+
+it("写入回执不结算回合，收到前台终态才完成", async () => {
+  const f = fixture();
+  const acknowledged = Promise.withResolvers<undefined>();
+  const finish = Promise.withResolvers<() => Promise<void>>();
+  f.app.onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: { sessionUpdate: "state_update", state: "running" },
+    });
+    finish.resolve(() =>
+      client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: { sessionUpdate: "state_update", state: "idle", stopReason: "end_turn" },
+      }),
+    );
+    acknowledged.resolve(undefined);
+    return { messageId: "inserted" };
+  });
+  const connection = await connect(f);
+  await connection.newSession({ cwd: "/workspace" });
+  const settled = vi.fn();
+  const turn = connection
+    .prompt({
+      sessionId: "native-session",
+      prompt: [{ type: "text", text: "问题" }],
+    })
+    .then(settled);
+  await acknowledged.promise;
+  await new Promise<undefined>((resolve) => setImmediate(resolve, undefined));
+  expect(settled).not.toHaveBeenCalled();
+  await (
+    await finish.promise
+  )();
+  await turn;
+  expect(settled).toHaveBeenCalledExactlyOnceWith({ stopReason: "end_turn" });
+});
+
+it("重放请求缺少完成标记时拒绝发布历史", async () => {
+  const f = fixture();
+  const connection = await connect(f);
+  await expect(
+    connection.resumeSession({
+      cwd: "/workspace",
+      sessionId: "native",
+      replayFrom: { type: "start" },
+    }),
+  ).rejects.toThrow("replay_complete");
 });

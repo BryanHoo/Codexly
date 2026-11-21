@@ -37,7 +37,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
     route.fulfill({
       json: {
         engine: "codex",
-        protocolVersion: 1,
+        protocolVersion: 2,
         providerConfiguration: true,
         connection: {
           source: "native",

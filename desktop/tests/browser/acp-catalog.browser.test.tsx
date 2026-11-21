@@ -63,7 +63,7 @@ for (const width of [390, 1280])
       installAcpAgent: install,
       configureAcpAgent: configure,
       getAcpAgent: (engine: AgentEngine) =>
-        Promise.resolve({ engine, protocolVersion: 1, authMethods: [] }),
+        Promise.resolve({ engine, protocolVersion: 2, authMethods: [] }),
       getAcpDefaults: () =>
         Promise.resolve({
           configOptions: [],
@@ -308,7 +308,7 @@ it("已安装 Agent 显示更新进度，确认后才从目录移除", async () 
     configureAcpAgent: async () => data,
     updateAcpAgent,
     removeAcpAgent,
-    getAcpAgent: async () => ({ engine: "codex" as const, protocolVersion: 1, authMethods: [] }),
+    getAcpAgent: async () => ({ engine: "codex" as const, protocolVersion: 2, authMethods: [] }),
     getAcpDefaults: async () => ({ configOptions: [], defaults: {}, unmappedLegacy: [], invalidDefaults: [] }),
     setAcpDefaultConfig: () => Promise.reject(new Error("unused")),
   };
@@ -392,7 +392,7 @@ it("目录模式保留左右配置布局，添加按钮固定在 Agent 栏底部
     installAcpAgent: () => Promise.resolve(data),
     configureAcpAgent: () => Promise.resolve(data),
     getAcpAgent: () =>
-      Promise.resolve({ engine: "codex" as const, protocolVersion: 1, authMethods: [] }),
+      Promise.resolve({ engine: "codex" as const, protocolVersion: 2, authMethods: [] }),
     getAcpDefaults: () =>
       Promise.resolve({ configOptions: [], defaults: {}, unmappedLegacy: [], invalidDefaults: [] }),
     setAcpDefaultConfig: () => Promise.reject(new Error("unused")),

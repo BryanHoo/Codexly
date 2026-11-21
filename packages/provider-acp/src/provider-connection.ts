@@ -27,12 +27,7 @@ export class AcpProviderConnection {
     const agent = this.#instance;
     if (session && agent) {
       // 正在隔离的会话只能退订视图；持久会话无恢复能力时也保留原绑定。
-      if (
-        agent.isAwaitingCancellation(session) ||
-        (!ephemeral &&
-          (!agent.canRestoreSessions ||
-            !agent.initialization.agentCapabilities?.sessionCapabilities?.close))
-      ) {
+      if (agent.isAwaitingCancellation(session) || (!ephemeral && !agent.canRestoreSessions)) {
         this.detached.add(taskId);
         return false;
       }

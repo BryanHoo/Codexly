@@ -12,15 +12,13 @@ export async function previewAcpConfig(
   change?: AcpConfigPreviewRequest["change"],
   releaseSession?: (id: string) => Promise<void>,
 ) {
-  if (!connection.initialization.agentCapabilities?.sessionCapabilities?.close && !releaseSession)
-    throw new Error("ACP agent 不支持预览会话关闭");
   const session = await connection.newSession({ cwd, mcpServers: [] });
   try {
     // 先恢复仍有效的默认值；草稿显式选择严格校验，不写全局默认设置。
     const current = await prepareAcpDefaults(
       connection,
       session.sessionId,
-      session.configOptions ?? [],
+      session.configOptions,
       saved,
       undefined,
       true,

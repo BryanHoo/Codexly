@@ -35,6 +35,7 @@ it("完整重放分批保存并稳定消息身份，失败不替换旧历史", a
     const failed = new AcpReplay(history, "task");
     await failed.update({
       sessionUpdate: "user_message_chunk",
+      messageId: "test-message",
       content: { type: "text", text: "失败内容" },
     });
     await failed.abort(new Error("断线"));
@@ -62,6 +63,7 @@ it("历史写锁被拒绝时重放立即失败，不能让无消费者的数据�
     const replay = new AcpReplay(history, "task");
     await replay.update({
       sessionUpdate: "user_message_chunk",
+      messageId: "test-message",
       content: { type: "text", text: "问题" },
     });
     let failure: unknown;
@@ -111,7 +113,8 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
     await history.append("task", original, "原始正文[资料.txt](file:///saved)");
     const replay = new AcpReplay(history, "task");
     const instructions = addAcpGlobalInstructions([], "使用中文📝".repeat(2_500))[0];
-    if (instructions?.type !== "text") throw new Error("缺少指令文本块");
+    if (instructions?.type !== "text" || typeof instructions.text !== "string")
+      throw new Error("缺少指令文本块");
     for (const text of [instructions.text.slice(0, 9), instructions.text.slice(9)]) {
       await replay.update({
         sessionUpdate: "user_message_chunk",
@@ -153,6 +156,7 @@ it("重放确认原输入后保留应用回合、消息身份和历史附件，�
     });
     await changed.update({
       sessionUpdate: "agent_message_chunk",
+      messageId: "test-message",
       content: { type: "text", text: "原始回答" },
     });
     await changed.update({

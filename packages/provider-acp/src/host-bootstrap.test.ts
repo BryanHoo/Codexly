@@ -1,5 +1,5 @@
 import { storageCatalog } from "./storage-catalog.test-support.js";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { expect, it, vi } from "vitest";
 import { PassThrough, Writable } from "node:stream";
 import { mkdtemp, readFile, writeFile, mkdir, rm } from "node:fs/promises";
@@ -25,7 +25,11 @@ for (const explicit of [false, true])
         for (const line of chunk.toString().trim().split("\n")) {
           const frame = JSON.parse(line) as Record<string, unknown>;
           if (typeof frame["catalogId"] === "number") {
-            const result = storage(frame["operation"], frame["payload"]);
+            const operation = frame["operation"];
+            const result =
+              operation === "project.list" || operation === "task.bindings"
+                ? []
+                : storage(operation, frame["payload"]);
             queueMicrotask(() =>
               input.write(`${JSON.stringify({ catalogId: frame["catalogId"], result })}\n`),
             );
@@ -39,7 +43,7 @@ for (const explicit of [false, true])
       const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>(),
         b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
       const option: acp.SessionConfigOption = {
-        id: "model",
+        configId: "model",
         category: "model",
         name: "Model",
         type: "select",
@@ -52,13 +56,15 @@ for (const explicit of [false, true])
       const peer = acp
         .agent({ name: "test" })
         .onRequest(acp.methods.agent.initialize, () => ({
-          protocolVersion: 1,
-          agentCapabilities: { sessionCapabilities: { close: {} } },
+          protocolVersion: 2,
+          info: { name: "test-agent", version: "1" },
+          capabilities: { session: {} },
         }))
         .onRequest(acp.methods.agent.session.new, () => ({
           sessionId: "settings",
           configOptions: [option],
         }))
+        .onRequest(acp.methods.agent.session.list, () => ({ sessions: [] }))
         .onRequest(acp.methods.agent.session.close, () => ({}))
         .onRequest(acp.methods.agent.session.setConfigOption, ({ params }) => {
           applied(params.configId, params.value);

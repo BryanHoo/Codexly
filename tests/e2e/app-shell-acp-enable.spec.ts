@@ -31,7 +31,7 @@ for (const width of [390, 1280]) {
         : route.fulfill({
             json: {
               engine: "claude",
-              protocolVersion: 1,
+              protocolVersion: 2,
               authMethods: [{ id: "native-login", name: "原生登录" }],
             },
           });

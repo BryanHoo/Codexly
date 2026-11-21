@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { fixture } from "./provider.test-support.js";
 
 const oldTurn = {
@@ -51,7 +51,7 @@ it.each(["success", "not-found"] as const)(
       return {};
     });
     const f = await fixture("claude", undefined, undefined, {
-      capabilities: { sessionCapabilities: { delete: {} } },
+      capabilities: { session: { delete: {} } },
       deleteSession: removed,
     });
     f.tasks.set("t", {

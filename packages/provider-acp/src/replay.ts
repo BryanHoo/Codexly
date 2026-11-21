@@ -1,4 +1,4 @@
-import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
+import { ContentBlock, SessionUpdate } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { AgentTurn } from "@codexly/protocol";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection } from "./event-projection.js";
@@ -12,12 +12,11 @@ interface ReplayTurn {
   content: AcpTurnContent;
 }
 
-/** ACP v1 不提供历史回合分页；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
+/** ACP v2 以会话通知回放历史；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
 export class AcpReplay {
   readonly #writer: WritableStreamDefaultWriter<ReplayTurn>;
   readonly #saved: Promise<void>;
   #current: AcpEventProjection | undefined;
-  #replySeen = false;
   #userId: string | undefined;
   #counter = 0;
   // 只暂存可能属于应用指令的用户文本前缀，普通消息的后续分块直接进入投影。
@@ -97,15 +96,25 @@ export class AcpReplay {
       .catch(() => undefined);
   }
   async update(update: SessionUpdate): Promise<void> {
-    if (update.sessionUpdate === "user_message_chunk") {
-      const id = update.messageId ?? undefined;
-      if (
-        this.#current &&
-        (this.#replySeen || (id !== undefined && this.#userId !== undefined && id !== this.#userId))
-      )
-        await this.#flush();
+    if (SessionUpdate.isUserMessage(update)) {
+      if (this.#current && this.#userId !== update.messageId) await this.#flush();
+      this.#userId = update.messageId;
+      this.#userPrefix = undefined;
+      if (update.content) {
+        update = {
+          ...update,
+          content: update.content.flatMap<ContentBlock>((block) => {
+            if (!ContentBlock.isText(block)) return [block];
+            const text = stripAcpGlobalInstructions(block.text);
+            return text ? [{ ...block, text }] : [];
+          }),
+        };
+      }
+    } else if (SessionUpdate.isUserMessageChunk(update)) {
+      const id = update.messageId;
+      if (this.#current && this.#userId !== undefined && id !== this.#userId) await this.#flush();
       this.#userId = id;
-      if (this.#userPrefix !== undefined && update.content.type === "text") {
+      if (this.#userPrefix !== undefined && ContentBlock.isText(update.content)) {
         const prefix = this.#userPrefix + update.content.text;
         const text = stripAcpGlobalInstructions(prefix);
         if (text === null) {
@@ -118,25 +127,27 @@ export class AcpReplay {
       } else {
         this.#flushUserPrefix();
       }
-    } else if (update.sessionUpdate === "agent_message_chunk") {
+    } else if (
+      update.sessionUpdate === "agent_message_chunk" ||
+      update.sessionUpdate === "agent_message"
+    ) {
       this.#flushUserPrefix();
     }
     const content =
       update.sessionUpdate === "user_message_chunk" ||
       update.sessionUpdate === "agent_message_chunk" ||
       update.sessionUpdate === "agent_thought_chunk" ||
-      update.sessionUpdate === "tool_call" ||
+      update.sessionUpdate === "user_message" ||
+      update.sessionUpdate === "agent_message" ||
+      update.sessionUpdate === "agent_thought" ||
       update.sessionUpdate === "tool_call_update" ||
-      update.sessionUpdate === "plan";
+      update.sessionUpdate === "plan_update" ||
+      update.sessionUpdate === "plan_removed";
     if (!content) return;
     if (!this.#current) {
-      const id =
-        update.sessionUpdate === "user_message_chunk" && update.messageId
-          ? update.messageId
-          : String(++this.#counter);
+      const id = this.#userId ?? String(++this.#counter);
       this.#current = new AcpEventProjection(this.taskId, `acp:history:${id}`, () => undefined);
     }
-    if (update.sessionUpdate !== "user_message_chunk") this.#replySeen = true;
     this.#current.update(update);
   }
   #flushUserPrefix(): void {
@@ -151,7 +162,7 @@ export class AcpReplay {
     );
     this.#current.update({
       sessionUpdate: "user_message_chunk",
-      ...(this.#userId === undefined ? {} : { messageId: this.#userId }),
+      messageId: this.#userId ?? "user",
       content: { type: "text", text },
     });
   }
@@ -166,7 +177,6 @@ export class AcpReplay {
       content: this.#current.content,
     });
     this.#current = undefined;
-    this.#replySeen = false;
     this.#userId = undefined;
   }
   async complete(): Promise<void> {

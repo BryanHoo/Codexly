@@ -1,4 +1,4 @@
-import type * as acp from "@agentclientprotocol/sdk/unstable";
+import type { AcpConfigOption } from "@codexly/protocol";
 import type { AcpConfigValues } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
 import type { AcpStoredSettings } from "./settings-store.js";
@@ -9,10 +9,10 @@ import { acpSelectOptions } from "./session-options.js";
 export async function applyAcpConfig(
   connection: AcpConnection,
   sessionId: string,
-  initial: acp.SessionConfigOption[],
+  initial: AcpConfigOption[],
   values: AcpConfigValues,
   invalid?: string[],
-): Promise<acp.SessionConfigOption[]> {
+): Promise<AcpConfigOption[]> {
   let options = initial;
   const pending = new Map(Object.entries(values));
   while (pending.size) {
@@ -49,7 +49,7 @@ export async function applyAcpConfig(
 export async function prepareAcpDefaults(
   connection: AcpConnection,
   sessionId: string,
-  initial: acp.SessionConfigOption[],
+  initial: AcpConfigOption[],
   saved: AcpStoredSettings,
   requested?: AcpConfigValues,
   inspect = false,

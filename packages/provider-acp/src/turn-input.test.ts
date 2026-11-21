@@ -17,7 +17,7 @@ it("文件使用持久副本的 ACP 资源链接，上传临时文件删除后�
     );
     await rm(source);
     const file = prompt.find((c) => c.type === "resource_link");
-    if (file?.type !== "resource_link") throw new Error("缺少链接");
+    if (file?.type !== "resource_link" || typeof file.uri !== "string") throw new Error("缺少链接");
     expect(await readFile(fileURLToPath(file.uri), "utf8")).toBe("中文内容");
     expect(file.name).toBe("文件.txt");
   } finally {
@@ -34,7 +34,7 @@ it("图片需协商能力，支持后发送标准 base64 image", async () => {
       images: [{ path: source, mediaType: "image/png" as const, detail: "auto" as const }],
     };
     await expect(createAcpPrompt(input, {}, join(root, "saved"))).rejects.toThrow("图片");
-    expect(await createAcpPrompt(input, { image: true }, join(root, "saved"))).toEqual([
+    expect(await createAcpPrompt(input, { image: {} }, join(root, "saved"))).toEqual([
       { type: "text", text: "正文" },
       { type: "image", mimeType: "image/png", data: "AQID" },
     ]);

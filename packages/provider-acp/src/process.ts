@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { Readable, Writable } from "node:stream";
-import { ndJsonStream } from "@agentclientprotocol/sdk/unstable";
+import { ndJsonStream } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpConnection, type AcpClientCallbacks } from "./connection.js";
 
 export interface AcpProcessCommand {

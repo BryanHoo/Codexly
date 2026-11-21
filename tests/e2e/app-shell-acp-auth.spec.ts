@@ -50,7 +50,7 @@ for (const width of [390, 1280]) {
       route.fulfill({
         json: {
           engine: "codex",
-          protocolVersion: 1,
+          protocolVersion: 2,
           providerConfiguration: true,
           ...(baseUrl
             ? {

@@ -23,7 +23,7 @@ it("API Key 登录时聊天与设置均隐藏快速模式，即使 Agent 公布�
   const client = {
     getAcpAgent: vi.fn(async (): Promise<AcpAgentProfile> => ({
       engine: "codex",
-      protocolVersion: 1,
+      protocolVersion: 2,
       authMethods: [],
       authStatus: { kind: "api_key", label: "API key" },
     })),
@@ -65,7 +65,7 @@ it("API Key 登录时聊天与设置均隐藏快速模式，即使 Agent 公布�
   query.clear();
 });
 
-const base: AcpAgentProfile = { engine: "codex", protocolVersion: 1, authMethods: [] };
+const base: AcpAgentProfile = { engine: "codex", protocolVersion: 2, authMethods: [] };
 const cases: { name: string; profile: AcpAgentProfile; visible: boolean }[] = [
   {
     name: "官方 ChatGPT",

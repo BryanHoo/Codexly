@@ -1,7 +1,7 @@
+import type { AcpConfigOption } from "@codexly/protocol";
 import { createAcpCapabilities } from "@codexly/protocol/acp-capabilities";
 import type { AgentEngine } from "@codexly/protocol";
 import type { AgentProvider } from "@codexly/core";
-import type { SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import { acpModels } from "./session-options.js";
 
 /** 这里只公布应用已经实现的操作；协议里存在的方法不能直接等同于产品能力。 */
@@ -10,7 +10,7 @@ export function acpCapabilities(engine: AgentEngine) {
 }
 export async function discoverAcpModels(
   provider: Pick<AgentProvider, "startTask"> & {
-    readSessionConfiguration(id: string): Promise<SessionConfigOption[]>;
+    readSessionConfiguration(id: string): Promise<AcpConfigOption[]>;
     unsubscribeTask(id: string): Promise<string>;
   },
 ) {

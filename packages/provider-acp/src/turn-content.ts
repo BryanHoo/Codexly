@@ -57,6 +57,20 @@ export class AcpTurnContent {
     return visible;
   }
 
+  replaceText(id: string, previous: string, value: string, thought: boolean): string {
+    const bytes = Buffer.byteLength(JSON.stringify(previous)) - 2;
+    if (thought) this.#thought = Math.max(0, this.#thought - bytes);
+    else this.#text = Math.max(0, this.#text - bytes);
+    const fields = this.#extras.get(id);
+    const old = fields?.get("text");
+    if (old) {
+      this.#answerBytes -= old.bytes;
+      fields?.delete("text");
+      if (!fields?.size) this.#extras.delete(id);
+    }
+    return this.text(id, value, thought);
+  }
+
   tool(id: string, field: "input" | "output", value: unknown, previous: unknown): unknown {
     const fields = this.#extras.get(id);
     const old = fields?.get(field);

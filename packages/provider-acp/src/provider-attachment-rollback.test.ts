@@ -3,7 +3,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it, vi } from "vitest";
-import type * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { AgentTurnOptions } from "@codexly/protocol";
 import { fixture, input } from "./provider.test-support.js";
 
@@ -96,7 +96,7 @@ it("开始调用 prompt 后结果未知仍保留资源副本", async () => {
     .poll(async () => (await f.provider.readTask(task.id)).turns.at(-1)?.status)
     .toBe("failed");
   expect(await copies(f.history.directory, task.id)).toHaveLength(1);
-  const resource = prompt.find((block) => block.type === "resource_link");
+  const resource = prompt.find((block) => acp.ContentBlock.isResourceLink(block));
   if (!resource) throw new Error("资源链接缺失");
   expect(await readFile(fileURLToPath(resource.uri), "utf8")).toBe("必须保留");
 });

@@ -21,23 +21,9 @@ it("打开及运行的历史不会被另一宿主淘汰，退订后可回收并�
   expect(f.loaded).toHaveBeenCalledOnce();
 });
 
-it("仅支持 resume 的会话保留本地唯一历史", async () => {
-  const f = await fixture("acp-test", undefined, undefined, {
-    capabilities: { sessionCapabilities: { resume: {}, close: {} } },
-  });
-  const task = await f.provider.startTask();
-  await f.provider.startConfiguredTurn(task.id, input);
-  await vi.waitFor(() => {
-    expect(f.provider.hasPendingTurn(task.id)).toBe(false);
-  });
-  await f.provider.unsubscribeTask(task.id);
-  await new AcpHistoryCache(f.history.directory, undefined, 0).prune();
-  expect(await f.history.hasTurns(task.id)).toBe(true);
-});
-
 it("暖会话的缓存被淘汰后必须 load，不能因已有会话绑定直接返回空历史", async () => {
   const f = await fixture("acp-test", undefined, undefined, {
-    capabilities: { loadSession: true, sessionCapabilities: { resume: {} } },
+    capabilities: { session: {} },
   });
   const task = await f.provider.startTask();
   await f.provider.startConfiguredTurn(task.id, input);

@@ -1,5 +1,6 @@
+import { projectAcpConfig } from "./session-options.js";
 import { withStorageCatalog } from "./storage-catalog.test-support.js";
-import * as acp from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,7 +14,7 @@ import type { EngineProjectRouter } from "@codexly/core";
 
 const initial: acp.SessionConfigOption[] = [
   {
-    id: "model",
+    configId: "model",
     name: "模型",
     category: "model",
     type: "select",
@@ -24,7 +25,7 @@ const initial: acp.SessionConfigOption[] = [
     ],
   },
   {
-    id: "effort",
+    configId: "effort",
     name: "思考",
     category: "thought_level",
     type: "select",
@@ -36,8 +37,8 @@ async function fixture(nativeStatus?: () => Record<string, unknown>) {
   const root = await mkdtemp(join(tmpdir(), "acp-settings-"));
   const authenticate = vi.fn<
     (
-      context: acp.AgentRequestContext<acp.AuthenticateRequest>,
-    ) => acp.AuthenticateResponse | Promise<acp.AuthenticateResponse>
+      context: acp.AgentRequestContext<acp.LoginAuthRequest>,
+    ) => acp.LoginAuthResponse | Promise<acp.LoginAuthResponse>
   >(({ params }) => {
     if (params.methodId === "fail") throw acp.RequestError.authRequired();
     return {};
@@ -53,24 +54,28 @@ async function fixture(nativeStatus?: () => Record<string, unknown>) {
     const sessions = new Map<string, acp.SessionConfigOption[]>();
     const peer = acp
       .agent({ name: "test" })
-      .onRequest(acp.methods.agent.initialize, async ({ client }) => {
+      .onRequest(acp.methods.agent.initialize, ({ client }) => {
         const authStatus = nativeStatus?.();
-        if (authStatus) await client.notify("_auth/status_update", { authStatus });
+        if (authStatus)
+          setTimeout(() => {
+            void client.notify("_auth/status_update", { authStatus });
+          }, 10);
         return {
-          protocolVersion: 1,
+          protocolVersion: 2,
+          info: { name: "test-agent", version: "1" },
           authMethods: [
-            { id: "login", name: "登录" },
-            { id: "fail", name: "失败" },
-            { id: "terminal", name: "终端", type: "terminal" as const },
+            { methodId: "login", name: "登录", type: "agent" as const },
+            { methodId: "fail", name: "失败", type: "agent" as const },
+            { methodId: "terminal", name: "终端", type: "terminal" as const, command: "login" },
           ],
-          agentCapabilities: {
-            sessionCapabilities: { close: {} },
+          capabilities: {
+            session: {},
             providers: {},
             ...(nativeStatus ? { _meta: { authStatus: {} } } : {}),
           },
         };
       })
-      .onRequest(acp.methods.agent.authenticate, authenticate)
+      .onRequest(acp.methods.agent.auth.login, authenticate)
       .onRequest(acp.methods.agent.providers.list, () => ({
         providers: [{ providerId: "main", supported: ["openai"], required: false, current: null }],
       }))
@@ -80,11 +85,12 @@ async function fixture(nativeStatus?: () => Record<string, unknown>) {
         sessions.set(sessionId, structuredClone(initial));
         return { sessionId, configOptions: structuredClone(initial) };
       })
+      .onRequest(acp.methods.agent.session.list, () => ({ sessions: [] }))
       .onRequest(acp.methods.agent.session.close, closed)
       .onRequest(acp.methods.agent.session.setConfigOption, ({ params }) => {
         applied(params.configId, params.value);
         const options = sessions.get(params.sessionId);
-        const option = options?.find((value) => value.id === params.configId);
+        const option = options?.find((value) => value.configId === params.configId);
         if (!options || !option) throw new Error("缺少测试会话配置");
         if (option.type === "select" && typeof params.value === "string")
           option.currentValue = params.value;
@@ -162,11 +168,11 @@ it("ACP 配置写入及迁移保留旧配置原文，旧版后续修改也不被
     await store.importLegacy("claude", { model: "a", reasoningEffort: "low" });
     f.transformOptions.mockImplementation((_id, options) => [
       ...options,
-      ...(options.some((option) => option.id === "future-mode")
+      ...(options.some((option) => option.configId === "future-mode")
         ? []
         : [
             {
-              id: "future-mode",
+              configId: "future-mode",
               name: "新布尔配置",
               type: "boolean" as const,
               currentValue: false,
@@ -196,7 +202,7 @@ it("认证仅调用公布的 agent 方法，终端认证与失败不得伪装成
     expect(f.launch).not.toHaveBeenCalled();
     expect(await f.service.inspect()).toMatchObject({
       engine: "claude",
-      protocolVersion: 1,
+      protocolVersion: 2,
       providerConfiguration: true,
       authMethods: [{ id: "login" }, { id: "fail" }, { id: "terminal", type: "terminal" }],
     });
@@ -217,7 +223,7 @@ it("单项模型切换消费完整响应，失效依赖保留原值，不重送�
     await f.service.updateDefaults({ model: "b", effort: "high" });
     f.transformOptions.mockImplementation((id, options) =>
       id === "model" && options[0]?.currentValue === "a"
-        ? options.filter((option) => option.id !== "effort")
+        ? options.filter((option) => option.configId !== "effort")
         : options,
     );
     const result = await f.service.setDefaultConfig("model", "a");
@@ -240,7 +246,7 @@ it("单项布尔变更保留 false，未知选项与关闭失败不覆盖原设�
   try {
     f.transformOptions.mockImplementation((_id, options) => [
       ...options,
-      { id: "enabled", name: "开关", type: "boolean", currentValue: false },
+      { configId: "enabled", name: "开关", type: "boolean", currentValue: false },
     ]);
     await f.service.updateDefaults({ model: "b" });
     expect((await f.service.setDefaultConfig("enabled", false)).defaults).toEqual({
@@ -282,7 +288,7 @@ it("ACP 原始配置 ID 使用记录键语义，保留特殊键的布尔值", as
   try {
     f.transformOptions.mockImplementation((_id, options) => [
       ...options,
-      { id: "__proto__", name: "扩展开关", type: "boolean", currentValue: false },
+      { configId: "__proto__", name: "扩展开关", type: "boolean", currentValue: false },
     ]);
     await f.service.updateDefaults({ model: "b" });
     const result = await f.service.setDefaultConfig("__proto__", false);
@@ -390,7 +396,7 @@ it("已保存的选项失效时仍可查看并修正设置，提交继续拒绝�
     expect(await f.service.readDefaults()).toMatchObject({
       defaults: { model: "removed" },
       invalidDefaults: ["model"],
-      configOptions: initial,
+      configOptions: projectAcpConfig(initial),
     });
     await expect(f.service.updateDefaults({ model: "removed" })).rejects.toThrow("配置");
     expect(await f.service.updateDefaults({})).toMatchObject({ defaults: {}, invalidDefaults: [] });

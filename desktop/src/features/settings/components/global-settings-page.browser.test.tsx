@@ -82,7 +82,7 @@ async function renderSettings(
   let current = structuredClone(acpDefaults);
   vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(async (engine) => ({
     engine,
-    protocolVersion: 1,
+    protocolVersion: 2,
     authMethods: [],
   }));
   vi.spyOn(nativeClient, "getAcpDefaults").mockImplementation(async () => current);

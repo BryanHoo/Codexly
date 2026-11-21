@@ -26,7 +26,7 @@ for (const width of [390, 1280]) {
     const inspections: string[] = [];
     await page.route("**/v1/acp/agents/codex", (route) => {
       inspections.push(route.request().url());
-      return route.fulfill({ json: { engine: "codex", protocolVersion: 1, authMethods: [] } });
+      return route.fulfill({ json: { engine: "codex", protocolVersion: 2, authMethods: [] } });
     });
     let checks = 0;
     await page.route("**/v1/acp/agents/codex/defaults", (route) => {

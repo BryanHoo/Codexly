@@ -1,4 +1,5 @@
-import type { AnyMessage } from "@agentclientprotocol/sdk/unstable";
+import { testPrompt } from "./acp-v2-peer.test-support.js";
+import type { AnyMessage } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { it, expect, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -63,7 +64,7 @@ it.each(["claude", "acp-gemini"] as const)(
 it.each(["title", "commit", "optimize"] as const)(
   "运行时 %s 辅助生成经 ACP 返回正文、拒绝工具权限并释放辅助会话",
   async (purpose) => {
-    const acp = await import("@agentclientprotocol/sdk/unstable");
+    const acp = await import("@agentclientprotocol/sdk/experimental/v2/unstable");
     const { AcpConnection } = await import("./connection.js");
     const root = await mkdtemp(join(tmpdir(), "acp-generation-"));
     const catalog = vi.fn(() => Promise.reject(new Error("不应访问任务目录")));
@@ -75,35 +76,46 @@ it.each(["title", "commit", "optimize"] as const)(
       const peer = acp
         .agent({ name: "test" })
         .onRequest(acp.methods.agent.initialize, () => ({
-          protocolVersion: 1,
-          agentCapabilities: { sessionCapabilities: { close: {} } },
+          protocolVersion: 2,
+          info: { name: "test-agent", version: "1" },
+          capabilities: { session: {} },
         }))
         .onRequest(acp.methods.agent.session.new, () => ({ sessionId: "helper" }))
         .onRequest(acp.methods.agent.session.close, closed)
-        .onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
-          received.push(
-            ...params.prompt.flatMap((block) => (block.type === "text" ? [block.text] : [])),
-          );
-          const permission = await client.request(acp.methods.client.session.requestPermission, {
-            sessionId: params.sessionId,
-            options: [{ optionId: "allow", name: "允许", kind: "allow_once" }],
-            toolCall: { toolCallId: "helper-tool", title: "执行命令" },
-          });
-          expect(permission.outcome.outcome).toBe("cancelled");
-          await client.notify(acp.methods.client.session.update, {
-            sessionId: params.sessionId,
-            update: {
-              sessionUpdate: "agent_message_chunk",
-              content: {
-                type: "text",
-                text: JSON.stringify(
-                  purpose === "title" ? { title: "辅助回答" } : { message: "辅助回答" },
-                ),
+        .onRequest(
+          acp.methods.agent.session.prompt,
+          testPrompt(async ({ params, client }) => {
+            received.push(
+              ...params.prompt.flatMap((block) =>
+                acp.ContentBlock.isText(block) ? [block.text] : [],
+              ),
+            );
+            const permission = await client.request(acp.methods.client.session.requestPermission, {
+              sessionId: params.sessionId,
+              options: [{ optionId: "allow", name: "允许", kind: "allow_once" }],
+              title: "操作确认",
+              subject: {
+                type: "tool_call",
+                toolCall: { toolCallId: "helper-tool", title: "执行命令" },
               },
-            },
-          });
-          return { stopReason: "end_turn" };
-        })
+            });
+            expect(permission.outcome.outcome).toBe("cancelled");
+            await client.notify(acp.methods.client.session.update, {
+              sessionId: params.sessionId,
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                messageId: "test-message",
+                content: {
+                  type: "text",
+                  text: JSON.stringify(
+                    purpose === "title" ? { title: "辅助回答" } : { message: "辅助回答" },
+                  ),
+                },
+              },
+            });
+            return { stopReason: "end_turn" };
+          }),
+        )
         .connect({ readable: a.readable, writable: b.writable });
       const connection = await AcpConnection.connect(
         { readable: b.readable, writable: a.writable },

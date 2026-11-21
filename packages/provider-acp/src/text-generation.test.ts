@@ -60,6 +60,7 @@ it.each(["end_turn", "refusal", "max_tokens", "max_turn_requests", "cancelled"] 
           // 即使正文是可解析的完整结果，拒绝或截断仍不能被自动化流程接收。
           projection.update({
             sessionUpdate: "agent_message_chunk",
+            messageId: "test-message",
             content: { type: "text", text: '{"title":"部分结果"}' },
           });
           return Promise.resolve(projection.finish(reason));

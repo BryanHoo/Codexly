@@ -1,6 +1,6 @@
 import { stripAcpGlobalInstructions } from "./global-instructions.js";
 import { readAcpCodexHistory } from "./codex-read-only-history.js";
-import { RequestError } from "@agentclientprotocol/sdk/unstable";
+import { RequestError } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import {
   localTaskMetadata,
   type LocalTask,
