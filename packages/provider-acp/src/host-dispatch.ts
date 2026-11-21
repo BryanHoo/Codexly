@@ -2,8 +2,6 @@ import { SaveAgentInstructionsSchema } from "@codexly/protocol/application-prefe
 import type { AcpQueue } from "./queue.js";
 import type { AcpTaskSubscriptions } from "./task-subscriptions.js";
 import type { AgentTaskScope } from "@codexly/core";
-import { join } from "node:path";
-import { HistoricalTaskAttachments, exportTaskAttachment } from "@codexly/core/task-attachments";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { ApplicationGenerationRequestSchema } from "@codexly/protocol/application-generation";
@@ -198,11 +196,7 @@ export async function dispatchAcpHost(
     if (!task || task.projectId !== (scope.kind === "temporary" ? null : scope.id))
       throw new Error("Task not found");
     // 附件导出不建立项目运行时，避免工作树任务 cwd 与已打开项目根产生作用域冲突。
-    return exportTaskAttachment(
-      new HistoricalTaskAttachments(join(runtime.directory, "history", "task-attachments")),
-      id,
-      text(params, "attachmentId"),
-    );
+    return queue.exportAttachment(scope.id, id, text(params, "attachmentId"));
   }
   if (method === "search.occurrences") {
     if (

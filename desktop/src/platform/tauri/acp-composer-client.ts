@@ -18,6 +18,11 @@ export type AcpComposerQueueClient = Pick<NativeClient, QueueMethods> & {
     offset: -1 | 1,
     options?: MutationOptions,
   ) => Promise<{ moved: boolean }>;
+  readQueuedAttachment: (attachment: {
+    previewUrl: string;
+    name: string;
+    mediaType: string;
+  }) => Promise<File>;
 };
 export type AcpComposerClient = Pick<
   NativeClient,
@@ -79,5 +84,10 @@ export function createAcpComposerQueueClient(
     },
     getTaskAttachmentUrl: (projectId, taskId, attachmentId) =>
       buildNativeTaskAttachmentUrl(projectId, taskId, attachmentId, "acp"),
+    readQueuedAttachment: async ({ previewUrl, name, mediaType }) => {
+      const response = await fetch(previewUrl);
+      if (!response.ok) throw new Error(`读取队列附件失败（${name}）`);
+      return new File([await response.blob()], name, { type: mediaType });
+    },
   };
 }

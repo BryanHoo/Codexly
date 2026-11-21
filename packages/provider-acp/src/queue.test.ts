@@ -145,8 +145,24 @@ it("重启后保留附件与编辑状态，排序和继续发送复用持久队�
     const queue = new AcpQueue(root, execute, () => undefined);
     const first = await queue.add(provider, "p", "t", input, "first");
     const second = await queue.add(provider, "p", "t", { ...input, text: "two" }, "second");
-    await queue.update(provider, "p", "t", first.id, { ...input, text: "edited" }, "editing");
+    const edited = await queue.update(
+      provider,
+      "p",
+      "t",
+      first.id,
+      { ...input, text: "edited" },
+      "editing",
+    );
+    const originalAttachment = first.attachments[0]?.id;
+    const editedAttachment = edited.attachments[0]?.id;
+    const sentAttachment = second.attachments[0]?.id;
+    if (!originalAttachment || !editedAttachment || !sentAttachment) {
+      throw new Error("队列附件缺失");
+    }
     const restarted = new AcpQueue(root, execute, () => undefined);
+    expect(await restarted.attachments.read("t", originalAttachment)).toBeUndefined();
+    expect(await restarted.attachments.read("other", editedAttachment)).toBeUndefined();
+    expect(await restarted.attachments.read("t", editedAttachment)).toBeDefined();
     expect((await restarted.list(provider, "p", "t"))[0]).toMatchObject({
       text: "edited",
       status: "editing",
@@ -165,6 +181,8 @@ it("重启后保留附件与编辑状态，排序和继续发送复用持久队�
     expect(execute).toHaveBeenCalledTimes(1);
     await restarted.delete(provider, "p", "t", first.id);
     expect(await restarted.list(provider, "p", "t")).toEqual([]);
+    expect(await restarted.attachments.read("t", editedAttachment)).toBeUndefined();
+    expect(await restarted.attachments.read("t", sentAttachment)).toBeUndefined();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

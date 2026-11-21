@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { AgentProvider, AgentProviderTurnInput, AgentProviderEvent } from "@codexly/core";
 import { PersistentTaskQueue, type QueueRuntime } from "@codexly/core/persistent-task-queue";
 import { FileTaskQueueRepository } from "@codexly/core/file-task-queue";
-import { HistoricalTaskAttachments, exportTaskAttachment } from "@codexly/core/task-attachments";
+import { AcpQueueAttachments } from "./queue-attachments.js";
 import type {
   AgentTurn,
   AgentImageMediaType,
@@ -12,18 +12,28 @@ import type {
 /** 调度与不确定结果恢复完全复用 Core；这里只适配 ACP 执行和授权附件引用。 */
 export class AcpQueue {
   readonly #queue: PersistentTaskQueue;
-  readonly attachments: HistoricalTaskAttachments;
+  readonly #repository: FileTaskQueueRepository;
+  readonly attachments: AcpQueueAttachments;
   constructor(
     directory: string,
     execute: (project: string, task: string, input: AgentProviderTurnInput) => Promise<AgentTurn>,
     emit: (event: AgentProviderEvent, project: string) => void,
   ) {
-    this.attachments = new HistoricalTaskAttachments(
-      join(directory, "history", "task-attachments"),
-    );
+    this.attachments = new AcpQueueAttachments(directory);
+    this.#repository = new FileTaskQueueRepository(join(directory, "queues"));
     this.#queue = new PersistentTaskQueue({
-      repository: new FileTaskQueueRepository(join(directory, "queues")),
+      repository: this.#repository,
       startTurn: (runtime, input) => execute(runtime.projectId, runtime.taskId, input),
+      reconcileAttachments: async ({ projectId, taskId }) => {
+        try {
+          await this.attachments.reconcile(taskId, () =>
+            this.#repository.listQueue(projectId, taskId),
+          );
+        } catch {
+          // 已提交的队列变更仍返回原结果，后续操作会重新核对磁盘并重试回收。
+          process.stderr.write("ACP_QUEUE_ATTACHMENT_CLEANUP_FAILED\n");
+        }
+      },
       attachmentStore: {
         read: async (_project, id, task) => {
           if (!task) throw new Error("Missing queue task");
@@ -47,7 +57,7 @@ export class AcpQueue {
               text: Buffer.from(data.content).toString("utf8"),
             });
           } else {
-            const exported = await exportTaskAttachment(this.attachments, task, id);
+            const exported = await this.attachments.export(task, id);
             if (meta.kind === "image")
               images.push({
                 path: exported.path,
@@ -90,20 +100,29 @@ export class AcpQueue {
   ) {
     const runtime = await this.#runtime(provider, project, task);
     if (input.skills.length) throw new Error("ACP queue does not support legacy skills");
-    const attachments = await this.attachments.prepare(task, input);
     return this.#queue.add(
       runtime,
-      {
-        type: "prompt",
+      async () => ({
+        type: "prompt" as const,
         text: input.text,
         skills: [],
-        attachments: attachments.map((a) => ({ id: a.id })),
-      },
+        attachments: await this.attachments.prepare(task, input),
+      }),
       clientMessage,
     );
   }
   async list(provider: AgentProvider, project: string, task: string) {
-    return this.#queue.list(await this.#runtime(provider, project, task));
+    const runtime = await this.#runtime(provider, project, task);
+    return this.#queue.withTaskLock(runtime, () => this.#queue.list(runtime));
+  }
+  async exportAttachment(projectId: string, taskId: string, id: string) {
+    if (!id.startsWith("queue-")) return this.attachments.export(taskId, id);
+    return this.#queue.withTaskLock({ projectId, taskId }, async () => {
+      const records = await this.#repository.listQueue(projectId, taskId);
+      if (!records.some((record) => record.input.attachments.some((item) => item.id === id)))
+        throw new Error("队列附件不存在");
+      return this.attachments.export(taskId, id);
+    });
   }
   async start(
     provider: AgentProvider,
@@ -137,16 +156,15 @@ export class AcpQueue {
   ) {
     const runtime = await this.#runtime(provider, project, task);
     if (input.skills.length) throw new Error("ACP queue does not support legacy skills");
-    const attachments = await this.attachments.prepare(task, input);
     return this.#queue.update(
       runtime,
       id,
-      {
-        type: "prompt",
+      async () => ({
+        type: "prompt" as const,
         text: input.text,
         skills: [],
-        attachments: attachments.map((a) => ({ id: a.id })),
-      },
+        attachments: await this.attachments.prepare(task, input),
+      }),
       status,
     );
   }

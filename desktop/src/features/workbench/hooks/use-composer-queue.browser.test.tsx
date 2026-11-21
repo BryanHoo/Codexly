@@ -169,13 +169,17 @@ test.each(["moved", "unchanged", "failed"])("sends a move intent and refreshes s
   await vi.waitFor(() => expect(onError.mock.calls).toEqual(outcome === "failed" ? [[error]] : []));
 });
 
-test("withdraws the complete queued message into the composer before editing", async () => {
+test.each([false, true])("withdraws the queued message for editing (ACP: %s)", async (acp) => {
   let deleted = false;
   const deleteQueuedSubmission = vi.fn(async () => {
     deleted = true;
     return { deleted: true };
   });
   const updateQueuedSubmission = vi.fn(async () => ({ queuedSubmission }));
+  const readQueuedAttachment = vi.fn(async ({ name }: { name: string }) => {
+    expect(deleted).toBe(false);
+    return new File([name], name);
+  });
   const client = {
     deleteQueuedSubmission,
     getTaskAttachmentUrl: (_projectId: string, _taskId: string, attachmentId: string) =>
@@ -184,6 +188,7 @@ test("withdraws the complete queued message into the composer before editing", a
       data: deleted ? [] : [queuedSubmission],
     })),
     updateQueuedSubmission,
+    ...(acp ? { readQueuedAttachment } : {}),
   } as unknown as NativeMutationClient;
   const handleAttachmentsChange = vi.fn();
   const editorRef = createRef<HTMLTextAreaElement>();
@@ -239,12 +244,16 @@ test("withdraws the complete queued message into the composer before editing", a
       expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
     expect(handleAttachmentsChange).toHaveBeenCalledWith([
-      expect.objectContaining({ id: "/attachments/guide.png", source: "host" }),
-      expect.objectContaining({ id: "/attachments/context.txt", source: "host" }),
+      expect.objectContaining({ id: "/attachments/guide.png", source: acp ? "browser" : "host" }),
+      expect.objectContaining({ id: "/attachments/context.txt", source: acp ? "browser" : "host" }),
     ]);
   });
   expect(replacePromptContent).toHaveBeenCalled();
   expect(updateQueuedSubmission).not.toHaveBeenCalled();
+  expect(readQueuedAttachment).toHaveBeenCalledTimes(acp ? 2 : 0);
+  for (const { previewUrl } of handleAttachmentsChange.mock.calls[0]![0]) {
+    if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+  }
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   expect(editorRef.current!.selectionStart).toBe(0);
   expect(editorRef.current!.selectionEnd).toBe(queuedSubmission.text.length);

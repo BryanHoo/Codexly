@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -106,6 +106,7 @@ test(
       const listed = await host.request("queue.list");
       assert.equal(listed.error, undefined);
       assert.equal(listed.result.data[0].attachments[0].name, "proof.txt");
+      const legacyAttachment = listed.result.data[0].attachments[0].id;
       const updated = await host.request("queue.update", {
         queuedSubmissionId: "q",
         input: {
@@ -124,9 +125,19 @@ test(
       assert.equal(restored.result.data[0].text, "edited");
       assert.equal(restored.result.data[0].status, "editing");
       assert.equal(restored.result.data[0].attachments[0].name, "proof.txt");
+      const attachmentId = restored.result.data[0].attachments[0].id;
+      const exported = await host.request("attachment.export", { attachmentId });
+      assert.equal(await readFile(exported.result.path, "utf8"), "proof");
       const deleted = await host.request("queue.delete", { queuedSubmissionId: "q" });
       assert.equal(deleted.result.deleted, true);
       assert.deepEqual(deleted.result.queue.data, []);
+      assert.equal(
+        (await host.request("attachment.export", { attachmentId })).error,
+        "ACP_HOST_REQUEST_FAILED",
+      );
+      await assert.rejects(stat(exported.result.path), { code: "ENOENT" });
+      const legacy = await host.request("attachment.export", { attachmentId: legacyAttachment });
+      assert.equal(await readFile(legacy.result.path, "utf8"), "proof");
       await host.close();
     } finally {
       host?.kill();

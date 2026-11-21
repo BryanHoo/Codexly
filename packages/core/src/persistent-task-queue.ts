@@ -60,8 +60,11 @@ export type QueueRuntime = Readonly<{
   taskId: string;
 }>;
 
+type QueueTask = Pick<QueueRuntime, "projectId" | "taskId">;
+
 export type PersistentTaskQueueOptions = Readonly<{
   attachmentStore: QueueAttachmentStore;
+  reconcileAttachments?: (task: QueueTask) => Promise<void>;
   startTurn?: (runtime: QueueRuntime, input: AgentProviderTurnInput) => Promise<AgentTurn>;
   readTaskSettings?: (projectId: string, taskId: string) => Promise<AgentTaskSettings>;
   repository: AgentQueueRepository;
@@ -75,6 +78,8 @@ export type PersistentTaskQueueOptions = Readonly<{
   >;
 }>;
 
+type QueueInput = AgentPromptInput | (() => Promise<AgentPromptInput>);
+
 export class PersistentTaskQueue {
   readonly #attachmentStore: QueueAttachmentStore;
   readonly #locks = new Map<string, Promise<void>>();
@@ -82,6 +87,7 @@ export class PersistentTaskQueue {
   readonly #startTurn: PersistentTaskQueueOptions["startTurn"];
   readonly #readTaskSettings: PersistentTaskQueueOptions["readTaskSettings"];
   readonly #repository: AgentQueueRepository;
+  readonly #reconcileAttachments: PersistentTaskQueueOptions["reconcileAttachments"];
   readonly #resolveProviderInput: PersistentTaskQueueOptions["resolveProviderInput"];
 
   public constructor(options: PersistentTaskQueueOptions) {
@@ -91,23 +97,18 @@ export class PersistentTaskQueue {
     if (!this.#startTurn && !this.#readTaskSettings)
       throw new Error("Missing queue execution configuration");
     this.#repository = options.repository;
+    this.#reconcileAttachments = options.reconcileAttachments;
     this.#resolveProviderInput = options.resolveProviderInput;
   }
 
   public async add(
     runtime: QueueRuntime,
-    input: AgentPromptInput,
+    input: QueueInput,
     clientUserMessageId: string,
   ): Promise<AgentQueuedSubmission> {
     // 入队和附件保留必须与终态续发互斥，避免刚写入的记录提前被消费。
-    return this.#withTaskLock(runtime, async () => {
-      const { attachmentIds } = await this.#resolveProviderInput(
-        runtime.projectId,
-        input,
-        runtime.provider,
-        runtime.taskId,
-      );
-      const storedInput = { ...input, attachments: attachmentIds.map((id) => ({ id })) };
+    return this.#withAttachmentReconciliation(runtime, async () => {
+      const storedInput = await this.#prepareInput(runtime, input);
       const record = await this.#repository.addQueue({
         clientUserMessageId,
         id: randomUUID(),
@@ -116,14 +117,18 @@ export class PersistentTaskQueue {
         status: "queued",
         taskId: runtime.taskId,
       });
-      await this.#attachmentStore.retainQueue(runtime.projectId, attachmentIds, record.id);
+      await this.#attachmentStore.retainQueue(
+        runtime.projectId,
+        storedInput.attachments.map(({ id }) => id),
+        record.id,
+      );
       this.#publishChanged(runtime);
       return this.#mapRecord(record);
     });
   }
 
   public async delete(runtime: QueueRuntime, queuedSubmissionId: string): Promise<boolean> {
-    return this.#withTaskLock(runtime, async () => {
+    return this.#withAttachmentReconciliation(runtime, async () => {
       const deleted = await this.#repository.deleteQueue(
         runtime.projectId,
         runtime.taskId,
@@ -151,7 +156,7 @@ export class PersistentTaskQueue {
     runtime: QueueRuntime,
     queuedSubmissionIds: readonly string[],
   ): Promise<void> {
-    await this.#withTaskLock(runtime, async () => {
+    await this.withTaskLock(runtime, async () => {
       await this.#repository.reorderQueue(runtime.projectId, runtime.taskId, queuedSubmissionIds);
       this.#publishChanged(runtime);
     });
@@ -159,7 +164,7 @@ export class PersistentTaskQueue {
 
   /** 相邻移动也在任务锁内读取最新顺序，避免并发点击覆盖另一次移动。 */
   public async move(runtime: QueueRuntime, id: string, offset: -1 | 1): Promise<boolean> {
-    return this.#withTaskLock(runtime, async () => {
+    return this.withTaskLock(runtime, async () => {
       const records = await this.#repository.listQueue(runtime.projectId, runtime.taskId);
       const ids = records.map((record) => record.id),
         index = ids.indexOf(id),
@@ -180,7 +185,7 @@ export class PersistentTaskQueue {
     queuedSubmissionId?: string,
     expectedTurnId?: string,
   ): Promise<AgentTurn> {
-    const turn = await this.#withTaskLock(runtime, () =>
+    const turn = await this.#withAttachmentReconciliation(runtime, () =>
       this.#startUnlocked(runtime, queuedSubmissionId, true, expectedTurnId),
     );
     if (turn === undefined) {
@@ -190,7 +195,7 @@ export class PersistentTaskQueue {
   }
 
   public async startNext(runtime: QueueRuntime): Promise<void> {
-    await this.#withTaskLock(runtime, () => this.#startNextUnlocked(runtime));
+    await this.#withAttachmentReconciliation(runtime, () => this.#startNextUnlocked(runtime));
   }
 
   async #startNextUnlocked(runtime: QueueRuntime): Promise<void> {
@@ -202,21 +207,16 @@ export class PersistentTaskQueue {
   public async update(
     runtime: QueueRuntime,
     queuedSubmissionId: string,
-    input: AgentPromptInput,
+    input: QueueInput,
     status: AgentQueuedSubmissionStatus,
   ): Promise<AgentQueuedSubmission> {
-    return this.#withTaskLock(runtime, async () => {
+    return this.#withAttachmentReconciliation(runtime, async () => {
       const current = (await this.#repository.listQueue(runtime.projectId, runtime.taskId)).find(
         (record) => record.id === queuedSubmissionId,
       );
       if (current?.execution !== undefined) throw new TaskQueueBlockedError();
-      const { attachmentIds } = await this.#resolveProviderInput(
-        runtime.projectId,
-        input,
-        runtime.provider,
-        runtime.taskId,
-      );
-      const storedInput = { ...input, attachments: attachmentIds.map((id) => ({ id })) };
+      if (!current) throw new TaskQueueItemNotFoundError();
+      const storedInput = await this.#prepareInput(runtime, input);
       const record = await this.#repository.updateQueue(
         runtime.projectId,
         runtime.taskId,
@@ -227,7 +227,7 @@ export class PersistentTaskQueue {
       if (record === undefined) throw new TaskQueueItemNotFoundError();
       await this.#attachmentStore.retainQueue(
         runtime.projectId,
-        attachmentIds,
+        storedInput.attachments.map(({ id }) => id),
         queuedSubmissionId,
         true,
       );
@@ -237,6 +237,18 @@ export class PersistentTaskQueue {
       if (status === "queued") await this.#startNextUnlocked(runtime);
       return submission;
     });
+  }
+
+  async #prepareInput(runtime: QueueRuntime, input: QueueInput): Promise<AgentPromptInput> {
+    // 文件宿主在任务锁内直接保存已校验的附件，入队时无需提前导出正文。
+    if (typeof input === "function") return input();
+    const { attachmentIds } = await this.#resolveProviderInput(
+      runtime.projectId,
+      input,
+      runtime.provider,
+      runtime.taskId,
+    );
+    return { ...input, attachments: attachmentIds.map((id) => ({ id })) };
   }
 
   async #mapRecord(record: AgentQueueRecord): Promise<AgentQueuedSubmission> {
@@ -371,7 +383,8 @@ export class PersistentTaskQueue {
     return turn;
   }
 
-  async #withTaskLock<T>(runtime: QueueRuntime, action: () => Promise<T>): Promise<T> {
+  /** 附件导出与队列变更共用任务锁，避免导出路径在回收后重新出现。 */
+  async withTaskLock<T>(runtime: QueueTask, action: () => Promise<T>): Promise<T> {
     const key = `${runtime.projectId}\u0000${runtime.taskId}`;
     const previous = this.#locks.get(key) ?? Promise.resolve();
     let release!: () => void;
@@ -387,5 +400,15 @@ export class PersistentTaskQueue {
       release();
       if (this.#locks.get(key) === tail) this.#locks.delete(key);
     }
+  }
+
+  #withAttachmentReconciliation<T>(task: QueueTask, action: () => Promise<T>): Promise<T> {
+    return this.withTaskLock(task, async () => {
+      try {
+        return await action();
+      } finally {
+        await this.#reconcileAttachments?.(task);
+      }
+    });
   }
 }

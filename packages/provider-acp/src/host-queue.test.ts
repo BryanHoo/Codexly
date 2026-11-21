@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
@@ -35,7 +35,11 @@ it("宿主队列完整往返符合两端共享响应契约，非法排序不修�
         Promise.resolve({ turns: running ? [{ id: "active", status: "running" }] : [] }),
     } as unknown as AgentProvider;
     const queue = new AcpQueue(directory, execute, () => undefined);
-    const runtime = { directory, forScope: () => provider } as unknown as AcpRuntime;
+    const runtime = {
+      directory,
+      forScope: () => provider,
+      store: { catalog: () => Promise.resolve({ projectId: "p" }) },
+    } as unknown as AcpRuntime;
     const scope = {
       id: "p",
       kind: "project",
@@ -72,6 +76,26 @@ it("宿主队列完整往返符合两端共享响应契约，非法排序不修�
     const deleted = await send("queue.delete", { queuedSubmissionId: id });
     expect(Value.Check(DeleteAgentQueuedSubmissionResponseSchema, deleted)).toBe(true);
     expect(execute).toHaveBeenCalledTimes(1);
+
+    running = true;
+    const withAttachment = {
+      ...input,
+      textAttachments: [{ name: "proof.txt", text: "正文" }],
+    };
+    await send("queue.add", { input: withAttachment, clientUserMessageId: "delete" });
+    await send("queue.add", { input: withAttachment, clientUserMessageId: "keep" });
+    const [removed, kept] = await queue.list(provider, "p", "t");
+    const attachmentId = removed?.attachments[0]?.id;
+    const keptAttachmentId = kept?.attachments[0]?.id;
+    if (!removed || !attachmentId || !keptAttachmentId) throw new Error("队列附件缺失");
+    const exportAttachment = (id: string) =>
+      send("attachment.export", { attachmentId: id }) as Promise<{ path: string }>;
+    const { path } = await exportAttachment(attachmentId);
+    expect(await readFile(path, "utf8")).toBe("正文");
+    await send("queue.delete", { queuedSubmissionId: removed.id });
+    await expect(exportAttachment(attachmentId)).rejects.toThrow();
+    await expect(stat(path)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await readFile((await exportAttachment(keptAttachmentId)).path, "utf8")).toBe("正文");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
