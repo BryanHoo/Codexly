@@ -19,9 +19,6 @@
       "path": "../provider-codex"
     },
     {
-      "path": "../provider-claude"
-    },
-    {
       "path": "../provider-acp"
     }
   ]

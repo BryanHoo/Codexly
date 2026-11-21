@@ -94,7 +94,6 @@ describe("runCli ports", () => {
       );
       await expect(harness.runtimeProvider.listModels()).rejects.toThrow("agent disconnected");
       expect(harness.serverClose).not.toHaveBeenCalled();
-      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     } finally {
       controller.abort();
     }

@@ -16,7 +16,6 @@ permissions = [
   "allow-save-network-proxy",
   "allow-test-network-proxy",
   "allow-claude-engine-request",
-  "allow-prepare-claude-runtime",
   "allow-get-configured-engines",
   "allow-enable-autostart",
   "allow-get-tray-icon-visible",

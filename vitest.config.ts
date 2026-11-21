@@ -36,17 +36,11 @@ export const vitestAliases = {
   "@codexly/core/task-attachments": fileURLToPath(
     new URL("./packages/core/src/task-attachments.ts", import.meta.url),
   ),
-  "@codexly/provider-claude/network-proxy": fileURLToPath(
-    new URL("./packages/provider-claude/src/network-proxy.ts", import.meta.url),
-  ),
   "@codexly/core/app-storage-paths": fileURLToPath(
     new URL("./packages/core/src/app-storage-paths.ts", import.meta.url),
   ),
   "@codexly/core/persistent-task-queue": fileURLToPath(
     new URL("./packages/core/src/persistent-task-queue.ts", import.meta.url),
-  ),
-  "@codexly/provider-claude": fileURLToPath(
-    new URL("./packages/provider-claude/src/index.ts", import.meta.url),
   ),
   "@codexly/core/persistent-historical-attachment-store": fileURLToPath(
     new URL("./packages/core/src/persistent-historical-attachment-store.ts", import.meta.url),

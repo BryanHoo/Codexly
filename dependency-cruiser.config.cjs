@@ -22,7 +22,7 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/protocol/src" },
       to: {
-        path: "^(packages/(core|provider-codex|provider-claude|provider-acp|server|client)|apps/web|src)",
+        path: "^(packages/(core|provider-codex|provider-acp|server|client)|apps/web|src)",
       },
     },
     {
@@ -30,7 +30,7 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/core/src" },
       to: {
-        path: "^(packages/(provider-codex|provider-claude|provider-acp|server|client)|apps/web|src)",
+        path: "^(packages/(provider-codex|provider-acp|server|client)|apps/web|src)",
       },
     },
     {
@@ -43,14 +43,14 @@ module.exports = {
       name: "client-is-independent-from-server-runtime",
       severity: "error",
       from: { path: "^packages/client/src" },
-      to: { path: "^packages/(core|provider-codex|provider-claude|provider-acp|server)/src" },
+      to: { path: "^packages/(core|provider-codex|provider-acp|server)/src" },
     },
     {
       name: "frontend-core-is-platform-independent",
       severity: "error",
       from: { path: "^packages/frontend-core/src" },
       to: {
-        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-claude|provider-acp|server))/",
+        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-acp|server))/",
       },
     },
     {
@@ -58,14 +58,14 @@ module.exports = {
       severity: "error",
       from: { path: "^packages/ui/src" },
       to: {
-        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-claude|provider-acp|server))/",
+        path: "^(apps|desktop|src|packages/(client|core|provider-codex|provider-acp|server))/",
       },
     },
     {
       name: "web-only-uses-client-and-protocol",
       severity: "error",
       from: { path: "^apps/web/src" },
-      to: { path: "^packages/(core|provider-codex|provider-claude|provider-acp|server)/src" },
+      to: { path: "^packages/(core|provider-codex|provider-acp|server)/src" },
     },
   ],
   options: {

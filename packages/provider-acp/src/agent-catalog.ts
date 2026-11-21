@@ -235,7 +235,7 @@ export class AcpAgentCatalog {
             entry.id === "pi-acp" ||
             /\.(cmd|bat)$/i.test(found)
           )
-            await this.#install(engine, "automatic", found);
+            await this.#install(engine, "automatic");
           else {
             const distribution = entry.distribution as RegistryAgent["distribution"];
             const binary = Object.values(distribution.binary ?? {})[0];
@@ -357,11 +357,7 @@ export class AcpAgentCatalog {
   update(engine: AgentEngine): Promise<void> {
     return this.#install(engine, "update");
   }
-  #install(
-    engine: AgentEngine,
-    action: "automatic" | "install" | "update",
-    detectedExecutable?: string,
-  ): Promise<void> {
+  #install(engine: AgentEngine, action: "automatic" | "install" | "update"): Promise<void> {
     const entry = registry.get(engine) as RegistryAgent | undefined;
     if (!entry) return Promise.reject(new Error("Agent 不在官方目录，请配置本机 ACP 启动命令"));
     return this.#operate(engine, entry.name, action, async (report) => {
@@ -400,9 +396,8 @@ export class AcpAgentCatalog {
           );
           report({ stage: "publishing" });
           if (record?.managed) previous = join(this.#runtime(engine), record.managed.revision);
+          // 本机 CLI 仅用于发现，托管适配器自行选择配套运行时。更新保留用户原有环境。
           const env = { ...command.env, ...record?.env };
-          if (detectedExecutable && (engine === "codex" || engine === "claude"))
-            env[engine === "codex" ? "CODEX_PATH" : "CLAUDE_CODE_EXECUTABLE"] = detectedExecutable;
           return {
             ...command,
             engine,
@@ -472,10 +467,33 @@ export class AcpAgentCatalog {
   async command(engine: AgentEngine): Promise<AgentCommand> {
     const record = registered(await this.#read(engine));
     if (!record?.enabled) throw new Error("请先在 ACP 中安装并启用此 Agent");
+    let env = record.env;
+    const executableKey =
+      engine === "codex"
+        ? "CODEX_PATH"
+        : engine === "claude"
+          ? "CLAUDE_CODE_EXECUTABLE"
+          : undefined;
+    const entry = registry.get(engine);
+    if (env && executableKey && entry && this.#managed(record, entry)) {
+      const executable = env[executableKey];
+      if (executable && isAbsolute(executable)) {
+        try {
+          await stat(executable);
+        } catch (error) {
+          const { code } = error as NodeJS.ErrnoException;
+          if (code !== "ENOENT" && code !== "ENOTDIR") throw error;
+          // 旧版自动发现会记录外部二进制绝对路径。文件消失时仅从本次启动环境移除，
+          // 让官方适配器使用随包版本，并保留磁盘配置供恢复原路径或手动修改。
+          const { [executableKey]: _missing, ...remaining } = env;
+          env = remaining;
+        }
+      }
+    }
     return {
       command: record.command,
       args: record.args,
-      ...(record.env ? { env: record.env } : {}),
+      ...(env ? { env } : {}),
     };
   }
 }

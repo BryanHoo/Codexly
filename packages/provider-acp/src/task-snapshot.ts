@@ -1,5 +1,3 @@
-import { stripAcpGlobalInstructions } from "./global-instructions.js";
-import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { RequestError } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import {
   localTaskMetadata,
@@ -21,10 +19,6 @@ export async function readAcpTaskSnapshot(
     engine: AgentEngine;
     history: AcpHistory;
     load(repairHistory?: boolean): Promise<unknown>;
-    readOnlyHistory?: () => Promise<{
-      turns: AgentProviderTaskSnapshot["turns"];
-      cursor: string | null;
-    }>;
     active(): AcpEventProjection | undefined;
     needsReplay?(): Promise<boolean>;
     pending(): AgentProviderTaskSnapshot["pendingRequests"];
@@ -33,17 +27,17 @@ export async function readAcpTaskSnapshot(
   },
 ): Promise<AgentProviderTaskSnapshot> {
   const previous = source.active();
-  const readOnlyHistory = source.readOnlyHistory ?? (() => readAcpCodexHistory(task, input));
-  let external = input.cursor?.startsWith("codex-readonly:") === true;
+  let external = false;
   const load = async (repairHistory = false) => {
     try {
       await source.load(repairHistory);
+      return true;
     } catch (error) {
       const data =
         error instanceof RequestError
           ? (error.data as { reason?: unknown; threadId?: unknown } | null)
           : null;
-      // 只接受 ACP 明确声明且匹配原生会话的占用错误，其余错误保留，不伪造空历史。
+      // 仅匹配当前会话的 ACP 占用错误，继续展示最后一次提交的本地历史。
       if (
         task.provider !== "codex" ||
         !(error instanceof RequestError) ||
@@ -52,59 +46,39 @@ export async function readAcpTaskSnapshot(
         data.threadId !== task.sessionId
       )
         throw error;
-      external = true;
+      return false;
     }
   };
-  let page = external
-    ? { turns: [], cursor: null }
-    : await source.history.read(task.id, input.cursor).catch(async (error: unknown) => {
-        // 只修复当前投影；旧游标、普通 I/O 错误和活动回合不触发整份回放。
-        if (
-          input.cursor ||
-          source.active() ||
-          !task.sessionId ||
-          !(error instanceof AcpHistoryCorruptionError)
-        )
-          throw error;
-        input.signal?.throwIfAborted();
-        await load(true);
-        return null;
-      });
-  if (page === null)
-    page = external ? { turns: [], cursor: null } : await source.history.read(task.id);
+  let page = await source.history.read(task.id, input.cursor).catch(async (error: unknown) => {
+    // 只修复当前投影；旧游标、普通 I/O 错误和活动回合不触发整份回放。
+    if (
+      input.cursor ||
+      source.active() ||
+      !task.sessionId ||
+      !(error instanceof AcpHistoryCorruptionError)
+    )
+      throw error;
+    input.signal?.throwIfAborted();
+    // 缓存已损坏且 ACP 无法回放，保留原始错误，避免把损坏投影显示为空历史。
+    if (!(await load(true))) throw error;
+    return null;
+  });
+  if (page === null) page = await source.history.read(task.id);
   else if (!input.cursor && !previous && task.sessionId) {
-    const recover = !external && (await source.needsReplay?.());
+    const recover = await source.needsReplay?.();
     if (recover) {
       // 只通过原会话补齐历史。流尚未完整时保留最近一次成功保存的本地快照。
       input.signal?.throwIfAborted();
-      const recovered = await load(true).then(
-        () => true,
-        () => false,
-      );
-      if (recovered && !external) page = await source.history.read(task.id);
+      const recovered = await load(true).catch(() => undefined);
+      external = recovered === false;
+      if (recovered) page = await source.history.read(task.id);
     } else if (
       page.turns.length === 0 ||
       (task.provider === "codex" && input.checkWriteAccess === true)
     ) {
-      await load();
+      external = !(await load());
       if (!external) page = await source.history.read(task.id);
     }
-  }
-  if (external) {
-    const nativePage = await readOnlyHistory();
-    page = {
-      // Codex 原生只读页也可能返回客户端附加的文本块。
-      turns: nativePage.turns.map((turn) => ({
-        ...turn,
-        items: turn.items.flatMap((item) => {
-          if (item.type !== "message" || item.role !== "user") return [item];
-          const text = stripAcpGlobalInstructions(item.text);
-          if (text === "") return item.attachments?.length ? [{ ...item, text }] : [];
-          return text === null || text === item.text ? [item] : [{ ...item, text }];
-        }),
-      })),
-      cursor: nativePage.cursor === null ? null : `codex-readonly:${nativePage.cursor}`,
-    };
   }
   // 读旧游标期间，历史提交可能刚好移除活动投影；重新读一次才可捕获新 checkpoint。
   if (!input.cursor && previous && previous !== source.active())

@@ -44,7 +44,6 @@ describe("CLI managed startup", () => {
         expect(f.dependencies.checkAppUpdate).not.toHaveBeenCalled();
         expect(f.dependencies.confirmAppUpdate).not.toHaveBeenCalled();
         expect(f.dependencies.openBrowser).not.toHaveBeenCalled();
-        expect(f.dependencies.startCodexAppServer).not.toHaveBeenCalled();
         expect(f.dependencies.createAcpRuntime).toHaveBeenCalledWith(
           expect.objectContaining({
             environment: { PATH: "/frozen/bin", CODEX_HOME: "/persisted/home" },
@@ -62,6 +61,5 @@ describe("CLI managed startup", () => {
     const f = createHarness();
     await expect(runCli(["autostart", "--help"], f.options)).resolves.toBe(0);
     expect(f.stdout.join("")).toContain("credentials");
-    expect(f.dependencies.startCodexAppServer).not.toHaveBeenCalled();
   });
 });

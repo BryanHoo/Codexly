@@ -3,11 +3,11 @@ import { randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeBuildTarget } from "./claude-build-target.mjs";
+import { acpBuildTarget } from "./acp-build-target.mjs";
 import { runtimeInventory, verifyAcpRuntime } from "./acp-runtime-layout.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const target = claudeBuildTarget(
+const target = acpBuildTarget(
   process.env.CODEXLY_ACP_TARGET ?? process.env.TAURI_ENV_TARGET_TRIPLE,
 );
 const resources = join(root, "desktop/src-tauri/resources");

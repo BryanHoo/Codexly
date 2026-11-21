@@ -18,6 +18,7 @@ const tested = spawnSync(
   process.execPath,
   [
     "--test",
+    "tools/acp-build-target.test.mjs",
     "tools/acp-host.test.mjs",
     "tools/acp-host-queue.test.mjs",
     "tools/acp-proxy-compiled.test.mjs",

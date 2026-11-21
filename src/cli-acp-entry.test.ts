@@ -28,8 +28,6 @@ it("生产启动只装配 ACP 工厂并传入启动环境快照，关闭顺序�
         }) as unknown,
       }),
     );
-    expect(harness.dependencies.createRuntimeProvider).not.toHaveBeenCalled();
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
   } finally {
     controller.abort();
     await run;

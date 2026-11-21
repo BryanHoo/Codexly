@@ -28,7 +28,6 @@
     "simple-git": "catalog:",
     "ws": "catalog:",
     "yazl": "catalog:",
-    "@codexly/provider-claude": "workspace:*",
     "@codexly/provider-acp": "workspace:*"
   },
   "devDependencies": {

@@ -13,7 +13,6 @@ on:
       - "schemas/codex-app-server/**"
       - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
-      - "tools/*claude*"
       - "tools/*acp*"
       - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
@@ -28,7 +27,6 @@ on:
       - "schemas/codex-app-server/**"
       - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
-      - "tools/*claude*"
       - "tools/*acp*"
       - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
@@ -153,7 +151,7 @@ jobs:
         working-directory: .
         run: pnpm install --frozen-lockfile
 
-      - name: Check standalone Claude host and distribution contract
+      - name: Check standalone ACP host and distribution contract
         working-directory: .
         run: pnpm test:acp-host
 

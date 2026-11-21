@@ -46,7 +46,8 @@ function resolveCodexCli() {
   const configuredPath = process.env["CODEXLY_CODEX_BIN"];
   if (configuredPath) return resolve(configuredPath);
 
-  const require = createRequire(join(repositoryRoot, "package.json"));
+  // 从仍维护原生只读契约的工作区解析固定版本，根发布包无需重复声明。
+  const require = createRequire(join(repositoryRoot, "packages/provider-codex/package.json"));
   const manifestPath = require.resolve("@openai/codex/package.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   const binPath = manifest.bin?.codex;

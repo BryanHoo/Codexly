@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdir, writeFile, rm, rename, lstat, copyFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeBuildTarget } from "./claude-build-target.mjs";
+import { acpBuildTarget } from "./acp-build-target.mjs";
 import {
   runtimeInventory,
   sha256,
@@ -14,7 +14,7 @@ import {
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(join(root, "packages/provider-acp/package.json"));
-const target = claudeBuildTarget(
+const target = acpBuildTarget(
   process.env.CODEXLY_ACP_TARGET ?? process.env.TAURI_ENV_TARGET_TRIPLE,
 );
 const destination = resolve(

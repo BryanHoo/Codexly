@@ -25,7 +25,7 @@
 - Provider 仅在明确保证输入未提交时抛出 `AgentTurnNotSubmittedError`。Codex 仅映射错误码 `-32600` 且完整消息为 `no active turn to steer`，或 expected ID 与本次目标一致的轮次不匹配响应；断线、超时、解析失败及相似错误文本保持结果未知。
 - 明确拒绝后先持久化回退执行占用，再恢复可编辑、可发送状态。仓储以 `null` 表示回退，且仅允许从 `starting` 清除，禁止覆盖已接受的 `started` 结果。Web SQLite、内存与桌面 Claude 文件仓储保持一致。
 - 未绑定回合的“立即发送”允许在同一任务锁内重新读取状态并补发一次；显式绑定回合的引导不得改投后来回合。连续拒绝保留队列；结果未知继续阻塞，不能自动重复发送。
-- 回归入口为 `packages/server/src/persistent-task-queue.test.ts`、`app-queue-dispatch.test.ts`、`sqlite-queue-execution.test.ts`、`packages/provider-codex/src/agent-provider-steer-errors.test.ts` 与 `packages/provider-claude/src/queue-repository.test.ts`，覆盖轮次切换、历史残留、重启恢复、并发幂等及未知结果保护。
+- 回归入口为 `packages/server/src/persistent-task-queue.test.ts`、`app-queue-dispatch.test.ts`、`sqlite-queue-execution.test.ts`、`packages/provider-codex/src/agent-provider-steer-errors.test.ts` 与 `tools/acp-host-queue.test.mjs`，覆盖轮次切换、历史残留、重启恢复、并发幂等及未知结果保护。
 
 ## 单任务导航的归档状态
 
@@ -53,6 +53,7 @@
 
 - Agent 身份保留 `codex` / `claude`；新增身份使用 `acp-` 加小写字母、数字和连字符，后缀 1–96 字符。共享协议、JS Worker、Rust 校验保持一致，任务创建后不可切换。
 - 发现只检查宿主可执行文件，不请求模型；未检测到的 Agent 只在用户选择后安装。用户停用记录、启动配置与私有环境变量优先，刷新不得覆盖。
+- 托管 Codex / Claude 适配器默认使用随包运行时。旧记录中的原生可执行文件绝对路径已不存在时，只在本次启动环境中省略该值，保持会话目录和其他环境变量。手动注册的自定义命令保留显式配置。
 - Web 与桌面共用目录管理器和 ACP 执行；安装记录私有、原子写入，跨宿主使用 SQLite owner CAS 锁，失败不启用。公开列表只返回环境变量名称，不回显值。
 - Registry 安装按实际分发格式解包，ZIP 不得依赖 Ubuntu GNU tar 的 ZIP 支持或额外系统 unzip；保持路径逃逸、链接及特殊文件拒绝和失败暂存清理。官方开发依赖版本必须与快照一致；发布门禁在 macOS、Windows、Ubuntu 从快照安装真实 npm / 二进制产物后握手，并在 Ubuntu 验证 Linux ZIP 条目。入口为 `agent-installer.test.ts`、`registry-release.test.ts` 与 `CODEXLY_REGISTRY_RELEASE_TEST=1`，不能用开发依赖握手或跳过的网络测试替代。
 - 操作进度是宿主内存中的轻量快照，独立于会等待自动发现的目录读取；只在已知真实总量时公布下载百分比所需的字节总数，不传原始安装日志。
@@ -62,8 +63,8 @@
 
 ## 外部客户端占用的 Codex 历史
 
-- ACP `session/resume` 需要写入权。仅精确匹配 `RequestError(-32600)` 的 `data.reason=thread_active_writer` 与任务原生 ID 时，历史读取改为无订阅的 Codex 只读分页；不调用 resume/start、不换绑、不写入 ACP 缓存，也不把失败伪造成空历史。临时读取进程在完成、取消及失败后回收。发送、配置与执行继续走 ACP。
-- 首屏通过 `checkWriteAccess` 校验暖缓存中的写入权；续页使用独立只读游标。快照携带 `writeAccess=external`，两端保留历史与草稿、禁用输入并解释占用，重新打开后重新确认，无后台轮询。
-- 测试入口：`provider-acp/src/task-snapshot-ownership.test.ts` 与 `provider-acp/src/codex-read-only-history.test.ts`；真实场景须在其他客户端仍持有写入权时确认历史非空，不能只模拟 HTTP 成功响应。
+- Codex Agent 返回精确匹配当前会话的 `RequestError(-32600)` 和 `data.reason=thread_active_writer` 时，快照携带 `writeAccess=external`。历史来源为已提交的 ACP 缓存，首次打开无缓存时等待外部客户端释放写入权，再重新打开任务回放正文。损坏的缓存仍报告读取错误。
+- 首屏通过 `checkWriteAccess` 确认写入权，旧页使用绑定任务及版本的 ACP 游标。两端保留草稿、禁用输入并说明已同步历史的范围，重新打开后重新确认。
+- 回归入口为 `packages/provider-acp/src/task-snapshot-ownership.test.ts`，覆盖热缓存、冷缓存、续页、外部占用解除及缓存损坏。
 
 - 输入占用遮罩必须限定在编辑框的边框内，居中显示提示，不覆盖项目底栏、阴影或外部留白；沿用明暗主题的浮层底色与控件灰度。外层仍负责禁用和 Portal 事件拦截，无障碍状态提示放在 inert 之外。布局回归核对四边与编辑框一致，覆盖宽窄屏及明暗主题。

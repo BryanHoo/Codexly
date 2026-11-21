@@ -25,7 +25,7 @@
 | Web 性能              | `pnpm test:performance`、`pnpm test:performance:browser`         | `vitest.performance.config.ts`、`playwright.performance.config.ts` |
 | 构建与发布内容        | `pnpm build`、`pnpm bundle:check`、`pnpm package:check`          | 根 `package.json` 与 tools 校验器；先构建再检查 bundle 和包        |
 | Web 工作流            | `pnpm test:e2e`                                                  | `playwright.config.ts`、`tests/e2e`                                |
-| Claude 宿主           | `pnpm test:claude-host`                                          | `tools/claude-host.test.mjs` 等宿主契约用例                        |
+| ACP 宿主              | `pnpm test:acp-host`                                             | `tools/test-acp-host.mjs` 等编译宿主契约用例                       |
 | 桌面单元与浏览器      | `pnpm --dir desktop test:run`、`pnpm --dir desktop test:browser` | `desktop/package.json`、`desktop/vitest.browser.config.ts`         |
 | 桌面完整门槛          | `pnpm --dir desktop check`                                       | 包含 `check:web`、`check:rust` 及版本、供应链检查                  |
 | 根目录完整门槛        | `pnpm check`                                                     | 包含审计、Schema、格式、静态检查、测试、性能与构建检查             |

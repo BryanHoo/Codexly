@@ -172,6 +172,56 @@ it.each(["codex", "claude"] as const)(
   },
 );
 
+it("冷历史被外部占用时报告搜索暂不可用，释放后通过 ACP 回放", async () => {
+  const root = await createWorkspace();
+  const store = await openRepository(root);
+  let occupied = true;
+  const peer = createPersistentAgentPeer(undefined, (sessionId) =>
+    occupied
+      ? {
+          code: -32600,
+          message: "busy",
+          data: { reason: "thread_active_writer", threadId: sessionId },
+        }
+      : undefined,
+  );
+  peer.transcripts.set("native", [{ user: true, text: "检索正文" }]);
+  await store.catalog("task.put", {
+    id: "task",
+    provider: "codex",
+    projectId: null,
+    sessionId: "native",
+    cwd: root,
+    title: "历史",
+    updatedAt: 0,
+    status: "idle",
+    archived: false,
+    pinned: false,
+  });
+  const runtime = new AcpApplicationRuntime(
+    root,
+    store,
+    () => Promise.resolve(undefined),
+    peer.launch,
+  );
+  const scope = { id: "temporary", kind: "temporary" as const };
+  const query = { kind: "history" as const, query: "检索", archived: false };
+  try {
+    await expect(runtime.search.searchTasks(query, [scope])).resolves.toMatchObject({
+      data: [],
+      unavailableEngines: ["codex"],
+    });
+    occupied = false;
+    const result = await runtime.search.searchTasks(query, [scope]);
+    expect(result.data).toHaveLength(1);
+    expect(result.unavailableEngines).toBeUndefined();
+    expect(peer.loaded).toEqual(["native", "native"]);
+    expect(peer.prompts).toEqual([]);
+  } finally {
+    await runtime.close();
+  }
+});
+
 it("桌面共享宿主搜索保留目录授权、单项预算及取消，拒绝跨项目查询", async () => {
   const root = await createWorkspace(),
     store = await openRepository(root);

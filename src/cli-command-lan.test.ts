@@ -138,7 +138,6 @@ describe("runCli LAN", () => {
       const harness = createHarness();
       await expect(runCli(args, harness.options)).resolves.toBe(1);
       expect(harness.dependencies.createStateRepository).not.toHaveBeenCalled();
-      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     }
   });
 
@@ -148,7 +147,6 @@ describe("runCli LAN", () => {
 
       await expect(runCli(["start", "--port", port], harness.options)).resolves.toBe(1);
       expect(harness.dependencies.createStateRepository).not.toHaveBeenCalled();
-      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
       expect(harness.stderr.join("")).toContain("--port");
     }
   });

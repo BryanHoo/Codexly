@@ -35,6 +35,37 @@ test("只为检测到的 CLI 自动安装适配器，原生 ACP 直接复用", a
   expect(page.agents.find((a) => a.engine === "acp-gemini")?.installed).toBe(true);
   expect(page.agents.find((a) => a.engine === "claude")?.installed).toBe(false);
   expect(install).toHaveBeenCalledTimes(1);
+  expect((await catalog.command("codex")).env).not.toHaveProperty("CODEX_PATH");
+});
+test.each([
+  ["codex", "CODEX_PATH"],
+  ["claude", "CLAUDE_CODE_EXECUTABLE"],
+] as const)("托管 %s 忽略已失效的旧原生路径，保留私有环境与显式命令", async (engine, key) => {
+  const { catalog, path } = await fixture();
+  await catalog.install(engine);
+  const installed = await catalog.command(engine);
+  const executable = join(path, "old-binary");
+  await catalog.configure({
+    ...installed,
+    engine,
+    name: engine,
+    enabled: true,
+    env: { [key]: executable, EXTRA: "keep" },
+  });
+  expect(await catalog.command(engine)).toEqual({ ...installed, env: { EXTRA: "keep" } });
+  await writeFile(executable, "", { mode: 0o700 });
+  const env = { [key]: executable, EXTRA: "keep" };
+  expect((await catalog.command(engine)).env).toEqual(env);
+  await rm(executable);
+  await catalog.configure({
+    ...installed,
+    command: "/custom/agent",
+    engine,
+    name: engine,
+    enabled: true,
+    env,
+  });
+  expect((await catalog.command(engine)).env).toEqual(env);
 });
 test("手动安装合并并发请求，重建后读取配置", async () => {
   const { catalog, install, path } = await fixture();

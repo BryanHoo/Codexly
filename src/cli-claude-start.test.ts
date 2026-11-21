@@ -164,8 +164,6 @@ it("真实 CLI / HTTP / SQLite 使用共享 ACP，Codex 离线不阻断 Claude �
         "/v1/search/tasks?query=hello&kind=history&archived=false&engines=codex,claude",
       ),
     ).toMatchObject({ data: [{ task: { engine: "claude" } }], unavailableEngines: ["codex"] });
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-    expect(harness.dependencies.createRuntimeProvider).not.toHaveBeenCalled();
   } finally {
     await running.stop();
   }

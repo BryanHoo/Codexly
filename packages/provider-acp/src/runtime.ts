@@ -1,6 +1,5 @@
 import type { SaveAgentInstructions } from "@codexly/protocol/application-preferences";
 import { nativeInstructionsPlan, replaceNativeInstructions } from "./native-global-instructions.js";
-import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import {
@@ -141,10 +140,12 @@ export class AcpRuntime {
               return handle.connection;
             },
           );
-          provider.readExternalHistory = this.#readExternalHistory;
           const pending = (async () => {
             try {
-              await provider.readTask(task.id, { signal: controller.signal });
+              const snapshot = await provider.readTask(task.id, { signal: controller.signal });
+              // 冷缓存无法回放时，沿用搜索的引擎暂不可用状态，区分正文尚未同步与无匹配。
+              if (snapshot.writeAccess === "external" && snapshot.turns.length === 0)
+                throw new Error("会话被其他客户端占用，历史尚未同步");
             } finally {
               try {
                 await provider.close();
@@ -182,14 +183,6 @@ export class AcpRuntime {
       },
     });
   }
-  readonly #readExternalHistory: typeof readAcpCodexHistory = async (task, input) => {
-    if (task.provider !== "codex") throw new Error("此 Agent 不支持 Codex 只读历史");
-    const command = await this.catalog.command(task.provider);
-    return readAcpCodexHistory(task, input, {
-      ...command,
-      env: { ...this.#environment, ...command.env },
-    });
-  };
   #checkOpen(): void {
     if (this.#closed) throw new Error("ACP Runtime 已关闭");
   }
@@ -335,7 +328,6 @@ export class AcpRuntime {
           return target[key];
         if (!target[key]) {
           const provider = create(key);
-          provider.readExternalHistory = this.#readExternalHistory;
           const scheduler = new AcpTaskTitles(
             this.store,
             key,

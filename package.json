@@ -79,7 +79,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "oxlint . --disable-nested-config --ignore-pattern 'desktop/**' --max-warnings 0 --report-unused-disable-directives",
-    "lint:architecture": "depcruise --config dependency-cruiser.config.cjs src apps/web/src packages/client/src packages/core/src packages/frontend-core/src packages/ui/src packages/protocol/src packages/provider-codex/src packages/server/src packages/provider-claude/src packages/provider-acp/src && node --test tools/dialog-contract.test.mjs",
+    "lint:architecture": "depcruise --config dependency-cruiser.config.cjs src apps/web/src packages/client/src packages/core/src packages/frontend-core/src packages/ui/src packages/protocol/src packages/provider-codex/src packages/server/src packages/provider-acp/src && node --test tools/dialog-contract.test.mjs",
     "package:check": "node ./tools/verify-package.mjs",
     "start": "pnpm run build && node ./dist/cli.js start",
     "test": "vitest run --passWithNoTests",
@@ -91,7 +91,6 @@
     "test:performance:browser": "pnpm run build && playwright test --config playwright.performance.config.ts",
     "typecheck": "tsc -b --pretty false",
     "prepublishOnly": "pnpm run check",
-    "test:claude-host": "pnpm test:acp-host",
     "build:desktop-runtime": "node tools/build-desktop-runtime.mjs",
     "build:acp-host": "node tools/build-acp-host.mjs",
     "test:acp-host": "node tools/test-acp-host.mjs"
@@ -114,8 +113,6 @@
     "vitest": "catalog:",
     "ws": "catalog:",
     "bun": "catalog:",
-    "@openai/codex": "catalog:",
-    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@agentclientprotocol/codex-acp": "catalog:",
     "@agentclientprotocol/claude-agent-acp": "catalog:"
   },

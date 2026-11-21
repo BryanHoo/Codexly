@@ -1,8 +1,7 @@
 use super::{error::AppError, state::AppState};
-use crate::domain::runtime::CodexRuntimeInstallProgress;
 use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Emitter, Manager, ipc::Channel};
+use tauri::{AppHandle, Emitter, Manager};
 
 /// 设置命令独立于 Codex 初始化；只允许公开的配置操作，禁止调用任意宿主方法。
 #[tauri::command(rename_all = "camelCase")]
@@ -45,26 +44,4 @@ pub async fn claude_engine_request(
         let _ = app.emit("engine-configuration-changed", ());
     }
     Ok(result)
-}
-
-/// 兼容旧 IPC 的离线资源检查；不安装、不下载，也不启动宿主。
-#[tauri::command(rename_all = "camelCase")]
-pub async fn prepare_claude_runtime(
-    app: AppHandle,
-    on_progress: Channel<CodexRuntimeInstallProgress>,
-) -> Result<(), AppError> {
-    let resources = crate::infrastructure::bundled_runtime::root(&app)?;
-    app.state::<AppState>()
-        .claude
-        .runtime
-        .prepare(
-            &resources,
-            crate::infrastructure::bundled_runtime::claude_host()?,
-            move |progress| {
-                let _ = on_progress.send(progress);
-            },
-        )
-        .await
-        .map_err(AppError::Claude)?;
-    Ok(())
 }

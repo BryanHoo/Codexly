@@ -4,7 +4,7 @@ packages:
   - "desktop"
 
 allowBuilds:
-  # Bun 仅用于将官方 SDK 宿主编译为桌面独立程序，不作为项目包管理器。
+  # Bun 仅用于将ACP 宿主编译为桌面独立程序，不作为项目包管理器。
   bun: true
   # SQLite Adapter 通过独立 Worker 加载原生驱动。
   better-sqlite3: true
@@ -21,7 +21,6 @@ catalog:
   "@agentclientprotocol/claude-agent-acp": 0.109.0
   "@shadcn/react": 0.3.1
   bun: 1.4.2
-  "@anthropic-ai/claude-agent-sdk": 0.3.316
   "@fastify/cookie": 11.1.2
   "@fastify/multipart": 10.1.1
   "@fastify/static": 10.1.2

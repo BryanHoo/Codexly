@@ -287,7 +287,6 @@ pub fn run() {
             start_official_provider_login,
             cancel_provider_login,
             application::claude_commands::claude_engine_request,
-            application::claude_commands::prepare_claude_runtime,
             application::engine_setup::get_configured_engines,
             configure_custom_provider,
             logout_provider,

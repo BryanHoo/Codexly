@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import type * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpTaskManagement } from "./task-management.js";
-import { readAcpCodexHistory } from "./codex-read-only-history.js";
 import { readAcpTaskSnapshot, readAcpTaskSessionState } from "./task-snapshot.js";
 import {
   AgentTurnNotSubmittedError,
@@ -58,7 +57,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #permissions: AcpPermissions;
   readonly attachments: HistoricalTaskAttachments;
   readonly #management: AcpTaskManagement;
-  readExternalHistory = readAcpCodexHistory;
   prepareTaskTitle?: (task: LocalTask, input: AgentProviderTurnInput) => Promise<void>;
   publishTaskTitle(id: string, title: string): void {
     this.#emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
@@ -213,7 +211,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       const task = await this.#task(id);
       await this.#historyUse.retain(id, this.#ephemeral.has(id));
       return readAcpTaskSnapshot(task, input, {
-        readOnlyHistory: () => this.readExternalHistory(task, input),
         engine: this.engine,
         history: this.history,
         load: (repairHistory) => this.#load(task, false, repairHistory),

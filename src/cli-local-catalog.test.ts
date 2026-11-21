@@ -16,8 +16,6 @@ it("本地目录直接交付 ACP 工厂，不创建旧 RPC 客户端，退出关
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
       projection: harness.stateRepository,
     });
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-    expect(harness.dependencies.createRuntimeProvider).not.toHaveBeenCalled();
   } finally {
     controller.abort();
   }

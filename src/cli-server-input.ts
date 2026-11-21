@@ -1,6 +1,4 @@
 import type { LocalCatalogStore } from "@codexly/core";
-import type { CodexRpcClient } from "@codexly/provider-codex";
-import type { CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type {
   AsyncQuestionRepository,
   ProjectTodoRepository,
@@ -44,12 +42,4 @@ export interface CreateServerInput {
   staticRoot: string;
   standaloneCwd: string;
   workspaceRoots?: readonly string[];
-}
-
-export interface CreateRuntimeProviderInput {
-  appDataDirectory?: string;
-  readTaskTitleModel: () => Promise<string>;
-  codexHome?: string;
-  client: CodexRpcClient;
-  modelCatalogRuntimeFactory?: () => Promise<CliManagedRuntime>;
 }

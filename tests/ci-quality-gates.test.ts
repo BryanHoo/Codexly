@@ -122,6 +122,22 @@ describe("CI 质量门禁", () => {
     );
   });
 
+  it("发布包仅通过 ACP 目录获取 Agent，原生 Codex 版本用于兼容性测试", () => {
+    const root = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const codex = JSON.parse(
+      readFileSync(join(process.cwd(), "packages/provider-codex/package.json"), "utf8"),
+    ) as typeof root;
+    for (const name of ["@anthropic-ai/claude-agent-sdk", "@openai/codex"]) {
+      expect(root.dependencies[name]).toBeUndefined();
+      expect(root.devDependencies[name]).toBeUndefined();
+    }
+    expect(codex.dependencies["@openai/codex"]).toBeUndefined();
+    expect(codex.devDependencies["@openai/codex"]).toBe("catalog:");
+  });
+
   it("分离增量构建与 Release clean build", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       scripts: Record<string, string>;
@@ -157,7 +173,7 @@ describe("CI 质量门禁", () => {
     const testGroups = [
       "apps/web",
       "packages/client packages/core packages/protocol",
-      "packages/provider-codex",
+      "packages/provider-acp packages/provider-codex",
       "packages/server",
       '"$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts',
     ];

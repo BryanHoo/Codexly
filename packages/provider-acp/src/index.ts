@@ -4,11 +4,7 @@ export { AcpProcess, type AcpProcessCommand } from "./process.js";
 export { AcpEventProjection } from "./event-projection.js";
 export { AcpHistory } from "./history.js";
 export { AcpStorageLeases } from "./storage-lease.js";
-export {
-  createOfficialAcpLauncher,
-  readAcpEngineVersions,
-  inspectOfficialAcpAgents,
-} from "./official-agent.js";
+export { readAcpEngineVersions, inspectOfficialAcpAgents } from "./official-agent.js";
 export { AcpAgentProvider } from "./provider.js";
 export { AcpRuntime, type AcpAgentLauncher, type AcpAgentHandle } from "./runtime.js";
 export {

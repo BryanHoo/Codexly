@@ -43,7 +43,7 @@ Claude 官方文档公开会话列举与消息读取，未给出与 Codex 等价
 ## 验证
 
 - 根目录与桌面目录分别运行 `pnpm check`。
-- `pnpm test:claude-host` 覆盖真实独立宿主重启后的搜索及定位，并断言搜索无新增模型请求。
+- `pnpm test:acp-host` 覆盖真实独立宿主重启后的搜索及定位，并断言搜索无新增模型请求。
 - `src/cli-claude-start.test.ts` 覆盖真实 HTTP、SQLite、单/双引擎选择、Codex 离线与部分故障。
 - `catalog-search.test.ts`、Claude `global-search.test.ts` 及 Rust `application/catalog_search.rs` 测试覆盖聚合、归属、取消和分页。
 - 浏览器交互调试使用 Chrome DevTools MCP，通过 CDP 连接用户正在运行的 Chrome；自动测试不替代跨平台实机验收。

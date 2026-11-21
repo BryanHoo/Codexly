@@ -21,19 +21,6 @@ export async function sha256(path) {
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return hash.digest("hex");
 }
-/** 按官方原生包清单解释布局，不能继续猜测旧版 codex/codex 固定位置。 */
-export async function readCodexLayout(directory, version, target) {
-  const metadata = JSON.parse(await readFile(join(directory, "codex-package.json"), "utf8"));
-  if (metadata.layoutVersion !== 1 || metadata.version !== version || metadata.target !== target)
-    throw new Error("Codex layout version/target mismatch");
-  for (const key of ["entrypoint", "resourcesDir", "pathDir"]) localPath(metadata[key]);
-  if (!(await lstat(join(directory, metadata.entrypoint))).isFile())
-    throw new Error("Missing Codex executable");
-  for (const key of ["resourcesDir", "pathDir"])
-    if (!(await lstat(join(directory, metadata[key]))).isDirectory())
-      throw new Error("Missing Codex auxiliary directory");
-  return metadata;
-}
 /** 摘要逐文件流式计算；保留内部相对符号链接，但拒绝资源目录逃逸。 */
 export async function runtimeInventory(directory) {
   const root = await realpath(directory),

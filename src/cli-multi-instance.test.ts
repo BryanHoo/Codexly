@@ -26,7 +26,6 @@ describe("CLI multiple Web instances", () => {
         expect(second.serverListen).toHaveBeenCalledOnce();
       });
       for (const harness of [first, second]) {
-        expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
         expect(harness.dependencies.createAcpRuntime).toHaveBeenCalledWith(
           expect.objectContaining({
             environment: expect.objectContaining({ CODEX_HOME: "/shared/codex-home" }) as unknown,

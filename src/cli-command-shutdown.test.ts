@@ -120,8 +120,6 @@ describe("runCli shutdown and help", () => {
       expect(harness.stdout.join("")).toContain(usage);
       expect(harness.stdout.join("")).toContain(option);
       expect(harness.stderr).toEqual([]);
-      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-      expect(harness.dependencies.checkCodexVersion).not.toHaveBeenCalled();
     }
   });
 
@@ -145,6 +143,5 @@ describe("runCli shutdown and help", () => {
       runCli(["start", "--project", "/workspace/project"], harness.options),
     ).resolves.toBe(1);
     expect(harness.stderr.join("")).toContain("未知选项: --project");
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
   });
 });

@@ -1,28 +1,10 @@
-import type { AgentRuntimeProvider, CatalogOperations } from "@codexly/core";
-import type {
-  checkCodexVersion,
-  locateCodexBinary,
-  readCodexStartupConfig,
-  StartCodexAppServerOptions,
-} from "@codexly/provider-codex";
-import type { CliManagedRuntime } from "./cli-lazy-codex-client.js";
-import type { CreateRuntimeProviderInput } from "./cli-server-input.js";
+import type { CatalogOperations } from "@codexly/core";
 import { rm } from "node:fs/promises";
 import type { Project } from "@codexly/protocol";
 import { afterEach, beforeEach, vi, type Mock } from "vitest";
-import type { CliDependencies as ProductionCliDependencies, RunCliOptions } from "./cli-command.js";
+import type { CliDependencies, RunCliOptions } from "./cli-command.js";
 import { STARTUP_UPDATE_APPLIED_ENV } from "./cli-startup-update.js";
 
-// 冻结旧版读取与工具单测仍可单独注入旧端口，生产 CliDependencies 已无旧执行工厂。
-type CliDependencies = ProductionCliDependencies & {
-  checkCodexVersion: typeof checkCodexVersion;
-  locateCodexBinary: typeof locateCodexBinary;
-  readCodexStartupConfig: typeof readCodexStartupConfig;
-  createRuntimeProvider: (
-    input: CreateRuntimeProviderInput,
-  ) => AgentRuntimeProvider | Promise<AgentRuntimeProvider>;
-  startCodexAppServer: (options?: StartCodexAppServerOptions) => Promise<CliManagedRuntime>;
-};
 // 集中维护拆分测试共享的样本、mock 与生命周期钩子。
 export const temporaryDirectories: string[] = [];
 
@@ -58,7 +40,6 @@ type StateRepositoryHarness = Awaited<ReturnType<CliDependencies["createStateRep
   }>;
 
 type CliHarness = Readonly<{
-  client: Awaited<ReturnType<CliDependencies["startCodexAppServer"]>>["client"];
   close: Mock<() => Promise<void>>;
   databaseClose: Mock<() => Promise<void>>;
   dependencies: CliDependencies;
@@ -66,8 +47,8 @@ type CliHarness = Readonly<{
   options: RunCliOptions;
   project: Project;
   projectRepository: ProjectRepositoryHarness;
-  provider: ReturnType<Awaited<ReturnType<CliDependencies["createRuntimeProvider"]>>["forProject"]>;
-  runtimeProvider: Awaited<ReturnType<CliDependencies["createRuntimeProvider"]>>;
+  provider: ReturnType<Awaited<ReturnType<CliDependencies["createAcpRuntime"]>>["forProject"]>;
+  runtimeProvider: Awaited<ReturnType<CliDependencies["createAcpRuntime"]>>;
   serverClose: Mock<() => Promise<void>>;
   serverListen: Mock<(options: { host: string; port: number }) => Promise<string>>;
   stateRepository: StateRepositoryHarness;
@@ -77,13 +58,8 @@ type CliHarness = Readonly<{
 
 export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarness {
   const lifecycle: string[] = [];
-  let resolveExit!: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void;
-  const exit = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
-    resolveExit = resolve;
-  });
   const close = vi.fn(() => {
     lifecycle.push("runtime.close");
-    resolveExit({ code: 0, signal: null });
     return Promise.resolve();
   });
   const serverClose = vi.fn(() => {
@@ -98,14 +74,6 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     lifecycle.push("server.listen");
     return Promise.resolve("http://127.0.0.1:3210");
   });
-  const client = {
-    notify: vi.fn(),
-    onNotification: vi.fn(() => () => undefined),
-    onServerRequest: vi.fn(() => () => undefined),
-    rejectServerRequest: vi.fn(() => Promise.resolve()),
-    request: vi.fn(),
-    respondToServerRequest: vi.fn(),
-  };
   const provider = {
     updateTurnApprovalsReviewer: vi.fn(() => Promise.resolve("applied" as const)),
     isTaskArchived: () => Promise.resolve(false),
@@ -293,9 +261,6 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     checkAppUpdate: vi.fn(() =>
       Promise.resolve({ latestVersion: "1.2.3", status: "current" as const }),
     ),
-    checkCodexVersion: vi.fn(() =>
-      Promise.resolve({ raw: "codex-cli 0.163.0", version: "0.163.0" }),
-    ),
     confirmAppUpdate: vi.fn(() => Promise.resolve(false)),
     createProjectRepository: vi.fn(() => {
       lifecycle.push("projects.create");
@@ -314,25 +279,12 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     readEngineVersions: vi.fn(() =>
       Promise.resolve({ codexVersion: "0.166.0", claudeVersion: "2.1.316" }),
     ),
-    createRuntimeProvider: vi.fn(() => {
-      lifecycle.push("provider.create");
-      return runtimeProvider;
-    }),
     generateLanPairingCode: vi.fn(() => "fixed-test-pairing-code"),
     listLanAccessUrls: vi.fn((port: number) => [`http://192.168.1.20:${String(port)}`]),
     createServer: vi.fn(() => {
       lifecycle.push("server.create");
       return Promise.resolve({ close: serverClose, listen: serverListen });
     }),
-    locateCodexBinary: vi.fn(() =>
-      Promise.resolve({ path: "/fake/codex", source: "explicit" as const }),
-    ),
-    readCodexStartupConfig: vi.fn(() =>
-      Promise.resolve({
-        appServerVersion: "0.164.0",
-        configRequirements: { requirements: null },
-      }),
-    ),
     nodeVersion: "24.19.0",
     openBrowser: vi.fn(() => {
       lifecycle.push("browser.open");
@@ -340,15 +292,6 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     }),
     installAppUpdate: vi.fn(() => Promise.resolve()),
     restartAfterUpdate: vi.fn(() => Promise.resolve(0)),
-    startCodexAppServer: vi.fn(() =>
-      Promise.resolve({
-        client,
-        close,
-        pid: 4321,
-        version: { raw: "codex-cli 0.163.0", version: "0.163.0" },
-        waitForExit: () => exit,
-      }),
-    ),
     webRoot: "/package/dist/web",
     ...overrides,
   };
@@ -357,7 +300,6 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
 
   return {
     close,
-    client,
     databaseClose,
     dependencies,
     lifecycle,
