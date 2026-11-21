@@ -181,6 +181,7 @@ export const settings = {
   },
   sections: {
     acp: "ACP",
+    "global-instructions": "全局指令",
     network: "网络",
     prompts: "常用提示词",
     git: "辅助生成",
@@ -196,6 +197,7 @@ export const settings = {
   },
   title: "全局设置",
   sectionKeywords: {
+    "global-instructions": "应用指令 提示词 个性化 AGENTS.md CLAUDE.md",
     acp: "ACP Agent Codex Claude 认证 供应商 模型 推理 模式 权限 默认配置",
     network: "代理 网关 端口 认证 密码 HTTP HTTPS SOCKS5",
     prompts: "常用提示词 标题 斜杠 井号命令 本地存储 新建 编辑 删除",

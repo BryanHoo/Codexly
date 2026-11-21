@@ -1,3 +1,4 @@
+import { AcpGlobalInstructionsSettings } from "@codexly/ui/core/personalization-instructions-editor";
 import type { AgentEngine } from "@codexly/protocol";
 import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
 import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
@@ -226,30 +227,28 @@ export function GlobalSettingsPage<
               initialEngine={settingsSectionEngine(initialSection) ?? "codex"}
               Field={SettingsField}
               Select={SettingsSelect}
-              {...(agentRuntime === "acp"
-                ? {
-                    instructions: {
-                      content:
-                        draft === undefined
-                          ? undefined
-                          : "globalInstructions" in draft
-                            ? (draft.globalInstructions ?? "")
-                            : "",
-                      failed: error !== null,
-                      retry: () => {
-                        void onRetry();
-                      },
-                      change: (globalInstructions) => {
-                        update((current) => ({ ...current, globalInstructions }), true);
-                      },
-                      flush: () => {
-                        void queue.flush(draftRef.current);
-                      },
-                    },
-                  }
-                : {})}
             />
           )
+        ) : activeSection === "global-instructions" && agentRuntime === "acp" ? (
+          <AcpGlobalInstructionsSettings
+            language={language === "zh-CN" ? "zh-CN" : "en"}
+            label={t("sections.global-instructions")}
+            content={
+              draft === undefined
+                ? undefined
+                : (("globalInstructions" in draft ? draft.globalInstructions : undefined) ?? "")
+            }
+            failed={error !== null}
+            onRetry={() => {
+              void onRetry();
+            }}
+            onChange={(globalInstructions) => {
+              update((current) => ({ ...current, globalInstructions }), true);
+            }}
+            onBlur={() => {
+              void queue.flush(draftRef.current);
+            }}
+          />
         ) : activeSection === "prompts" ? (
           <SavedPromptsSettings
             language={language}

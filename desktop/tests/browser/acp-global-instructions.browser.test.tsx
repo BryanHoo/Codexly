@@ -27,7 +27,7 @@ for (const [platform, SettingsPage, width] of [
   ["Web", WebPage, 390],
   ["桌面", DesktopPage, 960],
 ] as const) {
-  it(`${platform} 无已安装 Agent 时仍可保存并清除全局指令`, async () => {
+  it(`${platform} 在智能体分组打开全局指令并保存与清除`, async () => {
     await page.viewport(width, 844);
     await Promise.all([webLanguage("zh-CN"), desktopLanguage("zh-CN")]);
     const getAcpAgentCatalog = vi.fn(async () => ({ agents: [] }));
@@ -62,7 +62,22 @@ for (const [platform, SettingsPage, width] of [
       </QueryClientProvider>,
     );
     try {
-      await screen.getByRole("button", { name: "全局指令", exact: true }).click();
+      const agents = screen.getByRole("group", { name: "智能体", exact: true });
+      const acp = agents.getByRole("button", { name: "ACP", exact: true });
+      const instructions = agents.getByRole("button", { name: "全局指令", exact: true });
+      await expect.element(acp).toHaveAttribute("aria-current", "page");
+      await expect.element(instructions).toBeVisible();
+      await expect
+        .element(
+          screen
+            .getByRole("region", { name: "ACP", exact: true })
+            .getByRole("button", { name: "全局指令", exact: true }),
+        )
+        .not.toBeInTheDocument();
+      await screen.getByRole("searchbox").fill("全局指令");
+      await expect.element(acp).not.toBeInTheDocument();
+      await instructions.click();
+      await expect.element(instructions).toHaveAttribute("aria-current", "page");
       const editor = screen.getByRole("textbox", { name: "全局指令", exact: true });
       await expect.element(editor).toHaveValue("");
       await editor.fill("使用中文");

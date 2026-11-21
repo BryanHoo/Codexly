@@ -181,6 +181,7 @@ export const settings = {
   },
   sections: {
     acp: "ACP",
+    "global-instructions": "Global instructions",
     network: "Network",
     prompts: "Saved prompts",
     git: "AI generation",
@@ -196,6 +197,7 @@ export const settings = {
   },
   title: "Global settings",
   sectionKeywords: {
+    "global-instructions": "application instructions custom prompt personalization AGENTS.md CLAUDE.md",
     acp: "ACP Agent Codex Claude authentication provider model reasoning mode permissions defaults",
     network: "proxy gateway authentication HTTP HTTPS SOCKS5",
     prompts: "saved prompts titles slash hash commands local storage create edit delete",

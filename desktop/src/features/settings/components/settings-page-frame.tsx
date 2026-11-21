@@ -38,16 +38,18 @@ export function SettingsPageFrame({
   const contentRef = useRef<HTMLElement>(null);
   const engine = settingsSectionEngine(activeSection);
   const query = search.trim().toLocaleLowerCase();
-  const matches = settingsSections.filter(({ id }) =>
-    [
-      t(`sections.${id}`),
-      ...sectionGroups
-        .filter((group) => group.sections.some((section) => section === id))
-        .map((group) => t(`groups.${group.id}`)),
-      t(`sectionKeywords.${id}`),
-      ...sectionSearchKeys[id].map((key) => t(key)),
-    ].some((label) => label.toLocaleLowerCase().includes(query)),
-  );
+  const matches = settingsSections
+    .filter(({ id }) => id !== "global-instructions" || agentRuntime === "acp")
+    .filter(({ id }) =>
+      [
+        t(`sections.${id}`),
+        ...sectionGroups
+          .filter((group) => group.sections.some((section) => section === id))
+          .map((group) => t(`groups.${group.id}`)),
+        t(`sectionKeywords.${id}`),
+        ...sectionSearchKeys[id].map((key) => t(key)),
+      ].some((label) => label.toLocaleLowerCase().includes(query)),
+    );
 
   return (
     <SettingsSaveFeedbackProvider onBack={onBack}>

@@ -12,7 +12,11 @@ it("将网络归入应用设置并提供搜索入口，不绑定智能体", () =
   expect(settingsSectionEngine("network")).toBeUndefined();
 });
 
-it("将智能体设置收束为 ACP 入口并保留旧入口的引擎归属", () => {
+it("将 ACP 与全局指令并列归入智能体并保留旧入口的引擎归属", () => {
+  expect(settingsSectionGroups.find(({ id }) => id === "agents")?.sections).toEqual([
+    "acp",
+    "global-instructions",
+  ]);
   const sections = settingsSectionGroups.flatMap((group) => [...group.sections]);
   expect(sections).toContain("acp");
   expect(sections).not.toContain("provider");

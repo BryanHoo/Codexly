@@ -44,6 +44,7 @@ export function SettingsPageFrame({
   const engine = settingsSectionEngine(activeSection);
   const query = search.trim().toLocaleLowerCase();
   const matches = settingsSections
+    .filter(({ id }) => id !== "global-instructions" || agentRuntime === "acp")
     .filter(({ id }) => id !== "access" || accessMode === "lan")
     .filter(({ id }) =>
       [
