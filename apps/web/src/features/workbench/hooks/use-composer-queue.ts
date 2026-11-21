@@ -215,10 +215,12 @@ export function useComposerQueue({
     ) {
       return;
     }
-    // 浏览器只提交队列 ID；投递方式、附件归属和成功后的删除统一由 Node 处理。
+    // 活动时绑定当前回合，附件与正文由服务端从原队列项读取。
     const before = runtime?.readSnapshot();
+    const expectedTurnId = runtime?.activeTurnId;
     const response = await client.startQueuedSubmission(projectId, taskId, queuedPrompt.id, {
       idempotencyKey: createUuid(),
+      ...(expectedTurnId === undefined ? {} : { expectedTurnId }),
     });
     onSteerAccepted({
       files: withTaskAttachmentPreviews(queuedPrompt.files, (attachmentId) =>

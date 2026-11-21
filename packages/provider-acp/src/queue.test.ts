@@ -67,32 +67,50 @@ it("明确未提交后可以安全重试，执行不会读取旧厂商配置", a
   }
 });
 
-it("立即发送遇到回合切换时保留队列，不调用厂商 steer", async () => {
+it("明确绑定旧回合的队列引导保留原消息，不改投新回合", async () => {
   const root = await mkdtemp(join(tmpdir(), "acp-queue-race-"));
   try {
     const execute = vi.fn(),
       steerTurn = vi.fn();
-    const readTask = vi
-      .fn()
-      .mockResolvedValueOnce({ turns: [] })
-      .mockResolvedValue({ turns: [{ id: "new", status: "running" }] });
+    const readTask = vi.fn().mockResolvedValue({
+      turns: [
+        {
+          id: "new",
+          status: "running",
+          items: [],
+          error: null,
+          startedAt: null,
+          completedAt: null,
+        },
+      ],
+      acpSession: { canSteer: true },
+    });
     const provider = {
       readTaskMetadata: () => Promise.resolve({ id: "t", engine: "codex" }),
       readTask,
       steerTurn,
     } as unknown as AgentProvider;
     const queue = new AcpQueue(root, execute, () => undefined);
-    await queue.add(
+    const queued = await queue.add(
       provider,
       "p",
       "t",
       { text: "q", files: [], images: [], skills: [], textAttachments: [] },
       "message",
     );
-    await expect(queue.start(provider, "p", "t")).rejects.toThrow();
+    await expect(queue.start(provider, "p", "t", queued.id, "old")).rejects.toThrow();
     expect(steerTurn).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
     expect(await queue.list(provider, "p", "t")).toHaveLength(1);
+    await expect(queue.start(provider, "p", "t", queued.id, "new")).resolves.toMatchObject({
+      id: "new",
+    });
+    expect(steerTurn).toHaveBeenCalledExactlyOnceWith(
+      "t",
+      "new",
+      expect.objectContaining({ text: "q" }),
+    );
+    expect(await queue.list(provider, "p", "t")).toHaveLength(0);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

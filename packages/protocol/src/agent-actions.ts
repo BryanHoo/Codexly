@@ -271,7 +271,10 @@ export type ReorderAgentQueuedSubmissionsResponse = Readonly<
 >;
 
 export const StartAgentQueuedSubmissionRequestSchema = Type.Object(
-  { queuedSubmissionId: Type.Optional(Type.String({ minLength: 1 })) },
+  {
+    queuedSubmissionId: Type.Optional(Type.String({ minLength: 1 })),
+    expectedTurnId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+  },
   { additionalProperties: false },
 );
 export type StartAgentQueuedSubmissionRequest = Readonly<

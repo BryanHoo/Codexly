@@ -177,7 +177,7 @@ export class PersistentTaskQueue {
     expectedTurnId?: string,
   ): Promise<AgentTurn> {
     const turn = await this.#withTaskLock(runtime, () =>
-      this.#startUnlocked(runtime, queuedSubmissionId, !this.#startTurn, expectedTurnId),
+      this.#startUnlocked(runtime, queuedSubmissionId, true, expectedTurnId),
     );
     if (turn === undefined) {
       throw new TaskQueueItemNotFoundError();
@@ -288,10 +288,14 @@ export class PersistentTaskQueue {
     if (expectedTurnId !== undefined && running?.id !== expectedTurnId)
       throw new TaskQueueBlockedError();
     // 手动立即发送由服务端选择 start/steer；自动出队不得打断正在运行的新回合。
-    // ACP 仅通过当前会话配置启动下一回合，不把排队正文改投旧 steer 语义。
-    if (running !== undefined && startConfiguredTurn && allowSteer)
+    if (running !== undefined && !allowSteer) return undefined;
+    // ACP 只有在活动会话明确声明扩展时才允许从队列引导。
+    if (
+      running !== undefined &&
+      (startConfiguredTurn || this.#startTurn) &&
+      task?.acpSession?.canSteer !== true
+    )
       throw new TaskQueueBlockedError();
-    if (running !== undefined && (!allowSteer || startConfiguredTurn)) return undefined;
     const { providerInput } = await this.#resolveProviderInput(
       runtime.projectId,
       selected.input,

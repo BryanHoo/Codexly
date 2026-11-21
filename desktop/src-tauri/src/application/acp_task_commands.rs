@@ -3,6 +3,13 @@ use crate::infrastructure::{app_data, local_catalog::LocalCatalog, temporary_wor
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 
+fn has_prompt_input(method: &str, params: &Value) -> bool {
+    matches!(
+        method,
+        "turn.start" | "prompt.start" | "queue.add" | "queue.update"
+    ) || (method == "turn.steer" && params.get("queuedSubmissionId").is_none())
+}
+
 fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
     if !matches!(
         method,
@@ -22,6 +29,7 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
             | "turn.start"
             | "prompt.start"
             | "turn.interrupt"
+            | "turn.steer"
             | "request.resolve"
             | "queue.add"
             | "queue.list"
@@ -100,10 +108,30 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
     {
         return Err(AppError::Acp("Invalid ACP initial config".into()));
     }
-    if matches!(
-        method,
-        "turn.start" | "prompt.start" | "queue.add" | "queue.update"
-    ) {
+    if method == "turn.steer" {
+        let valid_id = |key: &str| {
+            params[key]
+                .as_str()
+                .is_some_and(|id| !id.trim().is_empty() && id.len() <= 128)
+        };
+        let input_key = match params.get("queuedSubmissionId") {
+            Some(_) => "queuedSubmissionId",
+            None => "input",
+        };
+        if !valid_id("turnId")
+            || !valid_id("idempotencyKey")
+            || (input_key == "queuedSubmissionId" && !valid_id(input_key))
+            || !params.as_object().is_some_and(|values| {
+                values.keys().all(|key| {
+                    matches!(key.as_str(), "taskId" | "turnId" | "idempotencyKey")
+                        || key == input_key
+                })
+            })
+        {
+            return Err(AppError::Acp("Invalid ACP steering identity".into()));
+        }
+    }
+    if has_prompt_input(method, params) {
         let input = &params["input"];
         if !input["text"].is_string()
             || !["files", "images", "textAttachments", "skills"]
@@ -174,7 +202,7 @@ async fn request_with_input(
             .ok_or(AppError::FilesystemRequestFailed)?
             .to_owned();
         let owned_task = catalog.owned_task(&project_id, &task_id).await?;
-        let submission = if method == "prompt.start" {
+        let submission = if matches!(method.as_str(), "prompt.start" | "turn.steer") {
             let (mut identity, bytes) =
                 super::acp_prompt_submission::identity(&project_id, &params)?;
             let permit = state
@@ -220,10 +248,7 @@ async fn request_with_input(
         let scope = json!({"id":project_id,"kind":if project_id=="temporary" {"temporary"} else {"project"},
         "rootPath":root,"runtimeWorkspaceRoots":[root]});
         // 队列与立即发送共用附件授权，不能让排队接口绕过上传和历史引用校验。
-        if matches!(
-            method.as_str(),
-            "turn.start" | "prompt.start" | "queue.add" | "queue.update"
-        ) {
+        if has_prompt_input(&method, &params) {
             let (mut input, references) = super::acp_input::prepare(
                 &directory,
                 &project_id,

@@ -14,7 +14,7 @@ import { i18n } from "../../src/i18n/i18n.js";
 import "../../src/shared/styles/globals.css";
 
 const time = "2026-11-05T00:00:00Z";
-const diff = "--- a/profile.js\n+++ b/profile.js\n@@ -19 +19 @@\n-oldValue\n+newValue\n@@ -91 +91 @@\n-oldTail\n+newTail";
+const diff = "diff --git /repo/profile.js /repo/profile.js\n--- /repo/profile.js\n+++ /repo/profile.js\n@@ -19 +19 @@\n-oldValue\n+newValue\n@@ -91 +91 @@\n-oldTail\n+newTail";
 const change = { path: "/Users/bryanhu/Develop/person/FeedFuse/src/features/reader/components/src/profile.js", kind: "update" as const, diff, stats: { additions: 1, removals: 1 } };
 const file = { id: "file", type: "file_change" as const, status: "running" as const, changes: [change] };
 function response(completed = false) {
@@ -23,7 +23,7 @@ function response(completed = false) {
     updatedAt: time, pendingRequests: [], turnsNextCursor: null, contextUsage: null, goal: null, plan: null,
     settings: { approvalPolicy: "on-request" as const, approvalsReviewer: "user" as const, model: "model", reasoningEffort: "high" as const, sandboxMode: "workspace-write" as const },
     turns: [{ id: "turn", status: completed ? "completed" as const : "running" as const, startedAt: time, completedAt: completed ? time : null, error: null,
-      items: [{ id: "user", type: "message" as const, role: "user" as const, text: "修改文件" }, { ...file, status: completed ? "completed" as const : "running" as const }] }],
+      items: [{ id: "user", type: "message" as const, role: "user" as const, text: "修改文件" }, { id: "acp:tool:edit", type: "tool" as const, name: "Editing files", status: "completed" as const }, { ...file, status: completed ? "completed" as const : "running" as const }] }],
   } };
 }
 const actions = { onOpenFileDiff: vi.fn(), onOpenSourceFile: vi.fn(), onReviewFileChanges: vi.fn(), onResolvePendingRequest: async () => undefined };
@@ -49,6 +49,8 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(document.querySelector('[data-file-diff-card]')).toBeNull();
     await screen.getByRole('button', { name: '展开执行过程', exact: true }).click();
     await expect.poll(() => document.querySelector('[data-file-diff-card]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("Editing files");
+    await expect.poll(() => document.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '', { timeout: 10000 }).toContain('newValue');
     await screen.getByRole('button', { name: '收起执行过程', exact: true }).click();
     await expect.poll(() => document.querySelector('[data-file-diff-card]')).toBeNull();
     expect(store.getState().turnIds).toHaveLength(1);
@@ -65,6 +67,7 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     await screen.getByRole("switch", { name: "独立显示文件差异" }).click();
     const card = () => document.querySelector<HTMLElement>('[data-file-diff-card]');
     await expect.poll(() => card()?.textContent).toContain("profile.js");
+    expect(document.body.textContent).not.toContain("Editing files");
     expect(card()?.closest('[data-operation-group]')).toBeNull();
     // 读取最终 CSS，防止使用未定义的语义类导致圆角和边框退化成浏览器默认值。
     const cardStyle = getComputedStyle(card()!);

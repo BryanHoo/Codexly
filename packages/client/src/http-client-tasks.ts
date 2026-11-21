@@ -171,11 +171,14 @@ export class TaskHttpClient extends SessionHttpClient {
     projectId: string,
     taskId: string,
     queuedSubmissionId?: string,
-    options: MutationOptions = {},
+    { expectedTurnId, ...options }: MutationOptions & { expectedTurnId?: string } = {},
   ): Promise<StartAgentQueuedSubmissionResponse> {
     return this.mutation(
       `${taskPath(projectId, taskId)}/queue/start`,
-      { ...(queuedSubmissionId === undefined ? {} : { queuedSubmissionId }) },
+      {
+        ...(queuedSubmissionId === undefined ? {} : { queuedSubmissionId }),
+        ...(expectedTurnId === undefined ? {} : { expectedTurnId }),
+      },
       StartAgentQueuedSubmissionResponseSchema,
       options,
     );

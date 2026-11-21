@@ -1,4 +1,5 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
+import { isHiddenFileEditingTool } from "@codexly/frontend-core/timeline-operation";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
 import { SquareTerminal } from "lucide-react";
@@ -36,6 +37,7 @@ export function resolveRunningOperation(
 ): RunningOperation | undefined {
   // 优先展示仍在运行的操作，避免并发 Item 的完成事件覆盖真实当前状态。
   const runningItem = items.findLast(({ item }) => {
+    if (isHiddenFileEditingTool(item)) return false;
     if (item.type === "command" || item.type === "tool") {
       return item.status === "pending" || item.status === "running";
     }
@@ -80,6 +82,7 @@ export function resolveRunningOperation(
   const recentItem = items.findLast(
     ({ item, itemIndex }) =>
       itemIndex > latestAssistantMessageIndex &&
+      !isHiddenFileEditingTool(item) &&
       (item.type === "command" ||
         item.type === "tool" ||
         (item.type === "activity" && item.transient !== true)),

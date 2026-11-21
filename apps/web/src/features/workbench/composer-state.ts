@@ -97,11 +97,15 @@ export function applyApprovalMode(
 export function deriveComposerActions(
   capabilities: AgentCapabilities | undefined,
   hasTask: boolean,
+  acpCanSteer?: boolean,
 ): Readonly<{ canInterrupt: boolean; canSubmit: boolean; canSteer: boolean }> {
   return {
     canInterrupt: capabilities?.turns.interrupt ?? false,
     canSubmit: capabilities?.turns.start === true && (hasTask || capabilities.tasks.start),
-    canSteer: capabilities?.turns.steer === true && hasTask,
+    // ACP 的引导能力由活动会话声明，旧运行时沿用全局能力。
+    canSteer:
+      hasTask &&
+      (capabilities?.runtime === "acp" ? acpCanSteer === true : capabilities?.turns.steer === true),
   };
 }
 

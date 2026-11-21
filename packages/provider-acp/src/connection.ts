@@ -11,6 +11,7 @@ interface ActivePrompt {
   terminal: PromiseWithResolvers<acp.IdleStateUpdate | null>;
   abandoned: PromiseWithResolvers<never>;
   observedForeground: boolean;
+  foregroundActive: boolean;
   echoedMessageId?: string;
   acceptedMessageId?: string;
   idleAfterEcho?: acp.IdleStateUpdate;
@@ -33,11 +34,12 @@ export interface AcpClientCallbacks {
   ): Promise<acp.RequestPermissionResponse>;
 }
 
-/** 仅对接 ACP 稳定接口，不解释 Codex 或 Claude 的私有协议。 */
+/** 通过 ACP 稳定接口及 Agent 主动公布的扩展通信。 */
 export class AcpConnection {
   readonly #activePrompts = new Map<string, ActivePrompt>();
   readonly #cancellations = new Map<string, PendingCancellation>();
   readonly #sessions = new Set<string>();
+  readonly supportsSteering: boolean;
   #pendingBindings = 0;
 
   private constructor(
@@ -58,6 +60,7 @@ export class AcpConnection {
       commands?: acp.AvailableCommand[],
     ) => Promise<void>,
   ) {
+    this.supportsSteering = AcpSessionMetadataStore.supportsSteering(initialization);
     const release = () => {
       for (const active of this.#activePrompts.values()) active.terminal.resolve(null);
       for (const cancellation of this.#cancellations.values()) cancellation.finish();
@@ -224,7 +227,8 @@ export class AcpConnection {
     return this.authStatus.read(marker !== undefined && marker !== null);
   }
   readSessionState(sessionId: string): AcpSessionMetadata {
-    return this.metadata.read(sessionId);
+    const state = this.metadata.read(sessionId);
+    return this.supportsSteering ? { ...state, canSteer: true } : state;
   }
   readSessionUsage(sessionId: string | undefined) {
     return sessionId ? this.metadata.readUsage(sessionId) : null;
@@ -306,6 +310,7 @@ export class AcpConnection {
       return;
     }
     if (update.sessionUpdate !== "state_update" || !acp.SessionUpdate.isStateUpdate(update)) return;
+    active.foregroundActive = update.state === "running" || update.state === "requires_action";
     if (update.state === "running" || update.state === "requires_action")
       active.observedForeground = true;
     else if (acp.StateUpdate.isIdle(update)) {
@@ -330,6 +335,7 @@ export class AcpConnection {
       terminal: Promise.withResolvers<acp.IdleStateUpdate | null>(),
       abandoned: Promise.withResolvers<never>(),
       observedForeground: false,
+      foregroundActive: false,
     };
     this.#activePrompts.set(id, active);
     // 回执只确认消息写入。等待前台终态以及此前的增量投影完成后再结算本地回合。
@@ -364,6 +370,14 @@ export class AcpConnection {
         if (cancellation?.sent) cancellation.finish();
       });
     return Promise.race([response, active.abandoned.promise]);
+  }
+
+  canSteerSession(sessionId: string): boolean {
+    return (
+      this.supportsSteering &&
+      this.#activePrompts.get(sessionId)?.foregroundActive === true &&
+      !this.#cancellations.has(sessionId)
+    );
   }
 
   async setConfigOption(

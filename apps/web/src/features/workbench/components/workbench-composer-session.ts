@@ -165,11 +165,11 @@ export function useComposerSession({
   const { canInterrupt, canSubmit, canSteer } = deriveComposerActions(
     capabilities,
     activeTaskId !== undefined,
+    runtime?.metadata?.acpSession?.canSteer,
   );
-  const connectionState = runtime?.connectionState ?? "connected";
   const state = deriveComposerState({
     activeTurnId,
-    connectionState,
+    connectionState: runtime?.connectionState ?? "connected",
     isSubmitting,
     mutationFailed: mutationError !== null || runtime?.error !== null,
   });
@@ -446,7 +446,7 @@ export function useComposerSession({
     commandSurfaceRef,
     composerController,
     composerScope,
-    connectionState,
+    connectionState: runtime?.connectionState ?? "connected",
     contextUsage,
     draftInputDisabled,
     filteredCommands,

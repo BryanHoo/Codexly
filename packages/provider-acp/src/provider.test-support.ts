@@ -25,6 +25,7 @@ export async function fixture(
   ) => Promise<AcpConfigOption[]>,
   management?: {
     capabilities?: acp.InitializeResponse["capabilities"];
+    steering?: boolean;
     deleteSession?: (sessionId: string) => Record<string, never> | Promise<Record<string, never>>;
   },
 ) {
@@ -82,10 +83,13 @@ export async function fixture(
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
       protocolVersion: 2,
-      info: { name: "test-agent", version: "1" },
+      info: management?.steering
+        ? { name: "@agentclientprotocol/codex-acp", version: "2.8.0" }
+        : { name: "test-agent", version: "1" },
       capabilities: management?.capabilities ?? {
         session: {},
       },
+      ...(management?.steering ? { _meta: { steering: { supported: true } } } : {}),
     }))
     .onRequest(acp.methods.agent.session.new, created)
     .onRequest(acp.methods.agent.session.close, closed)

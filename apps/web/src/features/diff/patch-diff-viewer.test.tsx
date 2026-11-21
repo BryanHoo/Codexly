@@ -1,6 +1,22 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import { PatchDiffViewer } from "@codexly/ui/agent/patch-diff-viewer";
+import { normalizeFileChangePatch } from "@codexly/frontend-core/file-change-patch";
+import { parsePatchFiles } from "@pierre/diffs";
+
+it.each(["/Users/example/project with spaces/中文.ts", "C:/Users/example/project/file.ts"])(
+  "ACP 绝对路径 Git 文件头能渲染实际增删内容（%s）",
+  (path) => {
+    const patch = `diff --git ${path} ${path}\n--- ${path}\n+++ ${path}\n@@ -5,2 +5,2 @@\n context\n-oldValue\n+newValue\n`;
+    const normalized = normalizeFileChangePatch({ diff: patch, kind: "update", path });
+    const file = parsePatchFiles(normalized, undefined, true)[0]?.files[0];
+    expect(file?.additionLines.join("")).toContain("newValue");
+    expect(file?.deletionLines.join("")).toContain("oldValue");
+    expect(renderToStaticMarkup(<PatchDiffViewer path={path} patch={patch} />)).toContain(
+      "diffs-container",
+    );
+  },
+);
 
 it.each([
   "",

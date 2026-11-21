@@ -26,6 +26,7 @@ type TextUpdate = Extract<
 
 /** 仅映射 ACP 更新；正文按条目追加，不在每个 token 复制完整历史或写入存储。 */
 export class AcpEventProjection {
+  pendingSteer: Promise<void> | undefined;
   readonly content = new AcpTurnContent();
   readonly #items = new Map<string, AgentItem>();
   readonly #finished = new Set<string>();

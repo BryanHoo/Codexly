@@ -236,7 +236,11 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.body,
         async () => {
           try {
-            return await taskQueue.start(runtime, request.body.queuedSubmissionId);
+            return await taskQueue.start(
+              runtime,
+              request.body.queuedSubmissionId,
+              request.body.expectedTurnId,
+            );
           } catch (error) {
             toQueueHttpError(error);
           }

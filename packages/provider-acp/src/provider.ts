@@ -1,7 +1,7 @@
+import { join } from "node:path";
 import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
-import { join } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import { AcpTaskManagement } from "./task-management.js";
 import { readAcpTaskSnapshot, readAcpTaskSessionState } from "./task-snapshot.js";
@@ -29,11 +29,11 @@ import type { AcpSessionInitialization } from "./session-initialization.js";
 import type { AcpStoredSettings } from "./settings-store.js";
 import { AcpEventProjection } from "./event-projection.js";
 import { AcpPermissions } from "./permissions.js";
-import { createAcpPrompt } from "./turn-input.js";
 import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
 import { migrateAcpSettings } from "./migration.js";
 import { applyAcpConfig } from "./configuration.js";
-import { sendAcpPrompt, submitAcpTurn } from "./turn-submission.js";
+import { prepareAcpPrompt, sendAcpPrompt, submitAcpTurn } from "./turn-submission.js";
+import { steerAcpTurn } from "./steering.js";
 import { startAcpLocalTask } from "./task-creation.js";
 import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
@@ -177,7 +177,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #emitSessionState = (sessionId: string, state: AcpSessionMetadata): void => {
     const task = taskForAcpSession(this.#link.sessions, sessionId);
     if (task && !this.#link.detached.has(task))
-      this.#emit({ type: "acp.session.updated", taskId: task, payload: { state } });
+      this.#emit({
+        type: "acp.session.updated",
+        taskId: task,
+        payload: {
+          state: this.#link.instance?.supportsSteering ? { ...state, canSteer: true } : state,
+        },
+      });
     else if (task && state.background?.length === 0) this.#link.recycleIdle();
   };
   async #load(task: LocalTask, explicitConfig = false, repairHistory = false) {
@@ -249,16 +255,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         const agent = await this.#link.get();
         const bound = this.#link.sessions.get(id);
         if (bound) agent.assertSessionReady(bound);
-        const prompt = await createAcpPrompt(
-          input,
-          agent.initialization.capabilities?.session?.prompt ?? {},
-          join(
-            this.history.directory,
-            "attachments",
-            createHash("sha256").update(id).digest("hex"),
-          ),
-          onRollback,
-        );
+        const prompt = await prepareAcpPrompt(agent, this.history.directory, id, input, onRollback);
         const attachments = await this.attachments.prepare(id, input);
         await this.#load(task, initialConfig !== undefined);
         const sessionId = this.#link.sessions.get(id);
@@ -306,13 +303,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           signal.throwIfAborted();
         }
         submitted();
-        const settlement = sendAcpPrompt(agent, sessionId, prompt, projection, input.submissionKey)
-          .then(
-            (result) => projection.finish(result.stopReason),
-            (error: unknown) =>
-              projection.fail(error instanceof Error ? error.message : "ACP 连接失败"),
-          )
-          .then((final) => this.#commitTurn(id, projection, final, prompt));
+        const settlement = sendAcpPrompt(
+          agent,
+          sessionId,
+          prompt,
+          projection,
+          input.submissionKey,
+        ).then((final) => this.#commitTurn(id, projection, final, prompt));
         this.#settlements.add(settlement);
         this.#taskSettlements.set(id, settlement);
         void settlement.finally(() => {
@@ -322,6 +319,19 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         });
         return turn;
       }),
+    );
+  }
+  steerTurn(id: string, turnId: string, input: AgentProviderTurnInput): Promise<void> {
+    return this.#serial(id, () =>
+      steerAcpTurn(
+        this.#link.instance,
+        this.#link.sessions.get(id),
+        this.#active.get(id),
+        turnId,
+        input,
+        this.history.directory,
+        this.attachments,
+      ),
     );
   }
   async #commitTurn(

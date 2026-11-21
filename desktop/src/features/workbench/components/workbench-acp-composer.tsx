@@ -90,10 +90,6 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
       return cancel.call(props.client, props.projectId, taskId, turnId);
     },
   };
-  // ACP 不支持 steer；回合运行时沿用持久队列，不能回落旧追加接口。
-  const capabilities = props.capabilities
-    ? { ...props.capabilities, turns: { ...props.capabilities.turns, steer: false } }
-    : undefined;
   return (
     <>
     <AcpActivity
@@ -106,7 +102,6 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
       {...props}
       settings={undefined}
       acp={acp}
-      capabilities={capabilities}
       models={[]}
       modelsPending={false}
       modelsError={null}

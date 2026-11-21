@@ -176,7 +176,8 @@ export class AcpHost {
           this.#output.send({
             id,
             error:
-              message["method"] === "prompt.start" && error instanceof AgentTurnNotSubmittedError
+              (message["method"] === "prompt.start" || message["method"] === "turn.steer") &&
+              error instanceof AgentTurnNotSubmittedError
                 ? "ACP_HOST_PROMPT_NOT_SUBMITTED"
                 : "ACP_HOST_REQUEST_FAILED",
           });

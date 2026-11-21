@@ -18,6 +18,7 @@ import type {
   UpdateAgentQueuedSubmissionResponse,
   ReorderAgentQueuedSubmissionsResponse,
   StartAgentQueuedSubmissionResponse,
+  SteerAgentTurnResponse,
   DeleteAgentQueuedSubmissionResponse,
 } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions, ReadTaskOptions } from "@/platform/native-client-types.js";
@@ -163,6 +164,18 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
   }
   interruptAcpTurn(projectId: string, taskId: string, turnId: string, options: MutationOptions = {}): Promise<null> {
     return this.mutateAcpTask(projectId, "turn.interrupt", { taskId, turnId }, options);
+  }
+  protected steerAcpTurn(
+    projectId: string,
+    taskId: string,
+    turnId: string,
+    input: AgentPromptInput,
+    { idempotencyKey, queuedSubmissionId }: { idempotencyKey: string; queuedSubmissionId?: string },
+  ): Promise<SteerAgentTurnResponse> {
+    return this.mutateAcpTask(projectId, "turn.steer", {
+      taskId, turnId, idempotencyKey,
+      ...(queuedSubmissionId === undefined ? { input } : { queuedSubmissionId }),
+    }, {});
   }
   resolveAcpRequest(
     projectId: string,

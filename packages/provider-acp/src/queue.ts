@@ -105,12 +105,15 @@ export class AcpQueue {
   async list(provider: AgentProvider, project: string, task: string) {
     return this.#queue.list(await this.#runtime(provider, project, task));
   }
-  async start(provider: AgentProvider, project: string, task: string, id?: string) {
+  async start(
+    provider: AgentProvider,
+    project: string,
+    task: string,
+    id?: string,
+    turnId?: string,
+  ) {
     const runtime = await this.#runtime(provider, project, task);
-    // ACP 不伪造回合引导；活动回合结束后再启动下一条，不能转成私有厂商操作。
-    if ((await provider.readTask(task))?.turns.some((t) => t.status === "running"))
-      throw new Error("ACP task is running");
-    return this.#queue.start(runtime, id);
+    return this.#queue.start(runtime, id, turnId);
   }
   async resume(provider: AgentProvider, project: string, task: string) {
     return this.#queue.startNext(await this.#runtime(provider, project, task));

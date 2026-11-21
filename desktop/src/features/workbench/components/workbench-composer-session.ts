@@ -167,6 +167,7 @@ export function useComposerSession({
   const { canInterrupt, canSubmit, canSteer } = deriveComposerActions(
     capabilities,
     activeTaskId !== undefined,
+    runtime?.metadata?.acpSession?.canSteer,
   );
   const connectionState = runtime?.connectionState ?? "connected";
   const state = deriveComposerState({

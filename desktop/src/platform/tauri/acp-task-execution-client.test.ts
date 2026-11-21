@@ -209,6 +209,33 @@ class AcpClient extends TauriSidebarClient {
   }
 }
 
+it("公共引导通过 ACP 宿主发送，排队引导只提交原队列项身份", async () => {
+  const accepted = { status: "accepted", taskId: "t", turnId: "turn" };
+  const invoke = vi.fn().mockResolvedValue(accepted);
+  const client = new AcpClient({
+    invoke: invoke as InvokeImplementation,
+    connectEvents: async () => undefined,
+  });
+  const input = { type: "prompt" as const, text: "请调整方案", skills: [], attachments: [] };
+  await expect(client.steerTurn("p", "t", "turn", input, {
+    idempotencyKey: "direct",
+  })).resolves.toEqual(accepted);
+  await expect(client.steerTurn("p", "t", "turn", input, {
+    idempotencyKey: "queued",
+    queuedSubmissionId: "q",
+  })).resolves.toEqual(accepted);
+  expect(invoke.mock.calls).toEqual([
+    ["acp_task_request", {
+      projectId: "p", method: "turn.steer",
+      params: { taskId: "t", turnId: "turn", idempotencyKey: "direct", input },
+    }],
+    ["acp_task_request", {
+      projectId: "p", method: "turn.steer",
+      params: { taskId: "t", turnId: "turn", idempotencyKey: "queued", queuedSubmissionId: "q" },
+    }],
+  ]);
+});
+
 it("公共中断在 ACP 保留任务与回合身份，只等待共享端口确认", async () => {
   const invoke = vi.fn().mockResolvedValue(null);
   const ensureRuntime = vi.fn();

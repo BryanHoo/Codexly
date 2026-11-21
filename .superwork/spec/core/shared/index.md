@@ -25,6 +25,7 @@
 - Provider 仅在明确保证输入未提交时抛出 `AgentTurnNotSubmittedError`。Codex 仅映射错误码 `-32600` 且完整消息为 `no active turn to steer`，或 expected ID 与本次目标一致的轮次不匹配响应；断线、超时、解析失败及相似错误文本保持结果未知。
 - 明确拒绝后先持久化回退执行占用，再恢复可编辑、可发送状态。仓储以 `null` 表示回退，且仅允许从 `starting` 清除，禁止覆盖已接受的 `started` 结果。Web SQLite、内存与桌面 Claude 文件仓储保持一致。
 - 未绑定回合的“立即发送”允许在同一任务锁内重新读取状态并补发一次；显式绑定回合的引导不得改投后来回合。连续拒绝保留队列；结果未知继续阻塞，不能自动重复发送。
+- ACP 即时引导由活动会话公布 `acpSession.canSteer`，两端据此启用直接引导和队列引导。只有确认支持 `idleBehavior: "promptRequired"` 的适配器才能调用扩展，避免回合结束时隐式启动新回合。缺少该能力的会话在运行中继续接收排队消息。回归入口为 [ACP 引导](../../../../packages/provider-acp/src/provider-steering.test.ts) 与 [ACP 队列](../../../../packages/provider-acp/src/queue.test.ts)。
 - 回归入口为 `packages/server/src/persistent-task-queue.test.ts`、`app-queue-dispatch.test.ts`、`sqlite-queue-execution.test.ts`、`packages/provider-codex/src/agent-provider-steer-errors.test.ts` 与 `tools/acp-host-queue.test.mjs`，覆盖轮次切换、历史残留、重启恢复、并发幂等及未知结果保护。
 
 ## 单任务导航的归档状态

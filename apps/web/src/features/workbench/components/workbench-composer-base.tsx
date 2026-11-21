@@ -35,7 +35,7 @@ export function WorkbenchComposerBase({
   composerDraftId,
   fastModeAvailable,
   fastModeDefault,
-  followUpBehavior,
+  followUpBehavior: preferredFollowUpBehavior,
   footerVisible = true,
   initialDraft,
   initialTodoId,
@@ -151,6 +151,9 @@ export function WorkbenchComposerBase({
     state,
     turnControlsDisabled,
   } = session;
+  // 偏好设为引导时，尚未公布该能力的 ACP 会话仍可接收排队消息。
+  const followUpBehavior =
+    capabilities?.runtime === "acp" && !canSteer ? "queue" : preferredFollowUpBehavior;
   const [fastModeSelection, setFastModeSelection] = useState<{ enabled: boolean; scope: string }>();
   const fastModeSelected =
     fastModeSelection?.scope === composerScope ? fastModeSelection.enabled : fastModeDefault;

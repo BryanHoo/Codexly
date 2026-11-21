@@ -6,6 +6,7 @@ import {
   StateUpdate,
   SessionUpdate,
   type UpdateSessionNotification,
+  type InitializeResponse,
 } from "@agentclientprotocol/sdk/experimental/v2/unstable";
 import type { AcpConfigOption, AgentContextUsage } from "@codexly/protocol";
 import type { AcpSessionState } from "@codexly/protocol";
@@ -31,6 +32,21 @@ interface Entry {
 
 /** 保存 ACP 会话元数据；允许创建响应前的命令更新，不为聊天 token 分配缓存。 */
 export class AcpSessionMetadataStore {
+  static supportsSteering({ info, _meta }: InitializeResponse): boolean {
+    const steering = _meta?.["steering"];
+    // 扩展旗标本身不承诺空闲回退行为，只启用已支持 promptRequired 的适配器版本。
+    const version = /^(\d+)\.(\d+)\.\d+$/u.exec(info.version);
+    return (
+      info.name === "@agentclientprotocol/codex-acp" &&
+      version !== null &&
+      (Number(version[1]) > 2 || (Number(version[1]) === 2 && Number(version[2]) >= 8)) &&
+      typeof steering === "object" &&
+      steering !== null &&
+      "supported" in steering &&
+      steering.supported === true
+    );
+  }
+
   readonly #entries = new Map<string, Entry>();
   #bytes = 0;
   readonly #entities = new Map<string, Map<string, ActivityEntity>>();

@@ -417,6 +417,18 @@ export async function dispatchAcpHost(
     }
     case "turn.interrupt":
       return provider.interruptTurn(id, text(params, "turnId"));
+    case "turn.steer": {
+      const turnId = text(params, "turnId");
+      signal.throwIfAborted();
+      if (typeof params["queuedSubmissionId"] === "string") {
+        // 使用持久队列中已授权的附件与正文，受理后由队列事务移除原条目。
+        await queue.start(provider, scope.id, id, text(params, "queuedSubmissionId"), turnId);
+      } else {
+        if (!Value.Check(Input, params["input"])) throw new Error("Invalid ACP steer input");
+        await provider.steerTurn(id, turnId, params["input"]);
+      }
+      return { status: "accepted", taskId: id, turnId };
+    }
     default:
       throw new Error("Unknown ACP host method");
   }

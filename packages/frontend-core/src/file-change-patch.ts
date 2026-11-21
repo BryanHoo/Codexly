@@ -62,6 +62,14 @@ export function normalizeFileChangePatch({
   // 文件头必须相邻且出现在 hunk 前，正文中的 ---/+++ 仍然属于代码。
   const hasHeaders = /^--- [^\n]+\n\+\+\+ [^\n]+/mu.test(header);
   if (hasHeaders && (firstHunkIndex === -1 || properHunk.test(diff.slice(firstHunkIndex)))) {
+    // ACP 的 Codex 适配器用绝对路径生成 diff --git，Pierre 只接受 a/、b/ 前缀。
+    // 单文件正文已有完整 Unified Diff 文件头，直接从该处解析也兼容已保存的历史。
+    if (
+      diff.startsWith("diff --git ") &&
+      !/^diff --git (?:a\/[^\n]+|"a\/[^\n]+") (?:b\/[^\n]+|"b\/[^\n]+")\r?$/mu.test(header)
+    ) {
+      return diff.slice(diff.search(/^--- /mu));
+    }
     return diff;
   }
   if (firstHunkIndex === -1 && diff.startsWith("diff --git ")) return diff;

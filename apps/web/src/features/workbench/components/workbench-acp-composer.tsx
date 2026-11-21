@@ -83,9 +83,6 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
       ),
   };
   // 复用编辑器和草稿；旧模型目录、全局设置及专用快速模式均不参与 ACP 发送。
-  const capabilities = props.capabilities
-    ? { ...props.capabilities, turns: { ...props.capabilities.turns, steer: false } }
-    : undefined;
   return (
     <>
       <AcpActivity
@@ -98,7 +95,6 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
         {...props}
         settings={undefined}
         acp={acp}
-        capabilities={capabilities}
         models={[]}
         modelsPending={false}
         modelsError={null}

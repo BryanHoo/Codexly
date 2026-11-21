@@ -137,14 +137,21 @@ test("dispatches from the server snapshot and replays concurrent requests withou
   });
   expect(added.statusCode).toBe(201);
   const { queuedSubmission } = added.json<{ queuedSubmission: { id: string } }>();
-  // 入队后任务开始运行；发送意图不携带浏览器缓存的 Turn ID 或正文。
+  // 服务端从队列读取正文，拒绝仍指向上一回合的引导请求。
   readTask.mockResolvedValue({ ...snapshot, turns: [running] });
   const request = {
     method: "POST" as const,
     url: `${base}/start`,
     headers: { "idempotency-key": "dispatch" },
-    payload: { queuedSubmissionId: queuedSubmission.id },
+    payload: { queuedSubmissionId: queuedSubmission.id, expectedTurnId: running.id },
   };
+  const stale = await app.inject({
+    ...request,
+    headers: { "idempotency-key": "stale-dispatch" },
+    payload: { ...request.payload, expectedTurnId: "previous-turn" },
+  });
+  expect(stale.statusCode).toBe(409);
+  expect(steerTurn).not.toHaveBeenCalled();
   const [first, concurrent] = await Promise.all([app.inject(request), app.inject(request)]);
   expect(first.statusCode).toBe(201);
   expect(first.json()).toMatchObject({ queue: { data: [] }, taskId: "task-1", turn: running });

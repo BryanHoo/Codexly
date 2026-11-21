@@ -47,6 +47,7 @@ export const AcpSessionStateSchema = Type.Object(
       ]),
     ),
     background: Type.Optional(Type.Array(AcpBackgroundWorkSchema, { maxItems: 128 })),
+    canSteer: Type.Optional(Type.Boolean()),
     promptReceipt: Type.Optional(Type.Object({ turnId: Text, messageId: Text })),
   },
   { additionalProperties: false },
