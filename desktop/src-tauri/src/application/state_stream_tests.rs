@@ -159,16 +159,8 @@ async fn rpc_and_approval_should_progress_through_the_full_pipeline_without_webv
         None,
     );
     let (server_reader, mut server_writer) = split(server);
+    let (pressure_ready, pressure_started) = tokio::sync::oneshot::channel();
     let server = tokio::spawn(async move {
-        let request: Value = serde_json::from_str(
-            &BufReader::new(server_reader)
-                .lines()
-                .next_line()
-                .await
-                .unwrap()
-                .unwrap(),
-        )
-        .unwrap();
         let output = format!(
             "{}\n",
             json!({"method":"item/commandExecution/outputDelta","params":{
@@ -178,6 +170,18 @@ async fn rpc_and_approval_should_progress_through_the_full_pipeline_without_webv
         for _ in 0..2_000 {
             server_writer.write_all(output.as_bytes()).await.unwrap();
         }
+        // 先把约 32 MiB 输出送入真实管道；造压耗时不应消耗后续 RPC 的活性预算。
+        // 不等待 WebView ACK，积压和丢弃状态会保留到审批及回包检查结束。
+        pressure_ready.send(()).unwrap();
+        let request: Value = serde_json::from_str(
+            &BufReader::new(server_reader)
+                .lines()
+                .next_line()
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
         let approval = format!(
             "{}\n",
             json!({"id":9,"method":"item/commandExecution/requestApproval","params":{
@@ -194,10 +198,15 @@ async fn rpc_and_approval_should_progress_through_the_full_pipeline_without_webv
             .unwrap();
         server_writer
     });
+    // 造压单独设看门狗：若背压错误地阻塞读取，应在夹具阶段明确报错。
+    timeout(Duration::from_secs(60), pressure_started)
+        .await
+        .expect("output pressure setup must progress without WebView ACK")
+        .expect("pressure server must remain alive during setup");
     let response: Value = connection
         .request("test/pressure", &json!({}), Duration::from_secs(10))
         .await
-        .unwrap();
+        .expect("RPC response must progress after output pressure is established");
     assert_eq!(response["done"], true);
     let server_writer = server.await.unwrap();
     timeout(Duration::from_secs(2), async {
