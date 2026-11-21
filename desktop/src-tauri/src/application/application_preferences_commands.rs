@@ -50,7 +50,7 @@ async fn import_legacy_instructions(
     let max_bytes = rules["maxFileBytes"]
         .as_u64()
         .ok_or(AppError::FilesystemRequestFailed)?;
-    let mut sources = Vec::new();
+    // 与 Web 共用来源顺序。找到首份有效指令后立即提交，无需读取剩余文件。
     for source in rules["sources"]
         .as_array()
         .ok_or(AppError::FilesystemRequestFailed)?
@@ -62,24 +62,22 @@ async fn import_legacy_instructions(
         };
         let folder = get_directory(field("env")?).unwrap_or(home.join(field("directory")?));
         let content = read_legacy_instructions(&folder.join(field("file")?), max_bytes).await?;
-        if !content.trim().is_empty() {
-            sources.push(json!({"label":field("label")?, "content":content}));
+        if content.trim().is_empty() {
+            continue;
         }
-    }
-    if sources.is_empty() {
+        let baseline = if saved.is_null() {
+            legacy(directory).await?
+        } else {
+            saved
+        };
+        catalog
+            .call(
+                "app.preferences.importInstructions",
+                json!({"baseline":baseline,"content":content}),
+            )
+            .await?;
         return Ok(());
     }
-    let baseline = if saved.is_null() {
-        legacy(directory).await?
-    } else {
-        saved
-    };
-    catalog
-        .call(
-            "app.preferences.importInstructions",
-            json!({"baseline":baseline,"sources":sources}),
-        )
-        .await?;
     Ok(())
 }
 

@@ -215,7 +215,7 @@ it.each(["codex", "claude"] as const)(
   },
 );
 
-it("Web 启动迁移两个引擎的旧指令，仅填充缺失字段并保留原文件", async () => {
+it.each(["override", "codex", "claude"] as const)("Web 启动只迁移优先来源 %s", async (source) => {
   const directory = await mkdtemp(join(tmpdir(), "cli-acp-instructions-"));
   const codex = join(directory, "codex-home");
   const claude = join(directory, "claude-home");
@@ -226,8 +226,8 @@ it("Web 启动迁移两个引擎的旧指令，仅填充缺失字段并保留原
   const codexFile = join(codex, "AGENTS.md");
   const claudeFile = join(claude, "CLAUDE.md");
   await Promise.all([
-    writeFile(codexFile, codexBody),
-    writeFile(join(codex, "AGENTS.override.md"), override),
+    writeFile(codexFile, source === "claude" ? "  \n" : codexBody),
+    writeFile(join(codex, "AGENTS.override.md"), source === "override" ? override : ""),
     writeFile(claudeFile, claudeBody),
   ]);
   const store = await SqliteStateRepository.open(join(directory, "state.sqlite3"));
@@ -256,11 +256,14 @@ it("Web 启动迁移两个引擎的旧指令，仅填充缺失字段并保留原
     const migrated = await store.catalog("app.preferences.read", {});
     expect(migrated?.taskTitlePrompt).toBe("保留现有偏好");
     expect(migrated?.followUpBehavior).toBe("steer");
-    expect(migrated?.globalInstructions).toContain(codexBody);
-    expect(migrated?.globalInstructions).toContain(claudeBody);
-    expect(migrated?.globalInstructions).toContain(override);
-    expect(await readFile(codexFile, "utf8")).toBe(codexBody);
+    const expected = { override, codex: codexBody, claude: claudeBody }[source];
+    expect(migrated?.globalInstructions).toBe(expected);
+    expect(await readFile(codexFile, "utf8")).toBe(source === "claude" ? "  \n" : codexBody);
     expect(await readFile(claudeFile, "utf8")).toBe(claudeBody);
+
+    await writeFile(join(codex, "AGENTS.override.md"), "后续改动");
+    await (await start()).close();
+    expect((await store.catalog("app.preferences.read", {}))?.globalInstructions).toBe(expected);
 
     await store.catalog("app.preferences.patch", { baseline, changes: { globalInstructions: "" } });
     await (await start()).close();

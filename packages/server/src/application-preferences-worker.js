@@ -39,15 +39,11 @@ export function createApplicationPreferencesOperations(db) {
     db.prepare(sql.write).run(validate(next));
     return next;
   });
-  const importInstructions = db.transaction(({ baseline, sources }) => {
+  const importInstructions = db.transaction(({ baseline, content: globalInstructions }) => {
     const current = read();
-    // 并发导入或用户已清空时仍保留先获得写锁的已保存值。
+    // 并发保存与迁移共用写锁，已保存的空字符串也表示迁移无需再执行。
     if (current?.globalInstructions !== undefined) return null;
-    const globalInstructions = db
-      .prepare(sql.legacyInstructions.merge)
-      .pluck()
-      .get(JSON.stringify(sources));
-    if (globalInstructions === null) return null;
+    validate({ globalInstructions }, true);
     if (!current) validate(baseline);
     db.prepare(sql.write).run(validate({ ...(current ?? baseline), globalInstructions }));
     return null;

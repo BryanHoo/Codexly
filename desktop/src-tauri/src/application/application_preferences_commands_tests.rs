@@ -143,3 +143,33 @@ async fn application_preferences_startup_should_import_legacy_instructions_once_
         ""
     );
 }
+
+#[tokio::test]
+async fn application_preferences_startup_should_select_codex_before_claude() {
+    let directory = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let claude = home.path().join(".claude");
+    let codex = home.path().join(".codex");
+    tokio::fs::create_dir_all(&claude).await.unwrap();
+    tokio::fs::create_dir_all(&codex).await.unwrap();
+    tokio::fs::write(claude.join("CLAUDE.md"), [0xff])
+        .await
+        .unwrap();
+    tokio::fs::write(codex.join("AGENTS.md"), "Codex 普通指令")
+        .await
+        .unwrap();
+    let override_file = codex.join("AGENTS.override.md");
+    let expected = "Codex 覆盖指令\r\n";
+    tokio::fs::write(&override_file, expected).await.unwrap();
+
+    let migrate = || import_legacy_instructions(directory.path(), home.path(), |_| None);
+    migrate().await.unwrap();
+    tokio::fs::write(override_file, "后续修改").await.unwrap();
+    migrate().await.unwrap();
+    assert_eq!(
+        deliver(directory.path(), json!({"type":"read"}))
+            .await
+            .unwrap()["globalInstructions"],
+        expected
+    );
+}

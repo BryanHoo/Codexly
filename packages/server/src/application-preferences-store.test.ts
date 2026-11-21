@@ -100,7 +100,7 @@ it("启动导入与另一连接同时清空指令时保留用户决定", async (
   await Promise.all([
     first.catalog("app.preferences.importInstructions", {
       baseline,
-      sources: [{ label: "Claude", content: "旧全局指令" }],
+      content: "旧全局指令",
     }),
     second.catalog("app.preferences.patch", {
       baseline,

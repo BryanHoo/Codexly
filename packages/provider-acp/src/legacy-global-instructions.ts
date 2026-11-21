@@ -42,19 +42,16 @@ export async function importAcpLegacyGlobalInstructions(
   const saved = await store.catalog("app.preferences.read", {});
   if (saved?.globalInstructions !== undefined) return;
   const home = homedir();
-  const sources = (
-    await Promise.all(
-      legacyGlobalInstructions.sources.map(async (source) => {
-        const configuredDirectory = environment[source.env];
-        const directory =
-          (configuredDirectory === "" ? undefined : configuredDirectory) ??
-          join(home, source.directory);
-        const content = await readLegacyInstructions(join(directory, source.file));
-        return content?.trim() ? { label: source.label, content } : undefined;
-      }),
-    )
-  ).filter((source) => source !== undefined);
-  if (!sources.length) return;
-  const baseline = saved ?? applicationPreferencesFromLegacy(await readPreferences());
-  await store.catalog("app.preferences.importInstructions", { baseline, sources });
+  // 共享配置按 Codex 生效顺序排列；找到首份非空指令后，后续来源无需读取。
+  for (const source of legacyGlobalInstructions.sources) {
+    const configuredDirectory = environment[source.env];
+    const directory =
+      (configuredDirectory === "" ? undefined : configuredDirectory) ??
+      join(home, source.directory);
+    const content = await readLegacyInstructions(join(directory, source.file));
+    if (!content?.trim()) continue;
+    const baseline = saved ?? applicationPreferencesFromLegacy(await readPreferences());
+    await store.catalog("app.preferences.importInstructions", { baseline, content });
+    return;
+  }
 }

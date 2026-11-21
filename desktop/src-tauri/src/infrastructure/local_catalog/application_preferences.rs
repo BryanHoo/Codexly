@@ -117,35 +117,16 @@ pub(super) fn execute(db: &mut Connection, op: &str, input: &Value) -> Result<Va
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(db_error)?;
     let mut current = read(&transaction)?;
-    let imported = if importing {
-        // 空字符串也是用户已保存的值，禁止并发导入重新填充。
-        if current.get("globalInstructions").is_some() {
-            return Ok(Value::Null);
-        }
-        let sources = &input["sources"];
-        if !sources.is_array() {
-            return Err(CatalogError::InvalidMessage);
-        }
-        let merged: Option<String> = transaction
-            .query_row(
-                string(&contract()?["legacyInstructions"], "merge")?,
-                [sources.to_string()],
-                |row| row.get(0),
-            )
-            .map_err(db_error)?;
-        let Some(merged) = merged else {
-            return Ok(Value::Null);
-        };
-        Some(merged)
-    } else {
-        None
-    };
+    // 空字符串也是用户已保存的值，禁止并发导入重新填充。
+    if importing && current.get("globalInstructions").is_some() {
+        return Ok(Value::Null);
+    }
     if current.is_null() {
         encode(&input["baseline"], false)?;
         current = input["baseline"].clone();
     }
-    if let Some(content) = imported {
-        current["globalInstructions"] = Value::String(content);
+    if importing {
+        current["globalInstructions"] = input["content"].clone();
     } else {
         let changes = input["changes"]
             .as_object()
