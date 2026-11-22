@@ -9,13 +9,12 @@ import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@c
 import { projectAcpFileChanges } from "./file-changes.js";
 import { AcpTurnContent } from "./turn-content.js";
 import { acpContextUsage } from "./context-usage.js";
+import type { AcpSubagentItem } from "./subagent-sessions.js";
 
 type CompactionUpdate = Extract<
   SessionUpdate,
   { sessionUpdate: "compaction_update" | "compaction_summary_chunk" }
 >;
-const COMPACTION_SUMMARY_BYTES = 32 * 1024;
-const TRUNCATED_SUMMARY = "\n\n[摘要已截断]";
 
 type TextUpdate = Extract<
   SessionUpdate,
@@ -42,13 +41,10 @@ export class AcpEventProjection {
   #error: string | null = null;
   #stopReason: string | undefined;
   #planId: string | undefined;
-  #messageIndex = 0;
-  #messageKind = "";
+  readonly #messageGroups = new Map<string, { index: number; kind: string }>();
   #settlementError: string | undefined;
   #published = false;
   #diffBytes = 0;
-  #compactionBytes = 0;
-  readonly #truncatedCompactions = new Set<string>();
   acpMessageId: string | undefined;
   plan: AgentPlan | null = null;
 
@@ -76,14 +72,24 @@ export class AcpEventProjection {
     this.#emitItem("item.started", item);
   }
 
-  update(update: SessionUpdate): void {
+  announceSubagent(item: AcpSubagentItem): void {
+    const previous = this.#items.get(item.id);
+    if (previous && JSON.stringify(previous) === JSON.stringify(item)) return;
+    this.#items.set(item.id, item);
+    this.#emitItem("item.started", item);
+  }
+
+  update(update: SessionUpdate, subagent?: AcpSubagentItem) {
     if (this.#status !== "running") throw new Error("ACP 回合已经结束");
+    const scope = subagent?.id ?? "";
+    if (subagent && !this.#items.has(scope)) this.announceSubagent(subagent);
     switch (update.sessionUpdate) {
       case "compaction_update":
       case "compaction_summary_chunk":
-        this.#compaction(update);
+        this.#compaction(update, scope);
         break;
       case "usage_update":
+        if (subagent) break;
         this.emit({
           type: "usage.updated",
           taskId: this.taskId,
@@ -96,13 +102,27 @@ export class AcpEventProjection {
       case "agent_message_chunk":
       case "user_message_chunk":
       case "agent_thought_chunk":
-        this.#text(update);
+        this.#text(update, scope);
         break;
       case "tool_call":
       case "tool_call_update":
-        this.#tool(update);
+        return this.#tool(update, scope);
+      case "session_message":
+      case "session_message_chunk":
+        this.#sessionMessage(update, scope);
         break;
       case "plan":
+        if (subagent) {
+          const id = scope + "acp:plan";
+          const symbols = { pending: "○", in_progress: "◐", completed: "✓" };
+          const text = update.entries
+            .map(({ status, content }) => symbols[status] + " " + content)
+            .join("\n");
+          const item = { id, type: "plan" as const, text: text.slice(0, 16_384) };
+          this.#items.set(id, item);
+          this.#emitItem("item.started", item);
+          break;
+        }
         this.plan = {
           explanation: null,
           steps: update.entries.map((entry) => ({ text: entry.content, status: entry.status })),
@@ -110,6 +130,7 @@ export class AcpEventProjection {
         this.#emitPlan(this.plan);
         break;
       case "plan_update": {
+        if (subagent) break;
         const plan = update.plan;
         this.#planId = plan.planId;
         this.plan =
@@ -129,6 +150,7 @@ export class AcpEventProjection {
         break;
       }
       case "plan_removed":
+        if (subagent) break;
         if (this.#planId === update.planId) {
           this.plan = null;
           this.#planId = undefined;
@@ -141,8 +163,8 @@ export class AcpEventProjection {
     }
   }
 
-  #compaction(update: CompactionUpdate): void {
-    const id = `acp:compaction:${update.compactionId}`;
+  #compaction(update: CompactionUpdate, scope: string): void {
+    const id = `${scope}acp:compaction:${update.compactionId}`;
     const previous = this.#items.get(id);
     const old = previous?.type === "compaction" ? previous : undefined;
     const item: Extract<AgentItem, { type: "compaction" }> = old ?? {
@@ -156,7 +178,7 @@ export class AcpEventProjection {
         this.#items.set(id, item);
         this.#emitItem("item.started", item);
       }
-      const delta = this.#retainCompactionSummary(id, contentText(update.content));
+      const delta = this.content.compactionSummary(id, contentText(update.content));
       if (!delta) return;
       this.#items.set(id, { ...item, summary: (item.summary ?? "") + delta });
       this.emit({
@@ -172,11 +194,10 @@ export class AcpEventProjection {
     let nextSummary = item.summary;
     // v1 的可选字段省略时保留，null 清空。完整摘要覆盖已经收到的分块。
     if (summary !== undefined) {
-      this.#compactionBytes -= Buffer.byteLength(item.summary ?? "");
-      this.#truncatedCompactions.delete(id);
+      this.content.resetCompactionSummary(id, item.summary ?? "");
       nextSummary = "";
       for (const block of summary ?? []) {
-        nextSummary += this.#retainCompactionSummary(id, contentText(block));
+        nextSummary += this.content.compactionSummary(id, contentText(block));
       }
     }
     const nextError = error === undefined ? item.error : (error?.slice(0, 8_192) ?? null);
@@ -193,32 +214,6 @@ export class AcpEventProjection {
     this.#emitItem(terminal ? "item.completed" : "item.started", next);
   }
 
-  #retainCompactionSummary(id: string, text: string): string {
-    if (this.#truncatedCompactions.has(id)) return "";
-    const remaining = COMPACTION_SUMMARY_BYTES - this.#compactionBytes;
-    const textBytes = Buffer.byteLength(text);
-    if (!textBytes) return "";
-    if (textBytes <= remaining) {
-      this.#compactionBytes += textBytes;
-      return text;
-    }
-    // 以完整 Unicode 字符截断并把提示计入字节预算。
-    this.#truncatedCompactions.add(id);
-    const maxBytes = remaining - Buffer.byteLength(TRUNCATED_SUMMARY);
-    if (maxBytes < 0) return "";
-    let used = 0;
-    let end = 0;
-    for (const character of text) {
-      const bytes = Buffer.byteLength(character);
-      if (used + bytes > maxBytes) break;
-      used += bytes;
-      end += character.length;
-    }
-    const kept = text.slice(0, end) + TRUNCATED_SUMMARY;
-    this.#compactionBytes += Buffer.byteLength(kept);
-    return kept;
-  }
-
   #emitPlan(plan: AgentPlan): void {
     this.emit({
       type: "plan.updated",
@@ -228,24 +223,32 @@ export class AcpEventProjection {
     });
   }
 
-  #text(update: TextUpdate): void {
+  #text(update: TextUpdate, scope: string): void {
     const kind =
       update.sessionUpdate === "agent_thought_chunk"
         ? "thought"
         : update.sessionUpdate === "user_message_chunk"
           ? "user"
           : "assistant";
-    if (this.#messageKind !== kind) {
-      this.#messageKind = kind;
-      this.#messageIndex++;
+    // 缺少原生消息 ID 的连续分块只在自己的会话内归组。
+    const group = this.#messageGroups.get(scope) ?? { index: 0, kind: "" };
+    if (group.kind !== kind) {
+      group.kind = kind;
+      group.index++;
+      this.#messageGroups.set(scope, group);
     }
-    const id = `acp:message:${kind}:${update.messageId ?? `local-${String(this.#messageIndex)}`}`;
+    const id = `${scope}acp:message:${kind}:${update.messageId ?? `local-${String(group.index)}`}`;
     let item = this.#items.get(id);
     if (!item) {
       item =
         kind === "thought"
           ? { id, type: "reasoning", content: "", summary: "" }
-          : { id, type: "message", role: kind === "user" ? "user" : "assistant", text: "" };
+          : {
+              id,
+              type: "message",
+              role: kind === "user" && !scope ? "user" : "assistant",
+              text: "",
+            };
       this.#items.set(id, item);
       this.#emitItem("item.started", item);
     }
@@ -275,8 +278,53 @@ export class AcpEventProjection {
     }
   }
 
-  #tool(update: ToolCallUpdate): void {
-    const id = `acp:tool:${update.toolCallId}`;
+  #sessionMessage(
+    update: Extract<SessionUpdate, { sessionUpdate: "session_message" | "session_message_chunk" }>,
+    scope: string,
+  ): void {
+    if (update.content === undefined) return;
+    const id = `${scope}acp:delegation:${update.messageId}`;
+    const old = this.#items.get(id);
+    const item =
+      old?.type === "message"
+        ? old
+        : {
+            id,
+            type: "message" as const,
+            role: "assistant" as const,
+            phase: "commentary" as const,
+            text: "",
+          };
+    if (update.sessionUpdate === "session_message") {
+      const text = this.content.replaceText(
+        id,
+        item.text,
+        (update.content ?? []).map(contentText).join("\n"),
+        false,
+      );
+      const next = { ...item, text };
+      this.#items.set(id, next);
+      this.#emitItem("item.started", next);
+      return;
+    }
+    if (!old) {
+      this.#items.set(id, item);
+      this.#emitItem("item.started", item);
+    }
+    const delta = this.content.text(id, contentText(update.content), false);
+    if (!delta) return;
+    this.#items.set(id, { ...item, text: item.text + delta });
+    this.emit({
+      type: "message.delta",
+      taskId: this.taskId,
+      turnId: this.turnId,
+      itemId: id,
+      payload: { delta },
+    });
+  }
+
+  #tool(update: ToolCallUpdate, scope: string) {
+    const id = `${scope}acp:tool:${update.toolCallId}`;
     const previous = this.#items.get(id);
     const old = previous?.type === "tool" ? previous : undefined;
     const status =
@@ -313,6 +361,7 @@ export class AcpEventProjection {
     if (completed) this.#finished.add(id);
 
     if (update.content !== undefined) this.#fileChanges(`${id}:files`, update.content);
+    return item;
   }
 
   #fileChanges(fileId: string, content: ToolCallContent[] | null, append = false): void {
@@ -400,7 +449,9 @@ export class AcpEventProjection {
       if (this.#finished.has(id)) continue;
       // 未收到工具完成确认时不能伪造成功；取消保留部分输出及中断状态。
       const final =
-        item.type === "tool" && (item.status === "pending" || item.status === "running")
+        item.type === "tool" &&
+        !id.startsWith("acp:child:") &&
+        (item.status === "pending" || item.status === "running")
           ? {
               ...item,
               status: status === "interrupted" ? ("interrupted" as const) : ("failed" as const),

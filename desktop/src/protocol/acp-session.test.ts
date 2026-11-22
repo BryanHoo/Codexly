@@ -67,3 +67,33 @@ it("原生协议接收共享ACP状态与快照，并保留桌面到达时间", (
     }),
   ).toBe(true);
 });
+
+it("桌面接受子会话条目和不占用父回合的后台事件", () => {
+  const event = {
+    taskId: "task",
+    turnId: "background",
+    provider: "codex",
+    version: 2,
+    sequence: 1,
+    sessionId: "application",
+    timestamp: new Date().toISOString(),
+    receivedAtUnixMs: 1,
+  };
+  expect(Value.Check(AgentEventSchema, {
+    ...event,
+    type: "acp.background.updated",
+    payload: { startedAt: event.timestamp, completedAt: null },
+  })).toBe(true);
+  expect(Value.Check(AgentEventSchema, {
+    ...event,
+    type: "item.started",
+    itemId: "acp:child:nested:",
+    payload: { item: {
+      type: "acp_subagent",
+      id: "acp:child:nested:",
+      parentSessionId: "root",
+      sessionId: "nested",
+      title: "审阅",
+    } },
+  })).toBe(true);
+});

@@ -101,6 +101,14 @@ export function AcpPermissionRequest({
       }
     >
       <ConfirmationTitle>{labels.title}</ConfirmationTitle>
+      {request.acpSubagent ? (
+        <p
+          className="break-words px-3 text-label text-muted-foreground"
+          title={request.acpSubagent.sessionId}
+        >
+          {request.acpSubagent.title ?? request.acpSubagent.sessionId}
+        </p>
+      ) : null}
       <ConfirmationRequest>
         <pre className="whitespace-pre-wrap font-mono text-meta">
           {JSON.stringify(request.input, null, 2)}

@@ -12,7 +12,12 @@ import {
   type AgentProviderEventListener,
   type ResolvePendingRequestInput,
 } from "@codexly/core";
-import { parseElicitationUrl, type PendingRequest } from "@codexly/protocol";
+import {
+  acpSubagentItemPrefix,
+  parseElicitationUrl,
+  type AcpSubagentIdentity,
+  type PendingRequest,
+} from "@codexly/protocol";
 
 type Request = Extract<PendingRequest, { type: "mcp_elicitation" }>;
 type Resolution = Extract<ResolvePendingRequestInput, { type: "mcp_elicitation" }>;
@@ -115,6 +120,7 @@ export class AcpElicitations {
     agent: string,
     input: CreateElicitationRequest,
     signal: AbortSignal,
+    subagent?: AcpSubagentIdentity,
   ): Promise<Reply> {
     if (signal.aborted) return Promise.resolve(CANCEL);
     if (this.#waiting.size >= MAX_REQUESTS) throw RequestError.invalidParams();
@@ -126,8 +132,9 @@ export class AcpElicitations {
       turnId,
       itemId:
         "toolCallId" in input && typeof input.toolCallId === "string"
-          ? `acp:tool:${input.toolCallId}`
+          ? `${subagent ? acpSubagentItemPrefix(subagent.sessionId) : ""}acp:tool:${input.toolCallId}`
           : `acp:elicitation:${requestId}`,
+      ...(subagent ? { acpSubagent: subagent } : {}),
       type: "mcp_elicitation",
       acp: true,
       status: "pending",
@@ -213,9 +220,19 @@ export class AcpElicitations {
     this.#publish("pending_request.resolved", { ...request, externalStatus: "completed" });
   }
 
+  cancelSubagent(taskId: string, sessionId: string): void {
+    for (const { request, abort } of this.#waiting.values()) {
+      if (request.taskId === taskId && request.acpSubagent?.sessionId === sessionId) abort();
+    }
+  }
+
   finishTurn(taskId: string, turnId: string): void {
     for (const entry of this.#waiting.values()) {
-      if (entry.request.taskId === taskId && entry.request.turnId === turnId)
+      if (
+        entry.request.taskId === taskId &&
+        entry.request.turnId === turnId &&
+        !entry.request.acpSubagent
+      )
         this.#settle(entry, CANCEL, "expired");
     }
   }

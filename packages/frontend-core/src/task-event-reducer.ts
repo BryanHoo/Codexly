@@ -132,6 +132,26 @@ export function createTaskEventReducer<
         };
       case "project.git_metadata_changed":
         return {};
+      case "acp.background.updated": {
+        const current = state.turnsById[event.turnId];
+        // 后台段只更新自己的时间线元数据，不能改变主回合的运行状态或触发队列。
+        return {
+          checkpoint,
+          turnIds: current ? state.turnIds : [...state.turnIds, event.turnId],
+          turnsById: {
+            ...state.turnsById,
+            [event.turnId]: {
+              ...current,
+              id: event.turnId,
+              status: "completed",
+              error: null,
+              forkable: false,
+              acpBackground: true,
+              ...event.payload,
+            },
+          },
+        };
+      }
       case "turn.started": {
         const { items, ...normalizedTurn } = event.payload.turn;
         return {

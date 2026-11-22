@@ -3,7 +3,11 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk/unstable";
-import type { PendingRequest } from "@codexly/protocol";
+import {
+  acpSubagentItemPrefix,
+  type AcpSubagentIdentity,
+  type PendingRequest,
+} from "@codexly/protocol";
 import {
   PendingRequestResolutionError,
   type AgentProviderEventListener,
@@ -35,8 +39,14 @@ export class AcpPermissions {
     turnId: string,
     input: RequestPermissionRequest,
     signal: AbortSignal,
+    subagent?: AcpSubagentIdentity,
+    projectedTool?: { name: string; input?: unknown },
   ): Promise<RequestPermissionResponse> {
-    if (this.#closed || signal.aborted || this.#cancelledTurns.get(taskId) === turnId)
+    if (
+      this.#closed ||
+      signal.aborted ||
+      (!subagent && this.#cancelledTurns.get(taskId) === turnId)
+    )
       return Promise.resolve({ outcome: { outcome: "cancelled" } });
     if (this.#waiting.size >= 64 || input.options.length > 128)
       return Promise.reject(new Error("ACP 审批请求超过容量限制"));
@@ -47,14 +57,15 @@ export class AcpPermissions {
       projectId: this.projectId,
       taskId,
       turnId,
-      itemId: `acp:tool:${itemId}`,
+      itemId: `${subagent ? acpSubagentItemPrefix(subagent.sessionId) : ""}acp:tool:${itemId}`,
+      ...(subagent ? { acpSubagent: subagent } : {}),
       type: "tool_approval",
       status: "pending",
       createdAt: new Date().toISOString(),
       expiresAt: null,
-      toolName: tool.title ?? tool.name ?? "ACP 工具",
+      toolName: tool.title ?? tool.name ?? projectedTool?.name ?? "ACP 工具",
       reason: null,
-      input: tool.rawInput ?? null,
+      input: tool.rawInput ?? projectedTool?.input ?? null,
       availableDecisions: input.options.some((o) => o.kind === "allow_once")
         ? ["allow", "deny"]
         : ["deny"],
@@ -79,10 +90,20 @@ export class AcpPermissions {
   cancelTurn(taskId: string, turnId: string): void {
     this.#cancelledTurns.set(taskId, turnId);
     for (const [id, entry] of this.#waiting) {
-      if (entry.request.taskId === taskId && entry.request.turnId === turnId)
+      if (
+        entry.request.taskId === taskId &&
+        entry.request.turnId === turnId &&
+        !entry.request.acpSubagent
+      )
         this.#settle(id, { outcome: { outcome: "cancelled" } }, "expired");
     }
   }
+  cancelSubagent(taskId: string, sessionId: string): void {
+    for (const { request, abort } of this.#waiting.values()) {
+      if (request.taskId === taskId && request.acpSubagent?.sessionId === sessionId) abort();
+    }
+  }
+
   finishTurn(taskId: string, turnId: string): void {
     if (this.#cancelledTurns.get(taskId) === turnId) this.#cancelledTurns.delete(taskId);
   }

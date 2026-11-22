@@ -1,3 +1,7 @@
+import {
+  AcpSubagentTranscripts,
+  splitAcpSubagentItems,
+} from "@codexly/ui/agent/acp-subagent-transcript";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { StorePendingRequestList } from "./task-timeline-pending-requests.js";
@@ -32,7 +36,11 @@ import { TaskTimelineSearchNavigation } from "./task-timeline-search-navigation.
 import { StoreTaskNoticeList } from "./task-timeline-notices.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
 import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
-import { StoredUserMessage, groupStoredTurnTimelineItems } from "./task-timeline-store-items.js";
+import {
+  StoredTimelineItemContent,
+  StoredUserMessage,
+  groupStoredTurnTimelineItems,
+} from "./task-timeline-store-items.js";
 import { TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 
 const getTurnIdKey = (turnId: string) => turnId;
@@ -78,15 +86,20 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     store,
     useShallow((state) => sourceIds.map((id) => state.itemKeysByTurnId[id])),
   );
-  const itemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
+  const allItemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
   const turn = useMemo(() => mergeTimelineTurns(sourceTurns), [sourceTurns]);
   const independentFileDiffs = useConversationDisplayPreference(
     conversationDisplayPreferences,
     "independentFileDiffs",
   );
   const [processExpanded, setProcessExpanded] = useState(false);
-  if (turn === undefined) return null;
   const itemStoresByKey = store.getState().itemStoresByKey;
+  const { rootKeys: itemKeys, transcripts } = useMemo(
+    () => splitAcpSubagentItems(allItemKeys, (key) => itemStoresByKey.get(key)?.peek()),
+    [allItemKeys, itemStoresByKey],
+  );
+  if (turn === undefined) return null;
+  const rootKeys = new Set(itemKeys);
   const processTurns = sourceTurns.filter(
     (source) => source.processCursor !== undefined && source.status !== "running",
   );
@@ -94,7 +107,9 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   const processItemKeys = new Set<string>();
   const paginatedProcessItemKeys = new Set<string>();
   sourceTurns.forEach((source, index) => {
-    const keys = store.getState().itemKeysByTurnId[source.id] ?? [];
+    const keys = (store.getState().itemKeysByTurnId[source.id] ?? []).filter((key) =>
+      rootKeys.has(key),
+    );
     const processIds = new Set(
       resolveCompletedTurnProcessItemIds(
         keys.flatMap((key) => itemStoresByKey.get(key)?.peek() ?? []),
@@ -168,6 +183,23 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           />
         ),
       )}
+      <AcpSubagentTranscripts
+        transcripts={transcripts}
+        label={(index) => i18n.t("subagent.defaultName", { ns: "conversation", index })}
+        renderItem={(itemKey) => (
+          <StoredTimelineItemContent
+            key={itemKey}
+            itemKey={itemKey}
+            isLastTurnItem={false}
+            onOpenFileDiff={onOpenFileDiff}
+            onOpenSourceFile={onOpenSourceFile}
+            projectId={projectId}
+            store={store}
+            taskId={taskId}
+            turnStatus={turn.status}
+          />
+        )}
+      />
       {/* 引导或问答答案会让用户消息成为尾组；运行提示应接在该消息后，不能依赖历史助手组是否存在。 */}
       {turn.status === "running" &&
       timelineGroups.at(-1)?.type !== "assistant" &&

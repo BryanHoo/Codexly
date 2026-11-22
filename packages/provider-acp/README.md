@@ -8,6 +8,8 @@ Web CLI 通过 `AcpApplicationRuntime` 装配运行时，桌面通过 `acp-host`
 
 实现依据：[v1 初始化](https://agentclientprotocol.com/protocol/v1/initialization)、[v1 回合](https://agentclientprotocol.com/protocol/v1/prompt-turn)、[v1 会话恢复](https://agentclientprotocol.com/protocol/v1/session-setup)和[官方 TypeScript 客户端示例](https://github.com/agentclientprotocol/typescript-sdk/blob/main/src/examples/client.ts)。保持流式背压和能力协商，不自动重试已经提交的 prompt；v1 不提供 v2 后台清单或单项取消。
 
+子会话由父会话的 `subagent_update` 登记。共享宿主随后按原生会话身份分发更新和用户交互，两端在对应主聊天内展开子会话记录。后台子会话可在父 prompt 返回后继续工作，已收到的记录随后台段提交到本地历史。审批使用原始选项，并按同一请求通道回传。 [ACP v1 子会话](https://agentclientprotocol.com/protocol/v1/subagents)
+
 ## 接口
 
 - `AcpRuntime`：按项目装配两个共享 Provider，仅实际执行时启动目标 agent；可注入桌面独立程序的启动方式。项目释放等待终态提交并清理进程，已关闭的旧引用拒绝新建任务。辅助生成复用工作区连接且有并发限制；新连接先恢复保存的供应商路由，再创建或加载会话。

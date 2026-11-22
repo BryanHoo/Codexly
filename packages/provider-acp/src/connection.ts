@@ -22,6 +22,8 @@ interface PendingCancellation {
 export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
   onUpdate?(notification: acp.SessionNotification, historical: boolean): void | Promise<void>;
+  supportsSubagents?: boolean;
+  isSubagent?(sessionId: string): boolean;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
   requestElicitation?(
     request: acp.CreateElicitationRequest,
@@ -114,7 +116,7 @@ export class AcpConnection {
           const { sessionId } = params;
           const historical = replaying.has(sessionId);
           // v1 回放的配置、命令和用量同样是 Agent 确认的会话元数据。
-          const state = metadata.update(params);
+          const state = callbacks.isSubagent?.(sessionId) ? undefined : metadata.update(params);
           if (state) await callbacks.onSessionState?.(sessionId, state);
           await callbacks.onUpdate?.(params, historical);
         });
@@ -132,7 +134,7 @@ export class AcpConnection {
       .onRequest(acp.methods.client.session.requestPermission, ({ params, signal }) => {
         // 不提供隐式批准；UI 必须保留 agent 原始 optionId 和权限含义。
         return (
-          callbacks.requestPermission?.(params, signal) ?? {
+          callbacks.requestPermission?.(params, AbortSignal.any([signal, transport.signal])) ?? {
             outcome: { outcome: "cancelled" as const },
           }
         );
@@ -153,6 +155,7 @@ export class AcpConnection {
             // ACP v1 通过显式能力对象启用实时通知和压缩历史回放。
             ...(callbacks.onUpdate ? { notices: {}, compaction: {} } : {}),
           },
+          ...(callbacks.supportsSubagents ? { subagents: {} } : {}),
           ...(callbacks.requestElicitation ? { elicitation: { form: {}, url: {} } } : {}),
         },
       });

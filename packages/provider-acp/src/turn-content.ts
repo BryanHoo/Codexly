@@ -10,6 +10,8 @@ const ANSWER_OVERFLOW = 12 * 1024 * 1024;
 const TOOL_OVERFLOW = 4 * 1024 * 1024;
 // 附件仓储按 UTF-8 限制为 1 MiB；按 UTF-16 安全切分，避免拆开代理对。
 const ATTACHMENT_CHARS = 256 * 1024;
+const COMPACTION_SUMMARY_BYTES = 32 * 1024;
+const TRUNCATED_SUMMARY = "\n\n[摘要已截断]";
 const OMITTED = "\n\n[内容已达到保留上限]";
 const emptyInput = { text: "", files: [], images: [], skills: [] };
 type Field = "text" | "input" | "output";
@@ -33,6 +35,39 @@ export class AcpTurnContent {
   #tool = 0;
   #answerBytes = 0;
   #toolBytes = 0;
+  #compactionBytes = 0;
+  readonly #truncatedCompactions = new Set<string>();
+
+  resetCompactionSummary(id: string, previous: string): void {
+    this.#compactionBytes -= Buffer.byteLength(previous);
+    this.#truncatedCompactions.delete(id);
+  }
+
+  compactionSummary(id: string, text: string): string {
+    if (this.#truncatedCompactions.has(id)) return "";
+    const remaining = COMPACTION_SUMMARY_BYTES - this.#compactionBytes;
+    const textBytes = Buffer.byteLength(text);
+    if (!textBytes) return "";
+    if (textBytes <= remaining) {
+      this.#compactionBytes += textBytes;
+      return text;
+    }
+    // 以完整 Unicode 字符截断并把提示计入字节预算。
+    this.#truncatedCompactions.add(id);
+    const maxBytes = remaining - Buffer.byteLength(TRUNCATED_SUMMARY);
+    if (maxBytes < 0) return "";
+    let used = 0;
+    let end = 0;
+    for (const character of text) {
+      const bytes = Buffer.byteLength(character);
+      if (used + bytes > maxBytes) break;
+      used += bytes;
+      end += character.length;
+    }
+    const kept = text.slice(0, end) + TRUNCATED_SUMMARY;
+    this.#compactionBytes += Buffer.byteLength(kept);
+    return kept;
+  }
 
   text(id: string, delta: string, thought: boolean): string {
     const remaining = thought ? THOUGHT_INLINE - this.#thought : TEXT_INLINE - this.#text;

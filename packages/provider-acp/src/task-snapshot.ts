@@ -11,6 +11,7 @@ import type { AcpSessionState } from "@codexly/protocol";
 import { AcpHistoryCorruptionError, type AcpHistory } from "./history.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpEventProjection } from "./event-projection.js";
+import type { AcpSubagentBackground } from "./subagent-background.js";
 
 export type AcpExternalHistoryReader = (
   task: LocalTask,
@@ -26,6 +27,7 @@ export async function readAcpTaskSnapshot(
     history: AcpHistory;
     load(repairHistory?: boolean): Promise<unknown>;
     active(): AcpEventProjection | undefined;
+    background?: AcpSubagentBackground;
     needsReplay?(): Promise<boolean>;
     readExternalHistory?: AcpExternalHistoryReader;
     pending(): AgentProviderTaskSnapshot["pendingRequests"];
@@ -34,6 +36,7 @@ export async function readAcpTaskSnapshot(
   },
 ): Promise<AgentProviderTaskSnapshot> {
   const previous = source.active();
+  const previousBackground = source.background?.revision;
   const readOnlyPage = isCodexReadOnlyCursor(input.cursor)
     ? await source.readExternalHistory?.(task, input)
     : undefined;
@@ -109,16 +112,22 @@ export async function readAcpTaskSnapshot(
     });
   }
   // 读旧游标期间，历史提交可能刚好移除活动投影；重新读一次才可捕获新 checkpoint。
-  if (!input.cursor && previous && previous !== source.active())
+  if (
+    !input.cursor &&
+    ((previous && previous !== source.active()) ||
+      previousBackground !== source.background?.revision)
+  )
     page = await source.history.read(task.id);
   input.signal?.throwIfAborted();
   const projection = source.active(),
     active = projection?.visibleSnapshot(),
     sessionState = source.sessionState();
-  const turns =
-    active && !input.cursor
-      ? [...page.turns.filter((turn) => turn.id !== active.id), active]
-      : page.turns;
+  const background = input.cursor ? [] : (source.background?.snapshots(task.id) ?? []);
+  const live = [...background, ...(active && !input.cursor ? [active] : [])];
+  const liveIds = new Set(live.map((turn) => turn.id));
+  const turns = live.length
+    ? [...page.turns.filter((turn) => !liveIds.has(turn.id)), ...live]
+    : page.turns;
   const snapshot: AgentProviderTaskSnapshot = {
     runtime: "acp",
     ...(external

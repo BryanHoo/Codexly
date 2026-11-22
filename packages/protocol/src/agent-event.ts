@@ -141,6 +141,15 @@ export const ItemStartedEventSchema = createEventSchema({
   type: Type.Literal("item.started"),
 });
 
+export const AcpBackgroundUpdatedEventSchema = createEventSchema({
+  payload: Type.Object(
+    { startedAt: Type.String(), completedAt: Type.Union([Type.String(), Type.Null()]) },
+    { additionalProperties: false },
+  ),
+  turnId: Type.String({ minLength: 1 }),
+  type: Type.Literal("acp.background.updated"),
+});
+
 export const TurnCompletedEventSchema = createEventSchema({
   payload: Type.Object({ turn: AgentTurnSchema }, { additionalProperties: false }),
   turnId: Type.String({ minLength: 1 }),
@@ -191,6 +200,7 @@ export const PendingRequestExpiredEventSchema = createPendingRequestEventSchema(
 
 export const AgentEventSchema = Type.Union([
   AcpSessionUpdatedEventSchema,
+  AcpBackgroundUpdatedEventSchema,
   TurnStartedEventSchema,
   MessageDeltaEventSchema,
   CompactionSummaryDeltaEventSchema,

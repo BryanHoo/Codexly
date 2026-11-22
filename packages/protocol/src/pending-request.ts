@@ -1,5 +1,6 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+import { AcpSubagentIdentitySchema } from "./acp-subagent.js";
 import { DateTimeSchema, NullableDateTimeSchema } from "./project-files.js";
 import { McpElicitationFieldSchema, McpElicitationResolutionSchema } from "./mcp-elicitation.js";
 
@@ -29,6 +30,7 @@ const PendingNetworkAccessSchema = Type.Object(
 );
 
 const PendingRequestIdentityProperties = {
+  acpSubagent: Type.Optional(AcpSubagentIdentitySchema),
   createdAt: DateTimeSchema,
   expiresAt: NullableDateTimeSchema,
   itemId: Type.String({ minLength: 1 }),

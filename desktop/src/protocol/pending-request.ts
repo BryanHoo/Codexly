@@ -1,4 +1,4 @@
-import { ToolApprovalPendingRequestSchema, ResolvePendingRequestRequestSchema as SharedResolvePendingRequestRequestSchema } from "@codexly/protocol";
+import { AcpSubagentIdentitySchema, ToolApprovalPendingRequestSchema, ResolvePendingRequestRequestSchema as SharedResolvePendingRequestRequestSchema } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
 
 import { DateTimeSchema, NullableDateTimeSchema } from "./project-files.js";
@@ -236,6 +236,7 @@ export const UserInputPendingRequestSchema = Type.Object(
 
 const McpElicitationPendingRequestProperties = {
   acp: Type.Optional(Type.Literal(true)),
+  acpSubagent: Type.Optional(AcpSubagentIdentitySchema),
   ...PendingRequestIdentityProperties,
   message: Type.String({ minLength: 1 }),
   serverName: Type.String({ minLength: 1 }),

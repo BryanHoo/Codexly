@@ -5,7 +5,9 @@ import type { AgentTurn } from "@codexly/protocol";
 export function replayFingerprint(turn: AgentTurn, userText?: string): string {
   // 文件卡片和压缩边界单独修补，能力升级不能改变旧版的回合匹配锚点。
   const items = turn.items
-    .filter((item) => item.type !== "compaction" && !isAcpDiffItem(item))
+    .filter(
+      (item) => item.type !== "compaction" && !isAcpDiffItem(item) && !isReplaySubagentItem(item),
+    )
     .map((item) => {
       const { id: _id, ...body } = item;
       if (item.type !== "message") return body;
@@ -16,6 +18,10 @@ export function replayFingerprint(turn: AgentTurn, userText?: string): string {
       };
     });
   return createHash("sha256").update(JSON.stringify(items)).digest("hex");
+}
+
+export function isReplaySubagentItem(item: AgentTurn["items"][number]): boolean {
+  return item.id.startsWith("acp:child:") || item.id.startsWith("acp:delegation:");
 }
 
 export function isAcpDiffItem(item: AgentTurn["items"][number]): boolean {

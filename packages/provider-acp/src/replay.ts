@@ -4,8 +4,14 @@ import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
 import type { AcpHistory } from "./history.js";
 import { AcpEventProjection, contentText } from "./event-projection.js";
-import { isAcpDiffItem, replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
+import {
+  isAcpDiffItem,
+  isReplaySubagentItem,
+  replayFingerprint,
+  type AcpHistoryEntry,
+} from "./replay-anchor.js";
 import { stripAcpGlobalInstructions } from "./global-instructions.js";
+import type { AcpSubagentItem } from "./subagent-sessions.js";
 import type { AcpTurnContent } from "./turn-content.js";
 
 const ALIGNMENT_WINDOW = 8;
@@ -118,6 +124,7 @@ export class AcpReplay {
   #wireRole = "";
   #wireId = "";
   // 只暂存可能属于应用指令的用户文本前缀，普通消息的后续分块直接进入投影。
+  readonly #subagentUpdates = new WeakMap<SessionUpdate, AcpSubagentItem>();
   #userPrefix: string | undefined = "";
   constructor(
     history: AcpHistory,
@@ -147,6 +154,7 @@ export class AcpReplay {
               fingerprint: old.value.replayFingerprint ?? replayFingerprint(old.value.turn),
             });
         }
+        return candidates.length;
       };
       const findSteering = async (firstId: string, incomingId: string, index: number) => {
         await fill(1);
@@ -169,7 +177,13 @@ export class AcpReplay {
           userAttachments,
         )) {
           const fingerprint = content.fingerprint(turn);
+          // 已提交的本地后台段没有原生 prompt 身份，按历史顺序保留。
           await fill(1);
+          while (candidates[0]?.entry.turn.acpBackground) {
+            const background = candidates.shift();
+            if (background) yield background.entry;
+            await fill(1);
+          }
           const matches = (candidate: (typeof candidates)[number]) =>
             messageId && candidate.entry.acpMessageId
               ? candidate.entry.acpMessageId === messageId
@@ -190,7 +204,11 @@ export class AcpReplay {
             else if (moving) candidates.shift();
           }
           if (index >= 0) {
-            const matched = candidates.splice(0, index + 1).at(-1);
+            const consumed = candidates.splice(0, index + 1);
+            for (const candidate of consumed) {
+              if (candidate.entry.turn.acpBackground) yield candidate.entry;
+            }
+            const matched = consumed.at(-1);
             if (
               matched &&
               messageId &&
@@ -226,15 +244,24 @@ export class AcpReplay {
                   isAcpDiffItem(item) &&
                   !matched.entry.turn.items.some((old) => old.id === item.id),
               );
+              const childItems = turn.items.some(isReplaySubagentItem)
+                ? (await content.materialize(turn, attachments, taskId)).items.filter(
+                    isReplaySubagentItem,
+                  )
+                : [];
+              const childIds = new Set(childItems.map((item) => item.id));
               const hasCompactions = turn.items.some((item) => item.type === "compaction");
-              yield missing.length || hasCompactions
+              yield missing.length || hasCompactions || childItems.length
                 ? {
                     ...matched.entry,
                     turn: {
                       ...matched.entry.turn,
                       items: [
-                        ...mergeCompactions(matched.entry.turn.items, turn.items, true),
+                        ...mergeCompactions(matched.entry.turn.items, turn.items, true).filter(
+                          (item) => !childIds.has(item.id),
+                        ),
                         ...missing,
+                        ...childItems,
                       ],
                     },
                   }
@@ -253,6 +280,10 @@ export class AcpReplay {
                 : {}),
           } satisfies AcpHistoryEntry;
         }
+        while (await fill(1)) {
+          const remaining = candidates.shift();
+          if (remaining?.entry.turn.acpBackground) yield remaining.entry;
+        }
       } finally {
         // 消费者提前退出时解除写侧背压，磁盘/锁错误不能留下永久等待的 producer。
         await reader.cancel();
@@ -266,7 +297,11 @@ export class AcpReplay {
       .catch((error: unknown) => stream.readable.cancel(error))
       .catch(() => undefined);
   }
-  update(update: SessionUpdate): Promise<void> {
+  update(update: SessionUpdate, subagent?: AcpSubagentItem): Promise<void> {
+    if (subagent) {
+      this.#subagentUpdates.set(update, subagent);
+      return this.#writer.write(update);
+    }
     if (
       update.sessionUpdate === "user_message_chunk" ||
       update.sessionUpdate === "agent_message_chunk" ||
@@ -293,6 +328,8 @@ export class AcpReplay {
       case "plan":
       case "plan_update":
       case "plan_removed":
+      case "session_message":
+      case "session_message_chunk":
       case "compaction_update":
       case "compaction_summary_chunk":
         return this.#writer.write(update);
@@ -313,6 +350,19 @@ export class AcpReplay {
     let next = await reader.read();
     while (!next.done) {
       const update = next.value;
+      const subagent = this.#subagentUpdates.get(update);
+      if (subagent) {
+        this.#flushUserPrefix();
+        this.#current ??= new AcpEventProjection(
+          this.taskId,
+          `acp:history:${String(++this.#counter)}`,
+          () => undefined,
+        );
+        if (update.sessionUpdate === "subagent_update") this.#current.announceSubagent(subagent);
+        else this.#current.update(update, subagent);
+        next = await reader.read();
+        continue;
+      }
       const user = replayUserUpdate(update);
       if (user && this.#userId !== undefined && this.#userId !== user.messageId) {
         const id = user.messageId ?? "user";
@@ -327,7 +377,11 @@ export class AcpReplay {
             text += contentText(fragment.content);
             next = await reader.read();
             if (text.length > MAX_AGENT_TEXT_BYTES * 2) break;
-            fragment = next.done ? undefined : replayUserUpdate(next.value);
+            fragment = next.done
+              ? undefined
+              : this.#subagentUpdates.has(next.value)
+                ? undefined
+                : replayUserUpdate(next.value);
           }
           if (await matchesSteering(text, steering, attachments, this.taskId)) {
             this.#flushUserPrefix();

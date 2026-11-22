@@ -11,6 +11,7 @@ import {
   MAX_AGENT_ATTACHMENT_BYTES,
   MAX_AGENT_HISTORY_IMAGES,
 } from "./agent-attachments.js";
+import { AcpSubagentItemSchema } from "./acp-subagent.js";
 import { NullableDateTimeSchema } from "./project-files.js";
 import { AgentFileChangeSchema } from "./project-git.js";
 
@@ -206,6 +207,7 @@ export const AgentItemSchema = Type.Union([
   AgentPlanItemSchema,
   AgentActivityItemSchema,
   AgentCompactionItemSchema,
+  AcpSubagentItemSchema,
   AgentApprovalReviewItemSchema,
   AgentReviewItemSchema,
   AgentRuntimeStatusItemSchema,
@@ -222,6 +224,7 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    acpBackground: Type.Optional(Type.Literal(true)),
     // ACP 原始停止原因独立于聊天展示状态；自动化成功必须明确检查 end_turn。
     // 可选以兼容旧历史及其他 Provider，不为缺少原因的旧数据推断成功。
     stopReason: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),

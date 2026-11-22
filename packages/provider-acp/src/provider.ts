@@ -39,6 +39,7 @@ import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
 import { persistAcpTurn } from "./turn-persistence.js";
 import { AcpHistoryUse } from "./history-use.js";
+import { AcpSubagentBackground } from "./subagent-background.js";
 import { AcpProviderConnection } from "./provider-connection.js";
 /** 同一实现接入任意 ACP agent；应用任务管理与 agent 的原生会话身份保持分离。 */
 export class AcpAgentProvider implements AgentExecutionAdapter {
@@ -52,6 +53,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #active = new Map<string, AcpEventProjection>();
   readonly #settlements = new Set<Promise<void>>();
   readonly #operations = new Map<string, Promise<unknown>>();
+  readonly #background: AcpSubagentBackground;
   readonly #historyUse: AcpHistoryUse;
   #closed = false;
   readonly #permissions: AcpPermissions;
@@ -80,6 +82,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     readonly initialization?: AcpSessionInitialization,
   ) {
     this.#historyUse = new AcpHistoryUse(history);
+    this.#background = new AcpSubagentBackground(history, this.#emit, (id) =>
+      this.#taskSettlements.get(id),
+    );
     this.attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
     this.#permissions = new AcpPermissions(scope.id, this.#emit);
     this.#elicitations = new AcpElicitations(scope.id, this.#emit);
@@ -90,6 +95,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         engine,
         emit: this.#emit,
         active: this.#active,
+        background: this.#background,
         ephemeral: this.#ephemeral,
         replays: this.#replays,
         permissions: this.#permissions,
@@ -99,6 +105,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       () => {
         this.#needsDefaults.clear();
         this.#elicitations.clear();
+        void this.#background.close().catch(() => undefined);
       },
     );
     this.#management = new AcpTaskManagement(
@@ -107,9 +114,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       store,
       (id) => this.#active.has(id),
       async (task) => {
-        if (task.sessionId) await (await this.#link.get()).deleteSession(task.sessionId);
-        this.#link.sessions.delete(task.id);
-        this.#link.detached.delete(task.id);
+        await this.#link.deleteSession(task.id, task.sessionId);
+        await this.#background.flush(task.id);
         this.#needsDefaults.delete(task.id);
       },
       async (id) => {
@@ -208,6 +214,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         history: this.history,
         load: (repairHistory) => this.#load(task, false, repairHistory),
         active: () => this.#active.get(id),
+        background: this.#background,
         needsReplay: async () =>
           !this.#link.sessions.has(id) && (await this.history.needsReplay(id)),
         ...(this.readExternalHistory ? { readExternalHistory: this.readExternalHistory } : {}),
@@ -278,6 +285,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         if (!this.#ephemeral.has(id)) await this.prepareTaskTitle?.(task, input);
         if (this.engine === "codex" && !this.#ephemeral.has(id))
           await this.initialization?.markFirstPrompt({ ...task, sessionId }, sessionId);
+        await this.#background.flush(id);
         const projection = new AcpEventProjection(id, randomUUID(), this.#emit, true);
         this.#active.set(id, projection);
         projection.userMessage(`acp:message:user:${randomUUID()}`, input.text, attachments);
@@ -386,12 +394,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   deleteTask(id: string) {
     return this.#serial(id, () => this.#management.deleteTask(id));
   }
-  async cancelBackground(id: string, target: AcpBackgroundTarget): Promise<void> {
-    await this.#task(id);
-    const session = this.#link.sessions.get(id);
-    const connection = this.#link.instance;
-    if (!connection || !session) throw new Error("ACP 会话已断开");
-    await connection.cancelBackground(session, target);
+  cancelBackground(id: string, target: AcpBackgroundTarget): Promise<void> {
+    return this.#task(id).then(() => this.#link.cancelBackground(id, target));
   }
   async readSessionState(id: string): Promise<AcpSessionMetadata> {
     return this.#serial(id, async () => {
@@ -438,6 +442,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       }
       if (this.#active.get(id)?.running || this.#failedCommits.has(id)) return "busy" as const;
       await this.#taskSettlements.get(id);
+      await this.#background.flush(id);
       if (await this.#link.releaseSession(id, this.#ephemeral.has(id)))
         this.#needsDefaults.delete(id);
       this.#active.delete(id);
@@ -452,12 +457,11 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       await this.#task(id);
       const session = this.#link.sessions.get(id);
       const active = this.#active.get(id);
-      if (!session || !active?.running || active.turnId !== turnId) return;
-      const agent = await this.#link.get();
-      const current = this.#active.get(id);
-      if (!current?.running || current.turnId !== turnId) return;
+      const agent = this.#link.instance;
+      if (!session || !agent || !active?.running || active.turnId !== turnId) return;
       // 先向 Agent 发出回合取消，再释放等待中的用户交互，避免 Agent 抢先继续执行。
       await agent.cancel(session);
+      this.#permissions.cancelTurn(id, turnId);
       this.#elicitations.finishTurn(id, turnId);
     });
   }
@@ -487,6 +491,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       await this.#link.close();
       await Promise.allSettled(this.#operations.values());
       await Promise.all(this.#settlements);
+      await this.#background.close();
     } finally {
       this.#listeners.clear();
       await this.#historyUse.close();

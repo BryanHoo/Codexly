@@ -2,6 +2,8 @@ import { Type, type Static } from "@sinclair/typebox";
 import { AgentEngineSchema } from "./agent-engine.js";
 export * from "./acp-service.js";
 export * from "./acp-session.js";
+export * from "./acp-subagent.js";
+export { AcpBackgroundUpdatedEventSchema } from "./agent-event.js";
 export { AgentCompactionItemSchema } from "./agent-task.js";
 export { CompactionSummaryDeltaEventSchema } from "./event-common.js";
 export { AcpFileChangeDetailsSchema } from "./acp-file-change.js";
