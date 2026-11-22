@@ -20,6 +20,8 @@ const MAX_STDERR_LENGTH = 8_192;
 export interface StartCodexAppServerOptions {
   appVersion?: string;
   binaryPath?: string;
+  packageRoot?: string;
+  readOnlyHistory?: boolean;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   rpcTimeoutMs?: number;
@@ -209,9 +211,12 @@ export async function startCodexAppServer(
   const env = options.env ?? process.env;
   const binary = await locateCodexBinary({
     env,
+    ...(options.packageRoot ? { packageRoot: options.packageRoot } : {}),
     ...(options.binaryPath ? { explicitPath: options.binaryPath } : {}),
   });
-  const version = await checkCodexVersion(binary.path);
+  const version = await checkCodexVersion(binary.path, {
+    readOnlyHistory: options.readOnlyHistory === true,
+  });
   const codexHome = env["CODEX_HOME"];
   if (codexHome) {
     await mkdir(resolve(options.cwd ?? process.cwd(), codexHome), { recursive: true, mode: 0o700 });

@@ -67,8 +67,8 @@
 
 ## 外部客户端占用的 Codex 历史
 
-- Codex Agent 返回精确匹配当前会话的 `RequestError(-32600)` 和 `data.reason=thread_active_writer` 时，快照携带 `writeAccess=external`。历史来源为已提交的 ACP 缓存，首次打开无缓存时等待外部客户端释放写入权，再重新打开任务回放正文。损坏的缓存仍报告读取错误。
+- Codex Agent 返回精确匹配当前会话的 `RequestError(-32600)` 和 `data.reason=thread_active_writer` 时，快照携带 `writeAccess=external`。占用期间通过原生只读 RPC 分页读取历史，不恢复会话或取得写入权。只读页的游标同时绑定应用任务与原生会话，附件复用持久仓储；取消与失败均回收独占读取进程。只读读取失败时仍展示已有缓存，冷会话及损坏缓存可通过只读接口获取正文。
 - 首屏通过 `checkWriteAccess` 确认写入权，旧页使用绑定任务及版本的 ACP 游标。两端保留草稿、禁用输入并说明已同步历史的范围，重新打开后重新确认。
-- 回归入口为 `packages/provider-acp/src/task-snapshot-ownership.test.ts`，覆盖热缓存、冷缓存、续页、外部占用解除及缓存损坏。
+- 回归入口为 `packages/provider-acp/src/task-snapshot-ownership.test.ts`，覆盖热缓存、冷缓存、续页、外部占用解除及缓存损坏；原生只读分页与释放覆盖见 `packages/provider-codex/src/read-only-history.test.ts`。
 
 - 输入占用遮罩必须限定在编辑框的边框内，居中显示提示，不覆盖项目底栏、阴影或外部留白；沿用明暗主题的浮层底色与控件灰度。外层仍负责禁用和 Portal 事件拦截，无障碍状态提示放在 inert 之外。布局回归核对四边与编辑框一致，覆盖宽窄屏及明暗主题。

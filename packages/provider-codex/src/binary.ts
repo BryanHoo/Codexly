@@ -63,6 +63,7 @@ export interface CodexVersionInfo {
 }
 
 export interface CheckCodexVersionOptions {
+  readOnlyHistory?: boolean;
   execute?: (binaryPath: string) => Promise<string>;
 }
 
@@ -70,10 +71,11 @@ export interface LocateCodexBinaryOptions {
   explicitPath?: string;
   env?: NodeJS.ProcessEnv;
   bundledBinaryPath?: string | null;
+  packageRoot?: string;
   platform?: NodeJS.Platform;
 }
 
-function resolveBundledBinary(platform: NodeJS.Platform): string | null {
+function resolveBundledBinary(platform: NodeJS.Platform, packageRoot?: string): string | null {
   const targetKey = `${platform}-${process.arch}`;
   const target = BUNDLED_CODEX_TARGETS[targetKey];
   if (!target) {
@@ -81,7 +83,7 @@ function resolveBundledBinary(platform: NodeJS.Platform): string | null {
   }
 
   try {
-    const rootRequire = createRequire(import.meta.url);
+    const rootRequire = createRequire(packageRoot ?? import.meta.url);
     const codexPackagePath = rootRequire.resolve("@openai/codex/package.json");
     const codexRequire = createRequire(codexPackagePath);
     const platformPackagePath = codexRequire.resolve(`${target.packageName}/package.json`);
@@ -174,7 +176,7 @@ export async function locateCodexBinary(
   // 包内固定版本优先，避免用户 PATH 中的 Codex 协议发生漂移。
   const bundledPath =
     options.bundledBinaryPath === undefined
-      ? resolveBundledBinary(platform)
+      ? resolveBundledBinary(platform, options.packageRoot)
       : options.bundledBinaryPath;
   if (bundledPath && (await isExecutable(bundledPath, platform))) {
     return { path: resolve(bundledPath), source: "bundled" };
@@ -219,8 +221,14 @@ export async function checkCodexVersion(
   }
   const [major, minor, patch] = version.split("-", 1)[0]?.split(".").map(Number) ?? [];
   const isPrerelease = version.includes("-");
-  // 仅接受已验证的 0.166 稳定发布线，避免跨次版本的实验协议漂移。
-  if (major !== 0 || minor !== 166 || patch === undefined || isPrerelease) {
+  // 执行路径固定在 0.166；只读历史允许适配器携带更新版本，响应仍由严格映射器逐项校验。
+  if (
+    major !== 0 ||
+    minor === undefined ||
+    (options.readOnlyHistory ? minor < 166 : minor !== 166) ||
+    patch === undefined ||
+    isPrerelease
+  ) {
     throw new Error(
       `Unsupported Codex version ${version}; expected ${SUPPORTED_CODEX_VERSION_RANGE}`,
     );

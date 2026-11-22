@@ -117,3 +117,49 @@ it("Claude 已有缓存时不因 Codex 写入权检查启动 Agent", async () =>
   expect(snapshot.turns).toEqual([turn]);
   expect(f.source.load).not.toHaveBeenCalled();
 });
+
+it("外部占用的冷会话通过只读接口获取历史", async () => {
+  const f = fixture();
+  const readExternalHistory = vi.fn(() =>
+    Promise.resolve({ turns: [turn], cursor: "external-page" }),
+  );
+  const snapshot = await readAcpTaskSnapshot(
+    task,
+    { checkWriteAccess: true },
+    {
+      ...f.source,
+      readExternalHistory,
+    },
+  );
+  expect(snapshot).toMatchObject({
+    writeAccess: "external",
+    turns: [turn],
+    turnsNextCursor: "external-page",
+  });
+  expect(readExternalHistory).toHaveBeenCalledOnce();
+});
+
+it("外部占用时可绕过损坏缓存读取原生历史", async () => {
+  const f = fixture();
+  f.read.mockRejectedValue(new AcpHistoryCorruptionError("损坏"));
+  const readExternalHistory = vi.fn(() => Promise.resolve({ turns: [turn], cursor: null }));
+  await expect(
+    readAcpTaskSnapshot(task, {}, { ...f.source, readExternalHistory }),
+  ).resolves.toMatchObject({
+    writeAccess: "external",
+    turns: [turn],
+  });
+  expect(readExternalHistory).toHaveBeenCalledOnce();
+});
+it("只读服务失败时仍展示已提交缓存", async () => {
+  const f = fixture();
+  f.read.mockResolvedValue({ turns: [turn], cursor: "older" });
+  const readExternalHistory = vi.fn(() => Promise.reject(new Error("离线")));
+  await expect(
+    readAcpTaskSnapshot(task, { checkWriteAccess: true }, { ...f.source, readExternalHistory }),
+  ).resolves.toMatchObject({
+    writeAccess: "external",
+    turns: [turn],
+    turnsNextCursor: "older",
+  });
+});

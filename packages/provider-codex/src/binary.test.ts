@@ -209,3 +209,13 @@ describe("checkCodexVersion", () => {
     ).rejects.toThrow("Codex version check failed");
   });
 });
+
+it("只读历史支持适配器的较新版本，执行路径仍要求已验证版本", async () => {
+  const execute = () => Promise.resolve("codex-cli 0.170.0");
+  await expect(
+    checkCodexVersion("/codex", { execute, readOnlyHistory: true }),
+  ).resolves.toMatchObject({ version: "0.170.0" });
+  await expect(checkCodexVersion("/codex", { execute })).rejects.toThrow(
+    "Unsupported Codex version",
+  );
+});

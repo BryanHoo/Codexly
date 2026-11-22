@@ -59,3 +59,5 @@ export {
   type CodexStartupConfig,
   type ReadCodexStartupConfigOptions,
 } from "./startup-config.js";
+
+export { readCodexReadOnlyHistory, isCodexReadOnlyCursor } from "./read-only-history.js";

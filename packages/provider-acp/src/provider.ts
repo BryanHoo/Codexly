@@ -4,7 +4,7 @@ import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { randomUUID } from "node:crypto";
 import type * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpTaskManagement } from "./task-management.js";
-import { readAcpTaskSnapshot, readAcpTaskSessionState } from "./task-snapshot.js";
+import * as taskSnapshot from "./task-snapshot.js";
 import {
   AgentTurnNotSubmittedError,
   type AgentExecutionAdapter,
@@ -56,14 +56,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #permissions: AcpPermissions;
   readonly attachments: HistoricalTaskAttachments;
   readonly #management: AcpTaskManagement;
+  readExternalHistory?: taskSnapshot.AcpExternalHistoryReader;
   prepareTaskTitle?: (task: LocalTask, input: AgentProviderTurnInput) => Promise<void>;
   publishTaskTitle(id: string, title: string): void {
     this.#emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
   }
   /** 运行中及终态待落盘回合仍归原连接所有，搜索不能另开重放覆盖它。 */
-  hasPendingTurn(id: string): boolean {
-    return this.#active.has(id);
-  }
+  hasPendingTurn = (id: string): boolean => this.#active.has(id);
   constructor(
     readonly engine: AgentEngine,
     readonly scope: AgentTaskScope,
@@ -215,17 +214,19 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       input.signal?.throwIfAborted();
       const task = await this.#task(id);
       await this.#historyUse.retain(id, this.#ephemeral.has(id));
-      return readAcpTaskSnapshot(task, input, {
+      return taskSnapshot.readAcpTaskSnapshot(task, input, {
         engine: this.engine,
         history: this.history,
         load: (repairHistory) => this.#load(task, false, repairHistory),
         active: () => this.#active.get(id),
         needsReplay: async () =>
           !this.#link.sessions.has(id) && (await this.history.needsReplay(id)),
+        ...(this.readExternalHistory ? { readExternalHistory: this.readExternalHistory } : {}),
         pending: () => this.#permissions.list(id),
         contextUsage: () =>
           this.#link.instance?.readSessionUsage(this.#link.sessions.get(id)) ?? null,
-        sessionState: () => readAcpTaskSessionState(this.#link.instance, this.#link.sessions, id),
+        sessionState: () =>
+          taskSnapshot.readAcpTaskSessionState(this.#link.instance, this.#link.sessions, id),
       });
     });
   }

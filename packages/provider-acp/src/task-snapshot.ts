@@ -1,3 +1,4 @@
+import { isCodexReadOnlyCursor } from "@codexly/provider-codex";
 import { RequestError } from "@agentclientprotocol/sdk";
 import {
   localTaskMetadata,
@@ -11,6 +12,11 @@ import { AcpHistoryCorruptionError, type AcpHistory } from "./history.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpEventProjection } from "./event-projection.js";
 
+export type AcpExternalHistoryReader = (
+  task: LocalTask,
+  input: ReadAgentTaskInput,
+) => Promise<{ turns: AgentProviderTaskSnapshot["turns"]; cursor: string | null }>;
+
 /** 异步历史准备完成后同步读取活动投影并捕获边界，不在正文与 checkpoint 之间 await。 */
 export async function readAcpTaskSnapshot(
   task: LocalTask,
@@ -21,13 +27,20 @@ export async function readAcpTaskSnapshot(
     load(repairHistory?: boolean): Promise<unknown>;
     active(): AcpEventProjection | undefined;
     needsReplay?(): Promise<boolean>;
+    readExternalHistory?: AcpExternalHistoryReader;
     pending(): AgentProviderTaskSnapshot["pendingRequests"];
     contextUsage(): AgentProviderTaskSnapshot["contextUsage"];
     sessionState(): AcpSessionState | undefined;
   },
 ): Promise<AgentProviderTaskSnapshot> {
   const previous = source.active();
-  let external = false;
+  const readOnlyPage = isCodexReadOnlyCursor(input.cursor)
+    ? await source.readExternalHistory?.(task, input)
+    : undefined;
+  if (isCodexReadOnlyCursor(input.cursor) && !readOnlyPage)
+    throw new Error("当前引擎不支持只读历史分页");
+  let external = readOnlyPage !== undefined;
+  let externalPage = readOnlyPage;
   const load = async (repairHistory = false) => {
     try {
       await source.load(repairHistory);
@@ -49,22 +62,29 @@ export async function readAcpTaskSnapshot(
       return false;
     }
   };
-  let page = await source.history.read(task.id, input.cursor).catch(async (error: unknown) => {
-    // 只修复当前投影；旧游标、普通 I/O 错误和活动回合不触发整份回放。
-    if (
-      input.cursor ||
-      source.active() ||
-      !task.sessionId ||
-      !(error instanceof AcpHistoryCorruptionError)
-    )
-      throw error;
-    input.signal?.throwIfAborted();
-    // 缓存已损坏且 ACP 无法回放，保留原始错误，避免把损坏投影显示为空历史。
-    if (!(await load(true))) throw error;
-    return null;
-  });
+  let page =
+    readOnlyPage ??
+    (await source.history.read(task.id, input.cursor).catch(async (error: unknown) => {
+      // 只修复当前投影；旧游标、普通 I/O 错误和活动回合不触发整份回放。
+      if (
+        input.cursor ||
+        source.active() ||
+        !task.sessionId ||
+        !(error instanceof AcpHistoryCorruptionError)
+      )
+        throw error;
+      input.signal?.throwIfAborted();
+      // 缓存已损坏且 ACP 无法回放，保留原始错误，避免把损坏投影显示为空历史。
+      if (!(await load(true))) {
+        if (!source.readExternalHistory) throw error;
+        external = true;
+        externalPage = await source.readExternalHistory(task, input);
+        return externalPage;
+      }
+      return null;
+    }));
   if (page === null) page = await source.history.read(task.id);
-  else if (!input.cursor && !previous && task.sessionId) {
+  else if (!readOnlyPage && !externalPage && !input.cursor && !previous && task.sessionId) {
     const recover = await source.needsReplay?.();
     if (recover) {
       // 只通过原会话补齐历史。流尚未完整时保留最近一次成功保存的本地快照。
@@ -79,6 +99,14 @@ export async function readAcpTaskSnapshot(
       external = !(await load());
       if (!external) page = await source.history.read(task.id);
     }
+  }
+  if (external && !externalPage && source.readExternalHistory) {
+    const cachedPage = page;
+    // 占用只限制写入。只读失败时保留已经提交的缓存，冷会话则报告真实读取故障。
+    page = await source.readExternalHistory(task, input).catch((error: unknown) => {
+      if (cachedPage.turns.length) return cachedPage;
+      throw error;
+    });
   }
   // 读旧游标期间，历史提交可能刚好移除活动投影；重新读一次才可捕获新 checkpoint。
   if (!input.cursor && previous && previous !== source.active())
