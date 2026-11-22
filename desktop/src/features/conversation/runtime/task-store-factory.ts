@@ -349,7 +349,9 @@ function measureEventEntityBytes(state: TaskStoreState, event: AgentEvent): numb
 function retainedWarnings(state: TaskStoreState, sessionId: string): TaskNotice[] {
   // 快照不携带 Notice；只继承当前事件会话中已经收到的警告。
   return state.checkpoint?.sessionId === sessionId
-    ? state.notices.filter((notice) => notice.payload.level === "warning")
+    ? state.notices.filter(
+        (notice) => notice.payload.level === "warning" || notice.payload.code === "acp_notice",
+      )
     : [];
 }
 

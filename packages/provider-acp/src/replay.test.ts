@@ -332,3 +332,57 @@ it("v1 缺少消息 ID 时按角色段回放，不将局部身份记录为 Agent
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it("恢复旧回合时补齐压缩边界及摘要，保留本地回合身份和顺序", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "acp-replay-compaction-"));
+  const history = new AcpHistory(directory);
+  try {
+    const task = "task";
+    await history.append(task, {
+      id: "local-turn",
+      status: "completed",
+      startedAt: "2026-11-12T00:00:00Z",
+      completedAt: "2026-11-12T00:00:01Z",
+      error: null,
+      items: [
+        { id: "local-user", type: "message", role: "user", text: "问题" },
+        { id: "local-answer", type: "message", role: "assistant", text: "回答" },
+      ],
+    });
+    for (const text of ["保留摘要", undefined, null] as const) {
+      const replay = new AcpReplay(history, task);
+      await replay.update({
+        sessionUpdate: "user_message_chunk",
+        messageId: "question",
+        content: { type: "text", text: "问题" },
+      });
+      await replay.update({ sessionUpdate: "notice", severity: "warning", title: "旧通知" });
+      await replay.update({
+        sessionUpdate: "compaction_update",
+        compactionId: "compact",
+        status: "completed",
+        ...(text === undefined ? {} : { summary: text === null ? null : [{ type: "text", text }] }),
+      });
+      await replay.update({
+        sessionUpdate: "agent_message_chunk",
+        messageId: "answer",
+        content: { type: "text", text: "回答" },
+      });
+      await replay.complete();
+      const { turns } = await history.read(task);
+      expect(turns).toHaveLength(1);
+      expect(turns[0]).toMatchObject({ id: "local-turn" });
+      expect(turns[0]?.items.map(({ id }) => id)).toEqual([
+        "local-user",
+        "acp:compaction:compact",
+        "local-answer",
+      ]);
+      expect(turns[0]?.items[1]).toMatchObject({
+        type: "compaction",
+        summary: text === null ? "" : "保留摘要",
+      });
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

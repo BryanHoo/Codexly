@@ -80,7 +80,8 @@ const reduceEvent = createTaskEventReducer<
     }
     return next;
   },
-  isPersistentNotice: (notice) => notice.payload.level === "warning",
+  isPersistentNotice: (notice) =>
+    notice.payload.level === "warning" || notice.payload.code === "acp_notice",
   // Rust 已归并错误，null 也是权威结果，前端不得用旧错误覆盖。
   resolveCompletedTurn: (_current, incoming) => incoming,
 });

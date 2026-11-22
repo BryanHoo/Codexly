@@ -90,6 +90,18 @@ export const AgentPlanItemSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const AgentCompactionItemSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("compaction"),
+    // ACP 状态为开放枚举，未来状态由界面以通用文案呈现。
+    status: Type.String(),
+    summary: Type.Optional(Type.String()),
+    error: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  },
+  { additionalProperties: false },
+);
+
 export const AgentActivityItemSchema = Type.Object(
   {
     detail: Type.Optional(Type.String()),
@@ -193,6 +205,7 @@ export const AgentItemSchema = Type.Union([
   AgentToolItemSchema,
   AgentPlanItemSchema,
   AgentActivityItemSchema,
+  AgentCompactionItemSchema,
   AgentApprovalReviewItemSchema,
   AgentReviewItemSchema,
   AgentRuntimeStatusItemSchema,

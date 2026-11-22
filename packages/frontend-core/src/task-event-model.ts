@@ -10,7 +10,12 @@ export interface TaskReasoningPayload {
 export type TaskDeltaEvent<Reasoning> = Extract<
   TaskEventModel<never, never, never, Reasoning>,
   {
-    type: "message.delta" | "plan.delta" | "reasoning.delta" | "command.output_delta";
+    type:
+      | "compaction.summary_delta"
+      | "message.delta"
+      | "plan.delta"
+      | "reasoning.delta"
+      | "command.output_delta";
   }
 >;
 export interface TaskEventItem {

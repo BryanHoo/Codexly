@@ -26,6 +26,13 @@ export const MessageDeltaEventSchema = createEventSchema({
   type: Type.Literal("message.delta"),
 });
 
+export const CompactionSummaryDeltaEventSchema = createEventSchema({
+  itemId: Type.String({ minLength: 1 }),
+  payload: Type.Object({ delta: Type.String() }, { additionalProperties: false }),
+  turnId: Type.String({ minLength: 1 }),
+  type: Type.Literal("compaction.summary_delta"),
+});
+
 export const PlanDeltaEventSchema = createEventSchema({
   itemId: Type.String({ minLength: 1 }),
   payload: Type.Object({ delta: Type.String() }, { additionalProperties: false }),
@@ -47,6 +54,7 @@ export const TaskNoticeEventSchema = createEventSchema({
   payload: Type.Object(
     {
       code: Type.Union([
+        Type.Literal("acp_notice"),
         Type.Literal("runtime_warning"),
         Type.Literal("guardian_warning"),
         Type.Literal("strict_review_required"),
@@ -55,6 +63,9 @@ export const TaskNoticeEventSchema = createEventSchema({
       ]),
       level: Type.Union([Type.Literal("info"), Type.Literal("warning")]),
       message: Type.String({ maxLength: 8_192, minLength: 1 }),
+      // 会话通知的级别是开放枚举，保留原值供客户端选择展示方式。
+      severity: Type.Optional(Type.String()),
+      description: Type.Optional(Type.String({ maxLength: 8_192 })),
     },
     { additionalProperties: false },
   ),

@@ -234,6 +234,14 @@ export const conversation = {
     orchestrating: "正在协调子代理",
   },
   timeline: {
+    dismissNotice: "关闭会话通知",
+    compaction: {
+      in_progress: "正在压缩上下文",
+      completed: "上下文压缩完成",
+      failed: "上下文压缩失败",
+      cancelled: "上下文压缩已取消",
+      unknown: "上下文压缩",
+    },
     fileDiffStatus: {
       pending: "等待修改",
       running: "正在修改",

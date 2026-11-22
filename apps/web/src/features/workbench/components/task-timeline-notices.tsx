@@ -1,9 +1,13 @@
+import { AcpSessionNoticeRow } from "@codexly/ui/agent/acp-session-updates";
 import { AlertTriangle, Info } from "lucide-react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskNotice } from "../../conversation/runtime/task-store.js";
 
 function TaskNoticeRow({ notice }: Readonly<{ notice: TaskNotice }>) {
+  if (notice.payload.code === "acp_notice") {
+    return <AcpNotice notice={notice} />;
+  }
   const isWarning = notice.payload.level === "warning";
   const message =
     notice.payload.code === "model_verification"
@@ -39,4 +43,15 @@ export function StoreTaskNoticeList({ notices }: Readonly<{ notices: readonly Ta
     .map((notice) => (
       <TaskNoticeRow key={`${notice.sessionId}:${String(notice.sequence)}`} notice={notice} />
     ));
+}
+
+function AcpNotice({ notice }: Readonly<{ notice: TaskNotice }>) {
+  return (
+    <AcpSessionNoticeRow
+      title={notice.payload.message}
+      description={notice.payload.description}
+      severity={notice.payload.severity}
+      dismissLabel={i18n.t("timeline.dismissNotice", { ns: "conversation" })}
+    />
+  );
 }

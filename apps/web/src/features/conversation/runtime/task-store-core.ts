@@ -87,7 +87,14 @@ export interface TaskItemStoreState {
 
 type DeltaEvent = Extract<
   AgentEvent,
-  { type: "command.output_delta" | "message.delta" | "plan.delta" | "reasoning.delta" }
+  {
+    type:
+      | "compaction.summary_delta"
+      | "command.output_delta"
+      | "message.delta"
+      | "plan.delta"
+      | "reasoning.delta";
+  }
 >;
 
 export interface TaskItemStore extends StoreApi<TaskItemStoreState> {
@@ -142,7 +149,9 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
           : baseItem.type === "message" || baseItem.type === "plan"
             ? baseItem.text
             : "";
-      buffer = new AppendOnlyTextBuffer(initialText);
+      buffer = new AppendOnlyTextBuffer(
+        baseItem.type === "compaction" ? (baseItem.summary ?? "") : initialText,
+      );
       chunksByField.set(field, buffer);
     }
     return buffer;
@@ -160,6 +169,11 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
   }
   return Object.assign(store, {
     appendDelta(event: DeltaEvent): boolean {
+      if (event.type === "compaction.summary_delta") {
+        if (baseItem.type !== "compaction") return false;
+        appendChunk("text", event.payload.delta);
+        return true;
+      }
       if (event.type === "message.delta") {
         if (baseItem.type !== "message" || baseItem.role !== "assistant") {
           return false;
@@ -225,6 +239,9 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
             summary: reasoningSummaryBuffer.read() ?? baseItem.summary,
           };
         }
+      } else if (baseItem.type === "compaction") {
+        const chunks = chunksByField.get("text");
+        if (chunks !== undefined) nextItem = { ...baseItem, summary: chunks.materialize() };
       } else if (baseItem.type === "command") {
         const commandOutput = commandOutputBuffer?.getView();
         if (commandOutput !== undefined) {

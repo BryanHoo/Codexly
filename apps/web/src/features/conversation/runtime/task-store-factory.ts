@@ -159,7 +159,10 @@ export function createTaskStore(
         const normalized = normalizeSnapshot(restoreReplies(response));
         const retainedWarnings =
           state.checkpoint?.sessionId === response.checkpoint.sessionId
-            ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")
+            ? state.notices.filter(
+                (notice) =>
+                  notice.payload.code === "runtime_warning" || notice.payload.code === "acp_notice",
+              )
             : [];
         return {
           ...normalized,
@@ -208,7 +211,10 @@ export function createTaskStore(
         const normalized = normalizeSnapshot(reconcileSnapshot(state, restoreReplies(response)));
         const retainedWarnings =
           checkpoint?.sessionId === response.checkpoint.sessionId
-            ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")
+            ? state.notices.filter(
+                (notice) =>
+                  notice.payload.code === "runtime_warning" || notice.payload.code === "acp_notice",
+              )
             : [];
         return {
           ...normalized,

@@ -62,3 +62,56 @@ test.each([undefined, "running", "completed"] as const)(
     await expect.element(screen.getByText("处理完成。")).toBeVisible();
   },
 );
+
+test("shows ACP notices and expands streamed compaction summaries in a narrow conversation", async () => {
+  await i18n.changeLanguage("zh-CN");
+  const turn = {
+    id: "turn",
+    status: "running" as const,
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    items: [],
+  };
+  const checkpoint = { sequence: 0, sessionId: "session" };
+  const store = createTaskStore({ projectId: "project", taskId: "task" }, {
+    checkpoint,
+    snapshot: {
+      id: "task", projectId: "project", title: "Task", pinned: false,
+      updatedAt: "2026-10-29T00:00:01Z", status: "running", pendingRequests: [],
+      turnsNextCursor: null, contextUsage: null, goal: null, plan: null, turns: [turn],
+      settings: { approvalPolicy: "on-request", approvalsReviewer: "user", model: "model",
+        reasoningEffort: "high", sandboxMode: "workspace-write" },
+    },
+  });
+  const view = await render(<TooltipProvider><div style={{ height: 600, width: 390 }}>
+    <TaskStoreTimeline connected store={store}
+      onOpenFileDiff={() => undefined} onOpenSourceFile={() => undefined}
+      onReviewFileChanges={() => undefined} onResolvePendingRequest={() => Promise.resolve()} />
+  </div></TooltipProvider>);
+  const envelope = {
+    version: 2 as const, provider: "codex", sessionId: checkpoint.sessionId,
+    taskId: "task", timestamp: "2026-10-29T00:00:02Z",
+  };
+  const item = { id: "compact", type: "compaction" as const, status: "in_progress", summary: "" };
+  store.getState().applyEvents([
+    { ...envelope, sequence: 1, turnId: turn.id, itemId: item.id,
+      type: "item.started", payload: { item } },
+    { ...envelope, sequence: 2, turnId: turn.id, itemId: item.id,
+      type: "compaction.summary_delta", payload: { delta: "**已保留**" } },
+    { ...envelope, sequence: 3, type: "task.notice",
+      payload: { code: "acp_notice", level: "info", severity: "error",
+        message: "Agent 提示", description: "<strong>以纯文本显示</strong>" } },
+  ]);
+  await expect.element(view.getByRole("alert")).toHaveTextContent("<strong>以纯文本显示</strong>");
+  await view.getByRole("button", { name: /正在压缩上下文/ }).click();
+  await expect.element(view.getByText("已保留")).toBeVisible();
+  store.getState().applyEvents([{
+    ...envelope, sequence: 4, turnId: turn.id, itemId: item.id,
+    type: "item.completed", payload: { item: { ...item, status: "completed", summary: "最终摘要" } },
+  }]);
+  await expect.element(view.getByRole("button", { name: /上下文压缩完成/ })).toBeVisible();
+  await expect.element(view.getByText("最终摘要")).toBeVisible();
+  await view.getByRole("button", { name: "关闭会话通知" }).click();
+  await expect.element(view.getByText("Agent 提示")).not.toBeInTheDocument();
+});

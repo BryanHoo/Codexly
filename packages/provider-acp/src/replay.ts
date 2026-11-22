@@ -52,6 +52,51 @@ async function matchesSteering(
   return echoed.length > 0 && rest.length === 0;
 }
 
+/** 匹配旧回合后，在原来的顺序中补齐新增压缩实体，并按 ID 原位更新已有实体。 */
+function mergeCompactions(
+  base: readonly AgentItem[],
+  incoming: readonly AgentItem[],
+  replaceExisting: boolean,
+): AgentItem[] {
+  const compactions = new Map(
+    incoming.flatMap((item) => (item.type === "compaction" ? [[item.id, item] as const] : [])),
+  );
+  if (!compactions.size) return [...base];
+
+  const baseIds = new Set(base.map((item) => item.id));
+  const messageOrder = base.filter((item) => item.type !== "compaction" && !isAcpDiffItem(item));
+  const insertions = new Map<string | undefined, AgentItem[]>();
+  let anchor: string | undefined;
+  let ordinal = incoming.filter(
+    (item) => item.type !== "compaction" && !isAcpDiffItem(item),
+  ).length;
+  for (let index = incoming.length - 1; index >= 0; index--) {
+    const item = incoming[index];
+    if (item === undefined) continue;
+    if (item.type !== "compaction") {
+      if (!isAcpDiffItem(item)) ordinal--;
+      if (baseIds.has(item.id)) anchor = item.id;
+    } else if (!baseIds.has(item.id)) {
+      // 旧 Agent 的无 ID 消息使用客户端合成键。匹配回合后按邻接项或序号恢复位置。
+      const key = anchor ?? messageOrder[ordinal]?.id;
+      const items = insertions.get(key) ?? [];
+      items.push(item);
+      insertions.set(key, items);
+    } else {
+      anchor = item.id;
+    }
+  }
+  return [
+    ...base.flatMap((item) => [
+      ...(insertions.get(item.id)?.reverse() ?? []),
+      item.type === "compaction" && replaceExisting
+        ? { ...item, ...compactions.get(item.id) }
+        : item,
+    ]),
+    ...(insertions.get(undefined)?.reverse() ?? []),
+  ];
+}
+
 interface ReplayTurn {
   turn: AgentTurn;
   content: AcpTurnContent;
@@ -168,7 +213,7 @@ export class AcpReplay {
                   startedAt: old.startedAt,
                   completedAt: old.completedAt,
                   ...(old.stopReason ? { stopReason: old.stopReason } : {}),
-                  items: projected.items.map((item) =>
+                  items: mergeCompactions(projected.items, old.items, false).map((item) =>
                     user && item.id === `acp:message:user:${messageId}` ? user : item,
                   ),
                 },
@@ -181,12 +226,16 @@ export class AcpReplay {
                   isAcpDiffItem(item) &&
                   !matched.entry.turn.items.some((old) => old.id === item.id),
               );
-              yield missing.length
+              const hasCompactions = turn.items.some((item) => item.type === "compaction");
+              yield missing.length || hasCompactions
                 ? {
                     ...matched.entry,
                     turn: {
                       ...matched.entry.turn,
-                      items: [...matched.entry.turn.items, ...missing],
+                      items: [
+                        ...mergeCompactions(matched.entry.turn.items, turn.items, true),
+                        ...missing,
+                      ],
                     },
                   }
                 : matched.entry;
@@ -244,6 +293,8 @@ export class AcpReplay {
       case "plan":
       case "plan_update":
       case "plan_removed":
+      case "compaction_update":
+      case "compaction_summary_chunk":
         return this.#writer.write(update);
       default:
         return Promise.resolve();
@@ -325,7 +376,11 @@ export class AcpReplay {
       } else {
         this.#flushUserPrefix();
       }
-    } else if (update.sessionUpdate === "agent_message_chunk") {
+    } else if (
+      update.sessionUpdate === "agent_message_chunk" ||
+      update.sessionUpdate === "compaction_update" ||
+      update.sessionUpdate === "compaction_summary_chunk"
+    ) {
       this.#flushUserPrefix();
     }
     if (!this.#current) {

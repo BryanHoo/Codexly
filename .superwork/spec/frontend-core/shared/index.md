@@ -62,6 +62,12 @@
 - 两端复用 `turn-process.ts` 的 `resolveTimelineActivityStatus`：运行中已结束的瞬时活动隐藏，结束回合展开过程时恢复条目，保留明确失败状态并消除残留运行图标，不修改原始记录。中断和失败回合继续遵循下一次提交后折叠的既有规则。
 - 回归入口为 Web 的 `task-timeline-context-compaction.test.tsx` 和桌面的 `task-timeline-context-compaction.browser.test.tsx`；桌面覆盖 Chromium / WebKit 的折叠、展开与再次收起。
 
+## ACP 会话通知与压缩
+
+- ACP v1 使用 `clientCapabilities.session.notices` 和 `clientCapabilities.session.compaction`。通知按会话路由，保留严重级别并允许本地关闭。通知仅保留在当前运行时的有界任务视图，不进入会话历史或任务状态判定。
+- 压缩条目保留在时间线首次出现的位置。后续状态更新和摘要分块按原 ID 原位应用，摘要显式清空和省略遵循 ACP 的补丁语义。完成后条目仍可见，摘要默认折叠。两端共用 [会话更新组件](../../../../packages/ui/src/agent/acp-session-updates.tsx)。
+- 摘要以文本增量传输，只唤醒所属条目。历史使用原有回合匹配锚点，重放可补回压缩条目而保留应用侧回合身份。回归覆盖 [ACP 回放](../../../../packages/provider-acp/src/replay.test.ts) 与 [桌面浏览器时间线](../../../../desktop/src/features/workbench/components/task-timeline-context-compaction.browser.test.tsx)。协议依据为 [Session Notices](https://agentclientprotocol.com/rfds/session-notices) 与 [Session Compaction](https://agentclientprotocol.com/rfds/session-compaction)。
+
 ## 对话 JSON 导出
 
 - 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。

@@ -1,3 +1,4 @@
+import { AcpSessionNoticeRow } from "@codexly/ui/agent/acp-session-updates";
 import { Info } from "lucide-react";
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskNotice } from "../../conversation/runtime/task-store.js";
@@ -9,7 +10,9 @@ export function getTimelineNotices(notices: readonly TaskNotice[]): readonly Tas
 }
 
 export function StoreTaskInfoNotices({ notices }: Readonly<{ notices: readonly TaskNotice[] }>) {
-  return notices.map((notice) => (
+  return notices.map((notice) => notice.payload.code === "acp_notice" ? (
+    <AcpNotice key={`${notice.sessionId}:${String(notice.sequence)}`} notice={notice} />
+  ) : (
     <div
       className="flex items-start gap-2 border-l-2 border-separator-strong px-3 py-2 text-label leading-5 text-muted-foreground"
       key={`${notice.sessionId}:${String(notice.sequence)}`}
@@ -24,4 +27,15 @@ export function StoreTaskInfoNotices({ notices }: Readonly<{ notices: readonly T
       </div>
     </div>
   ));
+}
+
+function AcpNotice({ notice }: Readonly<{ notice: TaskNotice }>) {
+  return (
+    <AcpSessionNoticeRow
+      title={notice.payload.message}
+      description={notice.payload.description}
+      severity={notice.payload.severity}
+      dismissLabel={i18n.t("timeline.dismissNotice", { ns: "conversation" })}
+    />
+  );
 }

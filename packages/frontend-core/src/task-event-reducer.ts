@@ -159,6 +159,7 @@ export function createTaskEventReducer<
       }
       case "message.delta":
       case "plan.delta":
+      case "compaction.summary_delta":
       case "reasoning.delta":
       case "command.output_delta": {
         const currentTurn = state.turnsById[event.turnId];
@@ -170,7 +171,9 @@ export function createTaskEventReducer<
         }
         // 新输出证明可重试故障已经恢复；已失败 Turn 的确认错误继续保留。
         const turnsById =
-          currentTurn.status === "running" && currentTurn.error !== null
+          event.type !== "compaction.summary_delta" &&
+          currentTurn.status === "running" &&
+          currentTurn.error !== null
             ? { ...state.turnsById, [event.turnId]: { ...currentTurn, error: null } }
             : state.turnsById;
         const itemKey = createTaskItemKey(event.turnId, event.itemId);
@@ -263,7 +266,10 @@ export function createTaskEventReducer<
         return {
           checkpoint,
           notices: options.retainNotice(state.notices, event),
-          snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
+          // ACP 通知只用于呈现，不改变会话的更新时间或运行状态。
+          ...(event.payload.code === "acp_notice"
+            ? {}
+            : { snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp } }),
         };
       }
       case "mcp_server.status_updated":
@@ -386,7 +392,7 @@ export function createTaskEventReducer<
           ...(currentTurn === undefined
             ? {}
             : replaceTurnItems(state, event.turnId, items, changedItemStores)),
-          // Turn 完成后只保留右栏中的运行时警告。
+          // 保留会话级即时通知及运行时警告，回收已经结束的回合提示。
           notices: state.notices.filter((notice) => options.isPersistentNotice(notice)),
           snapshotMetadata: {
             ...snapshotMetadata,

@@ -3,9 +3,9 @@ import type { AgentTurn } from "@codexly/protocol";
 
 /** 输入使用真正发给 ACP 的内容投影；只落盘摘要，不复制附件正文或携带本地凭据。 */
 export function replayFingerprint(turn: AgentTurn, userText?: string): string {
-  // 文件卡片是工具内容的派生视图，旧版锚点已经包含原始工具内容。
+  // 文件卡片和压缩边界单独修补，能力升级不能改变旧版的回合匹配锚点。
   const items = turn.items
-    .filter((item) => !isAcpDiffItem(item))
+    .filter((item) => item.type !== "compaction" && !isAcpDiffItem(item))
     .map((item) => {
       const { id: _id, ...body } = item;
       if (item.type !== "message") return body;

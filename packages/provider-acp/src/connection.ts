@@ -148,7 +148,11 @@ export class AcpConnection {
         clientInfo: { name: "codexly", version: "0.53.0" },
         // 文件与终端由 agent 自行执行，只有实现了对应客户端方法才能声明能力。
         clientCapabilities: {
-          session: { configOptions: { boolean: {} } },
+          session: {
+            configOptions: { boolean: {} },
+            // ACP v1 通过显式能力对象启用实时通知和压缩历史回放。
+            ...(callbacks.onUpdate ? { notices: {}, compaction: {} } : {}),
+          },
           ...(callbacks.requestElicitation ? { elicitation: { form: {}, url: {} } } : {}),
         },
       });

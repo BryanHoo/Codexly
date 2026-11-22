@@ -21,6 +21,7 @@ export async function routeAcpUpdate(
   sessions: ReadonlyMap<string, string>,
   replays: ReadonlyMap<string, AcpReplay>,
   active: ReadonlyMap<string, AcpEventProjection>,
+  emitNotice: AgentProviderEventListener,
 ): Promise<void> {
   if (historical) {
     await replays.get(sessionId)?.update(update);
@@ -29,6 +30,24 @@ export async function routeAcpUpdate(
   // 实时用户回显可能含应用指令或由 Agent 展开的附件，沿用原始用户输入。
   if (update.sessionUpdate === "user_message_chunk") return;
   const task = taskForAcpSession(sessions, sessionId);
+  if (update.sessionUpdate === "notice") {
+    const title = update.title.trim().slice(0, 8_192);
+    if (task && title) {
+      // 提示属于会话，空闲时也可抵达。严重级别只影响展示，不触发任务失败。
+      emitNotice({
+        type: "task.notice",
+        taskId: task,
+        payload: {
+          code: "acp_notice",
+          level: "info",
+          message: title,
+          severity: update.severity,
+          ...(update.description ? { description: update.description.slice(0, 8_192) } : {}),
+        },
+      });
+    }
+    return;
+  }
   const projection = task ? active.get(task) : undefined;
   if (projection?.running) projection.update(update);
 }
@@ -69,12 +88,15 @@ export function acpSessionCallbacks({
   permissions: AcpPermissions;
   elicitations: AcpElicitations;
 }): AcpClientCallbacks {
+  const emitNotice: AgentProviderEventListener = (event) => {
+    if (!link().detached.has(event.taskId) && !ephemeral.has(event.taskId)) emit(event);
+  };
   return {
     onSessionState: (sessionId, state) => {
       publishAcpSessionState(link(), sessionId, state, emit);
     },
     onUpdate: (notification, historical) =>
-      routeAcpUpdate(notification, historical, link().sessions, replays, active),
+      routeAcpUpdate(notification, historical, link().sessions, replays, active, emitNotice),
     requestPermission: (request, signal) => {
       const task = taskForAcpSession(link().sessions, request.sessionId);
       const turn = task ? active.get(task) : undefined;

@@ -1,3 +1,4 @@
+import { AgentCompactionItemSchema } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
 import { AgentTurnSchema as SharedAgentTurnSchema } from "@codexly/protocol";
 
@@ -215,6 +216,7 @@ export const AgentItemSchema = Type.Union([
   AgentReasoningItemSchema,
   AgentPlanItemSchema,
   AgentActivityItemSchema,
+  AgentCompactionItemSchema,
   AgentApprovalReviewItemSchema,
   AgentReviewItemSchema,
   AgentRuntimeStatusItemSchema,

@@ -231,6 +231,14 @@ export const conversation = {
     orchestrating: "Coordinating subagents",
   },
   timeline: {
+    dismissNotice: "Dismiss session notice",
+    compaction: {
+      in_progress: "Compacting context",
+      completed: "Context compacted",
+      failed: "Context compaction failed",
+      cancelled: "Context compaction cancelled",
+      unknown: "Context compaction",
+    },
     fileDiffStatus: {pending: "Pending", running: "Editing", completed: "Applied", failed: "Failed", declined: "Declined", interrupted: "Interrupted"},
     fileDiffOpen: "Open file diff",
     fileDiffLoading: "Loading diff…",

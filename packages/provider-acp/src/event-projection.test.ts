@@ -228,3 +228,47 @@ it("v1 工具创建事件立即投影，并保留清空文件的修改语义", (
   expect(files?.changes[0]?.kind).toBe("update");
   expect(files?.changes[0]?.diff).toContain("-old");
 });
+
+it("按首次出现的位置保留压缩，支持分块追加、完整替换和清空", () => {
+  const { projection, events } = fixture();
+  const chunk = (text: string) => {
+    projection.update({
+      sessionUpdate: "compaction_summary_chunk",
+      compactionId: "compact",
+      content: { type: "text", text },
+    });
+  };
+  chunk("早期");
+  projection.update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "answer",
+    content: { type: "text", text: "继续" },
+  });
+  chunk("摘要");
+  expect(projection.snapshot().items[0]).toMatchObject({
+    status: "in_progress",
+    summary: "早期摘要",
+  });
+  projection.update({
+    sessionUpdate: "compaction_update",
+    compactionId: "compact",
+    status: "completed",
+    summary: [{ type: "text", text: "最终" }],
+  });
+  chunk("摘要");
+  expect(projection.snapshot().items.map((item) => item.type)).toEqual(["compaction", "message"]);
+  expect(projection.snapshot().items[0]).toMatchObject({
+    status: "completed",
+    summary: "最终摘要",
+  });
+  projection.update({
+    sessionUpdate: "compaction_update",
+    compactionId: "compact",
+    status: "completed",
+    summary: null,
+  });
+  const turn = projection.finish("end_turn");
+  expect(turn.items[0]).toMatchObject({ status: "completed", summary: "" });
+  expect(Value.Check(AgentTurnSchema, turn)).toBe(true);
+  expect(events[0]).toMatchObject({ type: "item.started", itemId: "acp:compaction:compact" });
+});

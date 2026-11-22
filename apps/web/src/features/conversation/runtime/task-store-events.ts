@@ -77,7 +77,8 @@ const reduceEvent = createTaskEventReducer<
     const discarded = new Set(transient.slice(0, -MAX_RETAINED_TASK_NOTICES));
     return next.filter((notice) => !discarded.has(notice));
   },
-  isPersistentNotice: (notice) => notice.payload.code === "runtime_warning",
+  isPersistentNotice: (notice) =>
+    notice.payload.code === "runtime_warning" || notice.payload.code === "acp_notice",
   resolveCompletedTurn(current, incoming) {
     const error = current?.status === "failed" ? current.error : null;
     return incoming.error === null && error !== null ? { ...incoming, error } : incoming;

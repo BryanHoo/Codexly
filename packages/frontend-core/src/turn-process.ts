@@ -79,6 +79,10 @@ export function resolveInterruptedTurnProcessItemIds(
   if (!hasNextSubmission) return [];
   // 保留用户输入和审核入口，文件变更及所有阶段的 Assistant 输出均可展开查看。
   return items.flatMap((item) =>
-    item.type === "review" || (item.type === "message" && item.role === "user") ? [] : [item.id],
+    item.type === "compaction" ||
+    item.type === "review" ||
+    (item.type === "message" && item.role === "user")
+      ? []
+      : [item.id],
   );
 }

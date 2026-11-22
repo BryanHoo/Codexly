@@ -1,6 +1,8 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import * as acp from "@agentclientprotocol/sdk";
 import { AcpConnection } from "./connection.js";
+import type { AgentProviderEvent } from "@codexly/core";
+import { routeAcpUpdate } from "./provider-session-events.js";
 
 it("最小稳定 v1 Agent 无状态通知也能结束回合，且不接收 v2 字段", async () => {
   const outgoing = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
@@ -79,6 +81,67 @@ it("v1 load 响应作为历史边界，缺少可选 resume 和 close 时仍可�
     await expect(
       connection.prompt({ sessionId: "saved", prompt: [{ type: "text", text: "再次继续" }] }),
     ).resolves.toEqual({ stopReason: "end_turn" });
+  } finally {
+    connection.close();
+    agent.close();
+  }
+});
+
+it("v1 通知能力把空闲会话提示实时路由到所属任务，并跳过历史通知", async () => {
+  const outgoing = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
+  const incoming = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
+  const events: AgentProviderEvent[] = [];
+  const notice = { sessionUpdate: "notice", severity: "error", title: "设置已降级" } as const;
+  const agent = acp
+    .agent({ name: "notice-v1" })
+    .onRequest(acp.methods.agent.initialize, ({ params }) => {
+      expect(params.clientCapabilities?.session).toMatchObject({ notices: {}, compaction: {} });
+      return { protocolVersion: 1, agentCapabilities: { loadSession: true }, authMethods: [] };
+    })
+    .onRequest(acp.methods.agent.session.load, async ({ client }) => {
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: "saved",
+        update: notice,
+      });
+      return {};
+    })
+    .connect({ readable: outgoing.readable, writable: incoming.writable });
+  const connection = await AcpConnection.connect(
+    { readable: incoming.readable, writable: outgoing.writable },
+    {
+      onUpdate: (notification, historical) =>
+        routeAcpUpdate(
+          notification,
+          historical,
+          new Map([["task", "saved"]]),
+          new Map(),
+          new Map(),
+          (event) => {
+            events.push(event);
+          },
+        ),
+    },
+  );
+  try {
+    await connection.resumeSession({ sessionId: "saved", cwd: "/tmp" }, true);
+    expect(events).toEqual([]);
+    await agent.client.notify(acp.methods.client.session.update, {
+      sessionId: "other",
+      update: notice,
+    });
+    await agent.client.notify(acp.methods.client.session.update, {
+      sessionId: "saved",
+      update: notice,
+    });
+    await vi.waitFor(() => {
+      expect(events).toEqual([
+        {
+          type: "task.notice",
+          taskId: "task",
+          payload: { code: "acp_notice", level: "info", severity: "error", message: "设置已降级" },
+        },
+      ]);
+    });
   } finally {
     connection.close();
     agent.close();

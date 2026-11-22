@@ -10,6 +10,13 @@ import { projectAcpFileChanges } from "./file-changes.js";
 import { AcpTurnContent } from "./turn-content.js";
 import { acpContextUsage } from "./context-usage.js";
 
+type CompactionUpdate = Extract<
+  SessionUpdate,
+  { sessionUpdate: "compaction_update" | "compaction_summary_chunk" }
+>;
+const COMPACTION_SUMMARY_BYTES = 32 * 1024;
+const TRUNCATED_SUMMARY = "\n\n[摘要已截断]";
+
 type TextUpdate = Extract<
   SessionUpdate,
   {
@@ -40,6 +47,8 @@ export class AcpEventProjection {
   #settlementError: string | undefined;
   #published = false;
   #diffBytes = 0;
+  #compactionBytes = 0;
+  readonly #truncatedCompactions = new Set<string>();
   acpMessageId: string | undefined;
   plan: AgentPlan | null = null;
 
@@ -70,6 +79,10 @@ export class AcpEventProjection {
   update(update: SessionUpdate): void {
     if (this.#status !== "running") throw new Error("ACP 回合已经结束");
     switch (update.sessionUpdate) {
+      case "compaction_update":
+      case "compaction_summary_chunk":
+        this.#compaction(update);
+        break;
       case "usage_update":
         this.emit({
           type: "usage.updated",
@@ -126,6 +139,84 @@ export class AcpEventProjection {
       default:
         break;
     }
+  }
+
+  #compaction(update: CompactionUpdate): void {
+    const id = `acp:compaction:${update.compactionId}`;
+    const previous = this.#items.get(id);
+    const old = previous?.type === "compaction" ? previous : undefined;
+    const item: Extract<AgentItem, { type: "compaction" }> = old ?? {
+      id,
+      type: "compaction",
+      status: "in_progress",
+    };
+    if (update.sessionUpdate === "compaction_summary_chunk") {
+      // 先固定时间线位置，再发有界文本增量。关闭的详情无需解析每个分块。
+      if (!old) {
+        this.#items.set(id, item);
+        this.#emitItem("item.started", item);
+      }
+      const delta = this.#retainCompactionSummary(id, contentText(update.content));
+      if (!delta) return;
+      this.#items.set(id, { ...item, summary: (item.summary ?? "") + delta });
+      this.emit({
+        type: "compaction.summary_delta",
+        taskId: this.taskId,
+        turnId: this.turnId,
+        itemId: id,
+        payload: { delta },
+      });
+      return;
+    }
+    const { error, summary } = update;
+    let nextSummary = item.summary;
+    // v1 的可选字段省略时保留，null 清空。完整摘要覆盖已经收到的分块。
+    if (summary !== undefined) {
+      this.#compactionBytes -= Buffer.byteLength(item.summary ?? "");
+      this.#truncatedCompactions.delete(id);
+      nextSummary = "";
+      for (const block of summary ?? []) {
+        nextSummary += this.#retainCompactionSummary(id, contentText(block));
+      }
+    }
+    const nextError = error === undefined ? item.error : (error?.slice(0, 8_192) ?? null);
+    const next = {
+      id,
+      type: "compaction" as const,
+      status: update.status,
+      ...(nextSummary === undefined ? {} : { summary: nextSummary }),
+      ...(nextError === undefined ? {} : { error: nextError }),
+    };
+    this.#items.set(id, next);
+    const terminal = ["completed", "failed", "cancelled"].includes(next.status);
+    if (terminal) this.#finished.add(id);
+    this.#emitItem(terminal ? "item.completed" : "item.started", next);
+  }
+
+  #retainCompactionSummary(id: string, text: string): string {
+    if (this.#truncatedCompactions.has(id)) return "";
+    const remaining = COMPACTION_SUMMARY_BYTES - this.#compactionBytes;
+    const textBytes = Buffer.byteLength(text);
+    if (!textBytes) return "";
+    if (textBytes <= remaining) {
+      this.#compactionBytes += textBytes;
+      return text;
+    }
+    // 以完整 Unicode 字符截断并把提示计入字节预算。
+    this.#truncatedCompactions.add(id);
+    const maxBytes = remaining - Buffer.byteLength(TRUNCATED_SUMMARY);
+    if (maxBytes < 0) return "";
+    let used = 0;
+    let end = 0;
+    for (const character of text) {
+      const bytes = Buffer.byteLength(character);
+      if (used + bytes > maxBytes) break;
+      used += bytes;
+      end += character.length;
+    }
+    const kept = text.slice(0, end) + TRUNCATED_SUMMARY;
+    this.#compactionBytes += Buffer.byteLength(kept);
+    return kept;
   }
 
   #emitPlan(plan: AgentPlan): void {
