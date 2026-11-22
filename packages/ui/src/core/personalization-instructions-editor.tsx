@@ -9,6 +9,7 @@ import {
 } from "@codexly/protocol/application-preferences";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog.js";
 import { Button } from "./button.js";
+import { toast } from "./notifications.js";
 
 /** 两种引擎共用全宽指令编辑区；读取、冲突处理和保存由各自页面管理。 */
 export function PersonalizationInstructionsEditor({
@@ -80,7 +81,6 @@ export function AcpGlobalInstructionsSettings({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
-  const [saved, setSaved] = useState(false);
   const saveButton = useRef<HTMLButtonElement>(null);
   const value = draft ?? content ?? "";
   const unavailable =
@@ -116,10 +116,13 @@ export function AcpGlobalInstructionsSettings({
         content: value,
         version: targets.version,
       });
+      // 保存成功后由双端订阅的应用偏好接管正文，继续编辑时以服务端内容为基准。
       cache.setQueryData(["application-preferences"], { settings });
-      setDraft(settings.globalInstructions);
-      setSaved(true);
+      setDraft(undefined);
       setOpen(false);
+      toast.success(chinese ? "全局指令已保存" : "Global instructions saved", {
+        id: "global-instructions-save",
+      });
     } catch {
       setTargets(undefined);
       setError(
@@ -146,7 +149,6 @@ export function AcpGlobalInstructionsSettings({
         maxLength={MAX_ACP_GLOBAL_INSTRUCTIONS_LENGTH}
         onChange={(event) => {
           setDraft(event.target.value);
-          setSaved(false);
         }}
       >
         {failed ? (
@@ -155,12 +157,7 @@ export function AcpGlobalInstructionsSettings({
           </div>
         ) : null}
         <SettingsActions>
-          {saved ? (
-            <span role="status" className="text-body-small text-muted-foreground">
-              {chinese ? "已保存" : "Saved"}
-            </span>
-          ) : null}
-          {!saved && draft !== undefined && draft !== (content ?? "") ? (
+          {draft !== undefined && draft !== (content ?? "") ? (
             <Button
               type="button"
               variant="ghost"

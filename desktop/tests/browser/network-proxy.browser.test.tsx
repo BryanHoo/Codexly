@@ -13,6 +13,7 @@ import {
 } from "../../../apps/web/src/features/settings/components/global-settings-fields.js";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { Toaster } from "@codexly/ui/core/toaster";
 import {
   NetworkProxySettingsPanel,
   NETWORK_PROXY_LABELS,
@@ -31,13 +32,15 @@ it("共享代理表单保留密码、支持清除与测试失败重试，并提�
   const save = vi.fn(async () => ({ ...settings, hasPassword: false }));
   const test = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
   const screen = await render(
-    <NetworkProxySettingsPanel
-      components={{ Group: SettingsGroup, Field: SettingsField, Select: SettingsSelect }}
-      read={async () => settings}
-      save={save}
-      test={test}
-      labels={NETWORK_PROXY_LABELS["zh-CN"]}
-    />,
+    <Toaster>
+      <NetworkProxySettingsPanel
+        components={{ Group: SettingsGroup, Field: SettingsField, Select: SettingsSelect }}
+        read={async () => settings}
+        save={save}
+        test={test}
+        labels={NETWORK_PROXY_LABELS["zh-CN"]}
+      />
+    </Toaster>,
   );
   await expect.element(screen.getByRole("textbox", { name: "密码（可选）" })).toBeVisible();
   const password = screen.container.querySelector('input[type="password"]') as HTMLInputElement;
@@ -46,10 +49,16 @@ it("共享代理表单保留密码、支持清除与测试失败重试，并提�
   await screen.getByRole("button", { name: "测试连接" }).click();
   await expect.element(screen.getByText("操作失败，请检查代理配置与网络后重试")).toBeVisible();
   await screen.getByRole("button", { name: "测试连接" }).click();
-  await expect.element(screen.getByText("连接成功")).toBeVisible();
+  await expect.element(page.getByText("连接成功", { exact: true })).toBeVisible();
+  expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe("连接成功");
   await screen.getByRole("checkbox", { name: "清除已保存密码" }).click();
   await screen.getByRole("button", { name: "保存代理设置" }).click();
-  await expect.element(screen.getByText("已保存，请重启应用或 Web 服务")).toBeVisible();
+  await expect
+    .element(page.getByText("已保存，请重启应用或 Web 服务", { exact: true }))
+    .toBeVisible();
+  expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe(
+    "已保存，请重启应用或 Web 服务",
+  );
   expect(save.mock.calls[0]).toEqual([
     {
       mode: "custom",

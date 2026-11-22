@@ -3,6 +3,7 @@ import {beforeEach,expect,it,vi} from "vitest";
 import {page} from "vitest/browser";
 import {render} from "vitest-browser-react";
 import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
+import {Toaster} from "@codexly/ui/core/toaster";
 import {ScheduledTasksContainer as Web} from "../../../apps/web/src/features/scheduled-tasks/scheduled-tasks-container.js";
 import {ScheduledTasksContainer as Native} from "../../src/features/scheduled-tasks/scheduled-tasks-container.js";
 import "../../src/shared/styles/globals.css";
@@ -17,14 +18,15 @@ beforeEach(async()=>{await page.viewport(1100,850);await webLanguage("zh-CN");aw
 for(const [name,Container] of [["Web",Web],["Native",Native]] as const){
  it(`${name} 新建计划只保存 ACP 定义，失败保留草稿和请求身份`,async()=>{
   const h=fixture();h.save.mockRejectedValueOnce(new Error("network"));
-  const screen=await render(<QueryClientProvider client={new QueryClient()}><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
+  const screen=await render(<QueryClientProvider client={new QueryClient()}><Toaster /><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
   await screen.getByRole("button",{name:"新建计划",exact:true}).click();
   await screen.getByRole("textbox",{name:"计划名称",exact:true}).fill("每日巡检");await screen.getByRole("textbox",{name:"提示词",exact:true}).fill("检查项目");
   await screen.getByRole("combobox",{name:"智能体",exact:true}).selectOptions("claude");
   await expect.element(screen.getByRole("checkbox",{name:"允许写入",exact:true})).not.toBeChecked();
   await screen.getByRole("button",{name:"保存计划",exact:true}).click();await expect.element(screen.getByRole("alert")).toHaveTextContent("network");
   await expect.element(screen.getByRole("textbox",{name:"提示词",exact:true})).toHaveValue("检查项目");
-  await screen.getByRole("button",{name:"保存计划",exact:true}).click();await expect.element(screen.getByRole("status")).toHaveTextContent("计划已保存");
+  await screen.getByRole("button",{name:"保存计划",exact:true}).click();await expect.element(page.getByText("计划已保存",{exact:true})).toBeVisible();
+  expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe("计划已保存");
   expect(h.save.mock.calls[0]?.[0]).toBe(h.save.mock.calls[1]?.[0]);expect(h.save.mock.calls[0]?.[1]).toMatchObject({definition:{name:"每日巡检",engine:"claude",values:{flag:false},projectId:"p",enabled:false,prompt:{text:"检查项目"}},expectedRevision:0,expectedStateRevision:0,resources:[]});
   expect(h.save.mock.calls[0]?.[1]).not.toHaveProperty("turnOptions");
   await screen.unmount();
@@ -54,14 +56,15 @@ for(const [name,Container] of [["Web",Web],["Native",Native]] as const){
   const view={source:"web",scheduleId:"saved",revision:3,definition,state:{revision:7,definitionRevision:3,nextRunAt:null},canEdit:false,resources:[]};
   h.client.listAcpPlans.mockResolvedValue({data:[{...view,...definition,stateRevision:7,scheduledRevision:3,nextRunAt:null}],nextCursor:null} as never);
   h.client.readAcpPlan.mockResolvedValueOnce(view as never).mockResolvedValueOnce({...view,canEdit:true} as never).mockResolvedValueOnce({...view,canEdit:true} as never);
-  const screen=await render(<QueryClientProvider client={new QueryClient()}><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
+  const screen=await render(<QueryClientProvider client={new QueryClient()}><Toaster /><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
   await screen.getByRole("button",{name:/已有巡检/}).click();await expect.element(screen.getByRole("textbox",{name:"计划名称",exact:true})).toBeDisabled();
   await screen.getByRole("button",{name:"重新读取",exact:true}).click();await expect.element(screen.getByRole("textbox",{name:"计划名称",exact:true})).toBeEnabled();
   await screen.getByRole("combobox",{name:"重复规则",exact:true}).selectOptions("daily");
   await screen.getByRole("button",{name:"重新读取",exact:true}).click();await screen.getByRole("button",{name:"放弃修改",exact:true}).click();
   await expect.element(screen.getByRole("combobox",{name:"重复规则",exact:true})).toHaveValue("once");
   await screen.getByRole("textbox",{name:"计划名称",exact:true}).fill("改名保留规则");await screen.getByRole("button",{name:"保存计划",exact:true}).click();
-  await expect.element(screen.getByRole("status")).toHaveTextContent("计划已保存");
+  await expect.element(page.getByText("计划已保存",{exact:true})).toBeVisible();
+  expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe("计划已保存");
   await expect.poll(()=>h.save.mock.calls.length).toBe(1);expect(h.save.mock.calls[0]?.[1]).toMatchObject({expectedRevision:3,expectedStateRevision:7,definition:{schedule:{type:"once",atUnixMs:1},name:"改名保留规则"}});
   await screen.unmount();
  });
@@ -69,14 +72,15 @@ for(const [name,Container] of [["Web",Web],["Native",Native]] as const){
 it("附件先上传和暂存，保存只携带私有资源引用，提交期间不允许编辑",async()=>{
  const h=fixture();const attachment={id:"uploaded",kind:"file",name:"说明.txt",mediaType:"text/plain",size:5};
  h.client.uploadAttachment=vi.fn(async()=>({attachment}));h.client.stageAcpPlanAttachment.mockResolvedValue({token:"token",attachment:{...attachment,id:"private"},digest:"a".repeat(64),written:5,boundRevision:null} as never);
- const screen=await render(<QueryClientProvider client={new QueryClient()}><Native {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
+ const screen=await render(<QueryClientProvider client={new QueryClient()}><Toaster /><Native {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
  await screen.getByRole("button",{name:"新建计划",exact:true}).click();await screen.getByRole("textbox",{name:"计划名称",exact:true}).fill("带附件");await screen.getByRole("combobox",{name:"智能体",exact:true}).selectOptions("claude");
  let release!:()=>void;h.save.mockImplementationOnce((id,input)=>new Promise(resolve=>{release=()=>resolve({source:"desktop",scheduleId:id,revision:1,definition:input.definition,state:{revision:1,definitionRevision:1,nextRunAt:null},canEdit:true,resources:[{token:"token",attachment:{...attachment,id:"private"},digest:"a".repeat(64),written:5,boundRevision:1}]});}));
  const input=screen.getByRole("button",{name:"保存计划",exact:true});await expect.element(input).toBeEnabled();
  const fileInput=screen.getByLabelText("添加附件",{exact:true}).element() as HTMLInputElement;
  const transfer=new DataTransfer();transfer.items.add(new File(["hello"],"说明.txt",{type:"text/plain"}));Object.defineProperty(fileInput,"files",{configurable:true,value:transfer.files});fileInput.dispatchEvent(new Event("change",{bubbles:true}));
  await expect.element(screen.getByText("说明.txt",{exact:true})).toBeVisible();await input.click();
- await expect.element(screen.getByRole("textbox",{name:"计划名称",exact:true})).toBeDisabled();release();await expect.element(screen.getByRole("status")).toHaveTextContent("计划已保存");
+ await expect.element(screen.getByRole("textbox",{name:"计划名称",exact:true})).toBeDisabled();release();await expect.element(page.getByText("计划已保存",{exact:true})).toBeVisible();
+  expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe("计划已保存");
  await expect.poll(()=>h.save.mock.calls.length).toBe(1);expect(h.save.mock.calls[0]?.[1]).toMatchObject({resources:["token"],definition:{prompt:{attachments:[{id:"private"}]}}});await screen.unmount();
 });
 

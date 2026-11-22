@@ -11,6 +11,7 @@ import { AcpPlanEditorSession } from "@codexly/frontend-core/acp-plan-editor";
 import { Button } from "./button.js";
 import { Input } from "./input.js";
 import { Checkbox } from "./checkbox.js";
+import { toast } from "./notifications.js";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +81,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
   const [pending, setPending] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
   const [validSchedule, setValidSchedule] = useState(true);
   const [scheduleGeneration, setScheduleGeneration] = useState(0);
   const [confirm, setConfirm] = useState<"close" | "reload">();
@@ -112,7 +112,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
   };
   const patch = (value: Partial<typeof state.definition>) => {
     session.update({ ...session.snapshot.definition, ...value });
-    setSaved(false);
     sync();
   };
   const fail = (cause: unknown) => {
@@ -149,7 +148,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
     lock.current = true;
     setWorking(true);
     setError("");
-    setSaved(false);
     try {
       const pending = fn();
       sync();
@@ -198,8 +196,9 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
     action(async () => {
       const view = await session.save();
       if (view && active.current) {
-        setSaved(true);
         props.onSaved(view);
+        // 保存回执交给全局通知，编辑器可继续操作已保存的计划。
+        toast.success(l.saved);
       }
     });
   const upload = async (file: File) =>
@@ -411,7 +410,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
                 {error}
               </p>
             ) : null}
-            {saved ? <p role="status">{l.saved}</p> : null}
             <DialogFooter>
               <Button
                 type="button"

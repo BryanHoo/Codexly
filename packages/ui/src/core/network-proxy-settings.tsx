@@ -17,6 +17,7 @@ import { Input } from "./input.js";
 import { Checkbox } from "./checkbox.js";
 import { LoadingSkeleton } from "./loading-skeleton.js";
 import { LoaderCircle } from "lucide-react";
+import { toast } from "./notifications.js";
 
 export const NETWORK_PROXY_LABELS = {
   "zh-CN": {
@@ -101,7 +102,7 @@ export function NetworkProxySettingsPanel({
     [failed, setFailed] = useState(false),
     [busy, setBusy] = useState(false),
     [hasPassword, setHasPassword] = useState(false),
-    [message, setMessage] = useState("");
+    [operationFailed, setOperationFailed] = useState(false);
   const [initial, setInitial] = useState<NetworkProxySettings>(DEFAULT_NETWORK_PROXY);
   const [operation, setOperation] = useState<"save" | "test">();
   const [reload, setReload] = useState(0);
@@ -139,7 +140,7 @@ export function NetworkProxySettingsPanel({
     lock.current = true;
     setBusy(true);
     setOperation(kind);
-    setMessage("");
+    setOperationFailed(false);
     try {
       if (kind === "save") {
         const { hasPassword, ...settings } = await save(draft);
@@ -147,14 +148,15 @@ export function NetworkProxySettingsPanel({
           setDraft(settings);
           setInitial(settings);
           setHasPassword(hasPassword);
-          setMessage(labels.saved);
+          // 代理设置重启后生效，让包含下一步的回执停留更久。
+          toast.success(labels.saved, { duration: 5000 });
         }
       } else {
         await test(draft);
-        if (mounted.current) setMessage(labels.success);
+        if (mounted.current) toast.success(labels.success);
       }
     } catch {
-      if (mounted.current) setMessage(labels.error);
+      if (mounted.current) setOperationFailed(true);
     } finally {
       lock.current = false;
       if (mounted.current) setBusy(false);
@@ -178,7 +180,7 @@ export function NetworkProxySettingsPanel({
           placeholder={key === "password" && hasPassword ? labels.savedPassword : undefined}
           onChange={(event) => {
             const value = event.currentTarget.value;
-            setMessage("");
+            setOperationFailed(false);
             setDraft((current) => ({
               ...current,
               [key]:
@@ -231,7 +233,7 @@ export function NetworkProxySettingsPanel({
                   value={draft.mode}
                   onChange={(event) => {
                     const mode = event.currentTarget.value as NetworkProxySettings["mode"];
-                    setMessage("");
+                    setOperationFailed(false);
                     setDraft((current) => ({ ...current, mode }));
                   }}
                 >
@@ -251,7 +253,7 @@ export function NetworkProxySettingsPanel({
                       onChange={(event) => {
                         const protocol = event.currentTarget
                           .value as NetworkProxySettings["protocol"];
-                        setMessage("");
+                        setOperationFailed(false);
                         setDraft((current) => ({ ...current, protocol }));
                       }}
                     >
@@ -275,7 +277,7 @@ export function NetworkProxySettingsPanel({
                       aria-label={labels.clear}
                       checked={draft.password === ""}
                       onCheckedChange={(checked) => {
-                        setMessage("");
+                        setOperationFailed(false);
                         setDraft((current) => ({
                           ...current,
                           password: checked === true ? "" : undefined,
@@ -295,7 +297,7 @@ export function NetworkProxySettingsPanel({
                     variant="ghost"
                     onClick={() => {
                       setDraft(initial);
-                      setMessage("");
+                      setOperationFailed(false);
                     }}
                   >
                     {labels.cancel}
@@ -313,7 +315,7 @@ export function NetworkProxySettingsPanel({
                   ) : null}
                   {busy && operation === "test" ? labels.testing : labels.test}
                 </Button>
-                {message === labels.error && operation ? (
+                {operationFailed && operation ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -333,9 +335,9 @@ export function NetworkProxySettingsPanel({
               </SettingsActions>
             </div>
           </fieldset>
-          {message ? (
-            <p role="status" className="mt-3 text-body-small text-muted-foreground">
-              {message}
+          {operationFailed ? (
+            <p role="alert" className="mt-3 text-body-small text-muted-foreground">
+              {labels.error}
             </p>
           ) : null}
         </form>

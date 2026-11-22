@@ -77,10 +77,10 @@ export function CodexOfficialPluginsPane({
   const [installations, setInstallations] = useState(
     new Map<string, OfficialPluginInstallResult>(),
   );
-  const [notice, setNotice] = useState(false);
   const [syncPartial, setSyncPartial] = useState(false);
   const operations = useExtensionOperation<Input, Result>({
     mutationKey: [...officialPluginsQueryKey, "operations"],
+    successMessage: t("skillsMarket.center.sessionHint"),
     mutationFn: async (input) => {
       await cache.cancelQueries({ queryKey: officialPluginsQueryKey, exact: true });
       if (input.action === "install") {
@@ -116,7 +116,6 @@ export function CodexOfficialPluginsPane({
           input.plugin.pluginName,
         ],
       });
-      setNotice(true);
       setDialog((current) => (current?.id === input.id ? null : current));
       setInstallations((current) => {
         const next = new Map(current);
@@ -138,7 +137,6 @@ export function CodexOfficialPluginsPane({
           result.failedRemotePluginIds.length > 0 ||
             result.failedMaterializationRemotePluginIds.length > 0,
         );
-        setNotice(false);
       }),
   });
   const rows = (plugins.data?.data ?? []).filter(
@@ -186,12 +184,6 @@ export function CodexOfficialPluginsPane({
         <div className="extension-center__message" role="alert">
           <Info aria-hidden="true" />
           <span>{error}</span>
-        </div>
-      ) : null}
-      {notice ? (
-        <div className="extension-center__message" role="status">
-          <Info aria-hidden="true" />
-          {t("skillsMarket.center.sessionHint")}
         </div>
       ) : null}
       {plugins.isPending ? (

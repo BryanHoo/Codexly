@@ -259,9 +259,11 @@ describe("SkillsMarketContainer", () => {
       expect(installButton.element().querySelector('[data-icon="loading"]')).not.toBeNull();
     });
     finishInstall?.();
-    await expect.element(
-      screen.getByText("配置已保存。请新建会话以完整加载扩展变更。"),
-    ).toBeVisible();
+    await expect.poll(() => mocks.toastSuccess.mock.calls).toEqual([
+      ["配置已保存。请新建会话以完整加载扩展变更。"],
+    ]);
+    await expect.element(screen.getByText("配置已保存。请新建会话以完整加载扩展变更。"))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "卸载插件" })).toBeVisible();
   });
 });

@@ -1,8 +1,9 @@
 import { expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { TooltipProvider } from "@codexly/ui/core/tooltip";
+import { Toaster } from "@codexly/ui/core/toaster";
 import type { ApplicationPreferences, SaveAgentInstructions } from "@codexly/protocol/application-preferences";
 import type { SettingsClient } from "../../../apps/web/src/features/settings/components/global-settings-page-contracts.js";
 import { GlobalSettingsPage as WebPage } from "../../../apps/web/src/features/settings/components/global-settings-page.js";
@@ -22,6 +23,15 @@ const initial: ApplicationPreferences = {
   followUpBehavior: "queue",
   pet: { enabled: false, selectedPetId: null },
 };
+
+function useApplicationPreferences() {
+  return useQuery({
+    queryKey: ["application-preferences"],
+    queryFn: async () => ({ settings: initial }),
+    initialData: { settings: initial },
+    staleTime: Infinity,
+  }).data.settings;
+}
 
 for (const [platform, SettingsPage, width] of [
   ["Web", WebPage, 390],
@@ -53,9 +63,11 @@ for (const [platform, SettingsPage, width] of [
       configureAcpAgent: vi.fn(),
     } as unknown as SettingsClient;
     const onSave = vi.fn(async (_value: ApplicationPreferences) => undefined);
-    const screen = await render(
-      <QueryClientProvider client={new QueryClient()}>
+    function SettingsHarness() {
+      const settings = useApplicationPreferences();
+      return (
         <TooltipProvider>
+          <Toaster />
           <div style={{ height: "100dvh" }}>
             <SettingsPage
               client={client}
@@ -65,13 +77,18 @@ for (const [platform, SettingsPage, width] of [
               error={null}
               isPending={false}
               models={[]}
-              settings={initial}
+              settings={settings}
               onClose={() => undefined}
               onRetry={() => undefined}
               onSave={onSave}
             />
           </div>
         </TooltipProvider>
+      );
+    }
+    const screen = await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SettingsHarness />
       </QueryClientProvider>,
     );
     try {
@@ -130,6 +147,21 @@ for (const [platform, SettingsPage, width] of [
       await expect.poll(() => saveAgentInstructions.mock.calls[0]?.[0]).toEqual({
         content: "使用中文", version: targets.version,
       });
+      await expect
+        .element(page.elementLocator(document.body).getByText("全局指令已保存", { exact: true }))
+        .toBeVisible();
+      expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe("全局指令已保存");
+      await expect.element(dialog).not.toBeInTheDocument();
+      expect(document.querySelector("#settings-panel-global-instructions [role=status]")).toBeNull();
+      await expect.element(editor).toHaveValue("使用中文");
+      await editor.fill("");
+      await save.click();
+      await confirm.click();
+      await expect.poll(() => saveAgentInstructions.mock.calls[1]?.[0]).toEqual({
+        content: "", version: targets.version,
+      });
+      await expect.element(dialog).not.toBeInTheDocument();
+      await expect.element(editor).toHaveValue("");
     } finally {
       await screen.unmount();
       catalog.mockRestore();
