@@ -18,8 +18,37 @@ it("预览失败后显式重试，恢复成功前不能发送", async () => {
   expect(binding.getSnapshot().error).toBeNull();
   binding.dispose();
 });
-function fixture() {
-  let persisted: unknown;
+it("重启后新聊天使用当前 Agent 默认值，忽略旧版未提交草稿的整套配置", async () => {
+  const oldValues = {
+    mode: "agent",
+    collaboration_mode: "default",
+    model: "old-model",
+    reasoning_effort: "low",
+  };
+  const defaults = {
+    mode: "agent-full-access",
+    collaboration_mode: "plan",
+    model: "current-model",
+    reasoning_effort: "high",
+  };
+  const f = fixture({ version: 1, identity: "", values: oldValues });
+  f.read.mockImplementation(({ values }) =>
+    Promise.resolve({ configOptions: [], values: { ...defaults, ...values } }),
+  );
+  const binding = f.create();
+  await vi.waitFor(() => {
+    expect(binding.getSnapshot().preview?.values).toEqual(defaults);
+  });
+  expect(f.read).toHaveBeenCalledWith({ values: {} }, expect.any(AbortSignal));
+  expect(f.save).not.toHaveBeenCalled();
+  const send = vi.fn(() => Promise.resolve("ok"));
+  await binding.submit({ text: "新聊天" }, "first", send);
+  expect(send).toHaveBeenCalledWith({ values: defaults, key: "first", creationKey: "first" });
+  binding.dispose();
+});
+
+function fixture(restored?: unknown) {
+  let persisted: unknown = restored;
   const save = vi.fn((value: unknown) => {
     persisted = value;
   });

@@ -114,8 +114,8 @@ export function bindAcpDraft(
     view = { ...view, ...patch };
     input.onChange(view);
   };
-  const persist = () => {
-    const saved: Persisted = { version: 1, identity, values, ...(attempt ? { attempt } : {}) };
+  const persist = (submission: Attempt) => {
+    const saved: Persisted = { version: 1, identity, values, attempt: submission };
     // 提交身份必须在请求前保留；容量或持久化失败不能放行一次无法恢复的发送。
     if (JSON.stringify(saved).length > 2 * 1024 * 1024)
       throw new Error("ACP 草稿恢复记录超过容量限制");
@@ -126,7 +126,8 @@ export function bindAcpDraft(
       const result = await input.preview({ values, ...(change ? { change } : {}) }, abort.signal);
       if (closed) return false;
       values = result.values;
-      persist();
+      // 确认值在当前草稿内连续使用，只为已开始的提交保留跨重启恢复记录。
+      if (attempt) persist(attempt);
       update({ preview: result, error: null });
       return true;
     } catch (error) {
@@ -140,10 +141,11 @@ export function bindAcpDraft(
     const restored = restore(input.restored);
     if (restored?.attempt && restored.identity !== identity)
       throw new Error("草稿已有提交，请在原引擎和工作目录中恢复，或新建独立聊天");
-    if (restored?.identity === identity) {
+    // 兼容旧记录：仅恢复已开始发送的草稿，保留原配置和幂等身份。
+    if (restored?.attempt && restored.identity === identity) {
       values = restored.values;
       attempt = restored.attempt;
-      view = { ...view, hasSubmission: attempt !== undefined };
+      view = { ...view, hasSubmission: true };
     }
     void negotiate();
   } catch (error) {
@@ -187,7 +189,7 @@ export function bindAcpDraft(
             recoveryKey: attempt.key,
           };
         try {
-          persist();
+          persist(attempt);
         } catch (error) {
           attempt = previous;
           throw error;

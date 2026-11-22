@@ -113,6 +113,7 @@
 
 - Web、移动浏览器与桌面共用 `core/acp-model-selector.tsx`，以 AI Elements Model Selector 的 Command 模式提供搜索、收藏和 Agent 标签；当前选择显示为“Agent / 模型”。思考量固定在模型右侧、发送按钮左侧，其余原始配置同样复用公共紧凑下拉直接显示，不再添加独立 Agent 切换器或带说明段落的配置表单。
 - 草稿只有选择模型时才改变 Agent；浏览其他 Agent 标签按需协商配置，关闭或换标签取消请求并忽略迟到结果，不后台探测全部 Agent。已有会话只显示所属 Agent 的模型和收藏，模型变更继续走该会话的原始 ACP 配置接口，不能改变任务引擎。
+- 新聊天按所选 Agent 的全局配置初始化权限、计划模式、模型和思考量。发送前的临时选择作用于当前草稿，只有已开始提交的草稿持久化完整配置和幂等身份，以便重启后安全恢复。历史任务展示 Agent 恢复确认的任务配置，命令和前台状态更新期间仍接收配置保存结果。回归入口为 `acp-draft-binding.test.ts`、`acp-session-state.test.ts` 和 `provider-lifecycle.test.ts`。
 - 模型、分组和思考量消费 Agent 返回的原始配置与值；不硬编码模型目录。收藏按 Agent、配置项 ID 与模型值区分，只持久化有界展示元数据，不保存认证信息或改写默认设置。收藏在同源分屏与窗口间同步。
 - 浮层底部“配置 Agent”通过轻量共享上下文打开所属工作台的“设置 → ACP”，上下文模块不静态导入模型列表与 cmdk，保留运行时懒加载边界。
 - 回归入口：`desktop/tests/browser/acp-model-selector.browser.test.tsx` 覆盖 Chromium / WebKit、明暗主题、360px / 1280px、收藏、搜索、键盘、历史锁定、取消和设置导航；`acp-draft-composer`、`acp-workbench-composer`、`acp-native-composer` 浏览器测试继续覆盖两端真实输入框发送与互斥。

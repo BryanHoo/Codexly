@@ -43,7 +43,10 @@ it("配置响应完整替换选项并保留命令，更新事件优先于旧保�
   const controller = new AcpSessionStateController();
   controller.receive(initial);
   const stale = controller.capture();
-  const newer = { ...initial, availableCommands: [{ name: "new", description: "新命令" }] };
+  const configOptions = [
+    { id: "mode", name: "模式", type: "boolean" as const, currentValue: true },
+  ];
+  const newer = { ...initial, configOptions };
   controller.receive(newer);
   expect(controller.commitConfiguration(stale, [])).toBe(false);
   expect(controller.getSnapshot()).toBe(newer);
@@ -52,4 +55,19 @@ it("配置响应完整替换选项并保留命令，更新事件优先于旧保�
     configOptions: [],
     availableCommands: newer.availableCommands,
   });
+});
+
+it("历史任务的命令和前台状态更新期间仍应用保存确认的配置", () => {
+  const controller = new AcpSessionStateController();
+  controller.receive(initial);
+  const pending = controller.capture();
+  const newer = {
+    ...structuredClone(initial),
+    availableCommands: [{ name: "new", description: "新命令" }],
+    foreground: "idle" as const,
+  };
+  controller.receive(newer);
+  const options = [{ id: "mode", name: "模式", type: "boolean" as const, currentValue: true }];
+  expect(controller.commitConfiguration(pending, options)).toBe(true);
+  expect(controller.getSnapshot()).toEqual({ ...newer, configOptions: options });
 });
