@@ -1,5 +1,5 @@
 import { readNativeConnection, type NativeConnection } from "./native-connection.js";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { Value } from "@sinclair/typebox/value";
 import {
   AcpProviderConfigSchema,
@@ -20,7 +20,7 @@ export class AcpProviderRouting {
       readNativeConnection(engine),
   ) {}
   async list(connection: AcpConnection): Promise<AcpProviderPage> {
-    if (!connection.initialization.capabilities?.providers)
+    if (!connection.initialization.agentCapabilities?.providers)
       throw new Error("ACP agent 不支持供应商配置");
     const { providers } = await connection.transport.agent.request(
       acp.methods.agent.providers.list,

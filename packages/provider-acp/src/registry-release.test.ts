@@ -63,9 +63,11 @@ describe.skipIf(process.env["CODEXLY_REGISTRY_RELEASE_TEST"] !== "1")("目录发
             cwd: root,
             env: { ...installed.env, CODEX_HOME: codex, CLAUDE_CONFIG_DIR: claude },
           });
-          expect(handle.connection.initialization.protocolVersion).toBe(2);
-          expect(handle.connection.initialization.info.name).toBeTruthy();
-          expect(handle.connection.initialization.capabilities?.session).toBeDefined();
+          expect(handle.connection.initialization.protocolVersion).toBe(1);
+          expect(handle.connection.initialization.agentInfo?.name).toBeTruthy();
+          expect(
+            handle.connection.initialization.agentCapabilities?.sessionCapabilities,
+          ).toBeDefined();
         } finally {
           await handle?.close();
           await rm(root, { recursive: true, force: true });

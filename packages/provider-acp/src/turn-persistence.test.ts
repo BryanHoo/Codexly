@@ -1,4 +1,4 @@
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEvent } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
@@ -74,12 +74,11 @@ it("超长回答和工具输出保存为受控附件，刷新后仍可读且可�
   const logs = await Promise.all((tool.outputAttachments ?? []).map((file) => read(file.id)));
   expect(logs.join("")).toBe(output);
   expect(events.some((event) => event.type === "task.notice")).toBe(false);
-  // ACP v2 重放应复用 session/prompt 回执中的用户消息 ID，助手消息有独立身份。
+  // v1 没有接受回执，按完整内容指纹保留本地回合与附件身份。
   const entries = reopened.entries(task.id);
   const entry = await entries.next();
   await entries.return(undefined);
-  const userMessageId = entry.done ? undefined : entry.value.acpMessageId;
-  if (!userMessageId) throw new Error("缺少 ACP 用户消息回执");
+  const userMessageId = (entry.done ? undefined : entry.value.acpMessageId) ?? "replayed-user";
   const replay = new AcpReplay(reopened, task.id);
   await replay.update({
     sessionUpdate: "user_message_chunk",

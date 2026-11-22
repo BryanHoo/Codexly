@@ -2,7 +2,7 @@ import { readNativeConnection, type NativeConnection } from "./native-connection
 import type { AcpAuthCredentials } from "@codexly/protocol";
 import { previewAcpConfig } from "./config-preview.js";
 import type { AcpConfigPreviewRequest } from "@codexly/protocol";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AcpAgentSettingsService } from "@codexly/core";
 import type { AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
@@ -133,21 +133,22 @@ export class AcpAgentService implements AcpAgentSettingsService {
         ...(authStatus ? { authStatus } : {}),
         ...(connectionSettings ? { connection: connectionSettings } : {}),
         // 仅转发握手已公布的能力，界面不靠厂商名称猜测供应商接口。
-        ...(initialization.capabilities?.providers ? { providerConfiguration: true as const } : {}),
+        ...(initialization.agentCapabilities?.providers
+          ? { providerConfiguration: true as const }
+          : {}),
         agentInfo: {
-          name: initialization.info.name,
-          version: initialization.info.version,
-          ...(initialization.info.title ? { title: initialization.info.title } : {}),
+          name: initialization.agentInfo?.name ?? this.engine,
+          version: initialization.agentInfo?.version ?? "unknown",
+          ...(initialization.agentInfo?.title ? { title: initialization.agentInfo.title } : {}),
         },
         authMethods: (initialization.authMethods ?? []).flatMap(
           (method): AcpAgentProfile["authMethods"] => {
-            if (!acp.AuthMethod.isAgent(method) && !acp.AuthMethod.isTerminal(method)) return [];
             return [
               {
-                id: method.methodId,
+                id: method.id,
                 name: method.name,
                 ...(method.description ? { description: method.description } : {}),
-                ...(method.type === "terminal" ? { type: "terminal" } : {}),
+                ...("type" in method ? { type: "terminal" } : {}),
               },
             ];
           },
@@ -164,14 +165,12 @@ export class AcpAgentService implements AcpAgentSettingsService {
       signal?.throwIfAborted();
       const connection = await this.#agent();
       signal?.throwIfAborted();
-      const method = connection.initialization.authMethods?.find(
-        (value) => value.methodId === methodId,
-      );
+      const method = connection.initialization.authMethods?.find((value) => value.id === methodId);
       if (!method) throw new Error("ACP 认证方式未公布");
-      if (!acp.AuthMethod.isAgent(method)) throw new Error("当前宿主未启用 ACP 终端认证");
+      if ("type" in method) throw new Error("当前宿主未启用 ACP 终端认证");
       try {
         await connection.transport.agent.request(
-          acp.methods.agent.auth.login,
+          acp.methods.agent.authenticate,
           {
             methodId,
             ...(credentials?.apiKey
@@ -204,13 +203,8 @@ export class AcpAgentService implements AcpAgentSettingsService {
           signal?.throwIfAborted();
           const saved = await this.store.inspect(this.engine);
           signal?.throwIfAborted();
-          return previewAcpConfig(
-            connection,
-            cwd,
-            saved,
-            input.values,
-            input.change,
-            this.engine.startsWith("acp-") ? (id) => this.#closeSession(connection, id) : undefined,
+          return previewAcpConfig(connection, cwd, saved, input.values, input.change, (id) =>
+            this.#closeSession(connection, id),
           );
         })();
         const result = await Promise.race([preview, cancelled.promise]);
@@ -303,9 +297,10 @@ export class AcpAgentService implements AcpAgentSettingsService {
     if (
       !this.catalogStore ||
       this.#catalogImported ||
-      !connection.initialization.capabilities?.session
+      !connection.initialization.agentCapabilities?.sessionCapabilities?.list
     )
       return;
+    if (connection.transport.signal.aborted) connection = await this.#agent(signal);
     await importAcpCatalog(this.engine, connection, this.catalogStore, signal);
     this.#catalogImported = true;
   }
@@ -316,6 +311,11 @@ export class AcpAgentService implements AcpAgentSettingsService {
     await this.#queue.catch(() => undefined);
   }
   async #closeSession(connection: AcpConnection, sessionId: string): Promise<void> {
+    // 设置服务独占连接；最小 v1 Agent 没有 close 时直接回收进程释放临时会话。
+    if (!connection.canCloseSessions) {
+      await this.#closeHandle(connection);
+      return;
+    }
     try {
       await connection.closeSession(sessionId);
     } catch (error) {

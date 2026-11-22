@@ -1,35 +1,11 @@
-import { SessionConfigOption } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
 import type { AgentModelPage, AcpConfigOption } from "@codexly/protocol";
 
 type SelectOptions = Extract<AcpConfigOption, { type: "select" }>["options"];
 
+/** v1 选项 ID 与应用持久化契约一致，保留 Agent 的原始顺序和值。 */
 export function projectAcpConfig(options: SessionConfigOption[]): AcpConfigOption[] {
-  // ACP v2 使用 configId 和 groupId，应用继续以持久化的选项标识读写旧设置。
-  return options.flatMap((option): AcpConfigOption[] => {
-    if (SessionConfigOption.isBoolean(option)) {
-      const { configId: id, ...fields } = option;
-      return [{ ...fields, id }];
-    }
-    if (!SessionConfigOption.isSelect(option)) return [];
-    const { configId: id, options: entries, ...fields } = option;
-    const first = entries[0];
-    const grouped = first && "groupId" in first;
-    const options = grouped
-      ? entries.flatMap((entry) =>
-          "groupId" in entry
-            ? [
-                {
-                  group: entry.groupId,
-                  name: entry.name,
-                  options: entry.options,
-                  ...(entry._meta === undefined ? {} : { _meta: entry._meta }),
-                },
-              ]
-            : [],
-        )
-      : entries.flatMap((entry) => ("value" in entry ? [entry] : []));
-    return [{ ...fields, id, options }];
-  });
+  return structuredClone(options);
 }
 
 export function acpSelectOptions(options: SelectOptions) {

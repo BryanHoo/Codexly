@@ -23,7 +23,7 @@ it("打开及运行的历史不会被另一宿主淘汰，退订后可回收并�
 
 it("暖会话的缓存被淘汰后必须 load，不能因已有会话绑定直接返回空历史", async () => {
   const f = await fixture("acp-test", undefined, undefined, {
-    capabilities: { session: {} },
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
   });
   const task = await f.provider.startTask();
   await f.provider.startConfiguredTurn(task.id, input);

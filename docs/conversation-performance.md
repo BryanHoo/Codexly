@@ -6,9 +6,9 @@ This document describes current conversation loading and resource management for
 
 ## 会话历史 / Conversation History
 
-当前 Web、移动浏览器和桌面共用 ACP 历史投影。命中缓存时从文件尾部有界读取，每页最多 20 个回合、读取窗口最多 4 MiB；继续加载通过游标读取更早回合。缓存未命中时通过原厂会话 ID 发起 `session/resume`，逐回合处理历史重放并等待写盘背压，不将整个会话一次性读入内存。完整冷重放等待 `replay_complete` 后提交，界面仍按本地页读取。
+当前 Web、移动浏览器和桌面共用 ACP 历史投影。命中缓存时从文件尾部有界读取，每页最多 20 个回合、读取窗口最多 4 MiB；继续加载通过游标读取更早回合。缓存未命中时通过原厂会话 ID 发起 `session/load`，逐回合处理历史重放并等待写盘背压，不将整个会话一次性读入内存。完整冷重放等待 `session/load` 成功响应及此前投影处理完成后提交，界面仍按本地页读取。
 
-Both interfaces share the ACP history projection. Cached reads return up to 20 turns from a bounded 4 MiB tail window. A cache miss loads the original session through ACP and processes replay one turn at a time with disk backpressure. After `replay_complete` and a successful resume response, the client publishes the rebuilt history. The UI reads the local history in pages.
+Both interfaces share the ACP history projection. Cached reads return up to 20 turns from a bounded 4 MiB tail window. A cache miss loads the original session through ACP and processes replay one turn at a time with disk backpressure. After a successful v1 `session/load` response and completion of preceding projections, the client publishes the rebuilt history. The UI reads the local history in pages.
 
 可重放正文缓存的容量目标为同机共享 256 MiB；首次使用及会话释放时，优先淘汰最久未访问的闲置会话。实际握手未确认 `loadSession` 的历史不会自动删除。活动视图、分页读取、导出和运行中会话持有跨进程保护，允许暂时超额，释放后再回收。新生成的回答续文和工具详情附件计入此目标；原厂历史、兼容性存储、用户上传附件及旧版混合仓储附件单独保留。每次重建只保留当前及一个旧代际；过期游标明确提示刷新，不改读其他版本。
 

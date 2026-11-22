@@ -1,6 +1,6 @@
-import { testPrompt } from "./acp-v2-peer.test-support.js";
+import { testPrompt } from "./acp-v1-peer.test-support.js";
 import { withStorageCatalog } from "./storage-catalog.test-support.js";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -17,7 +17,7 @@ it("全局端口消费 ACP 模型与默认配置，辅助生成只连接偏好�
       b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
     const options: acp.SessionConfigOption[] = [
       {
-        configId: "model",
+        id: "model",
         name: "模型",
         type: "select",
         category: "model",
@@ -28,9 +28,12 @@ it("全局端口消费 ACP 模型与默认配置，辅助生成只连接偏好�
     const peer = acp
       .agent({ name: "global" })
       .onRequest(acp.methods.agent.initialize, () => ({
-        protocolVersion: 2,
-        info: { name: "test-agent", version: "1" },
-        capabilities: { session: {} },
+        protocolVersion: 1,
+        agentInfo: { name: "test-agent", version: "1" },
+        agentCapabilities: {
+          loadSession: true,
+          sessionCapabilities: { resume: {}, close: {}, list: {} },
+        },
       }))
       .onRequest(acp.methods.agent.session.new, () => ({
         sessionId: "helper",

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import type { ContentBlock } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { AcpConnection } from "./connection.js";
 import type { AcpEventProjection } from "./event-projection.js";
 import { AgentTurnNotSubmittedError, type AgentProviderTurnInput } from "@codexly/core";
@@ -15,7 +15,7 @@ export function prepareAcpPrompt(
 ): Promise<ContentBlock[]> {
   return createAcpPrompt(
     input,
-    agent.initialization.capabilities?.session?.prompt ?? {},
+    agent.initialization.agentCapabilities?.promptCapabilities ?? {},
     join(directory, "attachments", createHash("sha256").update(taskId).digest("hex")),
     onRollback,
   );
@@ -66,23 +66,12 @@ export async function sendAcpPrompt(
   projection: AcpEventProjection,
   submissionKey?: string,
 ) {
-  const idempotencyKey = submissionKey
-    ? createHash("sha256").update("codexly-acp:").update(submissionKey).digest("hex")
-    : projection.turnId;
-  const result = await agent
-    .prompt(
-      { sessionId, prompt, idempotencyKey },
-      {
-        turnId: projection.turnId,
-        accept: (messageId) => {
-          projection.acpMessageId = messageId;
-        },
-      },
-    )
-    .then(
-      (value) => ({ value }),
-      (error: unknown) => ({ error }),
-    );
+  // v1 不提供远端幂等或接受回执；去重由应用持久提交记录负责。
+  void submissionKey;
+  const result = await agent.prompt({ sessionId, prompt }).then(
+    (value) => ({ value }),
+    (error: unknown) => ({ error }),
+  );
   // 原回合的终态可以先于引导回执到达，持久化前先投影已受理的用户消息。
   await projection.pendingSteer?.catch(() => undefined);
   return "value" in result

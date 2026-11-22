@@ -56,8 +56,8 @@ describe("runCli startup", () => {
       expect.objectContaining({ CODEX_PATH: "/custom/codex", CODEX_HOME: "/custom/home" }),
     );
     expect(harness.stdout.join("")).toContain("[成功] Node.js 24.19.0");
-    expect(harness.stdout.join("")).toContain("[成功] ACP codex 协议 v2 (codex-acp)");
-    expect(harness.stdout.join("")).toContain("[成功] ACP claude 协议 v2 (claude-acp)");
+    expect(harness.stdout.join("")).toContain("[成功] ACP codex 协议 v1 (codex-acp)");
+    expect(harness.stdout.join("")).toContain("[成功] ACP claude 协议 v1 (claude-acp)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join(homedir(), ".codexly", "state.sqlite3"),
       "/custom/home",

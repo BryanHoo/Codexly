@@ -1,4 +1,4 @@
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
 import type { LocalCatalogStore, LocalTask, CatalogOperations } from "@codexly/core";
 import { AcpConnection } from "./connection.js";
@@ -64,9 +64,12 @@ async function fixture() {
   const peer = acp
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
-      protocolVersion: 2,
-      info: { name: "test-agent", version: "1" },
-      capabilities: { session: {} },
+      protocolVersion: 1,
+      agentInfo: { name: "test-agent", version: "1" },
+      agentCapabilities: {
+        loadSession: true,
+        sessionCapabilities: { resume: {}, close: {}, list: {} },
+      },
     }))
     .onRequest(acp.methods.agent.session.list, list)
     .onRequest(acp.methods.agent.session.new, () => ({ sessionId: "settings", configOptions: [] }))

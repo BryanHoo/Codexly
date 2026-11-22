@@ -1,11 +1,10 @@
 import { it, expect } from "vitest";
 import type { AgentProviderEvent } from "@codexly/core";
-import type { RequestPermissionRequest } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { RequestPermissionRequest } from "@agentclientprotocol/sdk/unstable";
 import { AcpPermissions } from "./permissions.js";
 const original: RequestPermissionRequest = {
   sessionId: "session",
-  title: "操作确认",
-  subject: { type: "tool_call", toolCall: { toolCallId: "tool", title: "修改文件" } },
+  toolCall: { toolCallId: "tool", title: "修改文件" },
   options: [
     { optionId: "once", kind: "allow_once", name: "允许一次" },
     { optionId: "always", kind: "allow_always", name: "始终允许" },

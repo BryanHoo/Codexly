@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { RequestError } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import { RequestError } from "@agentclientprotocol/sdk/unstable";
 import { readAcpTaskSnapshot } from "./task-snapshot.js";
 import type { LocalTask } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";

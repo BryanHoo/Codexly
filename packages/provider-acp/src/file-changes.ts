@@ -1,110 +1,31 @@
-import { DiffChange, ToolCallContent } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { ToolCallContent } from "@agentclientprotocol/sdk/unstable";
 import type { AgentItem } from "@codexly/protocol";
-
 type Change = Extract<AgentItem, { type: "file_change" }>["changes"][number];
-const MAX_FILES = 128;
-const MAX_PATCH = 64 * 1024;
 
-function normalizePath(path: string): string {
-  return path.replaceAll("\\", "/");
-}
-
-const gitPathEscapes: Readonly<Record<string, string>> = {
-  a: "\x07",
-  b: "\b",
-  f: "\f",
-  n: "\n",
-  r: "\r",
-  t: "\t",
-  v: "\v",
-  '"': '"',
-  "\\": "\\",
-};
-
-function readGitPatchPath(header: string): string {
-  const path = header.split("\t", 1)[0] ?? "";
-  if (!path.startsWith('"') || !path.endsWith('"')) return path;
-  // Git 在引用路径中按 UTF-8 字节写入八进制转义。连续字节一起解码才能匹配中文路径。
-  return path
-    .slice(1, -1)
-    .replace(/(?:\\[0-3][0-7]{2})+|\\[abfnrtv"\\]/gu, (encoded) =>
-      encoded.length === 2
-        ? (gitPathEscapes[encoded[1] ?? ""] ?? encoded)
-        : Buffer.from(
-            [...encoded.matchAll(/\\([0-3][0-7]{2})/gu)].map((match) =>
-              parseInt(match[1] ?? "", 8),
-            ),
-          ).toString("utf8"),
-    );
-}
-
-/** 结构化路径是事实来源。只在补丁文件头能唯一匹配时挂载预览。 */
+/** v1 Diff 提供修改前后正文。空 newText 可能是清空文件，不能推断为删除。 */
 export function projectAcpFileChanges(content: ToolCallContent[] | null, budget: number): Change[] {
   const changes = new Map<string, Change>();
   for (const block of content ?? []) {
-    if (!ToolCallContent.isDiff(block)) continue;
-    const current = new Map<string, Change>();
-    for (const change of block.changes) {
-      const operation = change.operation;
-      if (
-        !DiffChange.isAdd(change) &&
-        !DiffChange.isDelete(change) &&
-        !DiffChange.isModify(change) &&
-        !DiffChange.isMove(change) &&
-        !DiffChange.isCopy(change)
-      )
-        continue;
-      if (!change.path || change.path.length > 4096) continue;
-      const path = normalizePath(change.path);
-      if (!changes.has(path) && changes.size >= MAX_FILES) continue;
-      const kind =
-        operation === "delete"
-          ? "delete"
-          : operation === "add" || operation === "copy"
-            ? "create"
-            : "update";
-      const projected: Change = {
-        path: change.path,
-        // 同批后续记录可能只补充元数据，不能用空正文清除已关联的有效补丁。
-        diff: changes.get(path)?.diff ?? "",
-        kind,
-        acp: {
-          operation: change.operation,
-          ...(change.fileType ? { fileType: change.fileType.slice(0, 128) } : {}),
-          ...(change.mimeType ? { mimeType: change.mimeType.slice(0, 128) } : {}),
-          ...("oldPath" in change &&
-          typeof change.oldPath === "string" &&
-          change.oldPath.length <= 4096
-            ? { oldPath: change.oldPath }
-            : {}),
-        },
-      };
-      changes.set(path, projected);
-      current.set(path, projected);
+    if (block.type !== "diff" || !block.path || block.path.length > 4096) continue;
+    if (!changes.has(block.path) && changes.size >= 128) continue;
+    const kind = block.oldText == null ? "create" : "update";
+    // 使用有界全文补丁，超过预算时仍保留权威路径，避免复制超大工具正文。
+    let diff = "";
+    if ((block.oldText?.length ?? 0) + block.newText.length <= Math.min(budget, 64 * 1024)) {
+      const oldLines = block.oldText ? block.oldText.split("\n") : [];
+      const newLines = block.newText ? block.newText.split("\n") : [];
+      const candidate =
+        `--- ${block.path}\n+++ ${block.path}\n@@ -1,${String(oldLines.length)} +1,${String(newLines.length)} @@\n` +
+        oldLines.map((line) => "-" + line).join("\n") +
+        "\n" +
+        newLines.map((line) => "+" + line).join("\n");
+      const bytes = Buffer.byteLength(candidate);
+      if (bytes <= Math.min(budget, 64 * 1024)) {
+        diff = candidate;
+        budget -= bytes;
+      }
     }
-
-    const patch = block.patch;
-    if (patch?.format !== "git_patch" || patch.text.length > MAX_PATCH || !budget) continue;
-    // 仅在本块内去重补丁；继承的正文仍可被本块可唯一匹配的新补丁替换。
-    const patched = new Set<Change>();
-    for (const section of patch.text.split(/(?=^diff --git )/m)) {
-      const hunk = section.search(/^@@ /m);
-      const header = hunk === -1 ? section : section.slice(0, hunk);
-      const before = readGitPatchPath(/^--- ([^\r\n]+)/m.exec(header)?.[1] ?? "");
-      const after = readGitPatchPath(/^\+\+\+ ([^\r\n]+)/m.exec(header)?.[1] ?? "");
-      const rawPath = after === "/dev/null" ? before : after;
-      if (!rawPath) continue;
-      const path = normalizePath(rawPath).replace(/^[ab]\//, "");
-      const files = [...current].filter(([file]) => file === path || file.endsWith("/" + path));
-      if (files.length !== 1) continue;
-      const file = files[0]?.[1];
-      if (!file || patched.has(file)) continue;
-      const bytes = Buffer.byteLength(JSON.stringify(section));
-      if (bytes > budget) continue;
-      file.diff = section;
-      patched.add(file);
-      budget -= bytes;
-    }
+    changes.set(block.path, { path: block.path, diff, kind });
   }
   return [...changes.values()];
 }

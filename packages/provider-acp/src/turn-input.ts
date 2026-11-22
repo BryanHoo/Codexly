@@ -3,10 +3,7 @@ import { constants } from "node:fs";
 import { copyFile, mkdir, open, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type {
-  ContentBlock,
-  PromptCapabilities,
-} from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { ContentBlock, PromptCapabilities } from "@agentclientprotocol/sdk";
 import type { AgentProviderTurnInput } from "@codexly/core";
 import {
   MAX_AGENT_FILE_BYTES,

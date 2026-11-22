@@ -1,4 +1,4 @@
-import { testPrompt } from "./acp-v2-peer.test-support.js";
+import { testPrompt } from "./acp-v1-peer.test-support.js";
 import { storageCatalog } from "./storage-catalog.test-support.js";
 import { Writable } from "node:stream";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import type { LocalTask, AgentProviderEvent } from "@codexly/core";
 import { AcpHost } from "./host.js";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpConnection } from "./connection.js";
 import type { AcpAgentLauncher } from "./runtime.js";
 
@@ -85,15 +85,18 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
       const peer = acp
         .agent({ name: "host-test" })
         .onRequest(acp.methods.agent.initialize, () => ({
-          protocolVersion: 2,
-          info: { name: "test-agent", version: "1" },
-          capabilities: _engine === "claude" ? { session: {} } : {},
+          protocolVersion: 1,
+          agentInfo: { name: "test-agent", version: "1" },
+          agentCapabilities:
+            _engine === "claude"
+              ? { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } }
+              : {},
         }))
         .onRequest(acp.methods.agent.session.new, () => ({
           sessionId: "native",
           configOptions: [
             {
-              configId: "model",
+              id: "model",
               name: "模型",
               category: "model",
               type: "select" as const,
@@ -101,7 +104,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
               options: [{ value: "a", name: "A" }],
             },
             {
-              configId: "effort",
+              id: "effort",
               name: "思考",
               category: "thought_level",
               type: "select" as const,
@@ -129,8 +132,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
             if (prompts.length > 1) return { stopReason: "end_turn" };
             permission = await client.request(acp.methods.client.session.requestPermission, {
               sessionId: params.sessionId,
-              title: "操作确认",
-              subject: { type: "tool_call", toolCall: { toolCallId: "write", title: "写入文件" } },
+              toolCall: { toolCallId: "write", title: "写入文件" },
               options: [
                 { optionId: "once", kind: "allow_once", name: "允许一次" },
                 { optionId: "always", kind: "allow_always", name: "始终允许" },
@@ -177,12 +179,12 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
     });
     expect(
       prompts.filter((prompt) =>
-        prompt.some((block) => acp.ContentBlock.isText(block) && block.text === "问题"),
+        prompt.some((block) => block.type === "text" && block.text === "问题"),
       ),
     ).toHaveLength(1);
-    expect(
-      prompts.flat().some((block) => acp.ContentBlock.isText(block) && block.text === "排队问题"),
-    ).toBe(false);
+    expect(prompts.flat().some((block) => block.type === "text" && block.text === "排队问题")).toBe(
+      false,
+    );
     // 有排队输入和待审批回合时关闭视图，不能丢失终态、队列接续或持久历史。
     host.receive(
       Buffer.from(

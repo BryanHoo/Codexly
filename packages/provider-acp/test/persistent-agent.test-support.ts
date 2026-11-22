@@ -1,6 +1,6 @@
-import { testPrompt } from "../src/acp-v2-peer.test-support.js";
+import { testPrompt } from "../src/acp-v1-peer.test-support.js";
 import type { AgentProvider } from "@codexly/core";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpConnection, type AcpAgentLauncher } from "../src/index.js";
 
 /** 保留会话的 SDK 对端，供应用重启测试复用；不调用真实账号或模型。 */
@@ -14,7 +14,7 @@ export function createPersistentAgentPeer(
   let native = 0;
   const options: acp.SessionConfigOption[] = [
     {
-      configId: "model",
+      id: "model",
       name: "模型",
       category: "model",
       type: "select",
@@ -31,24 +31,28 @@ export function createPersistentAgentPeer(
     const peer = acp
       .agent({ name: "integration" })
       .onRequest(acp.methods.agent.initialize, () => ({
-        protocolVersion: 2,
-        info: { name: "test-agent", version: "1" },
-        capabilities: { session: {} },
+        protocolVersion: 1,
+        agentInfo: { name: "test-agent", version: "1" },
+        agentCapabilities: {
+          loadSession: true,
+          sessionCapabilities: { resume: {}, close: {}, list: {} },
+        },
       }))
       .onRequest(acp.methods.agent.session.new, () => {
         const sessionId = `native-${String(++native)}`;
         transcripts.set(sessionId, []);
         return { sessionId, configOptions: options };
       })
-      .onRequest(acp.methods.agent.session.resume, async ({ params, client }) => {
+      .onRequest(acp.methods.agent.session.resume, ({ params }) => {
+        loaded.push(params.sessionId);
+        return { configOptions: options };
+      })
+      .onRequest(acp.methods.agent.session.load, async ({ params, client }) => {
         loaded.push(params.sessionId);
         const error = loadError?.(params.sessionId);
         if (error) throw new acp.RequestError(error.code, error.message, error.data);
         // 模拟持久化 agent 按 ACP 约定重放原会话，不能用空重放伪造恢复成功。
-        for (const [index, entry] of (params.replayFrom
-          ? (transcripts.get(params.sessionId) ?? [])
-          : []
-        ).entries()) {
+        for (const [index, entry] of (transcripts.get(params.sessionId) ?? []).entries()) {
           const chunk = {
             messageId: `${params.sessionId}-${String(index)}`,
             content: { type: "text" as const, text: entry.text },
@@ -61,15 +65,6 @@ export function createPersistentAgentPeer(
             update,
           });
         }
-        if (params.replayFrom)
-          await client.notify(acp.methods.client.session.update, {
-            sessionId: params.sessionId,
-            update: { sessionUpdate: "replay_complete" },
-          });
-        await client.notify(acp.methods.client.session.update, {
-          sessionId: params.sessionId,
-          update: { sessionUpdate: "state_update", state: "idle" },
-        });
         return { configOptions: options };
       })
       .onRequest(acp.methods.agent.session.list, () => ({ sessions: [] }))
@@ -80,7 +75,7 @@ export function createPersistentAgentPeer(
         onSetConfig?.(params.configId, params.value);
         return {
           configOptions: options.map((option) =>
-            option.configId === params.configId
+            option.id === params.configId
               ? ({ ...option, currentValue: params.value } as acp.SessionConfigOption)
               : option,
           ),
@@ -90,7 +85,7 @@ export function createPersistentAgentPeer(
         acp.methods.agent.session.prompt,
         testPrompt(async ({ params, client }) => {
           const text = params.prompt
-            .filter((part) => acp.ContentBlock.isText(part))
+            .filter((part) => part.type === "text")
             .map((part) => part.text)
             .join("");
           prompts.push(text);

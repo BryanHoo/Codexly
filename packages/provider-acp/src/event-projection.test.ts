@@ -15,13 +15,9 @@ function fixture() {
 it("工具结束时的文字摘要保留此前分块报告的文件差异", () => {
   const { projection } = fixture();
   projection.update({
-    sessionUpdate: "tool_call_content_chunk",
+    sessionUpdate: "tool_call_update",
     toolCallId: "edit",
-    content: {
-      type: "diff",
-      changes: [{ operation: "modify", path: "/repo/a.ts" }],
-      patch: { format: "git_patch", text: "--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new\n" },
-    },
+    content: [{ type: "diff", path: "/repo/a.ts", oldText: "old", newText: "new" }],
   });
   projection.update({
     sessionUpdate: "tool_call_update",
@@ -32,33 +28,6 @@ it("工具结束时的文字摘要保留此前分块报告的文件差异", () =
   const files = projection.finish("end_turn").items.find((item) => item.type === "file_change");
   expect(files?.changes[0]?.path).toBe("/repo/a.ts");
   expect(files?.changes[0]?.diff).toContain("+new");
-});
-
-it("将 Git 引用的中文路径映射回同一批次的结构化文件", () => {
-  const { projection } = fixture();
-  const encodedName = String.raw`\345\272\217.ts`;
-  const diff = [
-    `diff --git "a/${encodedName}" "b/${encodedName}"`,
-    `--- "a/${encodedName}"`,
-    `+++ "b/${encodedName}"`,
-    "@@ -1 +1 @@",
-    "-old",
-    "+new",
-  ].join("\n");
-  projection.update({
-    sessionUpdate: "tool_call_update",
-    toolCallId: "edit",
-    status: "completed",
-    content: [
-      {
-        type: "diff",
-        changes: [{ operation: "modify", path: "/repo/序.ts" }],
-        patch: { format: "git_patch", text: diff },
-      },
-    ],
-  });
-  const files = projection.finish("end_turn").items.find((item) => item.type === "file_change");
-  expect(files?.changes).toMatchObject([{ path: "/repo/序.ts", diff }]);
 });
 
 describe("ACP 增量事件投影", () => {
@@ -246,56 +215,16 @@ describe("ACP 增量事件投影", () => {
   });
 });
 
-it("保留 ACP 结构化文件变更，区分清空、删除、重命名和二进制复制", () => {
-  const { projection, events } = fixture();
+it("v1 工具创建事件立即投影，并保留清空文件的修改语义", () => {
+  const { projection } = fixture();
   projection.update({
-    sessionUpdate: "tool_call_update",
-    toolCallId: "changes",
-    status: "completed",
-    content: [
-      {
-        type: "diff",
-        changes: [
-          { operation: "modify", path: "/repo/empty.txt", fileType: "text" },
-          { operation: "delete", path: "/repo/deleted.txt" },
-          { operation: "move", path: "/repo/new.ts", oldPath: "/repo/old.ts" },
-          {
-            operation: "copy",
-            path: "/repo/logo.png",
-            oldPath: "/repo/original.png",
-            fileType: "binary",
-          },
-        ],
-        patch: {
-          format: "git_patch",
-          text: "diff --git a/empty.txt b/empty.txt\n--- a/empty.txt\n+++ b/empty.txt\n@@ -1 +0,0 @@\n-old\n",
-        },
-      },
-    ],
+    sessionUpdate: "tool_call",
+    toolCallId: "edit",
+    title: "编辑",
+    status: "in_progress",
+    content: [{ type: "diff", path: "/a", oldText: "old", newText: "" }],
   });
-  const turn = projection.finish("end_turn");
-  expect(Value.Check(AgentTurnSchema, turn)).toBe(true);
-  const item = turn.items.find((entry) => entry.type === "file_change");
-  expect(item?.changes[0]?.diff).toContain("-old");
-  expect(item?.changes).toMatchObject([
-    { path: "/repo/empty.txt", kind: "update", acp: { operation: "modify" } },
-    { path: "/repo/deleted.txt", kind: "delete", diff: "", acp: { operation: "delete" } },
-    {
-      path: "/repo/new.ts",
-      kind: "update",
-      diff: "",
-      acp: { operation: "move", oldPath: "/repo/old.ts" },
-    },
-    {
-      path: "/repo/logo.png",
-      kind: "create",
-      diff: "",
-      acp: { operation: "copy", fileType: "binary" },
-    },
-  ]);
-  expect(
-    events.some(
-      (event) => event.type === "item.completed" && event.payload.item.type === "file_change",
-    ),
-  ).toBe(true);
+  const files = projection.finish("end_turn").items.find((item) => item.type === "file_change");
+  expect(files?.changes[0]?.kind).toBe("update");
+  expect(files?.changes[0]?.diff).toContain("-old");
 });

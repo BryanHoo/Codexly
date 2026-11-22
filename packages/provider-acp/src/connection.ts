@@ -1,6 +1,6 @@
 import { projectAcpConfig } from "./session-options.js";
 import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 
@@ -8,13 +8,8 @@ const CANCEL_GRACE_MS = 5_000;
 const SESSION_CAPACITY = 64;
 
 interface ActivePrompt {
-  terminal: PromiseWithResolvers<acp.IdleStateUpdate | null>;
   abandoned: PromiseWithResolvers<never>;
-  observedForeground: boolean;
   foregroundActive: boolean;
-  echoedMessageId?: string;
-  acceptedMessageId?: string;
-  idleAfterEcho?: acp.IdleStateUpdate;
 }
 
 interface PendingCancellation {
@@ -26,7 +21,7 @@ interface PendingCancellation {
 
 export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
-  onUpdate?(notification: acp.UpdateSessionNotification, historical: boolean): void | Promise<void>;
+  onUpdate?(notification: acp.SessionNotification, historical: boolean): void | Promise<void>;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
   requestPermission?(
     request: acp.RequestPermissionRequest,
@@ -47,12 +42,11 @@ export class AcpConnection {
     readonly transport: acp.ClientConnection,
     readonly drainUpdates: () => Promise<void>,
     private readonly authStatus: AcpAuthStatusTracker,
-    private readonly replaying: Map<string, boolean>,
+    private readonly replaying: Set<string>,
     private readonly metadata: AcpSessionMetadataStore,
-    private readonly publishReceipt: (
+    private readonly publishForeground: (
       sessionId: string,
-      turnId: string,
-      messageId: string,
+      state: "running" | "idle",
     ) => Promise<void>,
     private readonly updateConfiguration: (
       sessionId: string,
@@ -62,7 +56,7 @@ export class AcpConnection {
   ) {
     this.supportsSteering = AcpSessionMetadataStore.supportsSteering(initialization);
     const release = () => {
-      for (const active of this.#activePrompts.values()) active.terminal.resolve(null);
+      // SDK 关闭连接时会拒绝所有尚未完成的 prompt 请求。
       for (const cancellation of this.#cancellations.values()) cancellation.finish();
     };
     void transport.closed.then(release, release);
@@ -75,7 +69,7 @@ export class AcpConnection {
   ): Promise<AcpConnection> {
     let updates = Promise.resolve();
     let connection: AcpConnection | undefined;
-    const replaying = new Map<string, boolean>();
+    const replaying = new Set<string>();
     const metadata = new AcpSessionMetadataStore();
     const authStatus = new AcpAuthStatusTracker();
     const enqueue = (operation: () => void | Promise<void>) => {
@@ -112,20 +106,12 @@ export class AcpConnection {
       )
       .onNotification(acp.methods.client.session.update, ({ params }) => {
         return enqueue(async () => {
-          const { sessionId, update } = params;
-          const historical = replaying.get(sessionId) === false;
-          // 标记后的通知属于实时流，即使 resume 的 RPC 响应还没有返回。
-          if (update.sessionUpdate === "replay_complete") {
-            if (historical) replaying.set(sessionId, true);
-            return;
-          }
-          // 回放可补充历史上下文用量，其余历史快照不覆盖当前活动状态。
-          if (!historical || acp.SessionUpdate.isUsageUpdate(update)) {
-            const state = metadata.update(params);
-            if (state) await callbacks.onSessionState?.(sessionId, state);
-          }
+          const { sessionId } = params;
+          const historical = replaying.has(sessionId);
+          // v1 回放的配置、命令和用量同样是 Agent 确认的会话元数据。
+          const state = metadata.update(params);
+          if (state) await callbacks.onSessionState?.(sessionId, state);
           await callbacks.onUpdate?.(params, historical);
-          if (!historical) connection?.observePrompt(sessionId, update);
         });
       })
       .onRequest(acp.methods.client.session.requestPermission, ({ params, signal }) => {
@@ -144,9 +130,9 @@ export class AcpConnection {
     try {
       const initialization = await transport.agent.request(acp.methods.agent.initialize, {
         protocolVersion: acp.PROTOCOL_VERSION,
-        info: { name: "codexly", version: "0.53.0" },
+        clientInfo: { name: "codexly", version: "0.53.0" },
         // 文件与终端由 agent 自行执行，只有实现了对应客户端方法才能声明能力。
-        capabilities: {},
+        clientCapabilities: { session: { configOptions: { boolean: {} } } },
       });
       if (initialization.protocolVersion !== acp.PROTOCOL_VERSION)
         throw new Error(`不支持 ACP 协议版本 ${String(initialization.protocolVersion)}`);
@@ -168,9 +154,9 @@ export class AcpConnection {
         authStatus,
         replaying,
         metadata,
-        (sessionId, turnId, messageId) =>
+        (sessionId, foreground) =>
           enqueue(async () => {
-            const state = metadata.confirmPrompt(sessionId, turnId, messageId);
+            const state = metadata.foreground(sessionId, foreground);
             if (state) await callbacks.onSessionState?.(sessionId, state);
           }),
         (id, options, commands) =>
@@ -194,8 +180,11 @@ export class AcpConnection {
   get atSessionCapacity(): boolean {
     return this.#sessions.size + this.#pendingBindings >= SESSION_CAPACITY;
   }
+  get canCloseSessions(): boolean {
+    return !!this.initialization.agentCapabilities?.sessionCapabilities?.close;
+  }
   get canRestoreSessions(): boolean {
-    return Boolean(this.initialization.capabilities?.session);
+    return this.initialization.agentCapabilities?.loadSession === true;
   }
 
   assertSessionReady(sessionId: string): void {
@@ -223,7 +212,7 @@ export class AcpConnection {
     return [...this.#sessions].every((id) => this.#cancellations.get(id)?.timedOut);
   }
   readAuthStatus() {
-    const marker = this.initialization.capabilities?._meta?.["authStatus"];
+    const marker = this.initialization.agentCapabilities?._meta?.["authStatus"];
     return this.authStatus.read(marker !== undefined && marker !== null);
   }
   readSessionState(sessionId: string): AcpSessionMetadata {
@@ -249,11 +238,7 @@ export class AcpConnection {
     try {
       const result = await this.transport.agent.request(acp.methods.agent.session.new, request);
       const configOptions = projectAcpConfig(result.configOptions ?? []);
-      await this.updateConfiguration(
-        result.sessionId,
-        configOptions,
-        result.availableCommands ?? [],
-      );
+      await this.updateConfiguration(result.sessionId, configOptions, undefined);
       this.#sessions.add(result.sessionId);
       await this.drainUpdates();
       return { ...result, configOptions };
@@ -264,24 +249,32 @@ export class AcpConnection {
 
   async resumeSession(
     request: acp.ResumeSessionRequest,
+    replay = false,
   ): Promise<
     Omit<acp.ResumeSessionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }
   > {
-    const { sessionId, replayFrom } = request;
+    const { sessionId } = request;
     if (!this.canRestoreSessions) throw new Error("ACP Agent 未声明会话能力");
     this.assertSessionReady(sessionId);
     if (this.#activePrompts.has(sessionId)) throw new Error("会话正在进行中");
     // 必须保持原生会话身份；错误直接返回，禁止回退 newSession 丢失上下文。
     this.#beginBinding(sessionId);
-    if (replayFrom) this.replaying.set(sessionId, false);
+    const load = replay || !this.initialization.agentCapabilities?.sessionCapabilities?.resume;
+    if (load) this.replaying.add(sessionId);
     try {
-      const result = await this.transport.agent.request(acp.methods.agent.session.resume, request);
+      // v1 的 load 响应即回放边界；resume 仅在明确声明且无需正文时使用。
+      const params = request;
+      const result = load
+        ? await this.transport.agent.request(acp.methods.agent.session.load, {
+            ...params,
+            mcpServers: params.mcpServers ?? [],
+          })
+        : await this.transport.agent.request(acp.methods.agent.session.resume, params);
+      this.replaying.delete(sessionId);
       await this.drainUpdates();
-      // v2 用显式边界区分历史回放与实时事件，缺少边界时保留原历史。
-      if (replayFrom && !this.replaying.get(sessionId))
-        throw new Error("ACP 历史回放未收到 replay_complete");
+
       const configOptions = projectAcpConfig(result.configOptions ?? []);
-      await this.updateConfiguration(sessionId, configOptions, result.availableCommands ?? []);
+      await this.updateConfiguration(sessionId, configOptions, undefined);
       this.#sessions.add(sessionId);
       return { ...result, configOptions };
     } finally {
@@ -300,75 +293,39 @@ export class AcpConnection {
     if (--this.#pendingBindings === 0) this.metadata.retain(this.#sessions);
   }
 
-  private observePrompt(sessionId: string, update: acp.SessionUpdate): void {
-    const active = this.#activePrompts.get(sessionId);
-    if (!active) return;
-    // Agent 可能重复报告上一回合的 idle。先观察收到新消息或前台状态，再接受终态。
-    if (acp.SessionUpdate.isUserMessage(update) || acp.SessionUpdate.isUserMessageChunk(update)) {
-      if (active.echoedMessageId !== update.messageId) delete active.idleAfterEcho;
-      active.echoedMessageId = update.messageId;
-      return;
-    }
-    if (update.sessionUpdate !== "state_update" || !acp.SessionUpdate.isStateUpdate(update)) return;
-    active.foregroundActive = update.state === "running" || update.state === "requires_action";
-    if (update.state === "running" || update.state === "requires_action")
-      active.observedForeground = true;
-    else if (acp.StateUpdate.isIdle(update)) {
-      if (active.observedForeground) active.terminal.resolve(update);
-      else if (active.echoedMessageId) {
-        active.idleAfterEcho ??= update;
-        if (active.echoedMessageId === active.acceptedMessageId)
-          active.terminal.resolve(active.idleAfterEcho);
-      }
-    }
-  }
-
-  async prompt(
-    request: acp.PromptRequest,
-    receipt?: { turnId: string; accept(messageId: string): void },
-  ): Promise<{ stopReason: string }> {
+  async prompt(request: acp.PromptRequest): Promise<{ stopReason: string }> {
     const id = request.sessionId;
     this.assertSessionReady(id);
     if (!this.#sessions.has(id)) throw new Error("ACP 会话尚未加载");
     if (this.#activePrompts.has(id)) throw new Error("会话已有输入进行中");
     const active: ActivePrompt = {
-      terminal: Promise.withResolvers<acp.IdleStateUpdate | null>(),
       abandoned: Promise.withResolvers<never>(),
-      observedForeground: false,
-      foregroundActive: false,
+      foregroundActive: true,
     };
     this.#activePrompts.set(id, active);
-    // 回执只确认消息写入。等待前台终态以及此前的增量投影完成后再结算本地回合。
-    const response = this.transport.agent
-      .request(acp.methods.agent.session.prompt, request)
-      .then(async ({ messageId }) => {
-        // 即时命令可能直接报告 idle。只接受同一消息回显之后的候选终态。
-        active.acceptedMessageId = messageId;
-        if (active.echoedMessageId === messageId && active.idleAfterEcho)
-          active.terminal.resolve(active.idleAfterEcho);
-        receipt?.accept(messageId);
-        const turnId = receipt?.turnId ?? request.idempotencyKey;
-        if (turnId) await this.publishReceipt(id, turnId, messageId);
-        const terminal = await active.terminal.promise;
-        if (!terminal) throw new Error("ACP 连接已关闭，回合结果未知");
-        if (terminal.stopReason === "error")
-          throw new Error(
-            "error" in terminal &&
-              typeof terminal.error === "object" &&
-              terminal.error !== null &&
-              "message" in terminal.error &&
-              typeof terminal.error.message === "string"
-              ? terminal.error.message
-              : "ACP 回合执行失败",
-          );
-        if (!terminal.stopReason) throw new Error("ACP Agent 未报告回合停止原因");
-        return { stopReason: terminal.stopReason };
-      })
-      .finally(() => {
-        this.#activePrompts.delete(id);
-        const cancellation = this.#cancellations.get(id);
-        if (cancellation?.sent) cancellation.finish();
-      });
+    // v1 响应代表整个回合结束，不存在 v2 的消息接受回执与前台终态等待。
+    // 请求进入传输后不自动重发；返回前等待已接收的增量完成投影。
+    const response = (async () => {
+      try {
+        const result = await this.transport.agent.request(
+          acp.methods.agent.session.prompt,
+          request,
+        );
+        await this.drainUpdates();
+        return { stopReason: result.stopReason };
+      } finally {
+        try {
+          if (!this.transport.signal.aborted) await this.publishForeground(id, "idle");
+        } finally {
+          this.#activePrompts.delete(id);
+          const cancellation = this.#cancellations.get(id);
+          if (cancellation?.sent) cancellation.finish();
+        }
+      }
+    })();
+    void this.publishForeground(id, "running").catch((error: unknown) => {
+      this.close(error);
+    });
     return Promise.race([response, active.abandoned.promise]);
   }
 
@@ -392,7 +349,7 @@ export class AcpConnection {
     const request: acp.SetSessionConfigOptionRequest =
       typeof value === "boolean"
         ? { sessionId, configId, type: "boolean", value }
-        : { sessionId, configId, type: "id", value };
+        : { sessionId, configId, value };
     const result = await this.transport.agent.request(
       acp.methods.agent.session.setConfigOption,
       request,
@@ -405,6 +362,10 @@ export class AcpConnection {
 
   async closeSession(sessionId: string): Promise<void> {
     this.assertSessionReady(sessionId);
+    if (!this.canCloseSessions) {
+      // 未实现 close 的 v1 Agent 继续计入连接容量，直到整个连接回收。
+      return;
+    }
     try {
       await this.transport.agent.request(acp.methods.agent.session.close, { sessionId });
     } catch (error) {
@@ -416,7 +377,7 @@ export class AcpConnection {
 
   async deleteSession(sessionId: string): Promise<void> {
     this.assertSessionReady(sessionId);
-    if (!this.initialization.capabilities?.session?.delete)
+    if (!this.initialization.agentCapabilities?.sessionCapabilities?.delete)
       throw new Error("ACP agent 不支持原生会话删除");
     try {
       await this.transport.agent.request(acp.methods.agent.session.delete, { sessionId });
@@ -430,25 +391,11 @@ export class AcpConnection {
     return this.metadata.hasBackgroundWork(sessionId);
   }
 
-  async cancelBackground(sessionId: string, target: AcpBackgroundTarget): Promise<void> {
+  cancelBackground(sessionId: string, target: AcpBackgroundTarget): Promise<void> {
     this.assertSessionReady(sessionId);
-    const work = this.metadata
-      .read(sessionId)
-      .background?.find((item) => item.kind === target.kind && item.id === target.id);
-    // 每次以当前会话及实体能力为准。RPC 回执只表示接受取消，清单由后续通知更新。
-    if (!this.#sessions.has(sessionId) || !work?.cancellable)
-      throw new Error("ACP 后台工作已结束或不可停止");
-    if (target.kind === "terminal") {
-      await this.transport.agent.request(acp.methods.agent.terminal.cancel, {
-        sessionId,
-        terminalId: target.id,
-      });
-    } else {
-      await this.transport.agent.request(acp.methods.agent.toolCall.cancel, {
-        sessionId,
-        toolCallId: target.id,
-      });
-    }
+    // v1 没有 Agent 侧 terminal/cancel 或 tool_call/cancel 标准方法。
+    void target;
+    return Promise.reject(new Error("ACP v1 不支持单项后台工作取消"));
   }
 
   cancel(sessionId: string): Promise<void> {

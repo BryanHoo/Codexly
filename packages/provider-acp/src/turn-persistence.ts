@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import type { AgentTurn } from "@codexly/protocol";
-import type { ContentBlock } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { contentText, type AcpEventProjection } from "./event-projection.js";
 import type { AcpHistory } from "./history.js";
 

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AcpProcess } from "./process.js";
-import { methods } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import { methods } from "@agentclientprotocol/sdk/unstable";
 
 const require = createRequire(import.meta.url);
 /** 真实 adapter 仅握手，不创建会话或请求模型；用户目录及历史保持隔离。 */
@@ -62,18 +62,20 @@ describe.skipIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] !== "1")("官方 ACP ad
             ...(lifetimePath ? { CODEXLY_ACP_LIFETIME_SOCKET: lifetimePath } : {}),
           },
         });
-        expect(agent.connection.initialization.protocolVersion).toBe(2);
-        expect(agent.connection.initialization.capabilities?.session).toBeDefined();
-        expect(agent.connection.initialization.info.name).toBeTruthy();
-        expect(agent.connection.initialization.capabilities?.session).toBeTruthy();
-        expect(agent.connection.initialization.capabilities).toHaveProperty("providers");
+        expect(agent.connection.initialization.protocolVersion).toBe(1);
+        expect(
+          agent.connection.initialization.agentCapabilities?.sessionCapabilities,
+        ).toBeDefined();
+        expect(agent.connection.initialization.agentInfo?.name).toBeTruthy();
+        expect(agent.connection.initialization.agentCapabilities?.sessionCapabilities).toBeTruthy();
+        expect(agent.connection.initialization.agentCapabilities).toHaveProperty("providers");
         const page = await agent.connection.transport.agent.request(
           methods.agent.providers.list,
           {},
         );
         expect(page.providers.length).toBeGreaterThan(0);
         expect(page.providers.every((provider) => provider.supported.length > 0)).toBe(true);
-        expect(agent.connection.initialization.capabilities?.session).toBeTruthy();
+        expect(agent.connection.initialization.agentCapabilities?.sessionCapabilities).toBeTruthy();
         const history = agent.connection.transport.agent.request(methods.agent.session.list, {});
         // 隔离环境没有账号；明确保留认证错误，不能将其当成“没有历史”。
         if (name === "@agentclientprotocol/codex-acp")

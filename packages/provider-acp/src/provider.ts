@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { randomUUID } from "node:crypto";
-import type * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpTaskManagement } from "./task-management.js";
 import { readAcpTaskSnapshot, readAcpTaskSessionState } from "./task-snapshot.js";
 import {

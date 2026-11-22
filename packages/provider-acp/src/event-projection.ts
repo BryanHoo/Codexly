@@ -1,10 +1,9 @@
-import {
+import type {
   ContentBlock,
   SessionUpdate,
-  type ToolCallUpdate,
-  type ToolCallContent,
-  PlanUpdateContent,
-} from "@agentclientprotocol/sdk/experimental/v2/unstable";
+  ToolCallUpdate,
+  ToolCallContent,
+} from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@codexly/protocol";
 import { projectAcpFileChanges } from "./file-changes.js";
@@ -36,6 +35,8 @@ export class AcpEventProjection {
   #error: string | null = null;
   #stopReason: string | undefined;
   #planId: string | undefined;
+  #messageIndex = 0;
+  #messageKind = "";
   #settlementError: string | undefined;
   #published = false;
   #diffBytes = 0;
@@ -75,45 +76,42 @@ export class AcpEventProjection {
           taskId: this.taskId,
           turnId: this.turnId,
           payload: {
-            usage: acpContextUsage(
-              update as Extract<SessionUpdate, { sessionUpdate: "usage_update" }>,
-            ),
+            usage: acpContextUsage(update),
           },
         });
         break;
-      case "agent_message":
-      case "user_message":
-      case "agent_thought":
       case "agent_message_chunk":
       case "user_message_chunk":
       case "agent_thought_chunk":
-        this.#text(update as TextUpdate);
+        this.#text(update);
         break;
+      case "tool_call":
       case "tool_call_update":
-        this.#tool(update as ToolCallUpdate);
+        this.#tool(update);
         break;
-      case "tool_call_content_chunk": {
-        if (SessionUpdate.isToolCallContentChunk(update))
-          this.#fileChanges(`acp:tool:${update.toolCallId}:files`, [update.content], true);
+      case "plan":
+        this.plan = {
+          explanation: null,
+          steps: update.entries.map((entry) => ({ text: entry.content, status: entry.status })),
+        };
+        this.#emitPlan(this.plan);
         break;
-      }
       case "plan_update": {
-        if (!SessionUpdate.isPlanUpdate(update)) break;
         const plan = update.plan;
-        if (!PlanUpdateContent.isItems(plan) && !PlanUpdateContent.isMarkdown(plan)) break;
         this.#planId = plan.planId;
-        this.plan = PlanUpdateContent.isItems(plan)
-          ? {
-              explanation: null,
-              steps: plan.entries.map((entry) => ({
-                text: entry.content,
-                status:
-                  entry.status === "in_progress" || entry.status === "completed"
-                    ? entry.status
-                    : "pending",
-              })),
-            }
-          : { explanation: plan.content, steps: [] };
+        this.plan =
+          plan.type === "items"
+            ? {
+                explanation: null,
+                steps: plan.entries.map((entry) => ({
+                  text: entry.content,
+                  status:
+                    entry.status === "in_progress" || entry.status === "completed"
+                      ? entry.status
+                      : "pending",
+                })),
+              }
+            : { explanation: plan.content, steps: [] };
         this.#emitPlan(this.plan);
         break;
       }
@@ -141,12 +139,16 @@ export class AcpEventProjection {
 
   #text(update: TextUpdate): void {
     const kind =
-      update.sessionUpdate === "agent_thought_chunk" || update.sessionUpdate === "agent_thought"
+      update.sessionUpdate === "agent_thought_chunk"
         ? "thought"
-        : update.sessionUpdate === "user_message_chunk" || update.sessionUpdate === "user_message"
+        : update.sessionUpdate === "user_message_chunk"
           ? "user"
           : "assistant";
-    const id = `acp:message:${kind}:${update.messageId}`;
+    if (this.#messageKind !== kind) {
+      this.#messageKind = kind;
+      this.#messageIndex++;
+    }
+    const id = `acp:message:${kind}:${update.messageId ?? `local-${String(this.#messageIndex)}`}`;
     let item = this.#items.get(id);
     if (!item) {
       item =
@@ -158,22 +160,6 @@ export class AcpEventProjection {
     }
     // 完整消息按 ID 替换既有正文，后续分块继续追加。空内容也必须清除旧投影。
     const content = update.content;
-    if (content === undefined) return;
-    if (content === null || Array.isArray(content)) {
-      const previous =
-        item.type === "message" ? item.text : item.type === "reasoning" ? item.summary : "";
-      const text = this.content.replaceText(
-        id,
-        previous,
-        (content ?? []).map(contentText).join(""),
-        kind === "thought",
-      );
-      if (item.type === "message") item = { ...item, text };
-      else if (item.type === "reasoning") item = { ...item, summary: text };
-      this.#items.set(id, item);
-      this.#emitItem("item.started", item);
-      return;
-    }
     const delta = this.content.text(id, contentText(content), kind === "thought");
     if (!delta) return;
     if (item.type === "reasoning") {
@@ -205,15 +191,11 @@ export class AcpEventProjection {
     const status =
       update.status === "in_progress"
         ? "running"
-        : update.status === "cancelled"
-          ? "interrupted"
-          : update.status === "paused"
-            ? "running"
-            : update.status === undefined
-              ? (old?.status ?? "pending")
-              : update.status === "completed" || update.status === "failed"
-                ? update.status
-                : "pending";
+        : update.status == null
+          ? (old?.status ?? "pending")
+          : update.status === "completed" || update.status === "failed"
+            ? update.status
+            : "pending";
     const item: AgentItem = {
       id,
       type: "tool",
@@ -366,11 +348,10 @@ export class AcpEventProjection {
 }
 
 export function contentText(content: ContentBlock): string {
-  if (ContentBlock.isText(content)) return content.text;
-  if (ContentBlock.isResourceLink(content)) return `[${content.name}](${content.uri})`;
-  if (ContentBlock.isResource(content))
+  if (content.type === "text") return content.text;
+  if (content.type === "resource_link") return `[${content.name}](${content.uri})`;
+  if (content.type === "resource")
     return "text" in content.resource ? content.resource.text : "[资源]";
-  if (ContentBlock.isImage(content)) return "[图片]";
-  if (ContentBlock.isAudio(content)) return "[音频]";
-  return "";
+  if (content.type === "image") return "[图片]";
+  return "[音频]";
 }

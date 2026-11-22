@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AgentTurnNotSubmittedError } from "@codexly/core";
 import { fixture, input } from "./provider.test-support.js";
 it("首发配置失败明确未发送，重试沿用同一会话且只执行一次 prompt", async () => {
@@ -7,13 +7,13 @@ it("首发配置失败明确未发送，重试沿用同一会话且只执行一�
   const f = await fixture("claude", prompted);
   f.created.mockReturnValue({
     sessionId: "native",
-    configOptions: [{ configId: "enabled", name: "开关", type: "boolean", currentValue: true }],
+    configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: true }],
   });
   const set = vi
     .fn()
     .mockRejectedValueOnce(new Error("配置失败"))
     .mockResolvedValue({
-      configOptions: [{ configId: "enabled", name: "开关", type: "boolean", currentValue: false }],
+      configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: false }],
     });
   f.app.onRequest(acp.methods.agent.session.setConfigOption, set);
   const task = await f.provider.startTask();
@@ -33,7 +33,7 @@ it("任务已有消息后拒绝旧草稿的首发配置，不覆盖会话或再�
   const f = await fixture("claude");
   f.created.mockReturnValue({
     sessionId: "native",
-    configOptions: [{ configId: "enabled", name: "开关", type: "boolean", currentValue: true }],
+    configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: true }],
   });
   const set = vi.fn(() => ({ configOptions: [] }));
   f.app.onRequest(acp.methods.agent.session.setConfigOption, set);

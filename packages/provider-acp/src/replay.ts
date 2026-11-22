@@ -1,4 +1,4 @@
-import { ContentBlock, SessionUpdate } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
 import { MAX_AGENT_TEXT_BYTES, type AgentItem, type AgentTurn } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
@@ -13,8 +13,7 @@ type UserMessage = Extract<AgentItem, { type: "message" }>;
 type UserUpdate = Extract<SessionUpdate, { sessionUpdate: "user_message" | "user_message_chunk" }>;
 
 function replayUserUpdate(update: SessionUpdate): UserUpdate | undefined {
-  if (SessionUpdate.isUserMessage(update) || SessionUpdate.isUserMessageChunk(update))
-    return update;
+  if (update.sessionUpdate === "user_message_chunk") return update;
   return undefined;
 }
 
@@ -59,15 +58,20 @@ interface ReplayTurn {
   messageId?: string;
 }
 
-/** ACP v2 以会话通知回放历史；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
+/** ACP v1 以会话通知回放历史；按消息边界逐回合生成应用投影，并为文件写入提供背压。 */
 export class AcpReplay {
   readonly #writer: WritableStreamDefaultWriter<SessionUpdate>;
   readonly #saved: Promise<void>;
   #current: AcpEventProjection | undefined;
   #userId: string | undefined;
   #firstUserId: string | undefined;
+  #firstNativeUserId: string | undefined;
+  readonly #syntheticIds = new WeakSet<object>();
   #steeringCount = 0;
   #counter = 0;
+  #wireCounter = 0;
+  #wireRole = "";
+  #wireId = "";
   // 只暂存可能属于应用指令的用户文本前缀，普通消息的后续分块直接进入投影。
   #userPrefix: string | undefined = "";
   constructor(
@@ -214,16 +218,30 @@ export class AcpReplay {
       .catch(() => undefined);
   }
   update(update: SessionUpdate): Promise<void> {
+    if (
+      update.sessionUpdate === "user_message_chunk" ||
+      update.sessionUpdate === "agent_message_chunk" ||
+      update.sessionUpdate === "agent_thought_chunk"
+    ) {
+      const role = update.sessionUpdate;
+      if (role !== this.#wireRole) {
+        this.#wireRole = role;
+        this.#wireId = `local-${String(++this.#wireCounter)}`;
+      }
+      if (!update.messageId) {
+        // 局部 ID 只用于分块归组，不能冒充原生消息身份或写入接受回执。
+        update = { ...update, messageId: this.#wireId };
+        this.#syntheticIds.add(update);
+      }
+    }
     // 会话级通知已由连接层处理，不能截断正在核对的引导正文分块。
     switch (update.sessionUpdate) {
       case "user_message_chunk":
       case "agent_message_chunk":
       case "agent_thought_chunk":
-      case "user_message":
-      case "agent_message":
-      case "agent_thought":
+      case "tool_call":
       case "tool_call_update":
-      case "tool_call_content_chunk":
+      case "plan":
       case "plan_update":
       case "plan_removed":
         return this.#writer.write(update);
@@ -246,7 +264,7 @@ export class AcpReplay {
       const update = next.value;
       const user = replayUserUpdate(update);
       if (user && this.#userId !== undefined && this.#userId !== user.messageId) {
-        const id = user.messageId;
+        const id = user.messageId ?? "user";
         const steering = this.#firstUserId
           ? await findSteering(this.#firstUserId, id, this.#steeringCount)
           : undefined;
@@ -255,9 +273,7 @@ export class AcpReplay {
           let text = "";
           let fragment: UserUpdate | undefined = user;
           while (fragment?.messageId === id) {
-            if (SessionUpdate.isUserMessageChunk(fragment)) text += contentText(fragment.content);
-            else if (fragment.content !== undefined)
-              text = (fragment.content ?? []).map(contentText).join("");
+            text += contentText(fragment.content);
             next = await reader.read();
             if (text.length > MAX_AGENT_TEXT_BYTES * 2) break;
             fragment = next.done ? undefined : replayUserUpdate(next.value);
@@ -271,20 +287,13 @@ export class AcpReplay {
             const turn = this.#finishTurn();
             if (turn) yield turn;
             this.#applyUpdate({
-              sessionUpdate: "user_message",
+              sessionUpdate: "user_message_chunk",
               messageId: id,
-              content: [{ type: "text", text }],
+              content: { type: "text", text },
             });
           }
           continue;
         }
-        const turn = this.#finishTurn();
-        if (turn) yield turn;
-      } else if (
-        user?.sessionUpdate === "user_message" &&
-        this.#userId === undefined &&
-        this.#current
-      ) {
         const turn = this.#finishTurn();
         if (turn) yield turn;
       }
@@ -296,25 +305,14 @@ export class AcpReplay {
   }
 
   #applyUpdate(update: SessionUpdate): void {
-    if (SessionUpdate.isUserMessage(update)) {
-      this.#firstUserId ??= update.messageId;
-      this.#userId = update.messageId;
-      this.#userPrefix = undefined;
-      if (update.content) {
-        update = {
-          ...update,
-          content: update.content.flatMap<ContentBlock>((block) => {
-            if (!ContentBlock.isText(block)) return [block];
-            const text = stripAcpGlobalInstructions(block.text);
-            return text ? [{ ...block, text }] : [];
-          }),
-        };
+    if (update.sessionUpdate === "user_message_chunk") {
+      const id = update.messageId ?? "user";
+      if (this.#firstUserId === undefined) {
+        this.#firstUserId = id;
+        if (!this.#syntheticIds.has(update)) this.#firstNativeUserId = id;
       }
-    } else if (SessionUpdate.isUserMessageChunk(update)) {
-      const id = update.messageId;
-      this.#firstUserId ??= id;
       this.#userId = id;
-      if (this.#userPrefix !== undefined && ContentBlock.isText(update.content)) {
+      if (this.#userPrefix !== undefined && update.content.type === "text") {
         const prefix = this.#userPrefix + update.content.text;
         const text = stripAcpGlobalInstructions(prefix);
         if (text === null) {
@@ -327,10 +325,7 @@ export class AcpReplay {
       } else {
         this.#flushUserPrefix();
       }
-    } else if (
-      update.sessionUpdate === "agent_message_chunk" ||
-      update.sessionUpdate === "agent_message"
-    ) {
+    } else if (update.sessionUpdate === "agent_message_chunk") {
       this.#flushUserPrefix();
     }
     if (!this.#current) {
@@ -364,11 +359,12 @@ export class AcpReplay {
     const result: ReplayTurn = {
       turn: { ...turn, startedAt: null, completedAt: null },
       content: this.#current.content,
-      ...(this.#firstUserId ? { messageId: this.#firstUserId } : {}),
+      ...(this.#firstNativeUserId ? { messageId: this.#firstNativeUserId } : {}),
     };
     this.#current = undefined;
     this.#userId = undefined;
     this.#firstUserId = undefined;
+    this.#firstNativeUserId = undefined;
     this.#steeringCount = 0;
     return result;
   }

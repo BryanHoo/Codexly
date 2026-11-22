@@ -6,6 +6,7 @@ const IDLE_CONNECTION_MS = 30_000;
 export class AcpProviderConnection {
   readonly sessions = new Map<string, string>();
   readonly detached = new Set<string>();
+  readonly #disposable = new Set<string>();
   #pending: Promise<AcpConnection> | undefined;
   #instance: AcpConnection | undefined;
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -27,13 +28,15 @@ export class AcpProviderConnection {
     const agent = this.#instance;
     if (session && agent) {
       // 正在隔离的会话只能退订视图；持久会话无恢复能力时也保留原绑定。
-      // 普通退订保留 Agent 公布的后台工作。v2 的 session/close 会停止它。
+      // v1 未声明 close 时保留暖绑定，避免把未释放的会话重新加载并重复占用容量。
       if (
         agent.isAwaitingCancellation(session) ||
         agent.hasBackgroundWork(session) ||
+        !agent.canCloseSessions ||
         (!ephemeral && !agent.canRestoreSessions)
       ) {
         this.detached.add(taskId);
+        if (ephemeral) this.#disposable.add(taskId);
         return false;
       }
       await agent.closeSession(session);
@@ -86,7 +89,10 @@ export class AcpProviderConnection {
       return;
     }
     // 普通退订不能销毁不可恢复的会话，即使所有视图都关闭或连接已满。
-    if (!agent.canRestoreSessions) return;
+    // 全部绑定均为已结束的临时任务时，无需恢复能力也能整体回收。
+    // 混有持久任务的连接仍保持保守策略，不能丢失无法恢复的上下文。
+    const disposable = this.#allDetached && this.#disposable.size === this.sessions.size;
+    if (!agent.canRestoreSessions && !disposable) return;
     if (this.detached.size && agent.atSessionCapacity) {
       this.#clear();
       agent.close();
@@ -120,6 +126,7 @@ export class AcpProviderConnection {
     this.#instance = undefined;
     this.sessions.clear();
     this.detached.clear();
+    this.#disposable.clear();
     this.onClear();
   }
 

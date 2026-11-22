@@ -1,11 +1,11 @@
-import { testPrompt } from "./acp-v2-peer.test-support.js";
+import { testPrompt } from "./acp-v1-peer.test-support.js";
 import { storageCatalog } from "./storage-catalog.test-support.js";
 import { expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { PassThrough, Writable } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import {
   applicationPreferencesFromLegacy,
   type CatalogOperations,
@@ -79,9 +79,12 @@ async function fixture() {
     const peer = acp
       .agent({ name: "title-test" })
       .onRequest(acp.methods.agent.initialize, () => ({
-        protocolVersion: 2,
-        info: { name: "test-agent", version: "1" },
-        capabilities: { session: {} },
+        protocolVersion: 1,
+        agentInfo: { name: "test-agent", version: "1" },
+        agentCapabilities: {
+          loadSession: true,
+          sessionCapabilities: { resume: {}, close: {}, list: {} },
+        },
       }))
       .onRequest(acp.methods.agent.session.new, () => ({
         sessionId: `session-${String(++session)}`,
@@ -98,7 +101,7 @@ async function fixture() {
         acp.methods.agent.session.prompt,
         testPrompt(async ({ params, client }) => {
           const text = params.prompt
-            .filter((part) => acp.ContentBlock.isText(part))
+            .filter((part) => part.type === "text")
             .map((part) => part.text)
             .join("\n");
           prompts.push({ engine, text });

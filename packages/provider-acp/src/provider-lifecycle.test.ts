@@ -1,28 +1,26 @@
 import { expect, it, vi } from "vitest";
 import { readdir, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentCapabilities } from "@agentclientprotocol/sdk/experimental/v2/unstable";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { AgentCapabilities } from "@agentclientprotocol/sdk/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { fixture, input } from "./provider.test-support.js";
 
 const engine = "acp-test";
 
 it.each(["reopen", "restart"] as const)("历史任务 %s 后保留审核和快速模式选择", async (action) => {
   const f = await fixture(engine, undefined, undefined, {
-    capabilities: { session: {} },
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
     persistConfiguration: true,
   });
   const options = [
-    { configId: "approval", name: "审核", type: "boolean" as const, currentValue: true },
-    { configId: "fast", name: "快速模式", type: "boolean" as const, currentValue: false },
+    { id: "approval", name: "审核", type: "boolean" as const, currentValue: true },
+    { id: "fast", name: "快速模式", type: "boolean" as const, currentValue: false },
   ];
   f.created.mockReturnValue({ sessionId: "native", configOptions: options });
   let current = structuredClone(options);
   const set = vi.fn(({ params }: acp.AgentRequestContext<acp.SetSessionConfigOptionRequest>) => {
     current = current.map((option) =>
-      option.configId === params.configId
-        ? { ...option, currentValue: params.value as boolean }
-        : option,
+      option.id === params.configId ? { ...option, currentValue: params.value as boolean } : option,
     );
     return { configOptions: current };
   });
@@ -64,7 +62,7 @@ it.each([{}])("普通退订保留不可恢复的会话（能力：%j）", async 
 
 it.each(["文件截断", "指针损坏"])("任务打开时从暖连接恢复当前历史：%s", async (damage) => {
   const f = await fixture(engine, undefined, undefined, {
-    capabilities: { session: {} },
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
   });
   const task = await f.provider.startTask();
   await f.provider.startConfiguredTurn(task.id, input);
@@ -90,7 +88,7 @@ it.each(["文件截断", "指针损坏"])("任务打开时从暖连接恢复当�
 
 it("本地已有完整历史时用 resume 恢复原会话，不重放历史", async () => {
   const f = await fixture(engine, undefined, undefined, {
-    capabilities: { session: {} },
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
   });
   const task = await f.provider.startTask();
   await f.provider.startConfiguredTurn(task.id, input);
@@ -111,7 +109,7 @@ it("本地已有完整历史时用 resume 恢复原会话，不重放历史", as
 
 it("本地缺少历史时请求完整重放", async () => {
   const f = await fixture(engine, undefined, undefined, {
-    capabilities: { session: {} },
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
   });
   const task = await f.provider.startTask();
   const stored = f.tasks.get(task.id);
@@ -130,7 +128,7 @@ it("退订关闭会话并保留原生会话身份", async () => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
     const f = await fixture(engine, undefined, undefined, {
-      capabilities: { session: {} },
+      capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
     });
     const task = await f.provider.startTask();
     await f.provider.readSessionState(task.id);
@@ -151,7 +149,10 @@ it("退订关闭会话并保留原生会话身份", async () => {
 });
 
 it("仅 resume 期间新写入的回合不能掩盖旧历史缺口", async () => {
-  const capabilities: AgentCapabilities = { session: {} };
+  const capabilities: AgentCapabilities = {
+    loadSession: true,
+    sessionCapabilities: { resume: {}, close: {}, list: {} },
+  };
   const f = await fixture(engine, undefined, undefined, { capabilities });
   const task = await f.provider.startTask();
   const stored = f.tasks.get(task.id);
@@ -179,7 +180,7 @@ it("仅 resume 期间新写入的回合不能掩盖旧历史缺口", async () =>
 it("回收未关闭会话的容量，不中断其他任务的回合", async () => {
   const prompt = Promise.withResolvers<{ stopReason: "end_turn" }>();
   const f = await fixture(engine, () => prompt.promise, undefined, {
-    capabilities: { session: {} },
+    capabilities: { loadSession: true, sessionCapabilities: { resume: {}, close: {}, list: {} } },
   });
   let next = 0;
   f.created.mockImplementation(() => ({ sessionId: String(++next) }));
@@ -205,4 +206,31 @@ it("回收未关闭会话的容量，不中断其他任务的回合", async () =
   expect(f.connected).toHaveBeenCalledOnce();
   expect(f.resumed).not.toHaveBeenCalled();
   expect(f.closed).toHaveBeenCalledTimes(63);
+});
+
+it("v1 未声明 close 时退订保留暖绑定，不重新 load 或消耗额外会话", async () => {
+  const f = await fixture(engine, undefined, undefined, { capabilities: { loadSession: true } });
+  const task = await f.provider.startTask();
+  await f.provider.readSessionState(task.id);
+  await f.provider.unsubscribeTask(task.id);
+  await f.provider.readSessionState(task.id);
+  expect(f.created).toHaveBeenCalledOnce();
+  expect(f.loaded).not.toHaveBeenCalled();
+  expect(f.closed).not.toHaveBeenCalled();
+});
+
+it("最小 v1 Agent 的临时生成连续超过容量时安全回收独占闲置连接", async () => {
+  const f = await fixture(engine, undefined, undefined, { capabilities: {} });
+  let sequence = 0;
+  f.created.mockImplementation(() => ({
+    sessionId: `temporary-${String(++sequence)}`,
+    configOptions: [],
+  }));
+  for (let i = 0; i < 65; i++) {
+    await expect(
+      f.provider.generateText("生成", undefined, new AbortController().signal),
+    ).resolves.toBe("ACP 回答");
+  }
+  expect(f.connected).toHaveBeenCalledTimes(2);
+  expect(f.closed).not.toHaveBeenCalled();
 });

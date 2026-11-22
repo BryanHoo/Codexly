@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
-import {
-  RequestPermissionSubject,
-  type RequestPermissionRequest,
-  type RequestPermissionResponse,
-} from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type {
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+} from "@agentclientprotocol/sdk/unstable";
 import type { PendingRequest } from "@codexly/protocol";
 import {
   PendingRequestResolutionError,
@@ -41,11 +40,8 @@ export class AcpPermissions {
       return Promise.resolve({ outcome: { outcome: "cancelled" } });
     if (this.#waiting.size >= 64 || input.options.length > 128)
       return Promise.reject(new Error("ACP 审批请求超过容量限制"));
-    const subject = input.subject;
-    const tool =
-      subject && RequestPermissionSubject.isToolCall(subject) ? subject.toolCall : undefined;
-    const command = subject && RequestPermissionSubject.isCommand(subject) ? subject : undefined;
-    const itemId = tool?.toolCallId ?? command?.toolCallId ?? randomUUID();
+    const tool = input.toolCall;
+    const itemId = tool.toolCallId;
     const request: Active = {
       requestId: randomUUID(),
       projectId: this.projectId,
@@ -56,20 +52,13 @@ export class AcpPermissions {
       status: "pending",
       createdAt: new Date().toISOString(),
       expiresAt: null,
-      toolName: input.title,
-      reason: input.description ?? null,
-      input: tool?.rawInput ?? command?.command ?? null,
+      toolName: tool.title ?? tool.name ?? "ACP 工具",
+      reason: null,
+      input: tool.rawInput ?? null,
       availableDecisions: input.options.some((o) => o.kind === "allow_once")
         ? ["allow", "deny"]
         : ["deny"],
-      acpOptions: input.options.flatMap(({ kind, optionId, name }) =>
-        kind === "allow_once" ||
-        kind === "allow_always" ||
-        kind === "reject_once" ||
-        kind === "reject_always"
-          ? [{ kind, optionId, name }]
-          : [],
-      ),
+      acpOptions: input.options.map(({ kind, optionId, name }) => ({ kind, optionId, name })),
     };
     return new Promise((resolve) => {
       const abort = () => {

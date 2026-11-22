@@ -193,14 +193,14 @@ it("回执消息 ID 将断线后回放的正文合并到原回合，并保留已
     await history.append("task", old, "原始问题", undefined, true, "agent-message");
     const replay = new AcpReplay(history, "task");
     await replay.update({
-      sessionUpdate: "user_message",
+      sessionUpdate: "user_message_chunk",
       messageId: "agent-message",
-      content: [{ type: "text", text: "原始问题" }],
+      content: { type: "text", text: "原始问题" },
     });
     await replay.update({
-      sessionUpdate: "agent_message",
+      sessionUpdate: "agent_message_chunk",
       messageId: "reply",
-      content: [{ type: "text", text: "断线后保存的回答" }],
+      content: { type: "text", text: "断线后保存的回答" },
     });
     await replay.complete();
     const page = await history.read("task");
@@ -251,9 +251,9 @@ it.each([
     await history.append("task", next, "改用这个方案", undefined, false, "agent-next");
     const replay = new AcpReplay(history, "task");
     await replay.update({
-      sessionUpdate: "user_message",
+      sessionUpdate: "user_message_chunk",
       messageId: "agent-original",
-      content: [{ type: "text", text: "原始问题" }],
+      content: { type: "text", text: "原始问题" },
     });
     for (const content of [
       { type: "text", text: "改用" } as const,
@@ -267,14 +267,14 @@ it.each([
       });
     }
     await replay.update({
-      sessionUpdate: "agent_message",
+      sessionUpdate: "agent_message_chunk",
       messageId: "agent-reply",
-      content: [{ type: "text", text: "按引导生成的回答" }],
+      content: { type: "text", text: "按引导生成的回答" },
     });
     await replay.update({
-      sessionUpdate: "user_message",
+      sessionUpdate: "user_message_chunk",
       messageId: "agent-next",
-      content: [{ type: "text", text: "改用这个方案" }],
+      content: { type: "text", text: "改用这个方案" },
     });
     await replay.complete();
     expect((await history.read("task")).turns).toMatchObject([
@@ -285,6 +285,49 @@ it.each([
       },
       { id: next.id, items: next.items },
     ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("v1 缺少消息 ID 时按角色段回放，不将局部身份记录为 Agent 回执", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "acp-v1-no-id-"));
+  const history = new AcpHistory(directory);
+  try {
+    const replay = new AcpReplay(history, "task");
+    for (const text of ["问题一", "问题二"]) {
+      await replay.update({ sessionUpdate: "user_message_chunk", content: { type: "text", text } });
+      await replay.update({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "答" },
+      });
+      await replay.update({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "案" },
+      });
+    }
+    await replay.complete();
+    const original = (await history.read("task")).turns;
+    expect(original).toHaveLength(2);
+    expect(original[0]?.items).toMatchObject([{ text: "问题一" }, { text: "答案" }]);
+    for await (const entry of history.entries("task")) expect(entry.acpMessageId).toBeUndefined();
+    const again = new AcpReplay(history, "task");
+    for (const [i, text] of ["问题一", "问题二"].entries()) {
+      await again.update({
+        sessionUpdate: "user_message_chunk",
+        messageId: `native-${String(i)}`,
+        content: { type: "text", text },
+      });
+      await again.update({
+        sessionUpdate: "agent_message_chunk",
+        messageId: `reply-${String(i)}`,
+        content: { type: "text", text: "答案" },
+      });
+    }
+    await again.complete();
+    expect((await history.read("task")).turns.map((turn) => turn.id)).toEqual(
+      original.map((turn) => turn.id),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

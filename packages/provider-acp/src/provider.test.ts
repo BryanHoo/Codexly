@@ -1,10 +1,10 @@
 import { projectAcpConfig } from "./session-options.js";
-import { testPrompt } from "./acp-v2-peer.test-support.js";
+import { testPrompt } from "./acp-v1-peer.test-support.js";
 import { rm, writeFile, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { it, expect, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEvent } from "@codexly/core";
 import type { AgentTurnOptions, AcpConfigOption } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
@@ -88,7 +88,7 @@ it("会话创建响应前与历史重放中的用量进入快照，不伪造历�
 it("完整ACP会话状态包含提前到达的命令，配置变更更新事件和历史快照", async () => {
   const f = await fixture("claude");
   const config: acp.SessionConfigOption[] = [
-    { configId: "mode", name: "模式", type: "boolean", currentValue: false },
+    { id: "mode", name: "模式", type: "boolean", currentValue: false },
   ];
   f.created.mockImplementationOnce(async ({ client }) => {
     await client.notify(acp.methods.client.session.update, {
@@ -119,7 +119,7 @@ it("完整ACP会话状态包含提前到达的命令，配置变更更新事件�
     };
   });
   const updated: acp.SessionConfigOption[] = [
-    { configId: "mode", name: "模式", type: "boolean", currentValue: true },
+    { id: "mode", name: "模式", type: "boolean", currentValue: true },
   ];
   f.app.onRequest(acp.methods.agent.session.setConfigOption, () => ({ configOptions: updated }));
   const events: AgentProviderEvent[] = [];
@@ -275,8 +275,7 @@ it("ACP 权限经应用快照和 resolution 往返，原始 ID 不改写", async
   const f = await fixture("codex", async ({ params, client }) => {
     const result = await client.request(acp.methods.client.session.requestPermission, {
       sessionId: params.sessionId,
-      title: "操作确认",
-      subject: { type: "tool_call", toolCall: { toolCallId: "tool", title: "写入" } },
+      toolCall: { toolCallId: "tool", title: "写入" },
       options: [{ optionId: "once", name: "允许一次", kind: "allow_once" }],
     });
     outcome.resolve(result);
@@ -315,7 +314,7 @@ it("文件附件通过真实 ACP prompt 发送稳定资源链接", async () => {
     {} as AgentTurnOptions,
   );
   const content = await prompt.promise;
-  const file = content.find(acp.ContentBlock.isResourceLink);
+  const file = content.find((block) => block.type === "resource_link");
   if (!file) throw new Error("没有资源链接");
   await rm(path);
   expect(await readFile(fileURLToPath(file.uri), "utf8")).toBe("上传内容");
@@ -349,7 +348,7 @@ it("辅助生成直接返回 ACP 回答，不创建用户任务；预先取消�
 it("会话设置仅提交已公布选项，返回完整依赖配置，不在本地猜测模型参数", async () => {
   const f = await fixture("codex");
   const option: acp.SessionConfigOption = {
-    configId: "model",
+    id: "model",
     name: "模型",
     type: "select",
     category: "model",
@@ -362,7 +361,7 @@ it("会话设置仅提交已公布选项，返回完整依赖配置，不在本�
   f.created.mockReturnValueOnce({ sessionId: "native", configOptions: [option] });
   const changed: acp.SessionConfigOption[] = [
     { ...option, currentValue: "b" },
-    { configId: "effort", name: "推理", type: "boolean", currentValue: false },
+    { id: "effort", name: "推理", type: "boolean", currentValue: false },
   ];
   const set = vi.fn(() => ({ configOptions: changed }));
   f.app.onRequest(acp.methods.agent.session.setConfigOption, set);
@@ -469,13 +468,13 @@ it("首发原始配置先于 prompt 生效，覆盖失效全局默认值且不�
   );
   f.created.mockReturnValue({
     sessionId: "native",
-    configOptions: [{ configId: "enabled", name: "开关", type: "boolean", currentValue: true }],
+    configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: true }],
   });
   f.app.onRequest(acp.methods.agent.session.setConfigOption, ({ params }) => {
     order.push("config");
     expect(params.value).toBe(false);
     return {
-      configOptions: [{ configId: "enabled", name: "开关", type: "boolean", currentValue: false }],
+      configOptions: [{ id: "enabled", name: "开关", type: "boolean", currentValue: false }],
     };
   });
   const task = await f.provider.startTask();

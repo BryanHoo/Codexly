@@ -34,7 +34,7 @@ it("图片需协商能力，支持后发送标准 base64 image", async () => {
       images: [{ path: source, mediaType: "image/png" as const, detail: "auto" as const }],
     };
     await expect(createAcpPrompt(input, {}, join(root, "saved"))).rejects.toThrow("图片");
-    expect(await createAcpPrompt(input, { image: {} }, join(root, "saved"))).toEqual([
+    expect(await createAcpPrompt(input, { image: true }, join(root, "saved"))).toEqual([
       { type: "text", text: "正文" },
       { type: "image", mimeType: "image/png", data: "AQID" },
     ]);

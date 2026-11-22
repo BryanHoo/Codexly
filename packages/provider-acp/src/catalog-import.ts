@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isAbsolute } from "node:path";
-import { methods } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import { methods } from "@agentclientprotocol/sdk/unstable";
 import type { LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { AgentEngine } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
@@ -13,7 +13,7 @@ export async function importAcpCatalog(
   signal?: AbortSignal,
 ): Promise<void> {
   signal?.throwIfAborted();
-  if (!connection.initialization.capabilities?.session)
+  if (!connection.initialization.agentCapabilities?.sessionCapabilities?.list)
     throw new Error("ACP agent 不支持历史目录发现");
   const [projects, bindings] = await Promise.all([
     store.catalog("project.list", undefined),

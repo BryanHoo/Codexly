@@ -16,7 +16,7 @@ it("预览使用项目目录，关闭临时会话且不提供持久写入端口"
     },
   ];
   const connection = {
-    initialization: { capabilities: { session: { close: true } } },
+    initialization: { capabilities: { sessionCapabilities: { close: true } } },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "preview", configOptions: options })),
     setConfigOption: vi.fn(() =>
       Promise.resolve({ configOptions: [{ ...options[0], currentValue: "b" }] }),
@@ -35,7 +35,7 @@ it("预览使用项目目录，关闭临时会话且不提供持久写入端口"
 it("配置拒绝时仍关闭预览会话", async () => {
   const closeSession = vi.fn(() => Promise.resolve({}));
   const connection = {
-    initialization: { capabilities: { session: { close: true } } },
+    initialization: { capabilities: { sessionCapabilities: { close: true } } },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "preview", configOptions: [] })),
     closeSession,
   };
@@ -67,7 +67,7 @@ it("模型切换丢弃旧依赖值并返回可交付首发的完整当前值", a
     options: [{ value: "low", name: "低" }],
   };
   const connection = {
-    initialization: { capabilities: { session: { close: true } } },
+    initialization: { capabilities: { sessionCapabilities: { close: true } } },
     newSession: vi.fn(() => Promise.resolve({ sessionId: "p", configOptions: [model, effort] })),
     setConfigOption: vi.fn(() =>
       Promise.resolve({ configOptions: [{ ...model, currentValue: "b" }] }),

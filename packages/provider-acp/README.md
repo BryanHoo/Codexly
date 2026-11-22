@@ -1,10 +1,12 @@
 # 共享 ACP Provider
 
-Web 与桌面共用官方 `@agentclientprotocol/sdk/experimental/v2/unstable` 入口，所有 Agent 连接均使用 ACP v2。连接要求 `protocolVersion: 2`。核心交互按官方 v2 会话规则运行，供应商设置依赖 Agent 声明的可选 `providers/*` 能力。SDK 使用工作区固定版本。Web 和桌面都从 ACP Agent 目录按需安装适配器。
+Web 与桌面共用官方 SDK 2.8.0 的 ACP v1 实现，握手固定为 `protocolVersion: 1`，不使用 v2 预览入口。基础传输及通用内容使用稳定 `@agentclientprotocol/sdk` 入口；供应商设置、布尔配置、无回放恢复及关闭等可选功能通过 v1 `@agentclientprotocol/sdk/unstable` 类型入口接入，只有 Agent 明确声明后才调用。SDK 包版本与线上协议版本分别管理，不需要为使用 v1 降级 SDK。Web 和桌面都从 ACP Agent 目录按需安装适配器。
 
 Web CLI 通过 `AcpApplicationRuntime` 装配运行时，桌面通过 `acp-host` 和 Tauri IPC 使用同一套实现。Agent 负责会话执行和回放，Codexly 管理项目、任务身份和本地历史投影。
 
-历史恢复统一使用 ACP v2 的会话回放。Agent 确认会话被其他客户端占用时，两端进入只读状态并分页展示已提交的 ACP 历史。占用期间只能查看此前同步的内容。释放后重新打开任务可同步历史。 [ACP v2 会话规范](https://agentclientprotocol.com/protocol/v2/session-setup)
+历史恢复使用 ACP v1 的 `session/load` 会话回放，以成功响应作为回放边界。Agent 确认会话被其他客户端占用时，两端进入只读状态并分页展示已提交的 ACP 历史。占用期间只能查看此前同步的内容。释放后重新打开任务可同步历史。 [ACP v1 会话规范](https://agentclientprotocol.com/protocol/v1/session-setup)
+
+实现依据：[v1 初始化](https://agentclientprotocol.com/protocol/v1/initialization)、[v1 回合](https://agentclientprotocol.com/protocol/v1/prompt-turn)、[v1 会话恢复](https://agentclientprotocol.com/protocol/v1/session-setup)和[官方 TypeScript 客户端示例](https://github.com/agentclientprotocol/typescript-sdk/blob/main/src/examples/client.ts)。保持流式背压和能力协商，不自动重试已经提交的 prompt；v1 不提供 v2 后台清单或单项取消。
 
 ## 接口
 
@@ -20,9 +22,9 @@ Web CLI 通过 `AcpApplicationRuntime` 装配运行时，桌面通过 `acp-host`
 - `AcpPermissions`：保留原始授权选项并绑定项目/任务/回合/条目；精确回传 optionId；旧按钮仅兼容单次允许/拒绝，撤销和关闭清理等待。
 - `AcpHistory`：逐回合写入 JSONL，以原子指针公开已提交字节；每页最多 20 回合、最多读取 4 MiB。失败重放保留旧版本，游标绑定任务及版本。旧版本清理、崩溃残留写锁恢复尚待生命周期接入。
 - `AcpAgentProvider`：两种引擎共用文本回合、新会话绑定、旧会话恢复、流式事件及终态持久化；关闭等待历史提交。已提供临时辅助会话、模型配置发现、会话选项设置与本地任务管理。
-- `AcpConnection`：使用官方 SDK 连接消息流，拒绝同会话重叠 prompt；旧会话加载失败直接返回错误，不创建替代会话。握手有超时，prompt 不自动重试。异步投影形成背压，恢复等待 `replay_complete`，回合等待前台 `state_update`，两者都等待此前投影处理完成。
+- `AcpConnection`：使用官方 SDK 连接消息流，拒绝同会话重叠 prompt；旧会话加载失败直接返回错误，不创建替代会话。握手有超时，prompt 不自动重试。异步投影形成背压，恢复等待 `session/load` 响应，回合等待 `session/prompt` 返回原始 `stopReason`，两者都等待此前投影处理完成。v1 不发送 v2 幂等字段或伪造消息接受回执；本地提交记录继续保护结果未知的发送。缺少消息 ID 时按连续角色段分配局部身份，重放依靠顺序及完整指纹恢复已有身份。
 - `AcpProcess`：以独立参数启动配置好的 ACP 可执行程序，使用 stdio；关闭时清理进程树。macOS 已验证，Windows/Linux 需要对应平台验证。
-- `AcpEventProjection`：将 ACP 更新映射到应用事件；只更新目标条目，显式快照和终态时才复制回合。配置和命令由后续 Provider 消费。
+- `AcpEventProjection`：消费 v1 `tool_call` / `tool_call_update` 和 `plan`，Diff 使用 `path`、`oldText`、`newText`，空新正文保持修改语义，不推断删除；将 ACP 更新映射到应用事件；只更新目标条目，显式快照和终态时才复制回合。配置和命令由后续 Provider 消费。
 - `bindAcpTask`：保留应用 ID、原引擎和不透明的 session ID；没有历史恢复能力时显式失败。
 - `migrateAcpSettings`：保留完整旧配置，只映射 agent 已公布的精确选项。未映射配置可在后续发现能力后重新处理；不推断权限等价关系。本地记录可能含敏感配置，不得进入诊断日志或模型上下文。
 

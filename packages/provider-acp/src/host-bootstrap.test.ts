@@ -1,5 +1,5 @@
 import { storageCatalog } from "./storage-catalog.test-support.js";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { expect, it, vi } from "vitest";
 import { PassThrough, Writable } from "node:stream";
 import { mkdtemp, readFile, writeFile, mkdir, rm } from "node:fs/promises";
@@ -43,7 +43,7 @@ for (const explicit of [false, true])
       const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>(),
         b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
       const option: acp.SessionConfigOption = {
-        configId: "model",
+        id: "model",
         category: "model",
         name: "Model",
         type: "select",
@@ -56,9 +56,12 @@ for (const explicit of [false, true])
       const peer = acp
         .agent({ name: "test" })
         .onRequest(acp.methods.agent.initialize, () => ({
-          protocolVersion: 2,
-          info: { name: "test-agent", version: "1" },
-          capabilities: { session: {} },
+          protocolVersion: 1,
+          agentInfo: { name: "test-agent", version: "1" },
+          agentCapabilities: {
+            loadSession: true,
+            sessionCapabilities: { resume: {}, close: {}, list: {} },
+          },
         }))
         .onRequest(acp.methods.agent.session.new, () => ({
           sessionId: "settings",

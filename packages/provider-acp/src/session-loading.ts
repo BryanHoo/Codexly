@@ -1,5 +1,5 @@
 import type { AcpConfigOption } from "@codexly/protocol";
-import { RequestError } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import { RequestError } from "@agentclientprotocol/sdk";
 import type { LocalTask, LocalCatalogStore } from "@codexly/core";
 import type { AcpConnection } from "./connection.js";
 import type { AcpHistory } from "./history.js";
@@ -127,7 +127,7 @@ export async function loadAcpSession(
         const replay = new AcpReplay(source.history, task.id);
         source.replays.set(sessionId, replay);
         try {
-          await connection.resumeSession({ ...request, replayFrom: { type: "start" } });
+          await connection.resumeSession(request, true);
           await replay.complete();
         } catch (error) {
           await replay.abort(error).catch(() => undefined);

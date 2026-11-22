@@ -1,4 +1,4 @@
-import type { UpdateSessionNotification } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import type { SessionNotification } from "@agentclientprotocol/sdk/unstable";
 import type { AcpEventProjection } from "./event-projection.js";
 import type { AcpReplay } from "./replay.js";
 
@@ -9,7 +9,7 @@ export function taskForAcpSession(sessions: ReadonlyMap<string, string>, session
 }
 
 export async function routeAcpUpdate(
-  { sessionId, update }: UpdateSessionNotification,
+  { sessionId, update }: SessionNotification,
   historical: boolean,
   sessions: ReadonlyMap<string, string>,
   replays: ReadonlyMap<string, AcpReplay>,
@@ -20,8 +20,7 @@ export async function routeAcpUpdate(
     return;
   }
   // 实时用户回显可能含应用指令或由 Agent 展开的附件，沿用原始用户输入。
-  if (update.sessionUpdate === "user_message" || update.sessionUpdate === "user_message_chunk")
-    return;
+  if (update.sessionUpdate === "user_message_chunk") return;
   const task = taskForAcpSession(sessions, sessionId);
   const projection = task ? active.get(task) : undefined;
   if (projection?.running) projection.update(update);

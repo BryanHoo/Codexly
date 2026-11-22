@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import type { AcpSessionState } from "@codexly/protocol";
 import type {
   AgentProvider,
   AgentProviderTaskSnapshot,
@@ -51,12 +53,14 @@ export async function readTaskWithCheckpoint<Checkpoint>(
   try {
     let revision = 0;
     let structuralRevision = 0;
+    let acpUpdates: { latestState?: AcpSessionState } = {};
     // 只保存有界的增量身份，不保留 token 正文或增长中的事件队列。
     const deltaItems = new Set<string>();
     unsubscribe = provider.subscribeEvents((event) => {
       if (event.taskId !== taskId) return;
       revision++;
-      if (event.type !== "message.delta") structuralRevision++;
+      if (event.type === "acp.session.updated") acpUpdates.latestState = event.payload.state;
+      else if (event.type !== "message.delta") structuralRevision++;
       else if (deltaItems.size < 1024) deltaItems.add(JSON.stringify([event.turnId, event.itemId]));
       else structuralRevision++;
     });
@@ -67,6 +71,7 @@ export async function readTaskWithCheckpoint<Checkpoint>(
       const before = revision;
       const structureBefore = structuralRevision;
       deltaItems.clear();
+      acpUpdates = {};
       let captured: { snapshot: AgentProviderTaskSnapshot; checkpoint: Checkpoint } | undefined;
       let accepting = true;
       const snapshotRead: NonNullable<ReadAgentTaskInput["snapshotRead"]> = {
@@ -82,6 +87,13 @@ export async function readTaskWithCheckpoint<Checkpoint>(
         capture(snapshot) {
           check();
           if (!accepting || captured || structureBefore !== structuralRevision) return;
+          // ACP 通知携带完整会话状态。快照已同步包含最新状态时，可同时覆盖冷加载期间的这些通知。
+          if (
+            acpUpdates.latestState !== undefined &&
+            (snapshot.runtime !== "acp" ||
+              !isDeepStrictEqual(snapshot.acpSession, acpUpdates.latestState))
+          )
+            return;
           // Provider 保证当前正文覆盖层与此调用同步；不能在此与 checkpoint 之间 await。
           captured = { snapshot, checkpoint: captureCheckpoint(snapshot) };
         },
@@ -104,6 +116,7 @@ export async function readTaskWithCheckpoint<Checkpoint>(
           input.summary === true &&
           snapshot !== undefined &&
           structureBefore === structuralRevision &&
+          acpUpdates.latestState === undefined &&
           !snapshot.turns.some((turn) =>
             turn.items.some((item) => deltaItems.has(JSON.stringify([turn.id, item.id]))),
           );

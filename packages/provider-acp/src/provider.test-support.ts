@@ -1,9 +1,9 @@
-import { testPrompt, type Reason } from "./acp-v2-peer.test-support.js";
+import { testPrompt, type Reason } from "./acp-v1-peer.test-support.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { LocalTask, LocalCatalogStore, CatalogOperations } from "@codexly/core";
 import type { AgentEngine, AcpConfigOption } from "@codexly/protocol";
 import { AcpConnection } from "./connection.js";
@@ -27,7 +27,7 @@ export async function fixture(
     options: AcpConfigOption[],
   ) => Promise<AcpConfigOption[]>,
   management?: {
-    capabilities?: acp.InitializeResponse["capabilities"];
+    capabilities?: acp.InitializeResponse["agentCapabilities"];
     steering?: boolean;
     persistConfiguration?: boolean;
     deleteSession?: (sessionId: string) => Record<string, never> | Promise<Record<string, never>>;
@@ -89,12 +89,13 @@ export async function fixture(
   const app = acp
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
-      protocolVersion: 2,
-      info: management?.steering
+      protocolVersion: 1,
+      agentInfo: management?.steering
         ? { name: "@agentclientprotocol/codex-acp", version: "2.8.0" }
         : { name: "test-agent", version: "1" },
-      capabilities: management?.capabilities ?? {
-        session: {},
+      agentCapabilities: management?.capabilities ?? {
+        loadSession: true,
+        sessionCapabilities: { resume: {}, close: {}, list: {} },
       },
       ...(management?.steering ? { _meta: { steering: { supported: true } } } : {}),
     }))
@@ -104,19 +105,8 @@ export async function fixture(
       if (!management?.deleteSession) throw new Error("未配置测试删除处理器");
       return management.deleteSession(params.sessionId);
     })
-    .onRequest(acp.methods.agent.session.resume, async (context) => {
-      const result = context.params.replayFrom ? await loaded(context) : resumed(context);
-      if (context.params.replayFrom)
-        await context.client.notify(acp.methods.client.session.update, {
-          sessionId: context.params.sessionId,
-          update: { sessionUpdate: "replay_complete" },
-        });
-      await context.client.notify(acp.methods.client.session.update, {
-        sessionId: context.params.sessionId,
-        update: { sessionUpdate: "state_update", state: "idle" },
-      });
-      return result;
-    })
+    .onRequest(acp.methods.agent.session.load, loaded)
+    .onRequest(acp.methods.agent.session.resume, resumed)
     .onRequest(
       acp.methods.agent.session.prompt,
       testPrompt(async (context) => {

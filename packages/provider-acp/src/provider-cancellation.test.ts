@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import * as acp from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import * as acp from "@agentclientprotocol/sdk/unstable";
 import { fixture, input } from "./provider.test-support.js";
 import type { AcpConnection } from "./connection.js";
 
@@ -67,11 +67,7 @@ it("中断准确回合时取消其待审批，保留其他会话审批与两份�
         acp.methods.client.session.requestPermission,
         {
           sessionId: params.sessionId,
-          title: "操作确认",
-          subject: {
-            type: "tool_call",
-            toolCall: { toolCallId: `tool-${params.sessionId}`, title: "写入" },
-          },
+          toolCall: { toolCallId: `tool-${params.sessionId}`, title: "写入" },
           options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
         },
         params.sessionId === "native-one"
@@ -91,11 +87,7 @@ it("中断准确回合时取消其待审批，保留其他会话审批与两份�
           acp.methods.client.session.requestPermission,
           {
             sessionId: params.sessionId,
-            title: "操作确认",
-            subject: {
-              type: "tool_call",
-              toolCall: { toolCallId: `late-${params.sessionId}`, title: "迟到写入" },
-            },
+            toolCall: { toolCallId: `late-${params.sessionId}`, title: "迟到写入" },
             options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
           },
           { cancellationSignal: permissionCancellation.signal },
@@ -156,8 +148,7 @@ it("旧回合结束与取消通知等待并发时，新回合等待取消写出�
       if (++prompts === 1) return completed.promise;
       await client.request(acp.methods.client.session.requestPermission, {
         sessionId: params.sessionId,
-        title: "操作确认",
-        subject: { type: "tool_call", toolCall: { toolCallId: "next", title: "继续写入" } },
+        toolCall: { toolCallId: "next", title: "继续写入" },
         options: [{ optionId: "once", kind: "allow_once", name: "允许一次" }],
       });
       return { stopReason: "end_turn" };

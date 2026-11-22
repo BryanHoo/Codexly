@@ -1,54 +1,39 @@
 import { expect, it } from "vitest";
 import { projectAcpFileChanges } from "./file-changes.js";
-import { AcpEventProjection } from "./event-projection.js";
 
-const patch = "--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new\n";
-
-it.each([undefined, "", "--- a/other.ts\n+++ b/other.ts\n@@ -1 +1 @@\n-old\n+other\n"])(
-  "同批后续记录没有可用补丁时保留已有正文并更新元数据：%s",
-  (text) => {
-    const projection = new AcpEventProjection("task", "turn", () => {
-      // 本用例检查最终快照，无需收集增量事件。
-    });
-    projection.update({
-      sessionUpdate: "tool_call_update",
-      toolCallId: "edit",
-      status: "completed",
-      content: [
-        {
-          type: "diff",
-          changes: [{ operation: "modify", path: "/repo/a.ts" }],
-          patch: { format: "git_patch", text: patch },
-        },
-        {
-          type: "diff",
-          changes: [{ operation: "modify", path: "/repo/a.ts", mimeType: "text/typescript" }],
-          ...(text !== undefined ? { patch: { format: "git_patch" as const, text } } : {}),
-        },
-      ],
-    });
-    const files = projection.finish("end_turn").items.find((item) => item.type === "file_change");
-    expect(files?.changes).toEqual([
-      {
-        path: "/repo/a.ts",
-        kind: "update",
-        diff: patch,
-        acp: { operation: "modify", mimeType: "text/typescript" },
-      },
-    ]);
-  },
-);
-
-it("后续可用补丁替换已有正文", () => {
-  const nextPatch = patch.replace("+new", "+latest");
-  const changes = projectAcpFileChanges(
-    [patch, nextPatch].map((text) => ({
-      type: "diff",
-      changes: [{ operation: "modify", path: "/repo/a.ts" }],
-      patch: { format: "git_patch", text },
-    })),
-    256 * 1024,
+it("v1 Diff 保留中文路径，区分创建和清空，不能把空文件推断为删除", () => {
+  const result = projectAcpFileChanges(
+    [
+      { type: "diff", path: "/repo/新建.ts", newText: "new" },
+      { type: "diff", path: "/repo/清空.ts", oldText: "old", newText: "" },
+    ],
+    65536,
   );
-  expect(changes).toHaveLength(1);
-  expect(changes[0]?.diff).toBe(nextPatch);
+  expect(result.map(({ path, kind }) => ({ path, kind }))).toEqual([
+    { path: "/repo/新建.ts", kind: "create" },
+    { path: "/repo/清空.ts", kind: "update" },
+  ]);
+  expect(result[0]?.diff).toContain("+new");
+  expect(result[1]?.diff).toContain("-old");
+});
+
+it("超预算保留路径，同一路径使用最新正文，文件数量有界", () => {
+  const result = projectAcpFileChanges(
+    [
+      { type: "diff", path: "/a", oldText: "old", newText: "new" },
+      { type: "diff", path: "/a", oldText: "new", newText: "latest" },
+    ],
+    65536,
+  );
+  expect(result).toHaveLength(1);
+  expect(result[0]?.diff).toContain("+latest");
+  expect(
+    projectAcpFileChanges([{ type: "diff", path: "/a", newText: "large".repeat(100) }], 1)[0],
+  ).toEqual({ path: "/a", kind: "create", diff: "" });
+  expect(
+    projectAcpFileChanges(
+      Array.from({ length: 200 }, (_, i) => ({ type: "diff", path: `/${String(i)}`, newText: "" })),
+      0,
+    ),
+  ).toHaveLength(128);
 });

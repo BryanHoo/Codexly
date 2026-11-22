@@ -1,4 +1,4 @@
-import { RequestError } from "@agentclientprotocol/sdk/experimental/v2/unstable";
+import { RequestError } from "@agentclientprotocol/sdk";
 import {
   localTaskMetadata,
   type LocalTask,
