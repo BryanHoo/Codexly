@@ -21,6 +21,7 @@ import {
 } from "../core/trace.js";
 import { CodeBlock, CodeBlockContent } from "../core/code-block.js";
 import { useAgentTranslation } from "./locale.js";
+import { renderAcpToolContent } from "./acp-tool-content.js";
 import {
   OperationDetailsContext,
   ToolDetails,
@@ -183,14 +184,19 @@ export type ToolOutputProps = HTMLAttributes<HTMLDivElement> & {
 export function ToolOutput({ errorText, output, ...props }: ToolOutputProps) {
   const { t } = useAgentTranslation();
   if (output === undefined && errorText === undefined) return null;
+  // 内容仍由现有快照和增量提供；展开工具详情时就地展示，不解析 JSON 字符串或请求资源正文。
+  const content =
+    errorText === undefined
+      ? isValidElement(output)
+        ? output
+        : renderAcpToolContent(output)
+      : null;
   return (
     <div {...props}>
       <span className="mb-1 block text-label">
         {t(errorText === undefined ? "agentComponents.toolResult" : "agentComponents.toolError")}
       </span>
-      {isValidElement(output) && errorText === undefined ? (
-        output
-      ) : (
+      {content ?? (
         <CodeBlock
           size="sm"
           data-language="json"

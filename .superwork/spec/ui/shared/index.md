@@ -1,5 +1,11 @@
 # 两端共享 React 组件
 
+## ACP 工具内容展示
+
+- 两端工具结果共用 `agent/tool.tsx` 与 `agent/acp-tool-content.tsx`。只识别 ACP content 包装中的文本、嵌入文本资源和资源链接；保留顺序与空白，React 转义正文。未知、混合、无效或超过 128 块的结果整体回退原有 JSON，不能悄悄丢掉 diff、终端或未来类型。
+- 链接仅允许无凭据的 HTTP(S) 用户主动导航，本地和自定义 URI 保留文字；不能在渲染期间自动读取资源、加载媒体或发起 RPC。错误与原始 React 元素沿用原有展示优先级，不解析 JSON 字符串猜测协议结构。
+- 回归入口：`packages/ui/src/agent/acp-tool-content.test.tsx` 与 `desktop/tests/browser/acp-tool-content.browser.test.tsx`，覆盖两端包装、Chromium/WebKit、窄宽屏、明暗主题、长路径、焦点及未知格式回退。完整能力边界见 [ACP 接入核对](../../../../docs/acp-integration-audit.md)。
+
 ## 位置与职责
 
 `packages/ui/src/agent` 维护消息、代码与增量 Markdown，`src/core` 维护分屏、文档工作区、编辑器等公共组件，`src/lib` 维护包内辅助逻辑。消费入口以本包 `package.json` 的 exports 为准。
