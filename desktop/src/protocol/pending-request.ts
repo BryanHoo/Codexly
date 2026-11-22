@@ -235,6 +235,7 @@ export const UserInputPendingRequestSchema = Type.Object(
 );
 
 const McpElicitationPendingRequestProperties = {
+  acp: Type.Optional(Type.Literal(true)),
   ...PendingRequestIdentityProperties,
   message: Type.String({ minLength: 1 }),
   serverName: Type.String({ minLength: 1 }),
@@ -245,6 +246,8 @@ const McpFormElicitationPendingRequestSchema = Type.Object(
   {
     ...McpElicitationPendingRequestProperties,
     fields: Type.Array(McpElicitationFieldSchema),
+    formTitle: Type.Optional(Type.String()),
+    formDescription: Type.Optional(Type.String()),
     mode: Type.Literal("form"),
   },
   { additionalProperties: false },
@@ -254,6 +257,7 @@ const McpUrlElicitationPendingRequestSchema = Type.Object(
   {
     ...McpElicitationPendingRequestProperties,
     mode: Type.Literal("url"),
+    externalStatus: Type.Optional(Type.Union([Type.Literal("opened"), Type.Literal("completed")])),
     url: Type.String({ minLength: 1 }),
   },
   { additionalProperties: false },

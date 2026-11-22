@@ -24,15 +24,19 @@ pub async fn resolve_pending_request(
     resolution: Value,
     idempotency_key: String,
     acp: Option<bool>,
+    acp_request_type: Option<String>,
 ) -> Result<Value, Value> {
-    resolve(
-        app,
-        request,
-        resolution,
-        idempotency_key,
-        acp.unwrap_or(false),
-    )
-    .await
+    let acp_type = match (acp.unwrap_or(false), acp_request_type.as_deref()) {
+        (true, Some("mcp_elicitation")) => Some("mcp_elicitation"),
+        (true, None) => Some("tool_approval"),
+        (false, None) => None,
+        _ => {
+            return Err(
+                serde_json::json!({"code":"INVALID_REQUEST", "message":"Invalid ACP request type"}),
+            );
+        }
+    };
+    resolve(app, request, resolution, idempotency_key, acp_type).await
 }
 
 impl PendingResolutionReference {
@@ -52,7 +56,7 @@ pub async fn resolve(
     reference: PendingResolutionReference,
     resolution: Value,
     key: String,
-    acp: bool,
+    acp_type: Option<&'static str>,
 ) -> Result<Value, Value> {
     let state = app.state::<super::state::AppState>();
     let worker_app = app.clone();
@@ -67,8 +71,22 @@ pub async fn resolve(
         &resolution,
         &key,
         async move {
-            if acp {
+            if let Some(acp_type) = acp_type {
                 // 与旧审批复用同一幂等登记和独立预算；取消 WebView 等待不重复发出授权。
+                let mut wire_resolution = (*worker_resolution).clone();
+                if acp_type == "mcp_elicitation" {
+                    // 桌面沿用原生待办的省略格式。ACP 宿主使用两端通用的结构化回应契约。
+                    let fields = wire_resolution
+                        .as_object_mut()
+                        .ok_or(AppError::CodexRequestFailed)?;
+                    let default_content =
+                        if fields.get("action").and_then(Value::as_str) == Some("accept") {
+                            serde_json::json!({})
+                        } else {
+                            Value::Null
+                        };
+                    fields.entry("content").or_insert(default_content);
+                }
                 let request = super::acp_task_commands::acp_task_request(
                     worker_app,
                     worker_reference.project_id.clone(),
@@ -79,8 +97,8 @@ pub async fn resolve(
                         "turnId":worker_reference.turn_id,
                         "itemId":worker_reference.item_id,
                         "requestId":worker_reference.request_id,
-                        "type":"tool_approval",
-                        "resolution":*worker_resolution,
+                        "type":acp_type,
+                        "resolution":wire_resolution,
                     }),
                     None,
                 )

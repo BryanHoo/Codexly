@@ -31,3 +31,5 @@ export const AcpSettingsMigrationSchema = Type.Object(
   { additionalProperties: false },
 );
 export type AcpSettingsMigration = Static<typeof AcpSettingsMigrationSchema>;
+
+export { parseElicitationUrl } from "./mcp-elicitation.js";

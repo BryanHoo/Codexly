@@ -283,8 +283,10 @@ describe("PendingRequestCard", () => {
     const urlMarkup = renderToStaticMarkup(
       <PendingRequestCard interactive onResolve={vi.fn()} request={url} />,
     );
-    expect(urlMarkup).toContain('target="_blank"');
-    expect(urlMarkup).toContain('rel="noreferrer noopener"');
+    expect(urlMarkup).toContain("目标域名");
+    expect(urlMarkup).toContain("https://github.com/login/oauth/authorize");
+    expect(urlMarkup).not.toContain('href="https://');
+    expect(urlMarkup).toContain("同意并打开链接");
     expect(urlMarkup).toContain("连接 GitHub 账号");
   });
 

@@ -330,9 +330,11 @@ export class TauriSidebarClient extends TauriTaskManagementClient {
     resolution: PendingRequestResolution<T>,
     options: Readonly<{ idempotencyKey: string }>,
   ): Promise<ResolvePendingRequestResponse> {
+    const acpElicitation = request.type === "mcp_elicitation" && request.acp === true;
     return this.call("resolve_pending_request", {
       // 迁移期间按请求自身的 ACP 标记分流，不能根据当前选中的全局引擎猜测。
       ...(request.type === "tool_approval" && request.acpOptions !== undefined ? { acp: true } : {}),
+      ...(acpElicitation ? { acp: true, acpRequestType: "mcp_elicitation" } : {}),
       request: {
         projectId: request.projectId, taskId: request.taskId, turnId: request.turnId,
         itemId: request.itemId, requestId: request.requestId, createdAt: request.createdAt,

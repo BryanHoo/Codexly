@@ -36,11 +36,11 @@ function expectNonEmptyString(value: unknown, context: string): string {
 }
 
 function optionalString(value: unknown, context: string): string | null {
-  return value === undefined ? null : expectString(value, context);
+  return value == null ? null : expectString(value, context);
 }
 
 function optionalNumber(value: unknown, context: string): number | null {
-  if (value === undefined) return null;
+  if (value == null) return null;
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new McpElicitationMappingError(`${context} must be a finite number`);
   }
@@ -48,7 +48,7 @@ function optionalNumber(value: unknown, context: string): number | null {
 }
 
 function optionalNonNegativeInteger(value: unknown, context: string): number | null {
-  if (value === undefined) return null;
+  if (value == null) return null;
   if (!Number.isInteger(value) || Number(value) < 0) {
     throw new McpElicitationMappingError(`${context} must be a non-negative integer`);
   }
@@ -56,7 +56,7 @@ function optionalNonNegativeInteger(value: unknown, context: string): number | n
 }
 
 function mapRequiredProperties(value: unknown, propertyIds: ReadonlySet<string>): Set<string> {
-  if (value === undefined) return new Set();
+  if (value == null) return new Set();
   if (!Array.isArray(value)) {
     throw new McpElicitationMappingError("MCP elicitation required must be an array");
   }
@@ -76,6 +76,7 @@ function mapConstOptions(value: unknown, context: string): ElicitationOptions {
   const options = value.map((entry) => {
     const option = expectRecord(entry, `${context} option`);
     return {
+      ...(typeof option["description"] === "string" ? { description: option["description"] } : {}),
       label: expectNonEmptyString(option["title"], `${context} option title`),
       value: expectString(option["const"], `${context} option value`),
     };
@@ -100,24 +101,28 @@ function mapEnumOptions(values: unknown, names: unknown, context: string): Elici
   if (mappedNames === undefined || new Set(mappedValues).size !== mappedValues.length) {
     throw new McpElicitationMappingError(`${context} options are invalid`);
   }
-  return mappedValues.map((value, index) => ({ label: mappedNames[index] ?? value, value }));
+  return mappedValues.map((value, index) => {
+    const label = mappedNames[index] ?? value;
+    return { label: label.length ? label : "“”", value };
+  });
 }
 
 function mapOptions(schema: Record<string, unknown>, context: string): ElicitationOptions | null {
-  if (schema["oneOf"] !== undefined) return mapConstOptions(schema["oneOf"], context);
-  if (schema["anyOf"] !== undefined) return mapConstOptions(schema["anyOf"], context);
-  if (schema["enum"] !== undefined) {
+  if (schema["oneOf"] != null) return mapConstOptions(schema["oneOf"], context);
+  if (schema["anyOf"] != null) return mapConstOptions(schema["anyOf"], context);
+  if (schema["enum"] != null) {
     return mapEnumOptions(schema["enum"], schema["enumNames"], context);
   }
   return null;
 }
 
 function fieldIdentity(id: string, schema: Record<string, unknown>, required: ReadonlySet<string>) {
+  const title = optionalString(schema["title"], `MCP elicitation ${id} title`);
   return {
     description: optionalString(schema["description"], `MCP elicitation ${id} description`),
     id,
     required: required.has(id),
-    title: optionalString(schema["title"], `MCP elicitation ${id} title`) ?? id,
+    title: title?.length ? title : id,
   };
 }
 
@@ -221,9 +226,7 @@ function mapPrimitiveField(
     return {
       ...fieldIdentity(id, schema, required),
       defaultValue:
-        defaultValue === undefined
-          ? null
-          : expectBoolean(defaultValue, `MCP elicitation ${id} default`),
+        defaultValue == null ? null : expectBoolean(defaultValue, `MCP elicitation ${id} default`),
       type,
     };
   }

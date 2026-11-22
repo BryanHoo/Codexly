@@ -1,3 +1,4 @@
+import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
@@ -208,10 +209,12 @@ export function StorePendingRequestList({
 }>) {
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
+  const latestTurnId = useStore(store, (state) => state.turnIds.at(-1));
   const visiblePendingRequests = pendingRequestIds.flatMap((requestId) => {
     const request = pendingRequestsById[requestId];
     return request === undefined ||
-      (request.status === "resolved" && request.type !== "plugin_install_suggestion")
+      (request.status === "resolved" && request.type !== "plugin_install_suggestion" &&
+        !isVisibleElicitationStatus(request, latestTurnId))
       ? []
       : [request];
   });

@@ -58,6 +58,16 @@ export class AcpProviderConnection {
           onUpdate: (...args) => {
             if (current()) return this.callbacks.onUpdate?.(...args);
           },
+          ...(this.callbacks.requestElicitation
+            ? ({
+                requestElicitation: (request, signal) =>
+                  (current() ? this.callbacks.requestElicitation?.(request, signal) : undefined) ??
+                  Promise.resolve({ action: "cancel" }),
+                onElicitationComplete: (id) => {
+                  if (current()) this.callbacks.onElicitationComplete?.(id);
+                },
+              } satisfies Pick<AcpClientCallbacks, "requestElicitation" | "onElicitationComplete">)
+            : {}),
           requestPermission: (request, signal) =>
             (current() ? this.callbacks.requestPermission?.(request, signal) : undefined) ??
             Promise.resolve({ outcome: { outcome: "cancelled" } }),

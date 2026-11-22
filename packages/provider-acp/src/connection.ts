@@ -23,6 +23,11 @@ export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
   onUpdate?(notification: acp.SessionNotification, historical: boolean): void | Promise<void>;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
+  requestElicitation?(
+    request: acp.CreateElicitationRequest,
+    signal: AbortSignal,
+  ): Promise<acp.CreateElicitationResponse>;
+  onElicitationComplete?(id: string): void;
   requestPermission?(
     request: acp.RequestPermissionRequest,
     signal: AbortSignal,
@@ -95,7 +100,7 @@ export class AcpConnection {
       },
       { highWaterMark: 0 },
     );
-    const transport = acp
+    const transport: acp.ClientConnection = acp
       .client({ name: "codexly" })
       .onNotification(
         "_auth/status_update",
@@ -113,6 +118,16 @@ export class AcpConnection {
           if (state) await callbacks.onSessionState?.(sessionId, state);
           await callbacks.onUpdate?.(params, historical);
         });
+      })
+      .onRequest(acp.methods.client.elicitation.create, ({ params, signal }) => {
+        // 能力只在有交互路由的连接公布；后台设置与辅助任务不弹出聊天待办。
+        if (!callbacks.requestElicitation || (params.mode !== "form" && params.mode !== "url"))
+          throw acp.RequestError.invalidParams();
+        if ("sessionId" in params === "requestId" in params) throw acp.RequestError.invalidParams();
+        return callbacks.requestElicitation(params, AbortSignal.any([signal, transport.signal]));
+      })
+      .onNotification(acp.methods.client.elicitation.complete, ({ params }) => {
+        callbacks.onElicitationComplete?.(params.elicitationId);
       })
       .onRequest(acp.methods.client.session.requestPermission, ({ params, signal }) => {
         // 不提供隐式批准；UI 必须保留 agent 原始 optionId 和权限含义。
@@ -132,7 +147,10 @@ export class AcpConnection {
         protocolVersion: acp.PROTOCOL_VERSION,
         clientInfo: { name: "codexly", version: "0.53.0" },
         // 文件与终端由 agent 自行执行，只有实现了对应客户端方法才能声明能力。
-        clientCapabilities: { session: { configOptions: { boolean: {} } } },
+        clientCapabilities: {
+          session: { configOptions: { boolean: {} } },
+          ...(callbacks.requestElicitation ? { elicitation: { form: {}, url: {} } } : {}),
+        },
       });
       if (initialization.protocolVersion !== acp.PROTOCOL_VERSION)
         throw new Error(`不支持 ACP 协议版本 ${String(initialization.protocolVersion)}`);
@@ -327,6 +345,10 @@ export class AcpConnection {
       this.close(error);
     });
     return Promise.race([response, active.abandoned.promise]);
+  }
+
+  canElicitInSession(sessionId: string): boolean {
+    return this.#activePrompts.has(sessionId) && !this.#cancellations.has(sessionId);
   }
 
   canSteerSession(sessionId: string): boolean {

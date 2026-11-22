@@ -63,3 +63,23 @@ it("真实原生客户端将 ACP 审批分流到共享宿主并保留幂等与�
   });
   expect(ensureRuntime).not.toHaveBeenCalled();
 });
+
+it("桌面原生 URL 待办将请求类型和同意动作一起发给 ACP 宿主", async () => {
+  const elicitation = {
+    type: "mcp_elicitation", acp: true, mode: "url", url: "https://example.test",
+    requestId: request.requestId, projectId: request.projectId, taskId: request.taskId,
+    turnId: request.turnId, itemId: request.itemId, createdAt: request.createdAt,
+    expiresAt: null, status: "pending", message: "连接账号", serverName: "Agent",
+  } as const satisfies PendingRequest;
+  const invoke = vi.fn(async () => ({ request: { ...elicitation, status: "resolved" } }));
+  const client = new TauriSidebarClient({
+    invoke: invoke as InvokeImplementation,
+    connectEvents: () => Promise.resolve(),
+    ensureRuntime: vi.fn(),
+  });
+  await client.resolvePendingRequest(elicitation, { action: "accept" }, { idempotencyKey: "open-key" });
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("resolve_pending_request", expect.objectContaining({
+    acp: true, acpRequestType: "mcp_elicitation", idempotencyKey: "open-key",
+    resolution: { action: "accept" },
+  }));
+});

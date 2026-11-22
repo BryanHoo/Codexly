@@ -23,12 +23,13 @@ import type { AcpConfigValues, AgentEngine, AgentTurnOptions, AgentTurn } from "
 import type { AcpConnection, AcpClientCallbacks } from "./connection.js";
 import type { AcpHistory } from "./history.js";
 import type { AcpReplay } from "./replay.js";
-import { routeAcpUpdate, taskForAcpSession } from "./provider-session-events.js";
+import { acpSessionCallbacks, publishAcpSessionState } from "./provider-session-events.js";
 import { loadAcpSession } from "./session-loading.js";
 import type { AcpSessionInitialization } from "./session-initialization.js";
 import type { AcpStoredSettings } from "./settings-store.js";
 import { AcpEventProjection } from "./event-projection.js";
 import { AcpPermissions } from "./permissions.js";
+import { AcpElicitations } from "./elicitation.js";
 import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
 import { applyAcpConfig, configureAcpTurn } from "./configuration.js";
 import { prepareAcpPrompt, sendAcpPrompt, submitAcpTurn } from "./turn-submission.js";
@@ -54,6 +55,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #historyUse: AcpHistoryUse;
   #closed = false;
   readonly #permissions: AcpPermissions;
+  readonly #elicitations: AcpElicitations;
   readonly attachments: HistoricalTaskAttachments;
   readonly #management: AcpTaskManagement;
   readExternalHistory?: taskSnapshot.AcpExternalHistoryReader;
@@ -80,29 +82,23 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     this.#historyUse = new AcpHistoryUse(history);
     this.attachments = new HistoricalTaskAttachments(join(history.directory, "task-attachments"));
     this.#permissions = new AcpPermissions(scope.id, this.#emit);
+    this.#elicitations = new AcpElicitations(scope.id, this.#emit);
     this.#link = new AcpProviderConnection(
       connect,
-      {
-        onSessionState: this.#emitSessionState,
-        onUpdate: (notification, historical) =>
-          routeAcpUpdate(
-            notification,
-            historical,
-            this.#link.sessions,
-            this.#replays,
-            this.#active,
-          ),
-        requestPermission: (request, signal) => {
-          const task = taskForAcpSession(this.#link.sessions, request.sessionId);
-          const active = task ? this.#active.get(task) : undefined;
-          return task && active?.running && !this.#ephemeral.has(task)
-            ? this.#permissions.request(task, active.turnId, request, signal)
-            : Promise.resolve({ outcome: { outcome: "cancelled" } });
-        },
-      },
+      acpSessionCallbacks({
+        link: () => this.#link,
+        engine,
+        emit: this.#emit,
+        active: this.#active,
+        ephemeral: this.#ephemeral,
+        replays: this.#replays,
+        permissions: this.#permissions,
+        elicitations: this.#elicitations,
+      }),
       () => this.#operations.size === 0 && this.#active.size === 0,
       () => {
         this.#needsDefaults.clear();
+        this.#elicitations.clear();
       },
     );
     this.#management = new AcpTaskManagement(
@@ -172,18 +168,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       .catch(() => undefined);
     return operation;
   }
-  readonly #emitSessionState = (sessionId: string, state: AcpSessionMetadata): void => {
-    const task = taskForAcpSession(this.#link.sessions, sessionId);
-    if (task && !this.#link.detached.has(task))
-      this.#emit({
-        type: "acp.session.updated",
-        taskId: task,
-        payload: {
-          state: this.#link.instance?.supportsSteering ? { ...state, canSteer: true } : state,
-        },
-      });
-    else if (task && state.background?.length === 0) this.#link.recycleIdle();
-  };
   async #load(task: LocalTask, explicitConfig = false, repairHistory = false) {
     const connection = await loadAcpSession(task, explicitConfig, {
       sessions: this.#link.sessions,
@@ -199,7 +183,12 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       patch: (patch) => this.#patch(task.id, patch),
       store: this.store,
       updated: (connection, session) => {
-        this.#emitSessionState(session, connection.readSessionState(session));
+        publishAcpSessionState(
+          this.#link,
+          session,
+          connection.readSessionState(session),
+          this.#emit,
+        );
       },
     });
     this.#link.detached.delete(task.id);
@@ -222,7 +211,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         needsReplay: async () =>
           !this.#link.sessions.has(id) && (await this.history.needsReplay(id)),
         ...(this.readExternalHistory ? { readExternalHistory: this.readExternalHistory } : {}),
-        pending: () => this.#permissions.list(id),
+        pending: () => [...this.#permissions.list(id), ...this.#elicitations.list(id)],
         contextUsage: () =>
           this.#link.instance?.readSessionUsage(this.#link.sessions.get(id)) ?? null,
         sessionState: () =>
@@ -337,6 +326,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     prompt: acp.ContentBlock[],
   ): Promise<void> {
     this.#permissions.finishTurn(id, final.id);
+    this.#elicitations.finishTurn(id, final.id);
     if (this.#ephemeral.has(id)) {
       projection.publishCompletion(final);
       return;
@@ -466,7 +456,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       const agent = await this.#link.get();
       const current = this.#active.get(id);
       if (!current?.running || current.turnId !== turnId) return;
+      // 先向 Agent 发出回合取消，再释放等待中的用户交互，避免 Agent 抢先继续执行。
       await agent.cancel(session);
+      this.#elicitations.finishTurn(id, turnId);
     });
   }
   async startConfiguredTurn(
@@ -483,11 +475,14 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   }
   async resolvePendingRequest(input: ResolvePendingRequestInput) {
     await this.#task(input.taskId);
-    return this.#permissions.resolve(input);
+    return input.type === "mcp_elicitation"
+      ? this.#elicitations.resolve(input)
+      : this.#permissions.resolve(input);
   }
   async close(): Promise<void> {
     this.#closed = true;
     this.#permissions.close();
+    this.#elicitations.clear();
     try {
       await this.#link.close();
       await Promise.allSettled(this.#operations.values());

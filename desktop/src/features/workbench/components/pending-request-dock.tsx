@@ -1,3 +1,4 @@
+import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import { useStore } from "zustand";
 import type { TaskStore } from "../../conversation/runtime/task-store-core.js";
 import type { PendingRequestResolveHandler } from "./pending-request-resolution.js";
@@ -19,7 +20,7 @@ function PendingRequestDockContent({ store, connected, onResolve }: Readonly<{
 }>) {
   const visible = useStore(store, state => state.pendingRequestIds.some(id => {
     const request = state.pendingRequestsById[id];
-    return request !== undefined && (request.status !== "resolved" || request.type === "plugin_install_suggestion");
+    return request !== undefined && (request.status !== "resolved" || request.type === "plugin_install_suggestion" || isVisibleElicitationStatus(request, state.turnIds.at(-1)));
   }));
   if (!visible) return null;
   return <div data-slot="pending-request-dock" className="min-h-0 shrink-0 bg-content px-1 pb-2 max-[360px]:px-0 sm:px-5">

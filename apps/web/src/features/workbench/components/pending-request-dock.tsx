@@ -1,3 +1,4 @@
+import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import { useStore } from "zustand";
 import type { TaskStore } from "../../conversation/runtime/task-store.js";
 import type { PendingRequestResolveHandler } from "./pending-request-resolution.js";
@@ -28,7 +29,10 @@ function PendingRequestDockContent({
   const visible = useStore(store, (state) =>
     state.pendingRequestIds.some((id) => {
       const request = state.pendingRequestsById[id];
-      return request !== undefined && request.status !== "resolved";
+      return (
+        request !== undefined &&
+        (request.status !== "resolved" || isVisibleElicitationStatus(request, state.turnIds.at(-1)))
+      );
     }),
   );
   if (!visible) return null;

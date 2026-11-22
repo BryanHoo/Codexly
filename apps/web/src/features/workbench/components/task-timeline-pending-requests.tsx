@@ -1,3 +1,4 @@
+import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import type { PendingRequest } from "@codexly/protocol";
 import { useStore } from "zustand";
 import type { TaskStore } from "../../conversation/runtime/task-store.js";
@@ -18,9 +19,13 @@ export function StorePendingRequestList({
 }>) {
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
+  const latestTurnId = useStore(store, (state) => state.turnIds.at(-1));
   const visiblePendingRequests = pendingRequestIds.flatMap((requestId) => {
     const request = pendingRequestsById[requestId];
-    return request === undefined || request.status === "resolved" ? [] : [request];
+    return request === undefined ||
+      (request.status === "resolved" && !isVisibleElicitationStatus(request, latestTurnId))
+      ? []
+      : [request];
   });
   const firstPendingIndex = visiblePendingRequests.findIndex(
     (request) => request.status === "pending",

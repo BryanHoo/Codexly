@@ -12,6 +12,7 @@ const McpElicitationFieldProperties = {
 
 export const McpElicitationOptionSchema = Type.Object(
   {
+    description: Type.Optional(Type.String()),
     label: Type.String({ minLength: 1 }),
     value: Type.String(),
   },
@@ -97,3 +98,14 @@ export const McpElicitationResolutionSchema = Type.Union([
 
 export type McpElicitationField = Readonly<Static<typeof McpElicitationFieldSchema>>;
 export type McpElicitationResolution = Readonly<Static<typeof McpElicitationResolutionSchema>>;
+
+/** 校验用于显式打开的地址，排除凭据和浏览器会忽略的字符。 */
+export function parseElicitationUrl(raw: string): URL | null {
+  if (!/^https?:\/\//iu.test(raw) || /[\s\\\p{Cc}\p{Cf}]/u.test(raw)) return null;
+  try {
+    const url = new URL(raw);
+    return url.username || url.password || !url.hostname ? null : url;
+  } catch {
+    return null;
+  }
+}

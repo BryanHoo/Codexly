@@ -60,11 +60,12 @@ describe("MCP URL elicitation", () => {
         <McpElicitationRequestCard
           interactive
           onResolve={onResolve}
-          request={urlRequest}
+          request={{ ...urlRequest, acp: true }}
         />
       </TestProviders>,
     );
 
+    await expect.element(screen.getByText("docs 请求用户交互")).toBeVisible();
     await expect.element(screen.getByText("auth.example.com", { exact: true })).toBeVisible();
     await expect.element(screen.getByText(urlRequest.url, { exact: true })).toBeVisible();
     await screen.getByRole("button", { name: "同意并打开链接" }).click();

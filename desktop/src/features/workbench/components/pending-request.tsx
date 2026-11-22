@@ -265,6 +265,8 @@ function UserInputRequestCard({
 }
 
 export function PendingRequestCard(props: PendingRequestCardProps) {
+  if (props.request.type === "mcp_elicitation" && props.request.mode === "url" &&
+      props.request.externalStatus) return <McpElicitationRequestCard {...props} request={props.request} />;
   // 已处理请求只保留在运行时快照中用于状态对账，不继续占用会话界面。
   if (props.request.status === "resolved" && props.request.type !== "plugin_install_suggestion") {
     return null;

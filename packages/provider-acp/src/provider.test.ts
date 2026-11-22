@@ -484,3 +484,113 @@ it("首发原始配置先于 prompt 生效，覆盖失效全局默认值且不�
   });
   expect(initialize).not.toHaveBeenCalled();
 });
+
+it("ACP 原生问卷在会话快照中展示并校验回答", async () => {
+  const outcome = Promise.withResolvers<acp.CreateElicitationResponse>();
+  const f = await fixture("codex", async ({ params, client }) => {
+    outcome.resolve(
+      await client.request(acp.methods.client.elicitation.create, {
+        sessionId: params.sessionId,
+        toolCallId: "question",
+        mode: "form",
+        message: "命名",
+        requestedSchema: {
+          type: "object",
+          properties: { name: { type: "string", pattern: "^[A-Z]+$" } },
+          required: ["name"],
+        },
+      }),
+    );
+    return { stopReason: "end_turn" };
+  });
+  const task = await f.provider.startTask();
+  await f.provider.startTurn(task.id, input, {} as AgentTurnOptions);
+  const request = await vi.waitFor(async () => {
+    const pending = (await f.provider.readTask(task.id)).pendingRequests[0];
+    expect(pending).toMatchObject({
+      type: "mcp_elicitation",
+      acp: true,
+      itemId: "acp:tool:question",
+    });
+    if (!pending) throw new Error("问卷尚未到达");
+    return pending;
+  });
+  await expect(
+    f.provider.resolvePendingRequest({
+      ...request,
+      type: "mcp_elicitation",
+      resolution: { action: "accept", content: { name: "wrong" } },
+    }),
+  ).rejects.toThrow();
+  await f.provider.resolvePendingRequest({
+    ...request,
+    type: "mcp_elicitation",
+    resolution: { action: "accept", content: { name: "OK" } },
+  });
+  await expect(outcome.promise).resolves.toEqual({ action: "accept", content: { name: "OK" } });
+});
+
+it("ACP URL 同意只回传 action，只有匹配的通知才确认外部完成", async () => {
+  const answered = Promise.withResolvers<acp.CreateElicitationResponse>();
+  const continueTurn = Promise.withResolvers<undefined>();
+  const peer = Promise.withResolvers<acp.AgentRequestContext<acp.PromptRequest>["client"]>();
+  const f = await fixture("claude", async ({ params, client }) => {
+    peer.resolve(client);
+    const create = (url: string, sessionId = params.sessionId) =>
+      client.request(acp.methods.client.elicitation.create, {
+        mode: "url",
+        message: "连接账户",
+        sessionId,
+        url,
+        elicitationId: "opaque",
+      });
+    await expect(create("https://user:password@example.test")).rejects.toMatchObject({
+      code: -32602,
+    });
+    await expect(create("https://example.test", "unknown")).resolves.toEqual({ action: "cancel" });
+    answered.resolve(await create("https://example.test/connect"));
+    await continueTurn.promise;
+    return { stopReason: "end_turn" };
+  });
+  const events: AgentProviderEvent[] = [];
+  f.provider.subscribeEvents((event) => events.push(event));
+  const task = await f.provider.startTask();
+  await f.provider.startConfiguredTurn(task.id, input);
+  try {
+    const client = await peer.promise;
+    const request = await vi.waitFor(async () => {
+      const request = (await f.provider.readTask(task.id)).pendingRequests[0];
+      if (request?.type !== "mcp_elicitation" || request.mode !== "url")
+        throw new Error("URL 请求尚未到达");
+      return request;
+    });
+    const payload = { ...request, resolution: { action: "accept", content: {} } } as const;
+    await expect(
+      f.provider.resolvePendingRequest({ ...payload, turnId: "unrelated" }),
+    ).rejects.toThrow();
+    await expect(f.provider.resolvePendingRequest(payload)).resolves.toMatchObject({
+      externalStatus: "opened",
+      status: "resolved",
+    });
+    await expect(answered.promise).resolves.toEqual({ action: "accept" });
+    continueTurn.resolve(undefined);
+    await vi.waitFor(async () => {
+      expect((await f.provider.readTask(task.id)).status).toBe("idle");
+    });
+    const completion = acp.methods.client.elicitation.complete;
+    await client.notify(completion, { elicitationId: "unknown" });
+    await client.notify(completion, { elicitationId: "opaque" });
+    await client.notify(completion, { elicitationId: "opaque" });
+    const resolutionEvents = () =>
+      events.filter((event) => event.type === "pending_request.resolved");
+    await vi.waitFor(() => {
+      expect(resolutionEvents()).toHaveLength(2);
+    });
+    expect(resolutionEvents().map(({ payload }) => payload.request)).toMatchObject([
+      { externalStatus: "opened" },
+      { externalStatus: "completed" },
+    ]);
+  } finally {
+    continueTurn.resolve(undefined);
+  }
+});

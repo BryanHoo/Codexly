@@ -18,6 +18,13 @@
 - Web 和桌面共用 `AcpAgentCatalogProgress`。手动更新从 `checking` 开始，宿主持安装锁比较官方目录和已安装版本，仅在发现更高版本时进入安装。更新操作返回保存后的目录快照，界面从其中读取已安装版本。
 - `downloading` 仅在知道真实字节总量时提供 `total`，界面据此计算百分比。npm 与 uv 的依赖安装使用 `installing` 并显示不定量进度。回归覆盖 `agent-catalog.test.ts` 和 `acp-catalog.browser.test.tsx`。
 
+## ACP 原生用户交互
+
+- 活动聊天连接单独声明 form 和 url，基于已绑定的 ACP 会话路由，工具范围保留原始工具归属。独立认证和配置连接目前采用已有交互流程。
+- 待办请求保留 `acp` 标记以分流回传，问卷答案只出现在原生 RPC 响应中。回合取消或连接中断时释放待办。URL 回应只携带动作，外部完成由同一连接的 `elicitation/complete` 更新。
+- 两端共用问卷和 URL 卡片。打开前展示目标域名及完整地址，经用户点击后在独立浏览器上下文打开。匹配完成通知只改变该会话的交互状态。[ACP v1 Elicitation](https://agentclientprotocol.com/protocol/v1/elicitation)
+- 回归入口为 [ACP Provider 测试](../../../../packages/provider-acp/src/provider.test.ts) 和 [桌面 URL 交互浏览器测试](../../../../desktop/src/features/workbench/components/mcp-elicitation-request.browser.test.tsx)。
+
 ## ACP 停止原因
 
 - Web 与桌面回合通过可选 `stopReason` 保留 ACP 原始停止原因，事件和历史读取不得丢弃；旧历史和其他 Provider 可省略。
