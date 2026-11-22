@@ -3,6 +3,7 @@ type PatchKind = "create" | "delete" | "update";
 const properHunk = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/u;
 const fragmentHunk = /^@@(?: (?![-+@])([^\r\n]+))?\r?$/u;
 const noNewlineMarker = /^\\ No newline at end of file\r?$/u;
+const legacyAcpEmptyBefore = /^--- ([^\r\n]+)\n\+\+\+ \1\n@@ -1,0 \+1,(\d+) @@\n\n(?=\+)/u;
 
 function normalizeFragment(lines: readonly string[]): string {
   const patch: string[] = [];
@@ -55,6 +56,17 @@ export function normalizeFileChangePatch({
 }: Readonly<{ diff: string; kind: PatchKind; path: string }>): string {
   if (diff.length === 0 || /^(?:Binary files .* differ|GIT binary patch)\r?$/mu.test(diff)) {
     return diff;
+  }
+
+  if (kind !== "delete") {
+    // 旧 ACP 生成器处理新建文件或修改空文件时，在首个新增行前留下无前缀空行。
+    // 只修复这一种历史格式，保留实际新增的「+」空行和正文。
+    const before = kind === "create" ? "/dev/null" : "$1";
+    const repaired = diff.replace(
+      legacyAcpEmptyBefore,
+      `--- ${before}\n+++ $1\n@@ -0,0 +1,$2 @@\n`,
+    );
+    if (repaired !== diff) return repaired;
   }
 
   const firstHunkIndex = diff.search(/^@@(?: |\r?$)/mu);

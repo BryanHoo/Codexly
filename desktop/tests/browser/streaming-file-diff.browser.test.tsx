@@ -41,6 +41,38 @@ it("完整差异预览保留默认的分隔行密度", async () => {
   await screen.unmount();
 });
 for (const platform of platforms) describe(`${platform.name} 文件差异`, () => {
+  it("向下滚动到尾部后，继续跟随批量到达的文件差异", async () => {
+    platform.preferences.set("independentFileDiffs", true);
+    const { store, element } = platform.create();
+    const screen = await render(<TooltipProvider><div style={{ height: 360 }}>{element}</div></TooltipProvider>);
+    const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')!;
+    const bottomGap = () => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop;
+    const ready = () => document.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '';
+    await expect.poll(ready, { timeout: 10000 }).toContain('newValue');
+    await expect.poll(bottomGap).toBeLessThan(2);
+    // 已贴底时的向下惯性滚动没有 scroll 事件，下一批卡片仍应留在跟随状态。
+    viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: 150, bubbles: true }));
+    const changes = Array.from({ length: 12 }, (_, index) => ({
+      path: `/repo/created-${index}.js`,
+      kind: "create" as const,
+      stats: { additions: 1, removals: 0 },
+      diff: `--- /repo/created-${index}.js\n+++ /repo/created-${index}.js\n@@ -1,0 +1,1 @@\n\n+const preview${index} = true;`,
+    }));
+    store.getState().applyEvents([{
+      version: 2, provider: "codex", sessionId: "session", taskId: "task", turnId: "turn",
+      timestamp: time, sequence: 1, type: "file_change.updated", itemId: "file",
+      payload: { changes, originalByteLength: 2048, truncated: false },
+    }]);
+    await expect.poll(() => document.querySelectorAll("[data-file-diff-card]")).toHaveLength(12);
+    await expect.poll(bottomGap).toBeLessThan(2);
+    await expect.poll(
+      () => document.querySelector('[data-file-diff-card]:last-child .file-diff-renderer')?.shadowRoot?.textContent ?? '',
+      { timeout: 10000 },
+    ).toContain("preview11");
+    expect(bottomGap()).toBeLessThan(2);
+    await screen.unmount();
+  });
+
   it("历史完成回合默认收起，展开过程后恢复差异", async () => {
     await i18n.changeLanguage("zh-CN");
     platform.preferences.set("independentFileDiffs", true);

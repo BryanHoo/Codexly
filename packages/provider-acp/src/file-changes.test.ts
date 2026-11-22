@@ -37,3 +37,11 @@ it("超预算保留路径，同一路径使用最新正文，文件数量有界"
     ),
   ).toHaveLength(128);
 });
+
+it("新建文件生成标准补丁，保留正文空行和文件末尾换行", () => {
+  const [change] = projectAcpFileChanges(
+    [{ type: "diff", path: "/repo/new.ts", newText: "first\n\nlast\n" }],
+    65536,
+  );
+  expect(change?.diff).toBe("--- /dev/null\n+++ /repo/new.ts\n@@ -0,0 +1,3 @@\n+first\n+\n+last\n");
+});
