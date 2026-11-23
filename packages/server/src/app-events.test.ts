@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,6 +10,8 @@ import {
   gunzipSync,
 } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
+import { WebSocket } from "ws";
+import type { ConnectionReady, EventStreamMessage } from "@codexly/protocol";
 import { createCodexlyServer } from "./app.js";
 import { AgentEventStream } from "./agent-event-stream.js";
 import {
@@ -18,7 +21,156 @@ import {
   createHarness,
 } from "./app-all.test-support.js";
 
+async function createLoopbackHarness() {
+  const { app, emitEvent } = await createHarness();
+  const address = await app.listen({ host: "127.0.0.1", port: 0 });
+  expect((await app.inject("/v1/projects/codexly/tasks")).statusCode).toBe(200);
+  const delta = "x".repeat(292 * 1_024);
+  const publish = (sequence: number) => {
+    emitEvent({
+      itemId: `event-${String(sequence)}`,
+      payload: { delta },
+      taskId: "task-1",
+      turnId: "turn-1",
+      type: "message.delta",
+    });
+  };
+  const connect = (afterSequence: number) => {
+    const url = new URL("/v1/projects/codexly/events", address);
+    url.protocol = "ws:";
+    url.searchParams.set("afterSequence", String(afterSequence));
+    const socket = new WebSocket(url, { headers: { origin: address } });
+    const received = {
+      sequences: [] as number[],
+      ready: undefined as ConnectionReady | undefined,
+      closeCode: undefined as number | undefined,
+    };
+    socket.on("message", (data) => {
+      if (!Buffer.isBuffer(data)) throw new Error("Expected a WebSocket message buffer");
+      const message = JSON.parse(data.toString()) as EventStreamMessage;
+      if (message.type === "connection.ready") received.ready = message;
+      if (message.type === "events.batch")
+        received.sequences.push(...message.events.map(({ sequence }) => sequence));
+    });
+    socket.on("close", (code) => {
+      received.closeCode = code;
+    });
+    return { socket, received };
+  };
+  return { app, connect, publish };
+}
+
 describe("server event delivery", () => {
+  it("replays the full retained window over one real WebSocket", async () => {
+    const { app, publish, connect } = await createLoopbackHarness();
+    // 14 个事件连同 JSON 元数据占用接近 4 MiB，且全部在保留窗口内。
+    for (let index = 1; index <= 14; index += 1) publish(index);
+    const { socket, received } = connect(0);
+    try {
+      await vi.waitFor(() => {
+        expect(received.closeCode).toBeUndefined();
+        expect(received.sequences).toEqual(Array.from({ length: 14 }, (_, index) => index + 1));
+      });
+      expect(received.ready?.latestSequence).toBe(14);
+      expect(socket.readyState).toBe(WebSocket.OPEN);
+      const metrics = await app.inject("/v1/metrics/events");
+      expect(metrics.json()).toMatchObject({
+        projects: [{ retainedEvents: 14, retentionEvictions: 0, slowClientDisconnects: 0 }],
+      });
+    } finally {
+      socket.terminate();
+    }
+  });
+
+  it.each([
+    { newEvents: 2, overload: false },
+    { newEvents: 15, overload: true },
+  ])(
+    "preserves event ordering and isolates stalled replay (overload: $overload)",
+    async ({ newEvents, overload }) => {
+      const { app, connect, publish } = await createLoopbackHarness();
+      for (let index = 1; index <= 14; index += 1) publish(index);
+      let completeWrite: (() => void) | undefined;
+      app.websocketServer.once("connection", (socket: WebSocket) => {
+        const send = socket.send.bind(socket);
+        const spy = vi.spyOn(socket, "send").mockImplementation((data, options, callback) => {
+          const onWritten =
+            typeof options === "function" ? (options as (error?: Error) => void) : callback;
+          if (
+            typeof data !== "string" ||
+            !data.startsWith('{"events":[') ||
+            onWritten === undefined
+          ) {
+            send(data, options, callback);
+            return;
+          }
+          // 保留真实 TCP 发送，只延迟第一帧的写入回调，使背压时机与内核缓冲大小无关。
+          spy.mockRestore();
+          send(data, (error) => {
+            completeWrite = () => {
+              onWritten(error);
+            };
+          });
+        });
+      });
+      const replaying = connect(0);
+      let healthy: ReturnType<typeof connect> | undefined;
+      try {
+        await vi.waitFor(() => {
+          expect(completeWrite).toBeTypeOf("function");
+          expect(replaying.received.sequences).toEqual([1, 2, 3]);
+        });
+        healthy = connect(14);
+        const live = healthy;
+        await vi.waitFor(() => {
+          expect(live.received.ready?.latestSequence).toBe(14);
+        });
+        for (let index = 15; index <= 14 + newEvents; index += 1) {
+          publish(index);
+          await vi.waitFor(
+            () => {
+              expect(live.received.sequences.at(-1)).toBe(index);
+            },
+            {
+              interval: 5,
+            },
+          );
+        }
+        expect(replaying.received.sequences).toEqual([1, 2, 3]);
+        if (overload) {
+          await vi.waitFor(() => {
+            expect(replaying.received.closeCode).toBe(1013);
+          });
+        }
+        completeWrite?.();
+        if (!overload) {
+          await vi.waitFor(() => {
+            expect(replaying.received.sequences).toEqual(
+              Array.from({ length: 14 + newEvents }, (_, index) => index + 1),
+            );
+          });
+          expect(replaying.socket.readyState).toBe(WebSocket.OPEN);
+        }
+        expect(live.received.sequences).toEqual(
+          Array.from({ length: newEvents }, (_, index) => index + 15),
+        );
+        expect(live.socket.readyState).toBe(WebSocket.OPEN);
+        const metrics = await app.inject("/v1/metrics/events");
+        expect(metrics.json()).toMatchObject({
+          projects: [
+            {
+              activeClients: overload ? 1 : 2,
+              slowClientDisconnects: overload ? 1 : 0,
+            },
+          ],
+        });
+      } finally {
+        replaying.socket.terminate();
+        healthy?.socket.terminate();
+      }
+    },
+  );
+
   it("closes oversized live events with 1009 and requires a snapshot on replay", async () => {
     const { app, emitEvent } = await createHarness();
     const messages: unknown[] = [];

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getSerializedAgentEventByteLength,
-  sendEventStreamEvents,
+  sendEventStreamBatch,
   sendEventStreamMessage,
   type EventStreamSocket,
 } from "./event-socket-sender.js";
@@ -58,7 +58,11 @@ describe("event socket sender", () => {
       createDeltaEvent(character.repeat(100 * 1_024), index + 1),
     );
 
-    expect(sendEventStreamEvents(socket, events, vi.fn(), vi.fn())).toBe(true);
+    for (let offset = 0; offset < events.length;) {
+      const batch = sendEventStreamBatch(socket, events, offset, vi.fn(), vi.fn());
+      if (batch === undefined) throw new Error("Expected the next batch to be sent");
+      offset += batch.events.length;
+    }
     expect(socket.send.mock.calls.length).toBeGreaterThan(1);
     for (const [data] of socket.send.mock.calls) {
       expect(Buffer.byteLength(data)).toBeLessThanOrEqual(1_024 * 1_024);
@@ -76,7 +80,9 @@ describe("event socket sender", () => {
     const event = createLargeEvent();
     const onSlowClientDisconnect = vi.fn();
 
-    expect(sendEventStreamEvents(socket, [event], vi.fn(), onSlowClientDisconnect)).toBe(false);
+    expect(
+      sendEventStreamBatch(socket, [event], 0, vi.fn(), onSlowClientDisconnect),
+    ).toBeUndefined();
     expect(socket.send).not.toHaveBeenCalled();
     expect(socket.close).toHaveBeenCalledWith(
       1009,
@@ -110,7 +116,9 @@ describe("event socket sender", () => {
       createDeltaEvent("x".repeat(100 * 1_024), index + 1),
     );
 
-    expect(sendEventStreamEvents(socket, events, vi.fn(), vi.fn())).toBe(false);
+    const batch = sendEventStreamBatch(socket, events, 0, vi.fn(), vi.fn());
+    expect(batch?.events.length).toBe(10);
+    expect(sendEventStreamBatch(socket, events, 10, vi.fn(), vi.fn())).toBeUndefined();
     expect(socket.bufferedAmount).toBeLessThanOrEqual(1_024 * 1_024);
     expect(socket.send).toHaveBeenCalledOnce();
   });
@@ -162,8 +170,8 @@ describe("event socket sender", () => {
     const stringify = vi.spyOn(JSON, "stringify");
 
     getSerializedAgentEventByteLength(event);
-    expect(sendEventStreamEvents(firstSocket, [event], vi.fn(), vi.fn())).toBe(true);
-    expect(sendEventStreamEvents(secondSocket, [event], vi.fn(), vi.fn())).toBe(true);
+    expect(sendEventStreamBatch(firstSocket, [event], 0, vi.fn(), vi.fn())?.events.length).toBe(1);
+    expect(sendEventStreamBatch(secondSocket, [event], 0, vi.fn(), vi.fn())?.events.length).toBe(1);
 
     expect(stringify).toHaveBeenCalledTimes(1);
     expect(firstSocket.send).toHaveBeenCalledOnce();
@@ -175,10 +183,12 @@ describe("event socket sender", () => {
     const overhead = getSerializedAgentEventByteLength(createDeltaEvent(""));
     const socket = createSocket();
     const delta = "x".repeat(512 * 1_024 - overhead);
-    expect(sendEventStreamEvents(socket, [createDeltaEvent(delta)], vi.fn(), vi.fn())).toBe(true);
-    expect(sendEventStreamEvents(socket, [createDeltaEvent(delta + "x")], vi.fn(), vi.fn())).toBe(
-      false,
-    );
+    expect(
+      sendEventStreamBatch(socket, [createDeltaEvent(delta)], 0, vi.fn(), vi.fn())?.events.length,
+    ).toBe(1);
+    expect(
+      sendEventStreamBatch(socket, [createDeltaEvent(delta + "x")], 0, vi.fn(), vi.fn()),
+    ).toBeUndefined();
     expect(socket.send).toHaveBeenCalledOnce();
   });
 
@@ -187,7 +197,9 @@ describe("event socket sender", () => {
     const first = createDeltaEvent("first", 1);
     const oversized = createDeltaEvent("x".repeat(512 * 1_024), 2);
     const last = createDeltaEvent("last", 3);
-    expect(sendEventStreamEvents(socket, [first, oversized, last], vi.fn(), vi.fn())).toBe(false);
+    const events = [first, oversized, last];
+    expect(sendEventStreamBatch(socket, events, 0, vi.fn(), vi.fn())?.events.length).toBe(1);
+    expect(sendEventStreamBatch(socket, events, 1, vi.fn(), vi.fn())).toBeUndefined();
     expect(socket.send).toHaveBeenCalledOnce();
     expect(
       (JSON.parse(socket.send.mock.calls[0]?.[0] ?? "") as { events: AgentEvent[] }).events,
@@ -199,10 +211,10 @@ describe("event socket sender", () => {
     const socket = createSocket();
     const stringify = vi.spyOn(JSON, "stringify");
     socket.readyState = 3;
-    expect(sendEventStreamEvents(socket, [event], vi.fn(), vi.fn())).toBe(false);
+    expect(sendEventStreamBatch(socket, [event], 0, vi.fn(), vi.fn())).toBeUndefined();
     socket.readyState = 1;
     socket.bufferedAmount = 1_024 * 1_024 + 1;
-    expect(sendEventStreamEvents(socket, [event], vi.fn(), vi.fn())).toBe(false);
+    expect(sendEventStreamBatch(socket, [event], 0, vi.fn(), vi.fn())).toBeUndefined();
     expect(stringify.mock.calls.length).toBe(0);
     expect(socket.send).not.toHaveBeenCalled();
   });

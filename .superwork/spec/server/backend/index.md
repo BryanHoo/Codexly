@@ -13,6 +13,11 @@
 - [ ] 本地任务目录和搜索分别遵循 [本地目录与任务](../../../../docs/local-catalog.md)、[全局搜索](../../../../docs/global-search.md)。
 - [ ] 执行 `pnpm exec vitest run packages/server/src`、`pnpm typecheck`、`pnpm lint:architecture`，补充受影响 Client / CLI 用例；性能变化运行 `pnpm test:performance`，完整根门槛为 `pnpm check`。
 
+## WebSocket 事件补发
+
+- 项目事件连接按 `connection.ready`、保留事件、实时事件的顺序发送。每条连接等待当前帧的写入回调再发送下一帧，事件保留窗口与单连接写缓冲分别计量。实时积压超过预算或写入超时的连接以 `1013` 退出，客户端从快照恢复。网络重连的退避在收到 `connection.ready` 所报告序号对应的事件后重置。
+- [真实回环测试](../../../../packages/server/src/app-events.test.ts) 覆盖完整保留窗口、补发中的实时事件和慢连接隔离。[客户端测试](../../../../packages/client/src/event-client.test.ts) 覆盖退避及快照恢复。
+
 ## 诊断快照
 
 - `GET /v1/diagnostics` 沿用全局访问认证，局域网模式要求有效配对 Cookie；响应为 `DiagnosticsResponseSchema`，设置 `Cache-Control: no-store`，不触发外部版本查询。

@@ -144,7 +144,7 @@ export function startAgentEventSubscription(
       return;
     }
     retryTimer = undefined;
-    let connectionReady = false;
+    let readySequence: number | undefined;
     let currentSocket: WebSocket;
     try {
       currentSocket = options.webSocketFactory(
@@ -199,12 +199,13 @@ export function startAgentEventSubscription(
           );
           return;
         }
-        connectionReady = true;
-        reconnectAttempt = 0;
+        readySequence = message.latestSequence;
+        // ready 只确认握手成功；完整交付该 checkpoint 后才重置网络退避。
+        if (lastSequence === readySequence) reconnectAttempt = 0;
         setState("connected");
         return;
       }
-      if (!connectionReady) {
+      if (readySequence === undefined) {
         failProtocol("Codexly event arrived before connection.ready");
         return;
       }
@@ -225,6 +226,7 @@ export function startAgentEventSubscription(
           return;
         }
         lastSequence = agentEvent.sequence;
+        if (lastSequence === readySequence) reconnectAttempt = 0;
         // 批内仍逐事件交付，保持现有 Store 回调和 sequence 恢复语义。
         options.onEvent(agentEvent);
         if (!isCurrentConnection()) {
@@ -244,10 +246,14 @@ export function startAgentEventSubscription(
       if (socket !== currentSocket) {
         return;
       }
-      if (active && event.code === 1009) {
-        // 超大事件不可重放，直接沿用快照恢复路径，避免重连后再次接收相同正文。
+      if (active && (event.code === 1009 || event.code === 1013)) {
+        // 超大帧或服务端积压中止后，从权威快照恢复，避免反复补发同一段积压。
         stopForResync(
-          createResyncRequired(options.sessionId, lastSequence, "event_retention_exceeded"),
+          createResyncRequired(
+            options.sessionId,
+            Math.max(lastSequence, readySequence ?? lastSequence),
+            "event_retention_exceeded",
+          ),
         );
         return;
       }

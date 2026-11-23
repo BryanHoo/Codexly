@@ -1,9 +1,10 @@
-import { MAX_EVENT_BATCH_SIZE, type AgentEvent, type EventStreamMessage } from "@codexly/protocol";
+import type { AgentEvent, EventStreamMessage } from "@codexly/protocol";
 import { performance } from "node:perf_hooks";
 import type { FastifyPluginCallback } from "fastify";
 import {
+  EVENT_SOCKET_SLOW_CLIENT_REASON,
   getSerializedAgentEventByteLength,
-  sendEventStreamEvents,
+  sendEventStreamBatch,
   sendEventStreamMessage,
 } from "../event-socket-sender.js";
 import { scheduleSessionExpiry } from "../websocket-lifecycle.js";
@@ -11,6 +12,9 @@ import { scheduleSessionExpiry } from "../websocket-lifecycle.js";
 import { ACCESS_SESSION_COOKIE } from "./access-routes.js";
 import type { ServerRouteContext } from "./context.js";
 import { EventQuerySchema, ProjectParamsSchema } from "./schemas.js";
+
+const MAX_PENDING_LIVE_BYTES = 4 * 1_048_576;
+const WRITE_TIMEOUT_MS = 30_000;
 
 export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
   app,
@@ -46,8 +50,13 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
       const eventStream = context.eventStream;
       context.transportMetrics.activeClients += 1;
       let cleanedUp = false;
-      let liveFlushScheduled = false;
-      const liveEvents: AgentEvent[] = [];
+      let flushScheduled = false;
+      let writing = true;
+      let writeTimeout: ReturnType<typeof setTimeout> | undefined;
+      let pendingEvents: readonly AgentEvent[] = [];
+      let offset = 0;
+      let replaying = true;
+      let liveEvents: AgentEvent[] = [];
       let liveBytes = 0;
       let liveSince = 0;
       const untrackQueue = eventStream.trackQueue(() => liveBytes + socket.bufferedAmount);
@@ -59,6 +68,8 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
           : scheduleSessionExpiry(socket, sessionExpiresAt);
       const cleanup = websocketLifecycle.track(socket, () => {
         cleanedUp = true;
+        clearTimeout(writeTimeout);
+        pendingEvents = [];
         liveEvents.length = 0;
         liveBytes = 0;
         untrackQueue();
@@ -73,57 +84,87 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
           socket.close(1008, "Access session expired");
         }) ?? (() => undefined);
       if (socket.readyState !== socket.OPEN) return;
-      const send = (message: EventStreamMessage): boolean =>
-        sendEventStreamMessage(
-          socket,
-          message,
-          () => {
-            eventStream.noteBackpressure();
-          },
-          () => {
-            context.transportMetrics.slowClientDisconnects += 1;
-          },
-        );
-      const sendEvents = (events: readonly AgentEvent[]): boolean =>
-        sendEventStreamEvents(
-          socket,
-          events,
-          () => {
-            eventStream.noteBackpressure();
-          },
-          () => {
-            context.transportMetrics.slowClientDisconnects += 1;
-          },
-        );
-      const flushLiveEvents = () => {
-        liveFlushScheduled = false;
-        if (cleanedUp || liveEvents.length === 0) {
+      const noteBackpressure = () => {
+        eventStream.noteBackpressure();
+      };
+      const noteSlowClient = () => {
+        context.transportMetrics.slowClientDisconnects += 1;
+        cleanup();
+      };
+      const closeSlowClient = () => {
+        if (cleanedUp || socket.readyState !== socket.OPEN) return;
+        noteBackpressure();
+        noteSlowClient();
+        socket.close(1013, EVENT_SOCKET_SLOW_CLIENT_REASON);
+      };
+      const send = (message: EventStreamMessage, callback?: typeof onWritten): boolean =>
+        sendEventStreamMessage(socket, message, noteBackpressure, noteSlowClient, callback);
+
+      function onWritten(error?: Error | null) {
+        clearTimeout(writeTimeout);
+        if (cleanedUp) return;
+        if (error != null) {
+          cleanup();
+          socket.terminate();
           return;
         }
-        const events = liveEvents.splice(0);
-        eventStream.recordQueueBytes(liveBytes + socket.bufferedAmount);
-        liveBytes = 0;
-        eventStream.recordQueueWait(performance.now() - liveSince);
-        sendEvents(events);
-      };
+        writing = false;
+        flush();
+      }
+
+      function watchWrite() {
+        // 只有尚在发送缓冲中的帧需要超时。即使后续没有新事件，卡住的写入也会释放队列。
+        if (socket.bufferedAmount > 0) {
+          writeTimeout = setTimeout(closeSlowClient, WRITE_TIMEOUT_MS);
+          writeTimeout.unref();
+        }
+      }
+
+      function flush() {
+        flushScheduled = false;
+        if (cleanedUp || writing || socket.readyState !== socket.OPEN) return;
+        if (offset === pendingEvents.length) {
+          // 补发数组耗尽后接上实时队列。发送过程中到达的新事件进入下一组，保持顺序。
+          pendingEvents = liveEvents;
+          liveEvents = [];
+          offset = 0;
+          replaying = false;
+          if (pendingEvents.length === 0) return;
+          eventStream.recordQueueWait(performance.now() - liveSince);
+        }
+        if (!replaying) eventStream.recordQueueBytes(liveBytes + socket.bufferedAmount);
+        writing = true;
+        // 等当前帧的写入回调，再打包下一帧。每条连接独立推进，不堆满 socket 写缓冲。
+        const batch = sendEventStreamBatch(
+          socket,
+          pendingEvents,
+          offset,
+          noteBackpressure,
+          noteSlowClient,
+          onWritten,
+        );
+        if (batch === undefined) {
+          cleanup();
+          return;
+        }
+        if (!replaying) liveBytes -= batch.eventBytes;
+        offset += batch.events.length;
+        watchWrite();
+      }
+
       const enqueueLiveEvent = (event: AgentEvent) => {
+        if (cleanedUp || socket.readyState !== socket.OPEN) return;
         if (liveEvents.length === 0) liveSince = performance.now();
         liveBytes += getSerializedAgentEventByteLength(event);
+        // 补发窗口有独立的保留上限。新事件持续积压时，只结束该连接并要求恢复快照。
+        if (liveBytes > MAX_PENDING_LIVE_BYTES) {
+          closeSlowClient();
+          return;
+        }
         liveEvents.push(event);
-        if (liveEvents.length >= MAX_EVENT_BATCH_SIZE) {
-          // 同步发布量达到协议上限时立即切帧，避免等待微任务期间无界积累。
-          flushLiveEvents();
-          return;
-        }
-        if (liveFlushScheduled) {
-          return;
-        }
-        liveFlushScheduled = true;
-        queueMicrotask(() => {
-          if (liveFlushScheduled) {
-            flushLiveEvents();
-          }
-        });
+        if (writing || flushScheduled) return;
+        flushScheduled = true;
+        queueMicrotask(flush);
       };
       const replay = eventStream.replayAfter(request.query.afterSequence);
       if (replay.type === "resync") {
@@ -137,38 +178,26 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
         if (sent) {
           socket.close(1000, "Snapshot resync required");
         }
+        cleanup();
         return;
       }
 
       // checkpoint getter 会同步冲刷待发送增量，必须在注册连接监听器前读取。
       const checkpoint = eventStream.checkpoint;
-      const initializationEvents: AgentEvent[] = [];
-      let isInitializing = true;
+      pendingEvents = replay.events;
       // 同步建立实时订阅并挂载清理回调，避免补发与实时事件之间出现空窗。
-      unsubscribe = eventStream.subscribe((event) => {
-        if (isInitializing) {
-          initializationEvents.push(event);
-          return;
-        }
-        enqueueLiveEvent(event);
-      });
-      const readySent = send({
-        latestSequence: checkpoint.sequence,
-        sessionId: checkpoint.sessionId,
-        type: "connection.ready",
-        version: 3,
-      });
-      if (!readySent) {
-        return;
-      }
-      if (!sendEvents(replay.events)) {
-        return;
-      }
-      // 初始化期间同步到达的实时事件必须排在 ready 和 replay 之后。
-      isInitializing = false;
-      if (!sendEvents(initializationEvents)) {
-        return;
-      }
+      unsubscribe = eventStream.subscribe(enqueueLiveEvent);
+      const readySent = send(
+        {
+          latestSequence: checkpoint.sequence,
+          sessionId: checkpoint.sessionId,
+          type: "connection.ready",
+          version: 3,
+        },
+        onWritten,
+      );
+      if (readySent) watchWrite();
+      else cleanup();
     },
   );
   done();

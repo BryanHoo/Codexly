@@ -10,6 +10,7 @@ import {
 
 const EVENT_SOCKET_SOFT_BACKPRESSURE_BYTES = 256 * 1_024;
 const EVENT_SOCKET_HARD_BACKPRESSURE_BYTES = 1_024 * 1_024;
+export const EVENT_SOCKET_SLOW_CLIENT_REASON = "Client is too slow; refresh the snapshot";
 const EVENT_BATCH_PREFIX = '{"events":[';
 const EVENT_BATCH_SUFFIX = '],"type":"events.batch","version":3}';
 const EVENT_BATCH_ENVELOPE_BYTES = EVENT_BATCH_PREFIX.length + EVENT_BATCH_SUFFIX.length;
@@ -17,6 +18,7 @@ const serializedMessages = new WeakMap<object, SerializedEventStreamMessage>();
 const serializedEventBatches = new WeakMap<AgentEvent, Map<number, SerializedEventBatch>>();
 
 type SerializedEventBatch = Readonly<{
+  eventBytes: number;
   events: readonly AgentEvent[];
   message: SerializedEventStreamMessage;
 }>;
@@ -26,11 +28,13 @@ export type SerializedEventStreamMessage = Readonly<{
   data: string;
 }>;
 
+type SendCallback = (error?: Error | null) => void;
+
 export interface EventStreamSocket {
   readonly bufferedAmount: number;
   readonly readyState: number;
   close: (code: number, reason: string) => void;
-  send: (data: string) => void;
+  send: (data: string, callback?: SendCallback) => void;
 }
 
 function serializeEventStreamValue(value: object): SerializedEventStreamMessage {
@@ -106,7 +110,11 @@ function serializeEventBatch(
   // 复用单事件 JSON 和字节长度；预算包含协议封套与逗号，不重复遍历正文。
   const data = `${EVENT_BATCH_PREFIX}${serializedEvents.map((event) => event.data).join(",")}${EVENT_BATCH_SUFFIX}`;
   const message = { byteLength, data };
-  const batch = { events: batchEvents, message };
+  const batch = {
+    eventBytes: byteLength - EVENT_BATCH_ENVELOPE_BYTES - (eventCount - 1),
+    events: batchEvents,
+    message,
+  };
 
   const batches = cachedByCount ?? new Map<number, SerializedEventBatch>();
   batches.set(eventCount, batch);
@@ -122,6 +130,7 @@ function sendSerializedEventStreamMessage(
   serialize: () => SerializedEventStreamMessage | undefined,
   onSoftBackpressure: () => void,
   onSlowClientDisconnect: () => void,
+  callback?: SendCallback,
 ): boolean {
   if (socket.readyState !== 1) {
     return false;
@@ -129,7 +138,7 @@ function sendSerializedEventStreamMessage(
   if (socket.bufferedAmount > EVENT_SOCKET_HARD_BACKPRESSURE_BYTES) {
     // 硬上限必须在序列化和 send 前断开，避免慢客户端继续扩大进程内缓冲。
     onSlowClientDisconnect();
-    socket.close(1013, "Client is too slow; refresh the snapshot");
+    socket.close(1013, EVENT_SOCKET_SLOW_CLIENT_REASON);
     return false;
   }
   const message = serialize();
@@ -141,13 +150,13 @@ function sendSerializedEventStreamMessage(
   const projectedBufferedAmount = socket.bufferedAmount + message.byteLength;
   if (projectedBufferedAmount > EVENT_SOCKET_HARD_BACKPRESSURE_BYTES) {
     onSlowClientDisconnect();
-    socket.close(1013, "Client is too slow; refresh the snapshot");
+    socket.close(1013, EVENT_SOCKET_SLOW_CLIENT_REASON);
     return false;
   }
   if (projectedBufferedAmount > EVENT_SOCKET_SOFT_BACKPRESSURE_BYTES) {
     onSoftBackpressure();
   }
-  socket.send(message.data);
+  socket.send(message.data, callback);
   return true;
 }
 
@@ -156,6 +165,7 @@ export function sendEventStreamMessage(
   message: EventStreamMessage,
   onSoftBackpressure: () => void,
   onSlowClientDisconnect: () => void,
+  callback?: SendCallback,
 ): boolean {
   return sendSerializedEventStreamMessage(
     socket,
@@ -172,33 +182,29 @@ export function sendEventStreamMessage(
     },
     onSoftBackpressure,
     onSlowClientDisconnect,
+    callback,
   );
 }
 
-export function sendEventStreamEvents(
+/** 发送一帧并返回已入写缓冲的批次，调用方据此扣减队列并等待写入回调。 */
+export function sendEventStreamBatch(
   socket: EventStreamSocket,
   events: readonly AgentEvent[],
+  offset: number,
   onSoftBackpressure: () => void,
   onSlowClientDisconnect: () => void,
-): boolean {
-  for (let offset = 0; offset < events.length;) {
-    let nextOffset = offset;
-    if (
-      !sendSerializedEventStreamMessage(
-        socket,
-        () => {
-          const batch = serializeEventBatch(events, offset);
-          if (batch === undefined) return undefined;
-          nextOffset += batch.events.length;
-          return batch.message;
-        },
-        onSoftBackpressure,
-        onSlowClientDisconnect,
-      )
-    ) {
-      return false;
-    }
-    offset = nextOffset;
-  }
-  return true;
+  callback?: SendCallback,
+): SerializedEventBatch | undefined {
+  let batch: SerializedEventBatch | undefined;
+  const sent = sendSerializedEventStreamMessage(
+    socket,
+    () => {
+      batch = serializeEventBatch(events, offset);
+      return batch?.message;
+    },
+    onSoftBackpressure,
+    onSlowClientDisconnect,
+    callback,
+  );
+  return sent ? batch : undefined;
 }

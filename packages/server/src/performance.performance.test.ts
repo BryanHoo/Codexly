@@ -10,7 +10,7 @@ import performanceBudgets from "../../../tests/performance-budgets.json" with { 
 import { AgentEventStream } from "./agent-event-stream.js";
 import { AttachmentStore } from "./attachment-store.js";
 import {
-  sendEventStreamEvents,
+  sendEventStreamBatch,
   sendEventStreamMessage,
   type EventStreamSocket,
 } from "./event-socket-sender.js";
@@ -148,9 +148,11 @@ describe("server performance acceptance", () => {
       timestamp: fixedTimestamp,
       version: 2 as const,
     }));
-    expect(sendEventStreamEvents(socket, events, softBackpressure, slowClientDisconnect)).toBe(
-      true,
-    );
+    for (const offset of [0, 64, 128]) {
+      expect(
+        sendEventStreamBatch(socket, events, offset, softBackpressure, slowClientDisconnect),
+      ).toBeDefined();
+    }
     const batches = socket.send.mock.calls
       .slice(-3)
       .map(([data]) => JSON.parse(String(data)) as { events: AgentEvent[] });

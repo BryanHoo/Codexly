@@ -195,7 +195,7 @@ describe("CodexlyClient realtime events", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("spreads retries across tabs, caps backoff and resets it only after connection.ready", async () => {
+  it("spreads retries across tabs, caps backoff and resets it after catching up", async () => {
     vi.useFakeTimers();
     const random = vi
       .spyOn(Math, "random")
@@ -239,6 +239,67 @@ describe("CodexlyClient realtime events", () => {
       unsubscribe();
     });
     random.mockRestore();
+  });
+
+  it("preserves backoff until replay reaches the ready checkpoint", async () => {
+    vi.useFakeTimers();
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const { client, sockets } = createHarness();
+    const unsubscribe = client.subscribeEvents({
+      afterSequence: 0,
+      onEvent: vi.fn(),
+      onResyncRequired: vi.fn(),
+      projectId: "codexly",
+      sessionId: "runtime-1",
+    });
+    try {
+      sockets[0]?.serverClose();
+      await vi.advanceTimersByTimeAsync(250);
+      sockets[1]?.receive(ready);
+      sockets[1]?.receive(eventBatch(messageEvent(1)));
+      sockets[1]?.serverClose();
+      await vi.advanceTimersByTimeAsync(499);
+      expect(sockets).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sockets[2]?.url).toContain("afterSequence=1");
+      sockets[2]?.receive(ready);
+      sockets[2]?.receive(eventBatch(messageEvent(2), messageEvent(3)));
+      sockets[2]?.serverClose();
+      await vi.advanceTimersByTimeAsync(250);
+      expect(sockets[3]?.url).toContain("afterSequence=3");
+    } finally {
+      unsubscribe();
+      random.mockRestore();
+    }
+  });
+
+  it("requests a snapshot instead of replaying again after slow-client closure", async () => {
+    vi.useFakeTimers();
+    const { client, sockets } = createHarness();
+    const onResyncRequired = vi.fn();
+    const unsubscribe = client.subscribeEvents({
+      afterSequence: 0,
+      onEvent: vi.fn(),
+      onResyncRequired,
+      projectId: "codexly",
+      sessionId: "runtime-1",
+    });
+    try {
+      sockets[0]?.receive(ready);
+      sockets[0]?.receive(eventBatch(messageEvent(1)));
+      sockets[0]?.serverClose(1013, "Client is too slow; refresh the snapshot");
+      expect(onResyncRequired).toHaveBeenCalledExactlyOnceWith({
+        latestSequence: 3,
+        reason: "event_retention_exceeded",
+        sessionId: "runtime-1",
+        type: "resync.required",
+        version: 3,
+      });
+      await vi.runAllTimersAsync();
+      expect(sockets).toHaveLength(1);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it.each(["x", "中", "😀"])("rejects oversized UTF-8 frames before parsing (%j)", (character) => {
