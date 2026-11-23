@@ -1,3 +1,4 @@
+import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
 import { useRef } from "react";
 import {
   SubagentContent as SharedSubagentContent,
@@ -17,7 +18,6 @@ import { withAgentLocale } from "../../../shared/components/agent/with-agent-loc
 import { Dialog } from "../../../shared/components/core/dialog.js";
 import { parseSubagentOperation, type SubagentSelection } from "./subagent.js";
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
-import { TaskTimelinePagination } from "./task-timeline-pagination.js";
 import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
 import { TimelineImageProvider } from "./timeline-image-provider.js";
 
@@ -203,6 +203,7 @@ function IndependentTimeline({
             error={runtime.olderHistoryError}
             isLoading={runtime.isLoadingOlderHistory}
             onLoad={runtime.loadOlderHistory}
+            t={(key) => i18n.t(key, { ns: "conversation" })}
           />
         ) : null
       }

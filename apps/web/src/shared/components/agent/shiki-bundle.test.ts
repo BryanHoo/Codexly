@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { getCodeLanguage, projectLanguageModules } from "./code-languages.js";
-import { pierreThemes, shikiThemes } from "./pierre-themes.js";
-import { bundledLanguages, createHighlighter } from "./shiki-bundle.js";
+import { pierreThemes, shikiThemes } from "@codexly/ui/agent/pierre-themes";
+import { bundledLanguages, createHighlighter } from "@codexly/ui/agent/shiki-bundle";
 
 const supportedLanguages = [
   "bash",

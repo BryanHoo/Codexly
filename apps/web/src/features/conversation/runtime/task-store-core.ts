@@ -309,10 +309,6 @@ type NormalizedTaskData = Pick<
   | "turnsById"
 >;
 
-export function readTaskItem(state: TaskStoreState, itemKey: string): AgentItem | undefined {
-  return state.itemStoresByKey.get(itemKey)?.read();
-}
-
 export function normalizeSnapshot(response: TaskStoreHydrationResponse): NormalizedTaskData {
   const { pendingRequests, turns, turnsNextCursor, ...snapshotMetadata } = response.snapshot;
   const turnIds: string[] = [];

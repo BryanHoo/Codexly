@@ -50,7 +50,7 @@ import {
   shouldEnableProjectGitDetails,
 } from "../workbench-inspector-activation.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
-import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 import { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";
 import type { WorkbenchShellProps } from "./workbench-shell-contracts.js";
 import {
@@ -59,7 +59,7 @@ import {
   type TaskLaunchState,
 } from "./workbench-task-launch.js";
 
-export { useSubmissionStartedAt } from "./use-submission-started-at.js";
+export { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 export type { WorkbenchShellProps, SubmittedPromptState } from "./workbench-shell-contracts.js";
 
 const emptyExpandedFileTreePaths = new Set<string>();

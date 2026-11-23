@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
 import { classifyMessageAttachment } from "../project-file-reference.js";
-import { WorkbenchInspectorIncrementalList } from "./workbench-inspector-incremental-list.js";
+import { WorkbenchInspectorIncrementalList } from "@codexly/ui/core/workbench-inspector-incremental-list";
 
 type InspectorSource = Readonly<{
   detail: string;
@@ -215,6 +215,7 @@ export function InspectorSources({
     >
       <WorkbenchInspectorIncrementalList
         ariaLabel={i18n.t("inspector.contextSources", { ns: "conversation" })}
+        showMoreLabel={i18n.t("inspector.showMore", { ns: "conversation" })}
         getKey={(source) => source.id}
         items={sources}
         renderItem={(source) => (

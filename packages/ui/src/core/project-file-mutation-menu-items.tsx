@@ -1,58 +1,55 @@
 import { Pencil, Trash2 } from "lucide-react";
 
-import { useTranslation } from "../../../i18n/i18n.js";
-import {
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from "../../../shared/components/core/context-menu.js";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "../../../shared/components/core/dropdown-menu.js";
+import { ContextMenuItem, ContextMenuSeparator } from "./context-menu.js";
+import { DropdownMenuItem, DropdownMenuSeparator } from "./dropdown-menu.js";
 
 type ProjectFileMutationMenuItemsProps = Readonly<{
   disabled: boolean;
+  deleteLabel: string;
+  renameLabel: string;
   onDelete: () => void;
   onRename: () => void;
 }>;
 
 export function ProjectFileMutationContextMenuItems({
+  deleteLabel,
   disabled,
   onDelete,
   onRename,
+  renameLabel,
 }: ProjectFileMutationMenuItemsProps) {
-  const { t } = useTranslation("workbench");
   return (
     <>
       <ContextMenuSeparator />
       <ContextMenuItem disabled={disabled} onSelect={onRename}>
         <Pencil aria-hidden="true" className="size-4 text-muted-foreground" />
-        <span>{t("openMenu.rename")}</span>
+        <span>{renameLabel}</span>
       </ContextMenuItem>
       <ContextMenuItem className="text-danger" disabled={disabled} onSelect={onDelete}>
         <Trash2 aria-hidden="true" className="size-4" />
-        <span>{t("openMenu.delete")}</span>
+        <span>{deleteLabel}</span>
       </ContextMenuItem>
     </>
   );
 }
 
 export function ProjectFileMutationDropdownMenuItems({
+  deleteLabel,
   disabled,
   onDelete,
   onRename,
+  renameLabel,
 }: ProjectFileMutationMenuItemsProps) {
-  const { t } = useTranslation("workbench");
   return (
     <>
       <DropdownMenuSeparator />
       <DropdownMenuItem disabled={disabled} onSelect={onRename}>
         <Pencil aria-hidden="true" className="size-4 text-muted-foreground" />
-        <span>{t("openMenu.rename")}</span>
+        <span>{renameLabel}</span>
       </DropdownMenuItem>
       <DropdownMenuItem className="text-danger" disabled={disabled} onSelect={onDelete}>
         <Trash2 aria-hidden="true" className="size-4" />
-        <span>{t("openMenu.delete")}</span>
+        <span>{deleteLabel}</span>
       </DropdownMenuItem>
     </>
   );

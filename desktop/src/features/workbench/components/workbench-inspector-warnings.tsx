@@ -3,7 +3,7 @@ import { AlertTriangle, ChevronRight } from "lucide-react";
 import { useStore } from "zustand";
 
 import { i18n } from "../../../i18n/i18n.js";
-import { WorkbenchInspectorIncrementalList } from "./workbench-inspector-incremental-list.js";
+import { WorkbenchInspectorIncrementalList } from "@codexly/ui/core/workbench-inspector-incremental-list";
 import { InspectorSection } from "./workbench-inspector-sections.js";
 
 function WarningNoticeRow({ notice }: Readonly<{ notice: TaskNotice }>) {
@@ -33,6 +33,7 @@ export function WarningNoticesSection({ notices }: Readonly<{ notices: readonly 
     >
       <WorkbenchInspectorIncrementalList
         ariaLabel={i18n.t("inspector.warnings", { ns: "conversation" })}
+        showMoreLabel={i18n.t("inspector.showMore", { ns: "conversation" })}
         getKey={(notice) => `${notice.sessionId}:${String(notice.sequence)}`}
         items={warnings}
         renderItem={(notice) => <WarningNoticeRow notice={notice} />}

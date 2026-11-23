@@ -1,3 +1,4 @@
+import { reconcileSnapshot, reconstructSnapshot } from "@codexly/frontend-core/task-snapshot";
 import { findMessageAliasKeys } from "@codexly/frontend-core/message-identity";
 import {
   createInterruptedReplyRecovery,
@@ -22,7 +23,6 @@ import {
 } from "./task-store-core.js";
 
 import { applyAcceptedEvent, getTouchedCommandOutputItemKeys } from "./task-store-events.js";
-import { reconcileSnapshot, reconstructSnapshot } from "./task-store-snapshot.js";
 
 export function createTaskStore(
   identity: TaskStoreIdentity,

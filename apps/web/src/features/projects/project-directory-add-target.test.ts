@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveProjectDirectoryAddPaths } from "./project-directory-add-target.js";
+import { resolveProjectDirectoryAddPaths } from "@codexly/frontend-core/project-directory-add-target";
 
 describe("resolveProjectDirectoryAddPaths", () => {
   it("returns one normalized path after the submitted path is validated", () => {

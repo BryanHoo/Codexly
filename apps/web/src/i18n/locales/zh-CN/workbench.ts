@@ -7,7 +7,7 @@ import { gitCommit } from "./git-commit.js";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
 import { skillsMarket } from "./skills-market.js";
-import { newProject } from "./new-project.js";
+import { newProject } from "@codexly/frontend-core/locales/zh-CN/new-project";
 import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
 

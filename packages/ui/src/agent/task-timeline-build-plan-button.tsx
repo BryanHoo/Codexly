@@ -1,11 +1,12 @@
 import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 
-import { i18n } from "../../../i18n/i18n.js";
-import { Button } from "../../../shared/components/core/button.js";
-import type { BuildPlanAction } from "./task-timeline-contracts.js";
+import { Button } from "../core/button.js";
 
-export function BuildPlanButton({ onBuildPlan }: Readonly<{ onBuildPlan: BuildPlanAction }>) {
+export function BuildPlanButton({
+  label,
+  onBuildPlan,
+}: Readonly<{ label: string; onBuildPlan: () => Promise<boolean> }>) {
   const [isBuilding, setIsBuilding] = useState(false);
 
   return (
@@ -13,6 +14,7 @@ export function BuildPlanButton({ onBuildPlan }: Readonly<{ onBuildPlan: BuildPl
       disabled={isBuilding}
       onClick={() => {
         setIsBuilding(true);
+        // 启动成功后保持禁用，直到时间线随新的计划执行状态更新。
         void onBuildPlan().then(
           (started) => {
             if (!started) {
@@ -27,7 +29,7 @@ export function BuildPlanButton({ onBuildPlan }: Readonly<{ onBuildPlan: BuildPl
       type="button"
     >
       {isBuilding ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-      {i18n.t("timeline.buildPlan", { ns: "conversation" })}
+      {label}
     </Button>
   );
 }

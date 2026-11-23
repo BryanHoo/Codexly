@@ -1,3 +1,4 @@
+import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
 import { AcpSubagentTranscripts, splitAcpSubagentItems } from "@codexly/ui/agent/acp-subagent-transcript";
 import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
@@ -22,7 +23,6 @@ import type { AgentFileChange } from "../../diff/file-change.js";
 import { PendingRequestCard, type PendingRequestResolution } from "./pending-request.js";
 import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
-import { TaskTimelinePagination } from "./task-timeline-pagination.js";
 import {
   TaskTimelineNavigation,
   getTaskTimelineNavigationItems,
@@ -437,6 +437,7 @@ export function TaskStoreTimeline({
                 error={olderHistoryError}
                 isLoading={isLoadingOlderHistory}
                 onLoad={onLoadOlderHistory}
+                t={(key) => i18n.t(key, { ns: "conversation" })}
               />
             ),
           }

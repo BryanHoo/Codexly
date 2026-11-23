@@ -53,7 +53,7 @@ import { serializePromptSkillContent } from "./prompt-skill-content.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
 import { ProjectRootSelector } from "./project-root-selector.js";
 import { ComposerCommandMenu } from "./workbench-composer-command-menu.js";
-import { ComposerFileMenu } from "./workbench-composer-file-menu.js";
+import { ComposerFileMenu } from "@codexly/ui/core/workbench-composer-file-menu";
 import { ComposerAttachments, ComposerConfigurationToolbar } from "./workbench-composer-toolbar.js";
 import {
   resolveQueuedPromptSummary,
@@ -202,7 +202,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           ref={props.commandSurfaceRef}
         >
           <ComposerCommandMenu props={props} />
-          <ComposerFileMenu props={props} />
+          <ComposerFileMenu props={props} t={t} />
           {props.queuedPrompts.length === 0 ? null : (
             <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
               {props.queuedPrompts.map((queuedPrompt, index) => {

@@ -1,23 +1,35 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { File } from "lucide-react";
 
-import { useTranslation } from "../../../i18n/i18n.js";
 import {
   PromptInputCommand,
   PromptInputCommandEmpty,
   PromptInputCommandGroup,
   PromptInputCommandItem,
   PromptInputCommandList,
-} from "../../../shared/components/agent/prompt-input.js";
-import type { WorkbenchComposerViewProps } from "./workbench-composer-view-contracts.js";
+} from "../agent/prompt-input-controls.js";
 
 function parentPath(path: string, name: string): string {
   const parent = path.slice(0, Math.max(0, path.length - name.length)).replace(/\/$/u, "");
   return parent === "" ? "." : parent;
 }
 
-export function ComposerFileMenu({ props }: Readonly<{ props: WorkbenchComposerViewProps }>) {
-  const { t } = useTranslation("workbench");
+export function ComposerFileMenu<FileEntry extends { name: string; path: string }>({
+  props,
+  t,
+}: Readonly<{
+  props: {
+    activeCommandIndex: number;
+    commandMenuId: string;
+    fileMenuOpen: boolean;
+    fileSearchError: Error | null;
+    fileSearchPending: boolean;
+    fileSearchResults: readonly FileEntry[];
+    onSelectFileReference: (file: FileEntry) => void;
+    turnControlsDisabled: boolean;
+  };
+  t: (key: string) => string;
+}>) {
   if (!props.fileMenuOpen || props.turnControlsDisabled) {
     return null;
   }

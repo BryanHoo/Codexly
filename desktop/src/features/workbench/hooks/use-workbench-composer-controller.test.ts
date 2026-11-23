@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 import { useWorkbenchComposerController } from "./use-workbench-composer-controller.js";
-import { useSubmissionStartedAt } from "../components/use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 
 it("clears submission timing without waiting for an intermediate render", () => {
   const onSubmissionStateChange = vi.fn();

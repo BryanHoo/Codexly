@@ -61,9 +61,9 @@ import {
 } from "../workbench-inspector-activation.js";
 import { shouldEnableWorkbenchSkills } from "../workbench-query-availability.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
-import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 import { createProjectOpenRequest, type ProjectPathOpenInput } from "../project-file-reference.js";
-export { useSubmissionStartedAt } from "./use-submission-started-at.js";
+export { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 const emptyExpandedFileTreePaths = new Set<string>();
 import { createTaskLaunchSnapshot, taskLaunchQueryKey, type TaskLaunchState } from "./workbench-task-launch.js";
 export { createTaskLaunchSnapshot, taskLaunchQueryKey, type TaskLaunchState } from "./workbench-task-launch.js";

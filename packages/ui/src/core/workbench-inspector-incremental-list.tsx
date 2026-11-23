@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { i18n } from "../../../i18n/i18n.js";
-import { Button } from "../../../shared/components/core/button.js";
+import { Button } from "./button.js";
 
 const initialVisibleItemCount = 5;
 
@@ -11,11 +10,13 @@ export function WorkbenchInspectorIncrementalList<T>({
   getKey,
   items,
   renderItem,
+  showMoreLabel,
 }: Readonly<{
   ariaLabel: string;
   getKey: (item: T) => string;
   items: readonly T[];
   renderItem: (item: T) => ReactNode;
+  showMoreLabel: string;
 }>) {
   const [expanded, setExpanded] = useState(false);
   const visibleItems = expanded ? items : items.slice(0, initialVisibleItemCount);
@@ -36,7 +37,7 @@ export function WorkbenchInspectorIncrementalList<T>({
           type="button"
           variant="ghost"
         >
-          {i18n.t("inspector.showMore", { ns: "conversation" })}
+          {showMoreLabel}
         </Button>
       )}
     </div>

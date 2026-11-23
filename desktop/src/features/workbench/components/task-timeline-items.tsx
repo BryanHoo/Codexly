@@ -1,3 +1,4 @@
+import { BuildPlanButton } from "@codexly/ui/agent/task-timeline-build-plan-button";
 import { AcpCompactionRow } from "@codexly/ui/agent/acp-session-updates";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
@@ -59,7 +60,6 @@ import {
 } from "@codexly/frontend-core/reasoning-summary";
 
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
-import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
 import { TimelineFileChangePresentation, LegacyTimelineFileChange } from "./task-timeline-file-changes.js";
 import {
   ApprovalReviewItem,
@@ -361,7 +361,10 @@ export function TimelineItemContent({
           {isStreamingPlan || onBuildPlan === undefined ? null : (
             <PlanFooter className="justify-end">
               <PlanAction>
-                <BuildPlanButton onBuildPlan={onBuildPlan} />
+                <BuildPlanButton
+                  label={i18n.t("timeline.buildPlan", { ns: "conversation" })}
+                  onBuildPlan={onBuildPlan}
+                />
               </PlanAction>
             </PlanFooter>
           )}

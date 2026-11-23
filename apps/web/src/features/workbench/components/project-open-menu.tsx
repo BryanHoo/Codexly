@@ -29,7 +29,7 @@ import {
 import { Button } from "../../../shared/components/core/button.js";
 import { ButtonGroup } from "../../../shared/components/core/button-group.js";
 import { useTranslation } from "../../../i18n/i18n.js";
-import { ProjectFileMutationContextMenuItems } from "./project-file-mutation-menu-items.js";
+import { ProjectFileMutationContextMenuItems } from "@codexly/ui/core/project-file-mutation-menu-items";
 import {
   copyProjectTargetText,
   getProjectOpenAppsForTarget,
@@ -275,6 +275,8 @@ export function ProjectOpenContextMenuItems({
       )}
       {onDelete === undefined || onRename === undefined ? null : (
         <ProjectFileMutationContextMenuItems
+          deleteLabel={t("openMenu.delete")}
+          renameLabel={t("openMenu.rename")}
           disabled={isPending}
           onDelete={onDelete}
           onRename={onRename}
