@@ -323,7 +323,9 @@ export function useWorkbenchShellRuntime({
   }, [projectId, taskId, viewTask, workspaceOnly, paneActive]);
   const projectName = temporary ? t("shell.temporaryTask") : (project?.name ?? projectId);
   const projectPath = selectedRootPath ?? "";
+  // 当前 ACP 投影已按应用标题优先合并 Agent 标题，避免任务列表的占位标题盖住实时更新。
   const title =
+    (runtime.metadata?.acpSession?.title ? runtime.metadata.title : undefined) ??
     tasks.find((task) => task.projectId === projectId && task.id === taskId)?.title ??
     runtime.metadata?.title ??
     t("shell.newChat");

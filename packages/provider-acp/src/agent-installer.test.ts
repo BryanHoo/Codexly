@@ -5,13 +5,16 @@ import { delimiter, dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import { ZipFile } from "yazl";
 import { execFile } from "node:child_process";
+import { Writable } from "node:stream";
 import { promisify } from "node:util";
 import snapshot from "./registry-snapshot.json" with { type: "json" };
 import { installRegistryAgent, type RegistryAgent } from "./agent-installer.js";
+import { AcpHost } from "./host.js";
 import type { AcpAgentInstallationStage } from "@codexly/protocol";
 const directories: string[] = [];
 afterEach(async () => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
@@ -67,14 +70,18 @@ it("ZIP 安装不依赖系统 tar 或 unzip，并保留嵌套入口、参数和�
   expect(result.env).toEqual({ ACP_MODE: "test" });
 });
 
-it.each([false, true])("npm 优先使用较快的源并在失败时清理暂存后切源，失败：%s", async (fail) => {
+async function npmFixture(outcome: "success" | "failure" | "timeout" | "both-fail") {
   const { directory, agent } = await fixture();
   const mirror = "https://registry.npmmirror.com";
   const official = "https://registry.npmjs.org";
   agent.distribution = { npx: { package: "@test/agent@1.0.0", args: ["--acp"] } };
-  const probe = vi.fn((url: string) =>
-    Promise.resolve(new Response(null, { status: url.startsWith(mirror) ? 200 : 404 })),
-  );
+  const now = performance.now.bind(performance);
+  const clock = outcome === "timeout" ? vi.spyOn(performance, "now") : undefined;
+  const probe = vi.fn((url: string) => {
+    // 保留真实子进程计时，只把探测结束时的剩余安装预算缩短为约两秒。
+    clock?.mockImplementation(() => now() + 298_000);
+    return Promise.resolve(new Response(null, { status: url.startsWith(mirror) ? 200 : 404 }));
+  });
   vi.stubGlobal("fetch", probe);
 
   // 以真实 Node 子进程代替 npm 网络请求，覆盖命令参数、切源和暂存目录清理。
@@ -95,12 +102,23 @@ const registry = args.find(arg => arg.startsWith("--registry="))?.slice(11);
 const stage = args[args.indexOf("--prefix") + 1];
 fs.appendFileSync(${JSON.stringify(attempts)}, registry + "\\n");
 if (!registry || !args.includes("--@test:registry=" + registry)) process.exit(2);
-if (${String(fail)} && registry === ${JSON.stringify(mirror)}) {
+const outcome = ${JSON.stringify(outcome)};
+if (outcome !== "success" && registry === ${JSON.stringify(mirror)}) {
   fs.writeFileSync(path.join(stage, "package-lock.json"), "stale");
+  if (outcome === "timeout") {
+    process.on("SIGTERM", () => {});
+    setTimeout(() => process.exit(1), 2400);
+    return;
+  }
   console.error("npm error code ETIMEDOUT");
   process.exit(1);
 }
 if (fs.existsSync(path.join(stage, "package-lock.json"))) process.exit(3);
+if (outcome === "both-fail") {
+  console.error("npm error code E403");
+  console.error("https://proxy-user:private-token@example.test /private/npm-cache");
+  process.exit(1);
+}
 const pkg = path.join(stage, "node_modules", "@test", "agent");
 fs.mkdirSync(pkg, { recursive: true });
 fs.writeFileSync(path.join(pkg, "package.json"), '{"bin":{"agent":"index.js"}}');
@@ -108,22 +126,77 @@ fs.writeFileSync(path.join(pkg, "index.js"), "");
 `,
     { mode: 0o700 },
   );
-  const result = await installRegistryAgent(agent, join(directory, "runtime"), {
-    ...process.env,
-    PATH: [directory, dirname(process.execPath), process.env["PATH"]].join(delimiter),
-  });
-  expect(probe.mock.calls.map(([url]) => url)).toEqual([
-    `${official}/@test%2fagent/1.0.0`,
-    `${mirror}/@test%2fagent/1.0.0`,
-  ]);
-  expect(await readFile(attempts, "utf8")).toBe(
-    [mirror, ...(fail ? [official] : []), ""].join("\n"),
+  const install = () =>
+    installRegistryAgent(agent, join(directory, "runtime"), {
+      ...process.env,
+      PATH: [directory, dirname(process.execPath), process.env["PATH"]].join(delimiter),
+    });
+  return { directory, install, probe, attempts, official, mirror };
+}
+
+it.each(["success", "failure", "timeout"] as const)(
+  "npm 优先使用较快的源，失败或子进程超时后清理暂存并切源：%s",
+  async (outcome) => {
+    const { directory, install, probe, attempts, official, mirror } = await npmFixture(outcome);
+    const result = await install();
+    expect(probe.mock.calls.map(([url]) => url)).toEqual([
+      `${official}/@test%2fagent/1.0.0`,
+      `${mirror}/@test%2fagent/1.0.0`,
+    ]);
+    expect(await readFile(attempts, "utf8")).toBe(
+      [mirror, ...(outcome === "success" ? [] : [official]), ""].join("\n"),
+    );
+    expect(result.args).toEqual([
+      join(directory, "runtime/node_modules/@test/agent/index.js"),
+      "--acp",
+    ]);
+    expect(await readdir(directory)).not.toContainEqual(expect.stringContaining(".stage-"));
+  },
+);
+
+it("桌面宿主只在安装与更新时回传安装器生成的脱敏 npm 诊断", async () => {
+  const { directory, install } = await npmFixture("both-fail");
+  const failure: unknown = await install().catch((error: unknown) => error);
+  const summary = "npm 安装 @test/agent@1.0.0 失败（已尝试官方源和国内镜像，E403）";
+  expect(failure).toMatchObject({ message: summary });
+  const replies: unknown[] = [];
+  const host = new AcpHost(
+    directory,
+    new Writable({
+      write(chunk: Buffer, _encoding, callback) {
+        replies.push(JSON.parse(chunk.toString()));
+        callback();
+      },
+    }),
   );
-  expect(result.args).toEqual([
-    join(directory, "runtime/node_modules/@test/agent/index.js"),
-    "--acp",
-  ]);
-  expect(await readdir(directory)).not.toContainEqual(expect.stringContaining(".stage-"));
+  try {
+    // 将真实安装错误交给宿主，验证响应帧只包含脱敏文案。
+    vi.spyOn(host.runtime.catalog, "install").mockRejectedValue(failure);
+    vi.spyOn(host.runtime.catalog, "update")
+      .mockRejectedValueOnce(failure)
+      .mockRejectedValueOnce(new Error(`${summary} private-token`));
+    vi.spyOn(host.runtime.catalog, "remove").mockRejectedValue(failure);
+    for (const [id, method] of ["install", "update", "update", "remove"].entries()) {
+      host.receive(
+        Buffer.from(
+          `${JSON.stringify({ id, method: `agents.${method}`, params: { engine: "codex" } })}\n`,
+        ),
+      );
+    }
+    await vi.waitFor(() => {
+      expect(replies).toHaveLength(4);
+    });
+    expect(replies).toEqual(
+      expect.arrayContaining([
+        { id: 0, error: summary },
+        { id: 1, error: summary },
+        { id: 2, error: "ACP_HOST_REQUEST_FAILED" },
+        { id: 3, error: "ACP_HOST_REQUEST_FAILED" },
+      ]),
+    );
+  } finally {
+    await host.close();
+  }
 });
 
 it.each(["../evilx", "/outside", "C:/evilx", "a\\evilxx"])(

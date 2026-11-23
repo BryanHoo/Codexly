@@ -1,4 +1,5 @@
 import { SettingsActions } from "@codexly/ui/core/settings-group";
+import { openExternalUrl } from "../../../platform/tauri/external-url.js";
 import { AcpGlobalInstructionsSettings } from "@codexly/ui/core/personalization-instructions-editor";
 import type { AgentEngine } from "@codexly/protocol";
 import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
@@ -253,6 +254,7 @@ export function GlobalSettingsPage<
           ) : (
             <AcpSettingsPanel
               client={nativeClient}
+              openExternalUrl={openExternalUrl}
               language={language === "zh-CN" ? "zh-CN" : "en"}
               initialEngine={settingsSectionEngine(initialSection) ?? "codex"}
               Field={SettingsField}

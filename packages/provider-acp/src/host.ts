@@ -13,6 +13,7 @@ import {
 import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
 import { dispatchAcpHost, hostRecord, ACP_HOST_RESPONSE_SENT } from "./host-dispatch.js";
 import type { AcpLegacySettingsSource } from "./settings-store.js";
+import { NpmAgentInstallError } from "./agent-installer.js";
 
 /** 桌面只负责启动和转发此宿主；双引擎协议与事件投影共用 Web 的 ACP 实现。 */
 export class AcpHost {
@@ -172,11 +173,20 @@ export class AcpHost {
           this.#output.send({ id, result: result ?? null });
         },
         (error: unknown) => {
+          const method = message["method"];
+          // 安装和更新只回传安装器生成的脱敏文案，原始异常及其 cause 不进入 IPC。
+          if (
+            (method === "agents.install" || method === "agents.update") &&
+            error instanceof NpmAgentInstallError
+          ) {
+            this.#output.send({ id, error: error.message });
+            return;
+          }
           // 只发布应用类型确认的未提交状态，不能根据 agent 错误正文推断重试安全性。
           this.#output.send({
             id,
             error:
-              (message["method"] === "prompt.start" || message["method"] === "turn.steer") &&
+              (method === "prompt.start" || method === "turn.steer") &&
               error instanceof AgentTurnNotSubmittedError
                 ? "ACP_HOST_PROMPT_NOT_SUBMITTED"
                 : "ACP_HOST_REQUEST_FAILED",

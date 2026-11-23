@@ -3,6 +3,7 @@ import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
+import { AcpRequestElicitation, registerAcpElicitation } from "./request-elicitation.js";
 
 const CANCEL_GRACE_MS = 5_000;
 const SESSION_CAPACITY = 64;
@@ -23,6 +24,7 @@ export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
   onUpdate?(notification: acp.SessionNotification, historical: boolean): void | Promise<void>;
   supportsSubagents?: boolean;
+  supportsRequestElicitation?: boolean;
   subagentRoot?(sessionId: string): string | undefined;
   resetSubagentWork?(rootSessionId: string): void;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
@@ -53,6 +55,7 @@ export class AcpConnection {
     private readonly replaying: Set<string>,
     private readonly resetSubagentWork: (rootSessionId: string) => void,
     private readonly metadata: AcpSessionMetadataStore,
+    readonly requestElicitation: AcpRequestElicitation | undefined,
     private readonly publishForeground: (
       sessionId: string,
       state: "running" | "idle",
@@ -81,6 +84,9 @@ export class AcpConnection {
     const replaying = new Set<string>();
     const metadata = new AcpSessionMetadataStore();
     const authStatus = new AcpAuthStatusTracker();
+    const requestElicitation = callbacks.supportsRequestElicitation
+      ? new AcpRequestElicitation()
+      : undefined;
     const enqueue = (operation: () => void | Promise<void>) => {
       updates = updates.then(operation);
       void updates.catch((error: unknown) => {
@@ -104,7 +110,7 @@ export class AcpConnection {
       },
       { highWaterMark: 0 },
     );
-    const transport: acp.ClientConnection = acp
+    const client = acp
       .client({ name: "codexly" })
       .onNotification(
         "_auth/status_update",
@@ -124,17 +130,13 @@ export class AcpConnection {
           if (state) await callbacks.onSessionState?.(sessionId, state);
           await callbacks.onUpdate?.(params, historical);
         });
-      })
-      .onRequest(acp.methods.client.elicitation.create, ({ params, signal }) => {
-        // 能力只在有交互路由的连接公布；后台设置与辅助任务不弹出聊天待办。
-        if (!callbacks.requestElicitation || (params.mode !== "form" && params.mode !== "url"))
-          throw acp.RequestError.invalidParams();
-        if ("sessionId" in params === "requestId" in params) throw acp.RequestError.invalidParams();
-        return callbacks.requestElicitation(params, AbortSignal.any([signal, transport.signal]));
-      })
-      .onNotification(acp.methods.client.elicitation.complete, ({ params }) => {
-        callbacks.onElicitationComplete?.(params.elicitationId);
-      })
+      });
+    const transport: acp.ClientConnection = registerAcpElicitation(
+      client,
+      callbacks,
+      requestElicitation,
+      () => transport.signal,
+    )
       .onRequest(acp.methods.client.session.requestPermission, ({ params, signal }) => {
         // 不提供隐式批准；UI 必须保留 agent 原始 optionId 和权限含义。
         return (
@@ -143,7 +145,10 @@ export class AcpConnection {
           }
         );
       })
-      .connect({ readable: incoming, writable: stream.writable });
+      .connect({
+        readable: incoming,
+        writable: requestElicitation?.writable(stream.writable) ?? stream.writable,
+      });
     const timeout = setTimeout(() => {
       transport.close(new Error("ACP 握手超时"));
     }, options.handshakeTimeoutMs ?? 30_000);
@@ -160,7 +165,9 @@ export class AcpConnection {
             ...(callbacks.onUpdate ? { notices: {}, compaction: {} } : {}),
           },
           ...(callbacks.supportsSubagents ? { subagents: {} } : {}),
-          ...(callbacks.requestElicitation ? { elicitation: { form: {}, url: {} } } : {}),
+          ...(callbacks.requestElicitation || requestElicitation
+            ? { elicitation: { form: {}, url: {} } }
+            : {}),
         },
       });
       if (initialization.protocolVersion !== acp.PROTOCOL_VERSION)
@@ -184,6 +191,7 @@ export class AcpConnection {
         replaying,
         (sessionId) => callbacks.resetSubagentWork?.(sessionId),
         metadata,
+        requestElicitation,
         (sessionId, foreground) =>
           enqueue(async () => {
             const state = metadata.foreground(sessionId, foreground);

@@ -5,6 +5,8 @@ import type {
 } from "@codexly/protocol";
 import type {
   AcpAuthCredentials,
+  AcpAuthElicitationRequest,
+  AcpAuthElicitationResponse,
   AcpConfigPreview,
   AcpConfigPreviewRequest,
   AcpAgentProfile,
@@ -32,7 +34,9 @@ export interface AcpAgentSettingsService {
     methodId: string,
     signal?: AbortSignal,
     credentials?: AcpAuthCredentials,
+    attemptId?: string,
   ): Promise<Record<string, never>>;
+  authElicitation?(input: AcpAuthElicitationRequest): AcpAuthElicitationResponse;
   readDefaults(): Promise<AcpDefaults>;
   updateDefaults(values: AcpConfigValues): Promise<AcpDefaults>;
   setDefaultConfig(configId: string, value: string | boolean): Promise<AcpDefaults>;

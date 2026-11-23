@@ -13,6 +13,9 @@ import type { AcpAgentInstallationStage } from "@codexly/protocol";
 import { extractAgentZip } from "./agent-zip.js";
 const execute = promisify(execFile);
 const INSTALL_TIMEOUT_MS = 300_000;
+/** 宿主可回传此类型的 message，子进程原始输出只保留在内部 cause 中。 */
+export class NpmAgentInstallError extends Error {}
+
 interface Spec {
   args?: string[];
   env?: Record<string, string>;
@@ -40,11 +43,17 @@ export async function installRegistryAgent(
   signal?: AbortSignal,
   report?: (progress: AcpAgentInstallationStage) => void,
 ): Promise<AgentCommand> {
-  const run = (command: string, args: string[], timeout = INSTALL_TIMEOUT_MS) =>
+  const run = (
+    command: string,
+    args: string[],
+    timeout = INSTALL_TIMEOUT_MS,
+    killSignal: NodeJS.Signals = "SIGTERM",
+  ) =>
     execute(command, args, {
       ...(signal ? { signal } : {}),
       env: environment,
       timeout,
+      killSignal,
       maxBuffer: 4 * 1024 * 1024,
       windowsHide: true,
     });
@@ -82,7 +91,10 @@ export async function installRegistryAgent(
       for (const [index, registry] of registries.entries()) {
         signal?.throwIfAborted();
         const remaining = Math.ceil(deadline - performance.now());
-        if (remaining <= 0) throw new Error(`npm 安装 ${npm.package} 超时`);
+        if (remaining <= 0) throw new NpmAgentInstallError(`npm 安装 ${npm.package} 超时`);
+        // 两个源共用总时限。首个 npm 进程最多用掉剩余预算的一半，请求级超时无法限制整个进程。
+        const attemptsLeft = registries.length - index;
+        const timeout = Math.max(1, Math.floor(remaining / attemptsLeft));
         try {
           await run(
             node,
@@ -101,18 +113,20 @@ export async function installRegistryAgent(
               "--",
               npm.package,
             ],
-            remaining,
+            timeout,
+            // 到点直接结束 npm，避免进程继续处理或忽略 SIGTERM，耗掉下一次尝试的预算。
+            "SIGKILL",
           );
           break;
         } catch (error) {
           signal?.throwIfAborted();
           if (performance.now() >= deadline)
-            throw new Error(`npm 安装 ${npm.package} 超时`, { cause: error });
-          if (index === registries.length - 1) {
+            throw new NpmAgentInstallError(`npm 安装 ${npm.package} 超时`, { cause: error });
+          if (attemptsLeft === 1) {
             // 对外只提供 npm 错误码，原始 stderr 可能含私有路径、代理或凭据。
             const stderr = (error as { stderr?: string }).stderr;
             const code = stderr?.match(/^npm (?:error|ERR!) code ([A-Z0-9_-]{1,32})\s*$/m)?.[1];
-            throw new Error(
+            throw new NpmAgentInstallError(
               `npm 安装 ${npm.package} 失败（已尝试官方源和国内镜像${code ? `，${code}` : ""}）`,
               { cause: error },
             );

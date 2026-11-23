@@ -6,6 +6,8 @@ import type {
   AcpConfigPreviewRequest,
   AcpAgentProfile,
   AcpAuthCredentials,
+  AcpAuthElicitationRequest,
+  AcpAuthElicitationResponse,
   AcpConfigValues,
   AcpDefaults,
   AcpProviderConfig,
@@ -102,15 +104,30 @@ export class TauriAcpClient extends TauriAcpTaskClient {
   authenticateAcpAgent(
     engine: AgentEngine,
     methodId: string,
-    options: MutationOptions & { credentials?: AcpAuthCredentials } = {},
+    options: MutationOptions & { credentials?: AcpAuthCredentials; attemptId?: string } = {},
   ): Promise<Record<string, never>> {
     return this.callCancellable(
       "acp_agent_request",
       {
         engine,
         method: "agent.authenticate",
-        params: { methodId, ...(options.credentials ? { credentials: options.credentials } : {}) },
+        params: {
+          methodId,
+          ...(options.credentials ? { credentials: options.credentials } : {}),
+          ...(options.attemptId ? { attemptId: options.attemptId } : {}),
+        },
       },
+      options.signal,
+    );
+  }
+  acpAuthElicitation(
+    engine: AgentEngine,
+    input: AcpAuthElicitationRequest,
+    options: ReadOptions = {},
+  ) {
+    return this.call<AcpAuthElicitationResponse>(
+      "acp_agent_request",
+      { engine, method: "agent.authElicitation", params: { input } },
       options.signal,
     );
   }

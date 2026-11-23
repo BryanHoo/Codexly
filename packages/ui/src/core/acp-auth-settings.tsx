@@ -1,5 +1,5 @@
 import { SettingsGroup } from "./settings-group.js";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
 import type { AcpAgentProfile, AcpAuthCredentials, AgentEngine } from "@codexly/protocol";
@@ -7,6 +7,7 @@ import { Button } from "./button.js";
 import { AcpConnectionForm, type AcpConnectionDraft } from "./acp-connection-form.js";
 import type { AcpProviderSettingsClient } from "./acp-provider-settings.js";
 import { LoadingSkeleton } from "./loading-skeleton.js";
+import { AcpAuthElicitation, type AcpAuthElicitationClient } from "./acp-auth-elicitation.js";
 
 export interface AcpAuthClient extends Partial<AcpProviderSettingsClient> {
   getAcpAgent: (
@@ -16,8 +17,14 @@ export interface AcpAuthClient extends Partial<AcpProviderSettingsClient> {
   authenticateAcpAgent: (
     engine: AgentEngine,
     methodId: string,
-    options?: { idempotencyKey?: string; signal?: AbortSignal; credentials?: AcpAuthCredentials },
+    options?: {
+      idempotencyKey?: string;
+      signal?: AbortSignal;
+      credentials?: AcpAuthCredentials;
+      attemptId?: string;
+    },
   ) => Promise<unknown>;
+  acpAuthElicitation: AcpAuthElicitationClient;
 }
 const emptyProviders = [] as const;
 
@@ -26,10 +33,17 @@ export function AcpAuthSettings({
   client,
   engine,
   language,
-}: Readonly<{ client: Partial<AcpAuthClient>; engine: AgentEngine; language: "zh-CN" | "en" }>) {
+  openExternalUrl,
+}: Readonly<{
+  client: Partial<AcpAuthClient>;
+  engine: AgentEngine;
+  language: "zh-CN" | "en";
+  openExternalUrl?: ((url: string) => void | Promise<void>) | undefined;
+}>) {
   const chinese = language === "zh-CN";
   const cache = useQueryClient();
   const attempt = useRef<{ input: string; key: string } | undefined>(undefined);
+  const [activeAttempt, setActiveAttempt] = useState<string>();
   const profile = useQuery({
     queryKey: ["acp-agent-profile", engine],
     enabled: !!client.getAcpAgent,
@@ -88,11 +102,18 @@ export function AcpAuthSettings({
       if (draft.methodId && client.authenticateAcpAgent) {
         if (draft.methodId === "api-key" && !draft.apiKey.trim())
           throw new Error("API key is required");
-        await client.authenticateAcpAgent(engine, draft.methodId, {
-          idempotencyKey: key,
-          signal,
-          ...(draft.methodId === "api-key" ? { credentials: { apiKey: draft.apiKey } } : {}),
-        });
+        const attemptId = client.acpAuthElicitation ? key : undefined;
+        setActiveAttempt(attemptId);
+        try {
+          await client.authenticateAcpAgent(engine, draft.methodId, {
+            idempotencyKey: key,
+            signal,
+            ...(attemptId === undefined ? {} : { attemptId }),
+            ...(draft.methodId === "api-key" ? { credentials: { apiKey: draft.apiKey } } : {}),
+          });
+        } finally {
+          setActiveAttempt(undefined);
+        }
         signal.throwIfAborted();
       }
       // 仅在用户明确切换到本机配置并完成登录后移除应用覆盖，不改写 CLI 全局配置。
@@ -170,6 +191,16 @@ export function AcpAuthSettings({
         submit={submit}
         refresh={refresh}
       />
+      {activeAttempt && client.acpAuthElicitation ? (
+        <AcpAuthElicitation
+          key={activeAttempt}
+          attemptId={activeAttempt}
+          engine={engine}
+          request={client.acpAuthElicitation.bind(client)}
+          language={language}
+          openExternalUrl={openExternalUrl}
+        />
+      ) : null}
     </SettingsGroup>
   );
 }

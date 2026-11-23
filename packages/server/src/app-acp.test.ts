@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 import type { AcpAgentServices } from "@codexly/core";
+import type { AcpAuthElicitationRequest, AcpAuthElicitationResponse } from "@codexly/protocol";
 import { createCodexlyServer } from "./app.js";
 import { createProvider, createServerOptions, closeCallbacks } from "./app-all.test-support.js";
 
@@ -15,6 +16,42 @@ const defaults = {
   unmappedLegacy: [],
   invalidDefaults: [],
 };
+it("Web 认证问卷仅向指定引擎转发已校验的操作和回答", async () => {
+  const attemptId = "1887581d-2014-474d-9ee9-eb19e74e95d7";
+  const authElicitation = vi.fn(
+    (_input: AcpAuthElicitationRequest): AcpAuthElicitationResponse => [],
+  );
+  const service = {
+    inspect: () => Promise.resolve(profile),
+    readDefaults: () => Promise.resolve(defaults),
+    updateDefaults: () => Promise.resolve(defaults),
+    setDefaultConfig: () => Promise.resolve(defaults),
+    authenticate: () => Promise.resolve({}),
+  };
+  const app = await createCodexlyServer({
+    ...createServerOptions(createProvider().provider),
+    acpAgents: { codex: service, claude: { ...service, authElicitation } },
+  });
+  closeCallbacks.push(() => app.close());
+  const url = "/v1/acp/agents/claude/authenticate/elicitation";
+  const answer = {
+    attemptId,
+    requestId: "test-form",
+    resolution: { action: "accept", content: { region: "cn" } },
+  };
+  const response = await app.inject({ method: "POST", url, payload: answer });
+  expect(response.statusCode, response.body).toBe(200);
+  expect(response.headers["cache-control"]).toBe("no-store");
+  expect(response.json()).toEqual([]);
+  expect(authElicitation).toHaveBeenCalledExactlyOnceWith(answer);
+  const unbound = await app.inject({
+    method: "POST",
+    url,
+    payload: { ...answer, attemptId: "foreign" },
+  });
+  expect(unbound.statusCode).toBe(400);
+  expect(authElicitation).toHaveBeenCalledOnce();
+});
 it("服务装配直接使用运行时公布的 ACP 服务端口，无需另注入供应商适配器", async () => {
   const base = createServerOptions(createProvider().provider);
   const service = {

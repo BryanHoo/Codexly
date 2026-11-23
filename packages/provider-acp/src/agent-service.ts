@@ -1,8 +1,12 @@
 import { readNativeConnection, type NativeConnection } from "./native-connection.js";
-import type { AcpAuthCredentials } from "@codexly/protocol";
+import * as acp from "@agentclientprotocol/sdk/unstable";
+import type {
+  AcpAuthCredentials,
+  AcpAuthElicitationRequest,
+  AcpAuthElicitationResponse,
+} from "@codexly/protocol";
 import { previewAcpConfig } from "./config-preview.js";
 import type { AcpConfigPreviewRequest } from "@codexly/protocol";
-import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AcpAgentSettingsService } from "@codexly/core";
 import type { AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
@@ -13,6 +17,8 @@ import { setAcpDefaultConfig } from "./default-config.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { importAcpCatalog } from "./catalog-import.js";
 import type { LocalCatalogStore } from "@codexly/core";
+import { PendingRequestResolutionError } from "@codexly/core";
+import { AcpElicitations } from "./elicitation.js";
 
 const SETTINGS_CLOSE_TIMEOUT_MS = 1_000;
 
@@ -29,6 +35,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
   #closed = false;
   #catalogImported = false;
   #inspected = false;
+  #auth: { attemptId: string; elicitations: AcpElicitations } | undefined;
   constructor(
     readonly engine: AgentEngine,
     readonly cwd: string,
@@ -69,7 +76,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
           rootPath: this.cwd,
           runtimeWorkspaceRoots: [this.cwd],
         },
-        {},
+        { supportsRequestElicitation: true },
       );
       // 原始启动句柄独立于供应商恢复，恢复请求挂起时仍可关闭传输。
       const current = {
@@ -160,6 +167,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
     methodId: string,
     signal?: AbortSignal,
     credentials?: AcpAuthCredentials,
+    attemptId?: string,
   ): Promise<Record<string, never>> {
     return this.#run(async () => {
       signal?.throwIfAborted();
@@ -168,8 +176,13 @@ export class AcpAgentService implements AcpAgentSettingsService {
       const method = connection.initialization.authMethods?.find((value) => value.id === methodId);
       if (!method) throw new Error("ACP 认证方式未公布");
       if ("type" in method) throw new Error("当前宿主未启用 ACP 终端认证");
-      try {
-        await connection.transport.agent.request(
+      const elicitations =
+        attemptId === undefined ? undefined : new AcpElicitations("acp-settings", () => undefined);
+      if (attemptId !== undefined && elicitations) this.#auth = { attemptId, elicitations };
+      const info = connection.initialization.agentInfo;
+      const agent = [info?.title, info?.name].find((label) => label?.trim()) ?? this.engine;
+      const authenticate = () =>
+        connection.transport.agent.request(
           acp.methods.agent.authenticate,
           {
             methodId,
@@ -179,13 +192,57 @@ export class AcpAgentService implements AcpAgentSettingsService {
           },
           signal ? { cancellationSignal: signal, stopWaitingOnCancel: true } : undefined,
         );
+      try {
+        if (connection.requestElicitation && elicitations && attemptId !== undefined) {
+          await connection.requestElicitation.run(
+            acp.methods.agent.authenticate,
+            {
+              request: (input, lifetime) =>
+                elicitations.request(
+                  this.engine,
+                  attemptId,
+                  agent,
+                  input,
+                  signal ? AbortSignal.any([signal, lifetime]) : lifetime,
+                ),
+              complete: (id) => {
+                elicitations.complete(id);
+              },
+            },
+            authenticate,
+          );
+        } else await authenticate();
         signal?.throwIfAborted();
         return {};
       } finally {
+        this.#auth = undefined;
+        elicitations?.clear();
         // 认证使用独立连接；取消仅回收这个服务进程，不中断项目中的聊天。
         if (signal?.aborted) await this.#closeHandle();
       }
     });
+  }
+  authElicitation(input: AcpAuthElicitationRequest): AcpAuthElicitationResponse {
+    // 查询与答复须绕过设置串行队列，认证正在队列头等待用户交互。
+    const elicitations =
+      this.#auth?.attemptId === input.attemptId ? this.#auth.elicitations : undefined;
+    if ("requestId" in input) {
+      const request = elicitations
+        ?.list(this.engine)
+        .find(({ requestId }) => requestId === input.requestId);
+      if (!request || !elicitations)
+        throw new PendingRequestResolutionError("not_found", "ACP 认证问卷已结束");
+      elicitations.resolve({
+        projectId: request.projectId,
+        taskId: request.taskId,
+        turnId: request.turnId,
+        itemId: request.itemId,
+        type: request.type,
+        requestId: request.requestId,
+        resolution: input.resolution,
+      });
+    }
+    return elicitations?.listWithExternalStatus(this.engine) ?? [];
   }
   previewConfig(cwd: string, input: AcpConfigPreviewRequest, signal?: AbortSignal) {
     // 与认证和默认值共用串行连接，但只读取私有设置快照，不进行任何持久写入。

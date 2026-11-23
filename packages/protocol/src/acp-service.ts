@@ -1,4 +1,6 @@
 import { Type, type Static } from "@sinclair/typebox";
+import { McpElicitationPendingRequestSchema } from "./pending-request.js";
+import { McpElicitationResolutionSchema } from "./mcp-elicitation.js";
 import { AgentEngineSchema } from "./agent-engine.js";
 import { ProjectRootPathSchema } from "./project-root.js";
 export * from "./acp-providers.js";
@@ -132,14 +134,34 @@ export const AcpAuthCredentialsSchema = Type.Object(
   { additionalProperties: false },
 );
 export type AcpAuthCredentials = Static<typeof AcpAuthCredentialsSchema>;
+const AcpAuthAttemptId = Type.String({
+  pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+});
 export const AcpAuthenticateRequestSchema = Type.Object(
   {
     methodId: Type.String({ minLength: 1, maxLength: 256 }),
     credentials: Type.Optional(AcpAuthCredentialsSchema),
+    attemptId: Type.Optional(AcpAuthAttemptId),
   },
   { additionalProperties: false },
 );
 export const AcpAuthenticateResponseSchema = Type.Object({}, { additionalProperties: false });
+export const AcpAuthElicitationRequestSchema = Type.Union([
+  Type.Object({ attemptId: AcpAuthAttemptId }, { additionalProperties: false }),
+  Type.Object(
+    {
+      attemptId: AcpAuthAttemptId,
+      requestId: Type.String({ minLength: 1, maxLength: 64 }),
+      resolution: McpElicitationResolutionSchema,
+    },
+    { additionalProperties: false },
+  ),
+]);
+export const AcpAuthElicitationResponseSchema = Type.Array(McpElicitationPendingRequestSchema, {
+  maxItems: 128,
+});
+export type AcpAuthElicitationRequest = Static<typeof AcpAuthElicitationRequestSchema>;
+export type AcpAuthElicitationResponse = Static<typeof AcpAuthElicitationResponseSchema>;
 export type AcpConfigOption = Static<typeof AcpConfigOptionSchema>;
 export type AcpConfigValues = Static<typeof AcpConfigValuesSchema>;
 export type AcpDefaults = Static<typeof AcpDefaultsSchema>;

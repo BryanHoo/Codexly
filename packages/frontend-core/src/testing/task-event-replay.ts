@@ -1,5 +1,6 @@
 import type { AgentEvent, AcpSessionState } from "@codexly/protocol";
 import { describe, expect, test, vi } from "vitest";
+import { taskRuntimeTitle } from "../task-view-selectors.js";
 
 const timestamp = "2026-10-29T00:00:00.000Z";
 const identity = { projectId: "project", taskId: "task" };
@@ -82,6 +83,7 @@ type ReplayEvent =
           | "pending_request.resolved"
           | "pending_request.expired"
           | "provider.error"
+          | "task.metadata_changed"
           | "acp.session.updated";
       }
     >
@@ -104,7 +106,7 @@ interface ReplayItem {
 }
 interface ReplayStore {
   getState(): {
-    snapshotMetadata: { id: string; acpSession?: AcpSessionState } | null;
+    snapshotMetadata: { id: string; title: string; acpSession?: AcpSessionState } | null;
     applyEvents(events: readonly ReplayEvent[]): void;
     checkpoint: { sequence: number; sessionId: string } | null;
     itemStoresByKey: Map<string, { read(): unknown; subscribe(listener: () => void): () => void }>;
@@ -172,6 +174,38 @@ export function runTaskEventReplayContract<Store extends ReplayStore>(
           .getState()
           .reconstructSnapshot()
           ?.turns[0]?.items.map((item) => item.id);
+      test("当前会话实时接收 Agent 标题，手动名称优先", () => {
+        const initial = response();
+        initial.snapshot.title = "";
+        const store = createStore(initial);
+        const displayed = () => {
+          const metadata = store.getState().snapshotMetadata;
+          return metadata && taskRuntimeTitle(metadata);
+        };
+        const update = (sequence: number, title: string | null) => {
+          store.getState().applyEvents([
+            {
+              ...envelope(sequence, provider),
+              type: "acp.session.updated",
+              payload: { state: { title, configOptions: [], availableCommands: [] } },
+            },
+          ]);
+        };
+        update(1, "Agent 标题");
+        expect(displayed()).toBe("Agent 标题");
+        update(2, null);
+        expect(displayed()).toBe("");
+        store.getState().applyEvents([
+          {
+            ...envelope(3, provider),
+            type: "task.metadata_changed",
+            payload: { title: "手动名称" },
+          },
+        ]);
+        update(4, "Agent 更新后的标题");
+        expect(store.getState().snapshotMetadata?.acpSession?.title).toBe("Agent 更新后的标题");
+        expect(displayed()).toBe("手动名称");
+      });
       test("晚到的空启动事件保留已经显示的提交消息与 Store 身份", () => {
         const initial = response([message("submitted-user-turn", "user", "继续")]);
         const store = createStore(initial);

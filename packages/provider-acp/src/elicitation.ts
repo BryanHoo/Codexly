@@ -114,6 +114,15 @@ export class AcpElicitations {
       .map(({ request }) => structuredClone(request));
   }
 
+  listWithExternalStatus(taskId: string): Request[] {
+    return [
+      ...this.list(taskId),
+      ...[...this.#opened.values()]
+        .filter((request) => request.taskId === taskId)
+        .map((request) => structuredClone(request)),
+    ];
+  }
+
   request(
     taskId: string,
     turnId: string,

@@ -10,7 +10,8 @@ import {
   AcpConfigValuesSchema,
   AcpBackgroundTargetSchema,
   AcpAgentRegistrationSchema,
-  AcpAuthCredentialsSchema,
+  AcpAuthenticateRequestSchema,
+  AcpAuthElicitationRequestSchema,
   AcpConfigPreviewRequestSchema,
   AgentEngineSchema,
   AcpDefaultsRequestSchema,
@@ -143,10 +144,16 @@ export async function dispatchAcpHost(
       case "agent.inspect":
         return service.inspect();
       case "agent.authenticate": {
-        const credentials = params["credentials"];
-        if (credentials !== undefined && !Value.Check(AcpAuthCredentialsSchema, credentials))
-          throw new Error("Invalid authentication credentials");
-        return service.authenticate(text(params, "methodId"), signal, credentials);
+        const { engine: _engine, ...input } = params;
+        if (!Value.Check(AcpAuthenticateRequestSchema, input))
+          throw new Error("Invalid authentication request");
+        return service.authenticate(input.methodId, signal, input.credentials, input.attemptId);
+      }
+      case "agent.authElicitation": {
+        const input = params["input"];
+        if (!Value.Check(AcpAuthElicitationRequestSchema, input))
+          throw new Error("Invalid authentication elicitation");
+        return service.authElicitation(input);
       }
       case "settings.preview": {
         if (Object.keys(params).some((key) => !["engine", "values", "change"].includes(key)))

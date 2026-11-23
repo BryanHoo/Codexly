@@ -11,6 +11,8 @@ import {
   type AcpConfigPreviewRequest,
   AcpAgentProfileSchema,
   AcpAuthenticateResponseSchema,
+  AcpAuthElicitationResponseSchema,
+  type AcpAuthElicitationRequest,
   AcpDefaultsSchema,
   AcpSessionConfigSchema,
   AcpSessionStateSchema,
@@ -199,15 +201,36 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
   authenticateAcpAgent(
     engine: AgentEngine,
     methodId: string,
-    options: MutationOptions & { credentials?: AcpAuthCredentials } = {},
+    options: MutationOptions & { credentials?: AcpAuthCredentials; attemptId?: string } = {},
   ) {
     return this.mutation(
       `/v1/acp/agents/${engine}/authenticate`,
-      { methodId, ...(options.credentials ? { credentials: options.credentials } : {}) },
+      {
+        methodId,
+        ...(options.credentials ? { credentials: options.credentials } : {}),
+        ...(options.attemptId ? { attemptId: options.attemptId } : {}),
+      },
       AcpAuthenticateResponseSchema,
       options,
       "POST",
       150_000,
+    );
+  }
+  acpAuthElicitation(
+    engine: AgentEngine,
+    input: AcpAuthElicitationRequest,
+    options: ReadOptions = {},
+  ) {
+    return this.request(
+      `/v1/acp/agents/${engine}/authenticate/elicitation`,
+      AcpAuthElicitationResponseSchema,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      undefined,
+      options,
     );
   }
 }

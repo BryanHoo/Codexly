@@ -74,6 +74,20 @@ export class AcpSessionMetadataStore {
     }
     if (update.sessionUpdate === "config_option_update")
       return this.configure(sessionId, projectAcpConfig(update.configOptions));
+    if (update.sessionUpdate === "session_info_update") {
+      const { title, updatedAt } = update;
+      if (title === undefined && updatedAt === undefined) return undefined;
+      // 通知是部分补丁。省略字段保持原值，null 清空 Agent 值，应用标题由目录继续持有。
+      return this.#write(sessionId, {
+        ...this.read(sessionId),
+        ...(title === undefined
+          ? {}
+          : { title: title === null ? null : title.trim().slice(0, 16384) }),
+        ...(updatedAt === undefined
+          ? {}
+          : { updatedAt: updatedAt === null ? null : updatedAt.slice(0, 16384) }),
+      });
+    }
     if (update.sessionUpdate !== "available_commands_update") return undefined;
     return this.#write(sessionId, {
       ...this.read(sessionId),

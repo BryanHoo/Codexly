@@ -13,6 +13,9 @@ import {
   AcpAgentProfileSchema,
   AcpAuthenticateRequestSchema,
   AcpAuthenticateResponseSchema,
+  AcpAuthElicitationRequestSchema,
+  AcpAuthElicitationResponseSchema,
+  type AcpAuthElicitationRequest,
   AcpDefaultsSchema,
   AcpDefaultsRequestSchema,
   AcpSessionConfigSchema,
@@ -357,7 +360,7 @@ export const registerAcpRoutes: FastifyPluginCallback<{
   );
   app.post<{
     Params: { engine: AgentEngine };
-    Body: { methodId: string; credentials?: AcpAuthCredentials };
+    Body: { methodId: string; credentials?: AcpAuthCredentials; attemptId?: string };
     Headers: { "idempotency-key": string };
   }>(
     "/v1/acp/agents/:engine/authenticate",
@@ -377,14 +380,44 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         request.headers["idempotency-key"],
         request.body,
         () =>
-          request.body.credentials
+          request.body.attemptId !== undefined
             ? service(request.params.engine).authenticate(
                 request.body.methodId,
                 request.signal,
                 request.body.credentials,
+                request.body.attemptId,
               )
-            : service(request.params.engine).authenticate(request.body.methodId, request.signal),
+            : request.body.credentials
+              ? service(request.params.engine).authenticate(
+                  request.body.methodId,
+                  request.signal,
+                  request.body.credentials,
+                )
+              : service(request.params.engine).authenticate(request.body.methodId, request.signal),
       ),
+  );
+  app.post<{ Params: { engine: AgentEngine }; Body: AcpAuthElicitationRequest }>(
+    "/v1/acp/agents/:engine/authenticate/elicitation",
+    {
+      validatorCompiler,
+      schema: {
+        params: Params,
+        body: AcpAuthElicitationRequestSchema,
+        response: { 200: AcpAuthElicitationResponseSchema },
+      },
+    },
+    (request, reply) => {
+      // 查询与答复只使用一次认证的随机标识，响应不能被缓存或进入任务事件。
+      void reply.header("cache-control", "no-store");
+      const agent = service(request.params.engine);
+      if (!agent.authElicitation)
+        throw new MutationHttpError(
+          "PROVIDER_ERROR",
+          "ACP authentication elicitation unavailable",
+          503,
+        );
+      return agent.authElicitation(request.body);
+    },
   );
   app.get<{ Params: { projectId: string; taskId: string } }>(
     "/v1/projects/:projectId/tasks/:taskId/acp/config",

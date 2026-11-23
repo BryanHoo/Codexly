@@ -142,6 +142,57 @@ async function fixture(nativeStatus?: () => Record<string, unknown>) {
   };
 }
 
+it("认证问卷只交给同一连接、同一 RPC 和发起认证的操作", async () => {
+  const f = await fixture();
+  const attemptId = "7f520c60-48ea-4546-91fb-54281741f75c";
+  const received = Promise.withResolvers<acp.CreateElicitationResponse>();
+  f.authenticate.mockImplementationOnce(async ({ client, requestId }) => {
+    if (typeof requestId !== "number") throw new Error("缺少原始请求 ID");
+    const form = {
+      mode: "form",
+      message: "选择区域",
+      requestedSchema: { type: "object" },
+    } as const;
+    await expect(
+      client.request(acp.methods.client.elicitation.create, { ...form, requestId: requestId + 1 }),
+    ).resolves.toEqual({ action: "cancel" });
+    const result = await client.request(acp.methods.client.elicitation.create, {
+      ...form,
+      requestId,
+    });
+    received.resolve(result);
+    return {};
+  });
+  const login = f.service.authenticate("login", undefined, undefined, attemptId);
+  void login.catch(() => undefined);
+  try {
+    await vi.waitFor(() => {
+      expect(f.service.authElicitation({ attemptId })).toHaveLength(1);
+    });
+    const [question] = f.service.authElicitation({ attemptId });
+    if (!question) throw new Error("缺少问卷");
+    const other = "f7d719a0-0b97-4174-8c35-e049f9a71c4c";
+    expect(f.service.authElicitation({ attemptId: other })).toEqual([]);
+    expect(() =>
+      f.service.authElicitation({
+        attemptId: other,
+        requestId: question.requestId,
+        resolution: { action: "accept", content: {} },
+      }),
+    ).toThrow();
+    f.service.authElicitation({
+      attemptId,
+      requestId: question.requestId,
+      resolution: { action: "accept", content: {} },
+    });
+    await expect(received.promise).resolves.toEqual({ action: "accept", content: {} });
+    await expect(login).resolves.toEqual({});
+    expect(f.service.authElicitation({ attemptId })).toEqual([]);
+  } finally {
+    await f.dispose();
+  }
+});
+
 it("ACP 配置写入及迁移保留旧配置原文，旧版后续修改也不被第二次导入覆盖", async () => {
   const f = await fixture();
   const directory = join(f.root, "engines", "acp", "settings");

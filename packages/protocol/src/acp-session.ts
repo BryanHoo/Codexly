@@ -38,6 +38,8 @@ export const AcpSessionStateSchema = Type.Object(
   {
     configOptions: Type.Array(AcpConfigOptionSchema),
     availableCommands: Type.Array(AcpAvailableCommandSchema),
+    title: Type.Optional(Type.Union([Text, Type.Null()])),
+    updatedAt: Type.Optional(Type.Union([Text, Type.Null()])),
     foreground: Type.Optional(
       Type.Union([
         Type.Literal("running"),

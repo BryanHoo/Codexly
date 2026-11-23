@@ -2,7 +2,7 @@ import { page, userEvent } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AcpAgentProfile, AcpProviderConfig } from "@codexly/protocol";
+import type { AcpAgentProfile, AcpAuthElicitationRequest, AcpAuthElicitationResponse, AcpProviderConfig } from "@codexly/protocol";
 import { GlobalSettingsPage as WebPage } from "../../../apps/web/src/features/settings/components/global-settings-page.js";
 import type { SettingsClient } from "../../../apps/web/src/features/settings/components/global-settings-page-contracts.js";
 import { GlobalSettingsPage as NativePage } from "../../src/features/settings/components/global-settings-page.js";
@@ -86,7 +86,7 @@ async function fixture(
       async (
         _engine: string,
         method: string,
-        _options?: { signal?: AbortSignal; credentials?: { apiKey?: string } },
+        _options?: { signal?: AbortSignal; credentials?: { apiKey?: string }; attemptId?: string },
       ) => {
         connection = undefined;
         account =
@@ -96,6 +96,7 @@ async function fixture(
         return {};
       },
     ),
+    acpAuthElicitation: vi.fn((_engine: string, _input: AcpAuthElicitationRequest): Promise<AcpAuthElicitationResponse> => Promise.resolve([])),
     getAcpDefaults: vi.fn(async () => ({
       configOptions: [
         {
@@ -149,6 +150,7 @@ async function fixture(
           vi
             .spyOn(nativeClient, "authenticateAcpAgent")
             .mockImplementation(client.authenticateAcpAgent),
+          vi.spyOn(nativeClient, "acpAuthElicitation").mockImplementation(client.acpAuthElicitation),
           vi.spyOn(nativeClient, "getAcpDefaults").mockImplementation(client.getAcpDefaults),
           vi
             .spyOn(nativeClient, "setAcpDefaultConfig")
@@ -189,6 +191,43 @@ async function fixture(
   };
 }
 for (const platform of ["web", "desktop"] as const) {
+  it(`${platform}：在发起登录的设置界面提交认证问卷`, async () => {
+    const f = await fixture(platform);
+    const finish = Promise.withResolvers<Record<string, never>>();
+    f.client.authenticateAcpAgent.mockReturnValueOnce(finish.promise);
+    f.client.acpAuthElicitation.mockImplementation(async (_engine, input) => {
+      if ("requestId" in input) {
+        finish.resolve({});
+        return [];
+      }
+      return [{
+        type: "mcp_elicitation", acp: true, mode: "form", status: "pending",
+        requestId: "auth-form", projectId: "acp-settings", taskId: "codex", turnId: input.attemptId,
+        itemId: "auth-form-item", createdAt: "2026-11-23T00:00:00Z", expiresAt: null,
+        serverName: "Codex", message: "确认认证区域",
+        fields: [{ id: "region", title: "区域", type: "string", description: null, required: true, defaultValue: null, format: null, maxLength: null, minLength: null }],
+      }];
+    });
+    try {
+      await f.screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
+      await page.getByRole("option", { name: "账号登录", exact: true }).click();
+      await f.screen.getByRole("combobox", { name: "登录方式", exact: true }).click();
+      await page.getByRole("option", { name: "ChatGPT", exact: true }).click();
+      await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
+      await expect.element(f.screen.getByText("确认认证区域", { exact: true })).toBeVisible();
+      await f.screen.getByRole("textbox", { name: "区域" }).fill("cn");
+      await f.screen.getByRole("button", { name: "提交", exact: true }).click();
+      const attemptId = f.client.authenticateAcpAgent.mock.calls[0]?.[2]?.attemptId;
+      expect(attemptId).toBeTruthy();
+      expect(f.client.acpAuthElicitation).toHaveBeenCalledWith("codex", {
+        attemptId, requestId: "auth-form", resolution: { action: "accept", content: { region: "cn" } },
+      });
+      await expect.element(f.screen.getByText("确认认证区域", { exact: true })).not.toBeInTheDocument();
+    } finally {
+      finish.resolve({});
+      await f.close();
+    }
+  });
 it(`${platform}：点击设置遮罩时先收起 API 协议下拉，保留连接草稿`, async () => {
   await page.viewport(1280, 900);
   const f = await fixture(platform);

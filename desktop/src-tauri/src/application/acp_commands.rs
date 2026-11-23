@@ -43,6 +43,7 @@ fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, A
                 | "agents.remove"
                 | "agents.configure"
                 | "agent.authenticate"
+                | "agent.authElicitation"
                 | "settings.preview"
                 | "settings.read"
                 | "settings.write"

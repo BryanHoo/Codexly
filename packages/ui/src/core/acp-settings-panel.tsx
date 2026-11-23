@@ -32,11 +32,13 @@ export function AcpSettingsPanel({
   language,
   Field,
   Select,
+  openExternalUrl,
   initialEngine = "codex",
 }: Readonly<{
   client: Partial<AcpAuthClient & AcpCatalogClient> & AcpDefaultsClient;
   language: "zh-CN" | "en";
   initialEngine?: AgentEngine;
+  openExternalUrl?: (url: string) => void | Promise<void>;
 }> &
   Pick<AcpConfigOptionsProps, "Field" | "Select">) {
   const [selection, setEngine] = useState(initialEngine);
@@ -285,6 +287,7 @@ export function AcpSettingsPanel({
                     client={client}
                     engine={engine}
                     language={language}
+                    openExternalUrl={openExternalUrl}
                   />
                   <SettingsGroup title={chinese ? "会话默认配置" : "Session defaults"}>
                     <AcpDefaultSettings
