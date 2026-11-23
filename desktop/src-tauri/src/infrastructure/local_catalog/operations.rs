@@ -79,6 +79,37 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         "acp.storage.read" | "acp.storage.claim" | "acp.storage.release" => {
             super::acp_storage_locks::execute(db, op, p)
         }
+        "acp.session.background" | "acp.session.background.list" => {
+            let engine = string(p, "engine")?;
+            if !crate::infrastructure::acp_runtime::valid_agent_engine(engine) {
+                return Err(CatalogError::InvalidMessage);
+            }
+            let schema: Value = serde_json::from_str(include_str!(
+                "../../../../../packages/protocol/src/local-catalog-schema.json"
+            ))
+            .map_err(|_| CatalogError::InvalidMessage)?;
+            if op == "acp.session.background.list" {
+                let mut list = db
+                    .prepare_cached(string(&schema, "acpListBackgroundSql")?)
+                    .map_err(db_error)?;
+                let ids = list
+                    .query_map([engine], |row| row.get::<_, String>(0))
+                    .map_err(db_error)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(db_error)?;
+                return Ok(json!(ids));
+            }
+            let session_id = string(p, "sessionId")?;
+            if session_id.is_empty() {
+                return Err(CatalogError::InvalidMessage);
+            }
+            db.execute(
+                string(&schema, "acpMarkBackgroundSql")?,
+                params![engine, session_id],
+            )
+            .map_err(db_error)?;
+            Ok(Value::Null)
+        }
         "acp.session.rebind" => {
             let id = string(p, "id")?;
             let session_id = string(p, "sessionId")?;
@@ -157,7 +188,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         "project.remove" => {
             let active = db
                 .query_row(
-                    "SELECT 1 FROM managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
+                    "SELECT 1 FROM visible_managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
                     [string(p, "id")?],
                     |r| r.get::<_, i64>(0),
                 )

@@ -32,7 +32,8 @@ async function fixture() {
   const storage = storageCatalog();
   const catalog = vi.fn((operation: string, payload: unknown): Promise<unknown> =>
     Promise.resolve().then(() => {
-      if (operation.startsWith("acp.storage.")) return storage(operation, payload);
+      const stored = storage(operation, payload);
+      if (stored !== undefined) return stored;
       const p = payload as LocalTask & { token: string };
       switch (operation) {
         case "task.put":

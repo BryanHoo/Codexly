@@ -118,6 +118,9 @@ export interface AcpPlanResource {
   boundRevision: number | null;
 }
 export interface CatalogOperations {
+  /** 辅助会话的原生身份跨宿主保留，供历史导入和本地聊天目录排除。 */
+  "acp.session.background": [{ engine: AgentEngine; sessionId: string }, null];
+  "acp.session.background.list": [{ engine: AgentEngine }, string[]];
   /** 仅用于恢复已确认丢失且从未提交 prompt 的 Codex 会话。 */
   "acp.session.rebind": [{ id: string; expectedSessionId: string; sessionId: string }, boolean];
   /** 内部写锁：owner 每次领取都生成新令牌；非空 expectedOwner 必须仍存在且匹配。 */

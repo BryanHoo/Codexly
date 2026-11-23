@@ -5,6 +5,42 @@ fn sample() -> Value {
 }
 
 #[tokio::test]
+async fn background_session_should_be_hidden_by_native_identity_after_reopening() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = LocalCatalog::at(dir.path()).unwrap();
+    store.call("task.put", sample()).await.unwrap();
+    let mut chat = sample();
+    chat["id"] = json!("claude-chat");
+    chat["provider"] = json!("claude");
+    store.call("task.put", chat).await.unwrap();
+    store
+        .call(
+            "acp.session.background",
+            json!({"engine":"codex","sessionId":"native-preview"}),
+        )
+        .await
+        .unwrap();
+    drop(store);
+    let reopened = LocalCatalog::at(dir.path()).unwrap();
+    let page = reopened
+        .task_page(crate::domain::sidebar::ListTasksInput {
+            project_id: "temporary".into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(page.data.len(), 1);
+    assert_eq!(page.data[0].id, "claude-chat");
+    assert!(
+        reopened
+            .call("task.read", json!({"id":"task-preview"}))
+            .await
+            .unwrap()
+            .is_null()
+    );
+}
+
+#[tokio::test]
 async fn first_preview_should_survive_reopening_without_blocking_generated_names() {
     let dir = tempfile::tempdir().unwrap();
     let store = LocalCatalog::at(dir.path()).unwrap();

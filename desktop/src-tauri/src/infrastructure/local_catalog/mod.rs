@@ -157,7 +157,10 @@ impl LocalCatalog {
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
                 .map_err(db_error)?;
+            db.execute_batch(string(&schema, "acpBackgroundSchemaSql")?)
+                .map_err(db_error)?;
             if let Some(source) = previews::default_source() {
+                previews::recover_background_sessions(&mut db, &source, &schema)?;
                 previews::recover(&mut db, &source)?;
             }
             *guard = Some(db);

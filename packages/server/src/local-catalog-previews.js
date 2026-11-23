@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import schema from "../../protocol/src/local-catalog-schema.json" with { type: "json" };
 
 /** 预览只保存首个非空输入行，限制目录载荷，不把后续消息或完整正文放入列表。 */
 export function taskPreview(text) {
@@ -8,7 +9,7 @@ export function taskPreview(text) {
 }
 
 export const TASK_PREVIEW_SELECT =
-  "SELECT managed_tasks.*, (SELECT preview FROM managed_task_previews WHERE task_id=managed_tasks.id) AS preview FROM managed_tasks";
+  "SELECT managed_tasks.*, (SELECT preview FROM managed_task_previews WHERE task_id=managed_tasks.id) AS preview FROM visible_managed_tasks AS managed_tasks";
 
 export function writeTaskPreview(db, id, preview) {
   const bounded = taskPreview(preview);
@@ -58,4 +59,24 @@ export function defaultCodexStateDatabase() {
     process.env.CODEX_SQLITE_HOME || process.env.CODEX_HOME || join(homedir(), ".codex"),
     "state_5.sqlite",
   );
+}
+
+export function recoverBackgroundSessions(db, databasePath) {
+  let source;
+  let sessions;
+  try {
+    // 仅查看 Codex 的首条输入和来源。使用两端共用的旧版生成请求特征，不分析聊天标题。
+    source = new Database(databasePath, { readonly: true, fileMustExist: true, timeout: 100 });
+    sessions = source.prepare(schema.acpLegacyBackgroundSql).pluck().all();
+  } catch {
+    // 离线或索引不兼容时维持目录可用，下次打开再尝试。
+    return;
+  } finally {
+    source?.close();
+  }
+  if (!sessions.length) return;
+  const mark = db.prepare(schema.acpMarkBackgroundSql);
+  db.transaction(() => {
+    for (const id of sessions) mark.run("codex", id);
+  })();
 }

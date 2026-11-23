@@ -67,7 +67,11 @@ it.each(["title", "commit", "optimize"] as const)(
     const acp = await import("@agentclientprotocol/sdk/unstable");
     const { AcpConnection } = await import("./connection.js");
     const root = await mkdtemp(join(tmpdir(), "acp-generation-"));
-    const catalog = vi.fn(() => Promise.reject(new Error("不应访问任务目录")));
+    const catalog = vi.fn((operation: string, _payload: unknown) =>
+      operation === "acp.session.background"
+        ? Promise.resolve(null)
+        : Promise.reject(new Error("不应访问任务目录")),
+    );
     const received: string[] = [];
     const closed = vi.fn(() => ({}));
     const launch: AcpAgentLauncher = async (_engine, _scope, callbacks) => {
@@ -88,6 +92,10 @@ it.each(["title", "commit", "optimize"] as const)(
         .onRequest(
           acp.methods.agent.session.prompt,
           testPrompt(async ({ params, client }) => {
+            expect(catalog).toHaveBeenLastCalledWith("acp.session.background", {
+              engine: _engine,
+              sessionId: params.sessionId,
+            });
             received.push(
               ...params.prompt.flatMap((block) => (block.type === "text" ? [block.text] : [])),
             );
@@ -148,7 +156,7 @@ it.each(["title", "commit", "optimize"] as const)(
         new AbortController().signal,
       );
       expect(received).toEqual(["第二个问题"]);
-      expect(catalog).not.toHaveBeenCalled();
+      expect(catalog).toHaveBeenCalledTimes(2);
       expect(closed).toHaveBeenCalledTimes(2);
     } finally {
       await runtime.close();

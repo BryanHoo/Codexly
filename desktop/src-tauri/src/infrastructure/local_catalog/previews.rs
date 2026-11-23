@@ -1,7 +1,44 @@
 use super::*;
 use rusqlite::{OpenFlags, params};
 
-pub(super) const SELECT: &str = "SELECT managed_tasks.*, (SELECT preview FROM managed_task_previews WHERE task_id=managed_tasks.id) AS preview FROM managed_tasks";
+pub(super) const SELECT: &str = "SELECT managed_tasks.*, (SELECT preview FROM managed_task_previews WHERE task_id=managed_tasks.id) AS preview FROM visible_managed_tasks AS managed_tasks";
+
+pub(super) fn recover_background_sessions(
+    db: &mut Connection,
+    source_path: &Path,
+    schema: &Value,
+) -> Result<(), CatalogError> {
+    let query = string(schema, "acpLegacyBackgroundSql")?;
+    let read = || -> rusqlite::Result<Vec<String>> {
+        // 只读原生首条输入与来源，复用 Web 的识别规则，保留原始会话和本地管理数据。
+        let source = Connection::open_with_flags(
+            source_path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        source.busy_timeout(std::time::Duration::from_millis(100))?;
+        source
+            .prepare(query)?
+            .query_map([], |row| row.get(0))?
+            .collect()
+    };
+    let Ok(sessions) = read() else {
+        // 源索引暂不可读时保留离线目录能力，下次打开再尝试恢复。
+        return Ok(());
+    };
+    if sessions.is_empty() {
+        return Ok(());
+    }
+    let transaction = db.transaction().map_err(db_error)?;
+    {
+        let mut mark = transaction
+            .prepare(string(schema, "acpMarkBackgroundSql")?)
+            .map_err(db_error)?;
+        for id in sessions {
+            mark.execute(params!["codex", id]).map_err(db_error)?;
+        }
+    }
+    transaction.commit().map_err(db_error)
+}
 
 fn bounded(text: &str) -> String {
     text.trim()

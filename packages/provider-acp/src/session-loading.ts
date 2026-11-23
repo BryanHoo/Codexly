@@ -1,4 +1,4 @@
-import type { AcpConfigOption } from "@codexly/protocol";
+import { isAgentEngine, type AcpConfigOption } from "@codexly/protocol";
 import { RequestError } from "@agentclientprotocol/sdk";
 import type { LocalTask, LocalCatalogStore } from "@codexly/core";
 import type { AcpConnection } from "./connection.js";
@@ -60,6 +60,15 @@ export async function loadAcpSession(
   const journal = source.ephemeral ? undefined : source.initialization;
   const publishBinding = async (sessionId: string) => {
     if (task.sessionId === sessionId) return;
+    // ACP 的 session/new 可以写原生历史。发送首个 prompt 前先登记后台身份，
+    // 这样另一个宿主扫描原生目录或当前进程退出后也不会把它当作聊天。
+    if (source.ephemeral) {
+      if (!isAgentEngine(task.provider)) throw new Error("ACP 会话引擎无效");
+      await source.store.catalog("acp.session.background", {
+        engine: task.provider,
+        sessionId,
+      });
+    }
     if (task.sessionId === null) await source.patch({ sessionId });
     else if (
       !(await source.store.catalog("acp.session.rebind", {

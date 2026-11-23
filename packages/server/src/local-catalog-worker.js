@@ -18,6 +18,7 @@ import {
   TASK_PREVIEW_SELECT,
   writeTaskPreview,
   recoverTaskPreviews,
+  recoverBackgroundSessions,
   defaultCodexStateDatabase,
 } from "./local-catalog-previews.js";
 
@@ -56,7 +57,10 @@ export function createLocalCatalogOperations(db) {
   if (db.prepare("SELECT 1 FROM sqlite_master WHERE name='managed_tasks'").get()) {
     // 幂等增量建表兼容 Web 与桌面先后升级，不修改原领域表的列顺序或迁移版本。
     db.exec(schema.previewSql);
-    recoverTaskPreviews(db, defaultCodexStateDatabase());
+    db.exec(schema.acpBackgroundSchemaSql);
+    const source = defaultCodexStateDatabase();
+    recoverBackgroundSessions(db, source);
+    recoverTaskPreviews(db, source);
   }
   // 自定义迁移测试可能刻意只建部分表，此时不提前准备不存在的业务表。
   const readProject = (id) =>
@@ -125,7 +129,9 @@ export function createLocalCatalogOperations(db) {
     }),
     "project.remove": db.transaction(({ id }) => {
       const active = db
-        .prepare("SELECT 1 FROM managed_tasks WHERE project_id=? AND status='active' LIMIT 1")
+        .prepare(
+          "SELECT 1 FROM visible_managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
+        )
         .get(id);
       if (active) throw new Error("Cannot remove a project with a running task");
       const removed = Boolean(
@@ -151,6 +157,14 @@ export function createLocalCatalogOperations(db) {
     }),
     "task.put": putTask,
     "task.read": ({ id }) => readTask(id),
+    "acp.session.background": ({ engine, sessionId }) => {
+      if (!validAgentEngine(engine) || typeof sessionId !== "string" || !sessionId)
+        throw new Error("Invalid ACP background session");
+      db.prepare(schema.acpMarkBackgroundSql).run(engine, sessionId);
+      return null;
+    },
+    "acp.session.background.list": ({ engine }) =>
+      db.prepare(schema.acpListBackgroundSql).pluck().all(engine),
     "acp.session.rebind": ({ id, sessionId, expectedSessionId }) => {
       if (![id, sessionId, expectedSessionId].every((value) => typeof value === "string" && value))
         throw new Error("Invalid ACP session rebind");

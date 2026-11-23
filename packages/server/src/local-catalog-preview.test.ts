@@ -2,10 +2,12 @@ import Database from "better-sqlite3";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import {
+  applicationPreferencesFromLegacy,
+  generateApplicationText,
   EngineProjectRouter,
   localTaskMetadata,
   type AgentExecutionAdapter,
-} from "../../core/src/engine-router.js";
+} from "@codexly/core";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
 
 const task = {
@@ -20,6 +22,72 @@ const task = {
   archived: false,
   status: "idle",
 };
+
+it("keeps ACP background identities out of the chat catalog after reopening", async () => {
+  const root = await createWorkspace();
+  const store = await openRepository(root);
+  const imported = { ...task, id: "acp-import-codex-background", title: "生成提交信息" };
+  await store.catalog("task.put", imported);
+  await store.catalog("acp.session.background", { engine: "codex", sessionId: task.sessionId });
+  await store.catalog("task.put", { ...task, id: "claude-chat", provider: "claude" });
+  await store.close();
+  const reopened = await openRepository(root);
+  try {
+    expect(await reopened.catalog("task.list", {})).toMatchObject({
+      data: [{ id: "claude-chat" }],
+    });
+    expect(await reopened.catalog("task.read", { id: imported.id })).toBeNull();
+    expect(await reopened.catalog("acp.session.background.list", { engine: "codex" })).toContain(
+      task.sessionId,
+    );
+  } finally {
+    await reopened.close();
+  }
+});
+
+it("hides old generated chats based on the native first prompt and preserves similar user chats", async () => {
+  const root = await createWorkspace();
+  const native = new Database(join(root, "state_5.sqlite"));
+  native.exec(
+    "CREATE TABLE threads (id TEXT PRIMARY KEY, preview TEXT, first_user_message TEXT, source TEXT, originator TEXT)",
+  );
+  const writeNative = native.prepare("INSERT INTO threads VALUES (?, ?, ?, 'vscode', ?)");
+  const preferences = applicationPreferencesFromLegacy({ taskTitlePrompt: "自定义标题规则" });
+  for (const purpose of ["commit", "title", "optimize"] as const) {
+    await generateApplicationText(
+      preferences,
+      root,
+      { purpose, text: "用户输入" },
+      new AbortController().signal,
+      (_engine, _cwd, prompt) => {
+        writeNative.run(purpose, "生成提交信息", prompt, "codexly");
+        if (purpose === "title") writeNative.run("external", "生成提交信息", prompt, "other");
+        return Promise.resolve(purpose === "title" ? '{"title":"标题"}' : '{"message":"生成结果"}');
+      },
+    );
+  }
+  writeNative.run("user", "生成提交信息", "请为修复生成提交信息", "codexly");
+  native.close();
+  const store = await openRepository(root);
+  for (const sessionId of ["commit", "title", "optimize", "external", "user"]) {
+    await store.catalog("task.put", {
+      ...task,
+      id: `acp-import-codex-${sessionId}`,
+      sessionId,
+      title: "生成提交信息",
+    });
+  }
+  await store.close();
+  vi.stubEnv("CODEX_SQLITE_HOME", root);
+  const reopened = await openRepository(root);
+  try {
+    const result = await reopened.catalog("task.list", { searchTerm: "提交信息" });
+    expect(result.data.map((entry) => entry.sessionId).sort()).toEqual(["external", "user"]);
+  } finally {
+    await reopened.close();
+    vi.unstubAllEnvs();
+  }
+});
 
 it("persists the user preview before execution so an interrupted title generator cannot lose it", async () => {
   const root = await createWorkspace();

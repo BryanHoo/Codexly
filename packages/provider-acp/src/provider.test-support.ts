@@ -40,6 +40,7 @@ export async function fixture(
       // 测试目录按顺序执行，存储锁用于覆盖真实初始化文件的读写路径。
       if (op === "acp.storage.read") return null;
       if (op === "acp.storage.claim" || op === "acp.storage.release") return true;
+      if (op === "acp.session.background") return null;
       if (op === "task.read") return tasks.get(input.id) ?? null;
       if (op === "task.remove") return tasks.delete(input.id);
       if (op === "task.put") {

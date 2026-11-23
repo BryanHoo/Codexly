@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AcpAgentService } from "./agent-service.js";
 import { AcpSettingsStore } from "./settings-store.js";
+import { withStorageCatalog } from "./storage-catalog.test-support.js";
 
 async function fixture() {
   const tasks = new Map<string, LocalTask>();
@@ -78,7 +79,7 @@ async function fixture() {
   const connection = await AcpConnection.connect({ readable: b.readable, writable: a.writable });
   return {
     tasks,
-    store,
+    store: withStorageCatalog(store),
     list,
     connection,
     close() {
@@ -105,6 +106,21 @@ it("分页发现历史保持既有身份和管理状态，重复导入不创建�
         (task) => task.provider === "claude" && task.sessionId === "native",
       )?.projectId,
     ).toBe("project");
+  } finally {
+    f.close();
+  }
+});
+
+it("历史重新导入跳过已登记的后台会话，并保留其他引擎的同名会话", async () => {
+  const f = await fixture();
+  try {
+    await f.store.catalog("acp.session.background", { engine: "codex", sessionId: "new" });
+    await importAcpCatalog("codex", f.connection, f.store);
+    expect([...f.tasks.values()].map((task) => task.sessionId)).toEqual(["native"]);
+    await importAcpCatalog("claude", f.connection, f.store);
+    expect([...f.tasks.values()]).toContainEqual(
+      expect.objectContaining({ provider: "claude", sessionId: "new" }),
+    );
   } finally {
     f.close();
   }

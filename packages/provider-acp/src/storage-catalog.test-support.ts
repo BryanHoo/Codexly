@@ -3,7 +3,16 @@ import type { LocalCatalogStore, CatalogOperations } from "@codexly/core";
 /** 仅为协议测试补齐新增的目录端口；真实跨进程互斥由根 SQLite 集成用例验证。 */
 export function storageCatalog() {
   const locks = new Map<string, { owner: string; pid: number }>();
+  const background = new Map<string, Set<string>>();
   return (operation: unknown, payload: unknown): unknown => {
+    if (operation === "acp.session.background" || operation === "acp.session.background.list") {
+      const { engine, sessionId } = payload as { engine: string; sessionId: string };
+      const sessions = background.get(engine) ?? new Set<string>();
+      if (operation === "acp.session.background.list") return [...sessions];
+      sessions.add(sessionId);
+      background.set(engine, sessions);
+      return null;
+    }
     const p = payload as { key: string; owner: string; pid: number; expectedOwner: string | null };
     if (operation === "acp.storage.read") return locks.get(p.key) ?? null;
     if (operation === "acp.storage.claim") {

@@ -15,9 +15,10 @@ export async function importAcpCatalog(
   signal?.throwIfAborted();
   if (!connection.initialization.agentCapabilities?.sessionCapabilities?.list)
     throw new Error("ACP agent 不支持历史目录发现");
-  const [projects, bindings] = await Promise.all([
+  const [projects, bindings, background] = await Promise.all([
     store.catalog("project.list", undefined),
     store.catalog("task.bindings", undefined),
+    store.catalog("acp.session.background.list", { engine }),
   ]);
   if (bindings.length > 100_000) throw new Error("ACP 目录迁移超过任务预算");
   const known = new Set(
@@ -25,6 +26,8 @@ export async function importAcpCatalog(
       .filter((task) => task.provider === engine && task.sessionId)
       .map((task) => task.sessionId),
   );
+  // 即使 Agent 在 session/close 后保留原生记录，也跳过此前登记的辅助会话。
+  for (const sessionId of background) known.add(sessionId);
   const cursors = new Set<string>();
   let cursor: string | undefined;
   let discovered = 0;
