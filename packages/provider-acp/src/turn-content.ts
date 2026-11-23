@@ -30,6 +30,7 @@ function prefix(value: string, end: number): string {
 /** 快照预算和大正文保留预算分开；只有超出内联的内容才进入任务附件仓储。 */
 export class AcpTurnContent {
   readonly #extras = new Map<string, Map<Field, Overflow>>();
+  readonly #mediaMarkers = new Map<string, { offset: number; label: string }[]>();
   #text = 0;
   #thought = 0;
   #tool = 0;
@@ -155,8 +156,23 @@ export class AcpTurnContent {
     return entry;
   }
 
-  fingerprint(turn: AgentTurn, userText?: string): string {
-    if (!this.#extras.size) return replayFingerprint(turn, userText);
+  get hasMedia(): boolean {
+    return this.#mediaMarkers.size > 0;
+  }
+
+  markMedia(id: string, visibleLength: number, label: string): void {
+    const overflowLength =
+      this.#extras
+        .get(id)
+        ?.get("text")
+        ?.parts.reduce((length, part) => length + part.length, 0) ?? 0;
+    const markers = this.#mediaMarkers.get(id) ?? [];
+    markers.push({ offset: visibleLength + overflowLength, label });
+    this.#mediaMarkers.set(id, markers);
+  }
+
+  fingerprint(turn: AgentTurn, userText?: string, legacy = false): string {
+    if (!this.#extras.size && !this.hasMedia) return replayFingerprint(turn, userText);
     // 用完整的规范投影匹配旧回合，不把预览切点、实时分块或本机附件 ID 算入身份。
     const restore = (entry: Overflow) => {
       const text = entry.parts.join("");
@@ -165,12 +181,25 @@ export class AcpTurnContent {
     };
     const items = turn.items.map((item) => {
       const fields = this.#extras.get(item.id);
-      if (!fields) return item;
       if (item.type === "message") {
-        const text = fields.get("text");
-        return text ? { ...item, text: item.text + String(restore(text)) } : item;
+        const overflow = fields?.get("text");
+        const markers =
+          legacy || item.role === "user" ? this.#mediaMarkers.get(item.id) : undefined;
+        if (!overflow && !markers) return item;
+        let text = item.text + (overflow ? String(restore(overflow)) : "");
+        if (markers) {
+          // 保留历史记录和原始发送正文的匹配锚点；这些标签仅参与哈希计算。
+          let previousOffset = 0;
+          const parts = markers.map(({ offset, label }) => {
+            const part = text.slice(previousOffset, offset) + label;
+            previousOffset = offset;
+            return part;
+          });
+          text = parts.join("") + text.slice(previousOffset);
+        }
+        return { ...item, text };
       }
-      if (item.type !== "tool") return item;
+      if (item.type !== "tool" || !fields) return item;
       const input = fields.get("input"),
         output = fields.get("output");
       return {
@@ -179,7 +208,7 @@ export class AcpTurnContent {
         ...(output ? { output: restore(output) } : {}),
       };
     });
-    return replayFingerprint({ ...turn, items }, userText);
+    return replayFingerprint({ ...turn, items }, userText, !legacy);
   }
 
   async materialize(

@@ -31,6 +31,7 @@ import { AcpTaskTitles } from "./task-titles.js";
 import { AcpStorageLeases } from "./storage-lease.js";
 import { searchAcpHistory } from "./history-search.js";
 import { AcpSessionInitialization } from "./session-initialization.js";
+import { exportTaskAttachment } from "@codexly/core/task-attachments";
 interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
@@ -273,6 +274,16 @@ export class AcpRuntime {
       runtimeWorkspaceRoots: [rootPath],
     });
   }
+  /** 原生读取已校验任务归属的正文附件，导出期间持有缓存使用权。 */
+  async exportCachedTaskAttachment(taskId: string, attachmentId: string) {
+    const release = await this.#history.cache.acquire(taskId);
+    try {
+      return await exportTaskAttachment(this.#history.cache.content(taskId), taskId, attachmentId);
+    } finally {
+      await release();
+    }
+  }
+
   forScope(scope: AgentTaskScope): AgentProvider {
     return this.#scope(scope);
   }

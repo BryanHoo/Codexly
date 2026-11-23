@@ -88,7 +88,7 @@ export async function routeAcpUpdate(
     update.sessionUpdate === "compaction_update" ||
     update.sessionUpdate === "compaction_summary_chunk";
   const target = projection?.running ? projection : visible ? background?.(task, root) : undefined;
-  target?.update(update, child?.item);
+  if (target) await target.ingest(update, child?.item);
 }
 
 export function publishAcpSessionState(

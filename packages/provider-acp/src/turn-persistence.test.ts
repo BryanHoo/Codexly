@@ -1,10 +1,116 @@
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEvent } from "@codexly/core";
-import type { AgentTurn } from "@codexly/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
 import { AcpHistory } from "./history.js";
 import { AcpReplay } from "./replay.js";
 import { fixture, input } from "./provider.test-support.js";
+
+it("聊天媒体在实时更新中仅发送引用，重启及冷回放后可读取原始字节", async () => {
+  const image =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lVUAAAAASUVORK5CYII=";
+  const audio = Buffer.from("RIFF-audio-fixture").toString("base64");
+  const blob = Buffer.from([0, 4, 8, 255]).toString("base64");
+  const blocks: acp.ContentBlock[] = [
+    { type: "text", text: "正文前" },
+    { type: "image", mimeType: "image/png", data: image },
+    { type: "audio", mimeType: "audio/wav", data: audio },
+    { type: "resource", resource: { uri: "file:///private/report.bin", blob } },
+    { type: "text", text: "正文后" },
+  ];
+  const updates = blocks.map((content) => ({
+    sessionUpdate: "agent_message_chunk" as const,
+    messageId: "rich-answer",
+    content,
+  }));
+  const f = await fixture("codex", async ({ client, params }) => {
+    for (const update of updates)
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update,
+      });
+    return { stopReason: "end_turn" as const };
+  });
+  const task = await f.provider.startTask();
+  const completed = Promise.withResolvers<AgentTurn>();
+  const events: AgentProviderEvent[] = [];
+  f.provider.subscribeEvents((event) => {
+    events.push(event);
+    if (event.type === "turn.completed") completed.resolve(event.payload.turn);
+  });
+  const reply = (turn: AgentTurn | undefined) =>
+    turn?.items.find(
+      (item): item is Extract<AgentItem, { type: "message" }> =>
+        item.type === "message" && item.role === "assistant",
+    );
+  await f.provider.startConfiguredTurn(task.id, input);
+  const live = reply(await completed.promise);
+  expect(live?.text).toBe("正文前正文后");
+  expect(live?.attachments?.map(({ kind }) => kind)).toEqual(["image", "file", "file"]);
+  const attachmentIds = live?.attachments?.map(({ id }) => id) ?? [];
+  expect(
+    events.some(
+      (event) =>
+        event.type === "item.started" &&
+        event.payload.item.type === "message" &&
+        event.payload.item.attachments?.length === 3,
+    ),
+  ).toBe(true);
+  for (const encoded of [image, audio, blob]) expect(JSON.stringify(events)).not.toContain(encoded);
+
+  const reopened = new AcpHistory(f.history.directory);
+  expect(reply((await reopened.read(task.id)).turns[0])).toEqual(live);
+  const assertReadable = async (id: string, ids: string[]) => {
+    const storage = new AcpHistory(f.history.directory).cache.content(id);
+    expect(
+      await Promise.all(
+        ids.map(async (attachmentId) => {
+          const found = await storage.read(id, attachmentId);
+          return found && Buffer.from(found.content).toString("base64");
+        }),
+      ),
+    ).toEqual([image, audio, blob]);
+  };
+  await assertReadable(task.id, attachmentIds);
+  const [first] = attachmentIds;
+  if (!first) throw new Error("缺少图片引用");
+  expect(await f.provider.readTaskAttachment(task.id, first)).toMatchObject({
+    kind: "image",
+  });
+
+  const cold = await f.provider.startTask();
+  const replay = new AcpReplay(reopened, cold.id);
+  for (const update of updates) await replay.update(update);
+  await replay.complete();
+  const replayed = reply((await reopened.read(cold.id)).turns[0]);
+  expect(replayed?.text).toBe(live?.text);
+  await assertReadable(cold.id, replayed?.attachments?.map(({ id }) => id) ?? []);
+
+  const legacy = await f.provider.startTask();
+  const old: AgentTurn = {
+    id: "legacy-turn",
+    status: "completed",
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    items: [
+      {
+        id: "legacy-answer",
+        type: "message",
+        role: "assistant",
+        text: "正文前[图片][音频][资源]正文后",
+      },
+    ],
+  };
+  await reopened.append(legacy.id, old);
+  const recovering = new AcpReplay(reopened, legacy.id);
+  for (const update of updates) await recovering.update(update);
+  await recovering.complete();
+  const [recovered] = (await reopened.read(legacy.id)).turns;
+  expect(recovered?.id).toBe(old.id);
+  expect(reply(recovered)?.text).toBe(live?.text);
+  await assertReadable(legacy.id, reply(recovered)?.attachments?.map(({ id }) => id) ?? []);
+});
 
 it.each(["end_turn", "refusal", "max_tokens", "max_turn_requests", "cancelled"] as const)(
   "停止原因 %s 在完成事件和重新读取历史后保持一致",

@@ -61,6 +61,8 @@ POSIX 原生进程守卫为宿主注入私有 Unix 生命周期连接，独立 a
 
 任务附件存储已提取到 Core，旧 Claude 保留兼容导出与原磁盘布局。ACP 用户消息保存稳定附件引用，可在进程重启后读取正文；桌面 `startAcpPrompt` 使用完整应用附件元数据，经原生校验后转为标准 ACP 内容块。历史预览通过 `buildNativeTaskAttachmentUrl(..., "acp")` 显式选择 ACP 归属校验，旧预览继续兼容旧路径。共享宿主内嵌附件 Worker，编译产物已验证真实读取；设置 / 聊天 UI 的最终装配和旧历史附件迁移仍待完成。
 
+ACP 正文中的图片、音频和二进制嵌入资源由共享附件 Worker 校验并保存，实时消息和历史快照只保存附件引用。正文附件随所属历史缓存管理，Web 与桌面端按项目和任务归属读取。旧记录可在 Agent 重放原始内容时恢复附件。回归测试位于 `src/turn-persistence.test.ts` 和 `src/host.test.ts`。
+
 ## 应用旧设置的只读导入
 
 `AcpSettingsStore` 可注入 `AcpLegacySettingsSource`，由 `AcpRuntime`、`AcpApplicationRuntime` 和桌面共享宿主传递。尚未导入且未明确配置 ACP 默认值时，首次读取采集旧快照；同一进程的并发读取合并，持锁重查最新记录，失败不写入空快照。已有 legacy 快照或用户明确保存的 ACP 配置优先，重启不会重读并覆盖，旧来源后来损坏也不阻断已配置用户。设置服务在冷启动 agent 前完成该校验，失败不启动 agent。

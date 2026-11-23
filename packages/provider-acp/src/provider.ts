@@ -65,7 +65,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   publishTaskTitle(id: string, title: string): void {
     this.#emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
   }
-  /** 运行中及终态待落盘回合仍归原连接所有，搜索不能另开重放覆盖它。 */
   hasPendingTurn = (id: string): boolean => this.#active.has(id);
   constructor(
     readonly engine: AgentEngine,
@@ -281,7 +280,13 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         if (this.engine === "codex" && !this.#ephemeral.has(id))
           await this.initialization?.markFirstPrompt({ ...task, sessionId }, sessionId);
         await this.#background.flush(id);
-        const projection = new AcpEventProjection(id, randomUUID(), this.#emit, true);
+        const projection = new AcpEventProjection(
+          id,
+          randomUUID(),
+          this.#emit,
+          true,
+          this.#ephemeral.has(id) ? undefined : () => this.history.cache.content(id),
+        );
         this.#active.set(id, projection);
         projection.userMessage(`acp:message:user:${randomUUID()}`, input.text, attachments);
         const turn = projection.snapshot();

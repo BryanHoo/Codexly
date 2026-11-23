@@ -27,7 +27,9 @@ export class AcpSubagentBackground {
   ensure(taskId: string): AcpEventProjection {
     const previous = this.#active.get(taskId);
     if (previous) return previous;
-    const projection = new AcpEventProjection(taskId, randomUUID(), this.emit, true);
+    const projection = new AcpEventProjection(taskId, randomUUID(), this.emit, true, () =>
+      this.history.cache.content(taskId),
+    );
     this.#active.set(taskId, projection);
     this.emit({
       type: "acp.background.updated",
@@ -64,6 +66,8 @@ export class AcpSubagentBackground {
       }
       const projection = this.#active.get(taskId);
       if (!projection) return;
+      // 新前台回合可能在子会话落盘期间开始，先等已接收的媒体进入同一个后台段。
+      while (projection.pendingMedia) await projection.pendingMedia;
       const turn = { ...this.#snapshot(projection), completedAt: new Date().toISOString() };
       const write = prepareAcpHistoryCommit(
         () => projection.content.materialize(turn, this.history.cache.content(taskId), taskId),

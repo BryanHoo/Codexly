@@ -1,7 +1,7 @@
 import { testPrompt } from "./acp-v1-peer.test-support.js";
 import { storageCatalog } from "./storage-catalog.test-support.js";
 import { Writable } from "node:stream";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
@@ -17,6 +17,7 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
   const replies: Record<string, unknown>[] = [];
   let permission: acp.RequestPermissionResponse | undefined;
   const prompts: acp.ContentBlock[][] = [];
+  const audio = Buffer.from("RIFF-host-media");
   const closeSession = vi.fn(() => ({}));
   const launch = vi.fn<AcpAgentLauncher>(() => Promise.reject(new Error("目录操作不启动 agent")));
   const storage = storageCatalog();
@@ -130,6 +131,14 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
               },
             });
             if (prompts.length > 1) return { stopReason: "end_turn" };
+            await client.notify(acp.methods.client.session.update, {
+              sessionId: params.sessionId,
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                messageId: "test-message",
+                content: { type: "audio", mimeType: "audio/wav", data: audio.toString("base64") },
+              },
+            });
             permission = await client.request(acp.methods.client.session.requestPermission, {
               sessionId: params.sessionId,
               toolCall: { toolCallId: "write", title: "写入文件" },
@@ -244,6 +253,37 @@ it("共享宿主以目录反向请求管理双引擎身份，正确接收拆分 
     expect(replies.filter((reply) => reply["id"] === 6)).toHaveLength(1);
     const snapshot = replies.find((reply) => reply["id"] === 6)?.["result"] as { turns: unknown[] };
     expect(snapshot.turns).toHaveLength(2);
+    const media = replies
+      .map((reply) => reply["event"] as AgentProviderEvent | undefined)
+      .flatMap((event) =>
+        event?.type === "item.started" && event.payload.item.type === "message"
+          ? (event.payload.item.attachments ?? [])
+          : [],
+      )
+      .find(({ mediaType }) => mediaType === "audio/wav");
+    if (!media) throw new Error("缺少实时音频引用");
+    const requestMedia = (id: number, projectId: string) => {
+      host.receive(
+        Buffer.from(
+          `${JSON.stringify({ id, method: "attachment.export", scope: { ...scope, id: projectId }, params: { taskId: task.id, attachmentId: media.id } })}\n`,
+        ),
+      );
+    };
+    requestMedia(10, scope.id);
+    requestMedia(11, "other");
+    const exported = await vi.waitFor(() => {
+      const result = replies.find((reply) => reply["id"] === 10)?.["result"] as
+        { path: string; mediaType: string } | undefined;
+      expect(result?.mediaType).toBe("audio/wav");
+      if (typeof result?.path !== "string") throw new Error("缺少音频导出路径");
+      return result.path;
+    });
+    expect(await readFile(exported)).toEqual(audio);
+    await vi.waitFor(() => {
+      expect(replies.find((reply) => reply["id"] === 11)).toMatchObject({
+        error: "ACP_HOST_REQUEST_FAILED",
+      });
+    });
     await vi.waitFor(() => {
       expect(closeSession).toHaveBeenCalledWith(
         expect.objectContaining({ params: { sessionId: "native" } }),

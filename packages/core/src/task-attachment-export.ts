@@ -5,6 +5,12 @@ import { extname, join } from "node:path";
 import type { AgentProviderAttachment } from "./agent-provider.js";
 import type { AgentMessageAttachment } from "@codexly/protocol";
 
+export class TaskAttachmentNotFoundError extends Error {
+  constructor() {
+    super("Task attachment not found");
+  }
+}
+
 /** 桌面只按需导出已校验正文；stdio 传路径与媒体类型，不传大块 Base64。 */
 export async function exportTaskAttachment(
   store: {
@@ -16,7 +22,7 @@ export async function exportTaskAttachment(
   attachmentId: string,
 ) {
   const attachment = await store.read(taskId, attachmentId);
-  if (!attachment) throw new Error("Task attachment not found");
+  if (!attachment) throw new TaskAttachmentNotFoundError();
   const directory = join(
     store.directory,
     "exports",

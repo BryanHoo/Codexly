@@ -33,8 +33,24 @@ export class HistoricalTaskAttachments {
     for (const [index, text] of input.textAttachments.entries())
       add(await this.store.addText(taskId, text, index));
     for (const file of input.files) add(await this.store.addLocalFile(taskId, file));
-    for (const metadata of this.store.pendingMetadata(taskId)) {
-      await mkdir(this.#directory(taskId), { recursive: true, mode: 0o700 });
+    await this.#persistReferences(taskId);
+    return attachments;
+  }
+  /** 正文和引用都落盘后才交给实时事件及历史快照。 */
+  async addBase64(
+    taskId: string,
+    input: Readonly<{ encoded: string; name: string; mediaType: string; image: boolean }>,
+  ): Promise<AgentMessageAttachment | undefined> {
+    const image = input.image ? await this.store.addBase64Image(taskId, input, 0) : undefined;
+    const attachment = image ?? (await this.store.addBase64File(taskId, input));
+    if (attachment) await this.#persistReferences(taskId);
+    return attachment;
+  }
+  async #persistReferences(taskId: string): Promise<void> {
+    const pending = this.store.pendingMetadata(taskId);
+    if (!pending.length) return;
+    await mkdir(this.#directory(taskId), { recursive: true, mode: 0o700 });
+    for (const metadata of pending) {
       const path = this.#path(taskId, metadata.attachment.id);
       const temporary = `${path}.${randomUUID()}.tmp`;
       try {
@@ -45,7 +61,6 @@ export class HistoricalTaskAttachments {
         await rm(temporary, { force: true });
       }
     }
-    return attachments;
   }
   async read(taskId: string, id: string) {
     let metadata: Omit<HistoricalAttachmentMetadata, "schemaVersion"> & { schemaVersion: unknown };
@@ -105,4 +120,4 @@ export class HistoricalTaskAttachments {
 
 export { copyTaskStorage, renameStorageFile } from "./task-storage-files.js";
 
-export { exportTaskAttachment } from "./task-attachment-export.js";
+export { exportTaskAttachment, TaskAttachmentNotFoundError } from "./task-attachment-export.js";

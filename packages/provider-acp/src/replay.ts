@@ -1,9 +1,10 @@
 import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
-import { MAX_AGENT_TEXT_BYTES, type AgentItem, type AgentTurn } from "@codexly/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
 import type { AcpHistory } from "./history.js";
-import { AcpEventProjection, contentText } from "./event-projection.js";
+import { matchesSteering, readSteeringCandidate, userUpdate } from "./replay-steering.js";
+import { AcpEventProjection } from "./event-projection.js";
 import {
   isAcpDiffItem,
   isReplaySubagentItem,
@@ -16,47 +17,6 @@ import type { AcpTurnContent } from "./turn-content.js";
 
 const ALIGNMENT_WINDOW = 8;
 type UserMessage = Extract<AgentItem, { type: "message" }>;
-type UserUpdate = Extract<SessionUpdate, { sessionUpdate: "user_message" | "user_message_chunk" }>;
-
-function replayUserUpdate(update: SessionUpdate): UserUpdate | undefined {
-  if (update.sessionUpdate === "user_message_chunk") return update;
-  return undefined;
-}
-
-async function matchesSteering(
-  echoed: string,
-  message: UserMessage,
-  storage: HistoricalTaskAttachments,
-  taskId: string,
-): Promise<boolean> {
-  if (echoed && echoed === message.text) return true;
-  if (!echoed.startsWith(message.text)) return false;
-  let rest = echoed.slice(message.text.length);
-  const attachments = message.attachments ?? [];
-  // 按提交顺序核对附件展开后的正文。Codex 会将文件引用回放成带 @ 的 Markdown 链接。
-  for (const attachment of attachments) {
-    if (attachment.kind !== "text") continue;
-    const stored = await storage.read(taskId, attachment.id);
-    if (!stored) return false;
-    const text = attachment.name + "\n" + new TextDecoder().decode(stored.content);
-    if (!rest.startsWith(text)) return false;
-    rest = rest.slice(text.length);
-  }
-  for (const { kind, name } of attachments) {
-    if (kind === "text") continue;
-    if (kind === "image" && rest.startsWith("[图片]")) {
-      rest = rest.slice("[图片]".length);
-      continue;
-    }
-    const prefix = [`[${name}](file://`, `[@${name}](file://`].find((link) =>
-      rest.startsWith(link),
-    );
-    const end = prefix === undefined ? -1 : rest.indexOf(")", prefix.length);
-    if (end < 0) return false;
-    rest = rest.slice(end + 1);
-  }
-  return echoed.length > 0 && rest.length === 0;
-}
 
 /** 匹配旧回合后，在原来的顺序中补齐新增压缩实体，并按 ID 原位更新已有实体。 */
 function mergeCompactions(
@@ -113,6 +73,7 @@ interface ReplayTurn {
 export class AcpReplay {
   readonly #writer: WritableStreamDefaultWriter<SessionUpdate>;
   readonly #saved: Promise<void>;
+  readonly #attachments: HistoricalTaskAttachments;
   #current: AcpEventProjection | undefined;
   #userId: string | undefined;
   #firstUserId: string | undefined;
@@ -133,7 +94,7 @@ export class AcpReplay {
     const stream = new TransformStream<SessionUpdate, SessionUpdate>(undefined, undefined, {
       highWaterMark: 1,
     });
-    const attachments = history.cache.content(taskId);
+    const attachments = (this.#attachments = history.cache.content(taskId));
     const userAttachments = new HistoricalTaskAttachments(
       join(history.directory, "task-attachments"),
     );
@@ -177,6 +138,7 @@ export class AcpReplay {
           userAttachments,
         )) {
           const fingerprint = content.fingerprint(turn);
+          let legacyFingerprint: string | undefined;
           // 已提交的本地后台段没有原生 prompt 身份，按历史顺序保留。
           await fill(1);
           while (candidates[0]?.entry.turn.acpBackground) {
@@ -187,7 +149,10 @@ export class AcpReplay {
           const matches = (candidate: (typeof candidates)[number]) =>
             messageId && candidate.entry.acpMessageId
               ? candidate.entry.acpMessageId === messageId
-              : candidate.fingerprint === fingerprint;
+              : candidate.fingerprint === fingerprint ||
+                (content.hasMedia &&
+                  candidate.fingerprint ===
+                    (legacyFingerprint ??= content.fingerprint(turn, undefined, true)));
           const firstCandidate = candidates[0];
           let index = firstCandidate && aligned && matches(firstCandidate) ? 0 : -1;
           if (index < 0 && candidates.length) {
@@ -209,18 +174,16 @@ export class AcpReplay {
               if (candidate.entry.turn.acpBackground) yield candidate.entry;
             }
             const matched = consumed.at(-1);
-            if (
-              matched &&
-              messageId &&
-              matched.fingerprint !== fingerprint &&
-              messageId === matched.entry.acpMessageId
-            ) {
+            if (matched && matched.fingerprint !== fingerprint) {
               // Agent 重放补齐了断线后的输出。保留本地回合身份、发送时间和原始用户附件。
               const old = matched.entry.turn;
               const user = old.items.find(
                 (item) => item.type === "message" && item.role === "user",
               );
               const projected = await content.materialize(turn, attachments, taskId);
+              const firstUser = projected.items.find(
+                (item) => item.type === "message" && item.role === "user",
+              );
               const { stopReason: _replayReason, ...recovered } = projected;
               yield {
                 turn: {
@@ -232,11 +195,11 @@ export class AcpReplay {
                   completedAt: old.completedAt,
                   ...(old.stopReason ? { stopReason: old.stopReason } : {}),
                   items: mergeCompactions(projected.items, old.items, false).map((item) =>
-                    user && item.id === `acp:message:user:${messageId}` ? user : item,
+                    user && item === firstUser && !old.id.startsWith("acp:history:") ? user : item,
                   ),
                 },
                 replayFingerprint: fingerprint,
-                acpMessageId: messageId,
+                ...(messageId ? { acpMessageId: messageId } : {}),
               };
             } else if (matched) {
               const missing = turn.items.filter(
@@ -275,7 +238,7 @@ export class AcpReplay {
             turn: projected,
             ...(messageId
               ? { acpMessageId: messageId, replayFingerprint: fingerprint }
-              : turn !== projected
+              : turn !== projected || content.hasMedia
                 ? { replayFingerprint: fingerprint }
                 : {}),
           } satisfies AcpHistoryEntry;
@@ -353,17 +316,13 @@ export class AcpReplay {
       const subagent = this.#subagentUpdates.get(update);
       if (subagent) {
         this.#flushUserPrefix();
-        this.#current ??= new AcpEventProjection(
-          this.taskId,
-          `acp:history:${String(++this.#counter)}`,
-          () => undefined,
-        );
+        this.#current ??= this.#createProjection(String(++this.#counter));
         if (update.sessionUpdate === "subagent_update") this.#current.announceSubagent(subagent);
-        else this.#current.update(update, subagent);
+        else await this.#current.ingest(update, subagent);
         next = await reader.read();
         continue;
       }
-      const user = replayUserUpdate(update);
+      const user = userUpdate(update);
       if (user && this.#userId !== undefined && this.#userId !== user.messageId) {
         const id = user.messageId ?? "user";
         const steering = this.#firstUserId
@@ -371,19 +330,13 @@ export class AcpReplay {
           : undefined;
         if (steering) {
           // 只暂存一条待确认的用户消息，折叠分块与全量替换，并对缓冲设置上限。
-          let text = "";
-          let fragment: UserUpdate | undefined = user;
-          while (fragment?.messageId === id) {
-            text += contentText(fragment.content);
-            next = await reader.read();
-            if (text.length > MAX_AGENT_TEXT_BYTES * 2) break;
-            fragment = next.done
-              ? undefined
-              : this.#subagentUpdates.has(next.value)
-                ? undefined
-                : replayUserUpdate(next.value);
-          }
-          if (await matchesSteering(text, steering, attachments, this.taskId)) {
+          const candidate = await readSteeringCandidate(
+            user,
+            () => reader.read(),
+            (value) => !this.#subagentUpdates.has(value),
+          );
+          next = candidate.next;
+          if (await matchesSteering(candidate.text, steering, attachments, this.taskId)) {
             this.#flushUserPrefix();
             this.#current?.userMessage(steering.id, steering.text, steering.attachments ?? []);
             this.#userId = id;
@@ -391,25 +344,21 @@ export class AcpReplay {
           } else {
             const turn = this.#finishTurn();
             if (turn) yield turn;
-            this.#applyUpdate({
-              sessionUpdate: "user_message_chunk",
-              messageId: id,
-              content: { type: "text", text },
-            });
+            for (const update of candidate.updates()) await this.#applyUpdate(update);
           }
           continue;
         }
         const turn = this.#finishTurn();
         if (turn) yield turn;
       }
-      this.#applyUpdate(update);
+      await this.#applyUpdate(update);
       next = await reader.read();
     }
     const turn = this.#finishTurn();
     if (turn) yield turn;
   }
 
-  #applyUpdate(update: SessionUpdate): void {
+  async #applyUpdate(update: SessionUpdate): Promise<void> {
     if (update.sessionUpdate === "user_message_chunk") {
       const id = update.messageId ?? "user";
       if (this.#firstUserId === undefined) {
@@ -437,27 +386,29 @@ export class AcpReplay {
     ) {
       this.#flushUserPrefix();
     }
-    if (!this.#current) {
-      const id = this.#userId ?? String(++this.#counter);
-      this.#current = new AcpEventProjection(this.taskId, `acp:history:${id}`, () => undefined);
-    }
-    this.#current.update(update);
+    this.#current ??= this.#createProjection(this.#userId ?? String(++this.#counter));
+    await this.#current.ingest(update);
   }
   #flushUserPrefix(): void {
     const text = this.#userPrefix;
     this.#userPrefix = undefined;
     // 前缀残缺时按普通用户文本保留，避免截断用户实际输入。
     if (!text) return;
-    this.#current ??= new AcpEventProjection(
-      this.taskId,
-      "acp:history:" + (this.#userId ?? String(++this.#counter)),
-      () => undefined,
-    );
+    this.#current ??= this.#createProjection(this.#userId ?? String(++this.#counter));
     this.#current.update({
       sessionUpdate: "user_message_chunk",
       messageId: this.#userId ?? "user",
       content: { type: "text", text },
     });
+  }
+  #createProjection(id: string): AcpEventProjection {
+    return new AcpEventProjection(
+      this.taskId,
+      `acp:history:${id}`,
+      () => undefined,
+      false,
+      () => this.#attachments,
+    );
   }
   #finishTurn(): ReplayTurn | undefined {
     this.#flushUserPrefix();

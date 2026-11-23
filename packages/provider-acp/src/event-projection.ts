@@ -5,35 +5,38 @@ import type {
   ToolCallContent,
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentProviderEventListener } from "@codexly/core";
-import type { AgentItem, AgentPlan, AgentTurn, AgentMessageAttachment } from "@codexly/protocol";
+import {
+  MAX_AGENT_FILE_TOTAL_BYTES,
+  MAX_AGENT_IMAGES,
+  type AgentItem,
+  type AgentPlan,
+  type AgentTurn,
+  type AgentMessageAttachment,
+} from "@codexly/protocol";
+import type { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { projectAcpFileChanges } from "./file-changes.js";
 import { AcpTurnContent } from "./turn-content.js";
 import { acpContextUsage } from "./context-usage.js";
 import type { AcpSubagentItem } from "./subagent-sessions.js";
+import {
+  AcpMessageProjection,
+  contentText,
+  mediaInput,
+  type MediaReferences,
+} from "./message-projection.js";
 
 type CompactionUpdate = Extract<
   SessionUpdate,
   { sessionUpdate: "compaction_update" | "compaction_summary_chunk" }
 >;
 
-type TextUpdate = Extract<
-  SessionUpdate,
-  {
-    sessionUpdate:
-      | "agent_message_chunk"
-      | "user_message_chunk"
-      | "agent_thought_chunk"
-      | "agent_message"
-      | "user_message"
-      | "agent_thought";
-  }
->;
-
 /** 仅映射 ACP 更新；正文按条目追加，不在每个 token 复制完整历史或写入存储。 */
 export class AcpEventProjection {
   pendingSteer: Promise<void> | undefined;
+  pendingMedia: Promise<void> | undefined;
   readonly content = new AcpTurnContent();
   readonly #items = new Map<string, AgentItem>();
+  readonly #messages: AcpMessageProjection;
   readonly #finished = new Set<string>();
   readonly #startedAt = new Date().toISOString();
   #completedAt: string | null = null;
@@ -41,10 +44,12 @@ export class AcpEventProjection {
   #error: string | null = null;
   #stopReason: string | undefined;
   #planId: string | undefined;
-  readonly #messageGroups = new Map<string, { index: number; kind: string }>();
   #settlementError: string | undefined;
   #published = false;
   #diffBytes = 0;
+  #mediaCount = 0;
+  #mediaBytes = 0;
+  #attachments: HistoricalTaskAttachments | undefined;
   acpMessageId: string | undefined;
   plan: AgentPlan | null = null;
 
@@ -53,7 +58,19 @@ export class AcpEventProjection {
     readonly turnId: string,
     readonly emit: AgentProviderEventListener,
     private readonly deferCompletion = false,
-  ) {}
+    private readonly attachmentStore?: () => HistoricalTaskAttachments,
+  ) {
+    this.#messages = new AcpMessageProjection(
+      this.taskId,
+      this.turnId,
+      this.content,
+      this.#items,
+      this.emit,
+      (type, item) => {
+        this.#emitItem(type, item);
+      },
+    );
+  }
 
   /** 状态检查不构造整份回合快照，避免审批和退订复制历史正文。 */
   get running(): boolean {
@@ -79,7 +96,62 @@ export class AcpEventProjection {
     this.#emitItem("item.started", item);
   }
 
-  update(update: SessionUpdate, subagent?: AcpSubagentItem) {
+  /** 在 ACP 通知顺序内保存媒体，后续正文及回合完成事件才能看到同一份引用。 */
+  ingest(update: SessionUpdate, subagent?: AcpSubagentItem): void | Promise<void> {
+    if (!this.running) return;
+    const kind = update.sessionUpdate;
+    const block =
+      kind === "agent_message_chunk" ||
+      kind === "user_message_chunk" ||
+      kind === "session_message_chunk"
+        ? update.content
+        : undefined;
+    const blocks =
+      kind === "session_message"
+        ? update.content
+        : block && block.type !== "text" && block.type !== "resource_link"
+          ? [block]
+          : undefined;
+    if (!blocks?.length || !this.attachmentStore) {
+      this.update(update, subagent);
+      return;
+    }
+    const pending = this.#ingestMedia(update, subagent, blocks, this.attachmentStore).finally(
+      () => {
+        if (this.pendingMedia === pending) this.pendingMedia = undefined;
+      },
+    );
+    this.pendingMedia = pending;
+    return pending;
+  }
+
+  async #ingestMedia(
+    update: SessionUpdate,
+    subagent: AcpSubagentItem | undefined,
+    blocks: readonly ContentBlock[],
+    store: () => HistoricalTaskAttachments,
+  ): Promise<void> {
+    let media: Map<ContentBlock, AgentMessageAttachment> | undefined;
+    for (const block of blocks) {
+      const input = mediaInput(block);
+      if (!input || this.#mediaCount >= MAX_AGENT_IMAGES) continue;
+      const padding = input.encoded.endsWith("==") ? 2 : input.encoded.endsWith("=") ? 1 : 0;
+      const size = Math.floor((input.encoded.length * 3) / 4) - padding;
+      if (size <= 0 || size > MAX_AGENT_FILE_TOTAL_BYTES - this.#mediaBytes) continue;
+      // 限制每回合的解码次数和总字节，包括无效块，避免异常 Agent 反复占用 Worker。
+      this.#mediaCount++;
+      this.#mediaBytes += size;
+      this.#attachments ??= store();
+      const attachment = await this.#attachments
+        .addBase64(this.taskId, input)
+        .catch(() => undefined);
+      if (!this.running) return;
+      if (attachment) (media ??= new Map()).set(block, attachment);
+    }
+    if (this.running) this.update(update, subagent, media);
+  }
+
+  update(update: SessionUpdate, subagent?: AcpSubagentItem, media?: MediaReferences) {
     if (this.#status !== "running") throw new Error("ACP 回合已经结束");
     const scope = subagent?.id ?? "";
     if (subagent && !this.#items.has(scope)) this.announceSubagent(subagent);
@@ -102,14 +174,14 @@ export class AcpEventProjection {
       case "agent_message_chunk":
       case "user_message_chunk":
       case "agent_thought_chunk":
-        this.#text(update, scope);
+        this.#messages.text(update, scope, media);
         break;
       case "tool_call":
       case "tool_call_update":
         return this.#tool(update, scope);
       case "session_message":
       case "session_message_chunk":
-        this.#sessionMessage(update, scope);
+        this.#messages.sessionMessage(update, scope, media);
         break;
       case "plan":
         if (subagent) {
@@ -220,106 +292,6 @@ export class AcpEventProjection {
       taskId: this.taskId,
       turnId: this.turnId,
       payload: { plan: structuredClone(plan) },
-    });
-  }
-
-  #text(update: TextUpdate, scope: string): void {
-    const kind =
-      update.sessionUpdate === "agent_thought_chunk"
-        ? "thought"
-        : update.sessionUpdate === "user_message_chunk"
-          ? "user"
-          : "assistant";
-    // 缺少原生消息 ID 的连续分块只在自己的会话内归组。
-    const group = this.#messageGroups.get(scope) ?? { index: 0, kind: "" };
-    if (group.kind !== kind) {
-      group.kind = kind;
-      group.index++;
-      this.#messageGroups.set(scope, group);
-    }
-    const id = `${scope}acp:message:${kind}:${update.messageId ?? `local-${String(group.index)}`}`;
-    let item = this.#items.get(id);
-    if (!item) {
-      item =
-        kind === "thought"
-          ? { id, type: "reasoning", content: "", summary: "" }
-          : {
-              id,
-              type: "message",
-              role: kind === "user" && !scope ? "user" : "assistant",
-              text: "",
-            };
-      this.#items.set(id, item);
-      this.#emitItem("item.started", item);
-    }
-    // 完整消息按 ID 替换既有正文，后续分块继续追加。空内容也必须清除旧投影。
-    const content = update.content;
-    const delta = this.content.text(id, contentText(content), kind === "thought");
-    if (!delta) return;
-    if (item.type === "reasoning") {
-      // ACP 主动公开的 thought 属于可展示摘要；旧 content 字段不参与两端展示。
-      this.#items.set(id, { ...item, summary: item.summary + delta });
-      this.emit({
-        type: "reasoning.delta",
-        taskId: this.taskId,
-        turnId: this.turnId,
-        itemId: id,
-        payload: { delta, field: "summary" },
-      });
-    } else if (item.type === "message") {
-      this.#items.set(id, { ...item, text: item.text + delta });
-      this.emit({
-        type: "message.delta",
-        taskId: this.taskId,
-        turnId: this.turnId,
-        itemId: id,
-        payload: { delta },
-      });
-    }
-  }
-
-  #sessionMessage(
-    update: Extract<SessionUpdate, { sessionUpdate: "session_message" | "session_message_chunk" }>,
-    scope: string,
-  ): void {
-    if (update.content === undefined) return;
-    const id = `${scope}acp:delegation:${update.messageId}`;
-    const old = this.#items.get(id);
-    const item =
-      old?.type === "message"
-        ? old
-        : {
-            id,
-            type: "message" as const,
-            role: "assistant" as const,
-            phase: "commentary" as const,
-            text: "",
-          };
-    if (update.sessionUpdate === "session_message") {
-      const text = this.content.replaceText(
-        id,
-        item.text,
-        (update.content ?? []).map(contentText).join("\n"),
-        false,
-      );
-      const next = { ...item, text };
-      this.#items.set(id, next);
-      this.#emitItem("item.started", next);
-      return;
-    }
-    if (!old) {
-      this.#items.set(id, item);
-      this.#emitItem("item.started", item);
-    }
-    const delta = this.content.text(id, contentText(update.content), false);
-    if (!delta) return;
-    this.#items.set(id, { ...item, text: item.text + delta });
-    this.emit({
-      type: "message.delta",
-      taskId: this.taskId,
-      turnId: this.turnId,
-      itemId: id,
-      payload: { delta },
     });
   }
 
@@ -487,13 +459,4 @@ export class AcpEventProjection {
       payload: { item: structuredClone(item) },
     });
   }
-}
-
-export function contentText(content: ContentBlock): string {
-  if (content.type === "text") return content.text;
-  if (content.type === "resource_link") return `[${content.name}](${content.uri})`;
-  if (content.type === "resource")
-    return "text" in content.resource ? content.resource.text : "[资源]";
-  if (content.type === "image") return "[图片]";
-  return "[音频]";
 }

@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import type { AgentTurn } from "@codexly/protocol";
 
 /** 输入使用真正发给 ACP 的内容投影；只落盘摘要，不复制附件正文或携带本地凭据。 */
-export function replayFingerprint(turn: AgentTurn, userText?: string): string {
+export function replayFingerprint(
+  turn: AgentTurn,
+  userText?: string,
+  includeMedia = false,
+): string {
   // 文件卡片和压缩边界单独修补，能力升级不能改变旧版的回合匹配锚点。
   const items = turn.items
     .filter(
@@ -15,6 +19,9 @@ export function replayFingerprint(turn: AgentTurn, userText?: string): string {
         type: item.type,
         role: item.role,
         text: item.role === "user" && userText !== undefined ? userText : item.text,
+        ...(includeMedia && item.role === "assistant" && item.attachments?.length
+          ? { media: item.attachments.map(({ id }) => id) }
+          : {}),
       };
     });
   return createHash("sha256").update(JSON.stringify(items)).digest("hex");
