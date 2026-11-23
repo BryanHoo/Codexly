@@ -80,6 +80,20 @@ async function renderSettings(
   const onSave = vi.fn(async (_settings: AgentGlobalSettings) => undefined);
   // 整页使用真实原生客户端端口；原始控件由 ACP 返回，不能恢复旧厂商设置夹具。
   let current = structuredClone(acpDefaults);
+  vi.spyOn(nativeClient, "getAcpAgentCatalog").mockResolvedValue({
+    agents: [
+      {
+        engine: "codex",
+        name: "Codex",
+        description: "",
+        installed: true,
+        enabled: true,
+        detected: true,
+        environmentKeys: [],
+        command: "/bin/codex",
+      },
+    ],
+  });
   vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(async (engine) => ({
     engine,
     protocolVersion: 2,

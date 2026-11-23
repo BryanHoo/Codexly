@@ -31,6 +31,30 @@ it("工具结束时的文字摘要保留此前分块报告的文件差异", () =
 });
 
 describe("ACP 增量事件投影", () => {
+  it("公开思考逐段发送摘要，结束事件保留完整内容", () => {
+    const { projection, events } = fixture();
+    const itemId = "acp:message:thought:thought";
+    const started = { id: itemId, type: "reasoning", summary: "", content: "" };
+    const completed = { ...started, summary: "先检查已有代码" };
+    for (const text of ["先检查", "已有代码"]) {
+      projection.update({
+        sessionUpdate: "agent_thought_chunk",
+        messageId: "thought",
+        content: { type: "text", text },
+      });
+    }
+    projection.finish("end_turn");
+
+    // 浏览器按同一事件顺序应用分块，结束快照中的摘要应与分块拼接结果一致。
+    expect(events).toMatchObject([
+      { type: "item.started", itemId, payload: { item: started } },
+      { type: "reasoning.delta", itemId, payload: { field: "summary", delta: "先检查" } },
+      { type: "reasoning.delta", itemId, payload: { field: "summary", delta: "已有代码" } },
+      { type: "item.completed", itemId, payload: { item: completed } },
+      { type: "turn.completed", payload: { turn: { status: "completed", items: [completed] } } },
+    ]);
+  });
+
   it("将当前上下文用量映射到共享事件，保留下降和归零，不混入费用", () => {
     const { projection, events } = fixture();
     for (const used of [53000, 12000, 0]) {

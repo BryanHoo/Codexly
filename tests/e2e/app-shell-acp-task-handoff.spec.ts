@@ -1,10 +1,12 @@
 import { expect, test, taskSnapshotRoute } from "./fixtures/app-shell.js";
+import { mockAcpWorkspace } from "./fixtures/acp-defaults.js";
 
 for (const width of [390, 1280]) {
   test(`ACP 首发权威快照接管、刷新查看及继续发送 ${String(width)}px @cross-browser`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
+    await mockAcpWorkspace(page);
     await page.addInitScript(() => {
       localStorage.setItem(
         "codeagent:engine-setup:v1",

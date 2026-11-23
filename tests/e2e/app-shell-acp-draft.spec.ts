@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures/app-shell.js";
+import { mockAcpWorkspace } from "./fixtures/acp-defaults.js";
 import type { AcpConfigPreviewRequest } from "@codexly/protocol";
 
 for (const width of [390, 1280]) {
@@ -6,6 +7,7 @@ for (const width of [390, 1280]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
+    await mockAcpWorkspace(page);
     await page.addInitScript(() => {
       localStorage.setItem(
         "codeagent:engine-setup:v1",
@@ -57,10 +59,16 @@ for (const width of [390, 1280]) {
     await page.goto("/p/codexly");
     const editor = page.getByRole("textbox", { name: "任务输入" });
     await editor.fill("保留首发草稿");
-    await page.getByRole("button", { name: "输入配置", exact: true }).click();
-    await page.getByRole("checkbox", { name: "ACP 原始开关" }).click();
-    await expect(page.getByRole("checkbox", { name: "ACP 原始开关" })).toBeChecked();
-    await page.getByRole("checkbox", { name: "ACP 原始开关" }).press("Escape");
+    const rawOption = page.getByRole("button", { name: "ACP 原始开关", exact: true });
+    const more = page.getByRole("button", { name: "更多配置", exact: true });
+    // 窄屏会将原始配置收进溢出菜单，使用真实入口完成相同设置操作。
+    await rawOption.or(more).first().waitFor({ state: "visible" });
+    const collapsed = !(await rawOption.isVisible());
+    if (collapsed) await more.click();
+    await rawOption.click();
+    await page.getByRole("menuitemradio", { name: "开启", exact: true }).click();
+    await expect(rawOption).toHaveText(/开启/u);
+    if (collapsed) await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "提交", exact: true }).click();
     await expect.poll(() => submissions.length).toBe(1);
     await expect(editor).toHaveAttribute("data-serialized-value", "保留首发草稿");

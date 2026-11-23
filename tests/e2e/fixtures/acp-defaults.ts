@@ -1,7 +1,45 @@
 import type { Page } from "@playwright/test";
-import type { AcpConfigOption, AcpConfigValues } from "@codexly/protocol";
+import type { CodexlyClient } from "@codexly/client";
+import type { AcpAgentCatalogPage, AcpConfigOption, AcpConfigValues } from "@codexly/protocol";
 import { models, customModels } from "./app-shell-data.js";
 import { parseRequestRecord } from "./app-shell-request.js";
+
+export const installedAcpCodex = {
+  engine: "codex",
+  name: "Codex",
+  description: "",
+  installed: true,
+  enabled: true,
+  detected: true,
+  environmentKeys: [],
+  command: "/bin/codex",
+} satisfies AcpAgentCatalogPage["agents"][number];
+
+/** ACP 工作区从目录同步可用引擎，并从独立端口读取应用偏好。 */
+export async function mockAcpWorkspace(
+  page: Page,
+  agents: AcpAgentCatalogPage["agents"] = [installedAcpCodex],
+): Promise<void> {
+  await page.route(/\/v1\/acp\/registry(?:\?.*)?$/u, (route) =>
+    route.fulfill({ json: { agents } }),
+  );
+  await page.route("**/v1/acp/registry/progress", (route) =>
+    route.fulfill({ json: { operations: [] } }),
+  );
+  const preferences = {
+    defaultAgent: "codex",
+    defaultModel: null,
+    commitMessagePrompt: "",
+    taskTitlePrompt: "",
+    promptOptimizationPrompt: "",
+    defaultOpenAppId: null,
+    followUpBehavior: "queue",
+    pet: { enabled: false, selectedPetId: null },
+  } satisfies Awaited<ReturnType<CodexlyClient["getApplicationPreferences"]>>;
+  await page.route("**/v1/application-preferences", (route) =>
+    route.fulfill({ json: preferences }),
+  );
+}
 
 /** 页面回归使用原始 ACP 选项与完整更新回执，不能继续请求已退出生产的原生设置接口。 */
 export async function mockAcpDefaults(page: Page): Promise<void> {

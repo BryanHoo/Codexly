@@ -58,6 +58,32 @@ for (const [platform, Page, Market] of [
   ["Native", NativePage, NativeMarket],
 ] as const) {
   it(`${platform}：ACP 个性化不读取旧指令或记忆，未知运行时保持加载`, async () => {
+    // 原生设置使用真实目录端口，只有目录中已安装的 Agent 会渲染会话配置。
+    vi.spyOn(nativeClient, "getAcpAgentCatalog").mockResolvedValue({
+      agents: [
+        {
+          engine: "codex",
+          name: "Codex",
+          description: "",
+          installed: true,
+          enabled: true,
+          detected: true,
+          environmentKeys: [],
+          command: "/bin/codex",
+        },
+      ],
+    });
+    vi.spyOn(nativeClient, "getAcpAgent").mockResolvedValue({
+      engine: "codex",
+      protocolVersion: 2,
+      authMethods: [],
+    });
+    vi.spyOn(nativeClient, "getAcpDefaults").mockResolvedValue({
+      defaults: {},
+      configOptions: [],
+      unmappedLegacy: [],
+      invalidDefaults: [],
+    });
     const client = {
       getGlobalInstructions: () => {
         state.calls("instructions");

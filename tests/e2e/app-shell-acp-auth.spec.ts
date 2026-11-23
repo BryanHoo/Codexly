@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures/app-shell.js";
+import { mockAcpWorkspace } from "./fixtures/acp-defaults.js";
 
 for (const width of [390, 1280]) {
   test(`ACP 连接表单显式保存与原生凭据 ${String(width)}px @cross-browser`, async ({ page }) => {
@@ -22,29 +23,12 @@ for (const width of [390, 1280]) {
         },
       }),
     );
-    await page.route("**/v1/acp/registry", (route) =>
-      route.fulfill({
-        json: {
-          agents: [
-            {
-              engine: "codex",
-              name: "Codex",
-              description: "",
-              installed: true,
-              enabled: true,
-              detected: true,
-              environmentKeys: [],
-              command: "/bin/codex",
-            },
-          ],
-        },
-      }),
-    );
+    await mockAcpWorkspace(page);
     let source = "native",
       baseUrl = "https://global-custom.example/v1",
       apiType = "openai",
       signedIn = false;
-    const auth: unknown[] = [],
+    const auth: { body: unknown; requestKey: string | undefined }[] = [],
       writes: unknown[] = [];
     await page.route("**/v1/acp/agents/codex", (route) =>
       route.fulfill({
@@ -74,7 +58,10 @@ for (const width of [390, 1280]) {
       }),
     );
     await page.route("**/v1/acp/agents/codex/authenticate", (route) => {
-      auth.push(route.request().postDataJSON());
+      auth.push({
+        body: route.request().postDataJSON() as unknown,
+        requestKey: route.request().headers()["idempotency-key"],
+      });
       signedIn = true;
       baseUrl = "";
       return route.fulfill({ json: {} });
@@ -132,7 +119,18 @@ for (const width of [390, 1280]) {
     await settings.getByRole("button", { name: "保存 API Key", exact: true }).click();
     await expect
       .poll(() => auth)
-      .toEqual([{ methodId: "api-key", credentials: { apiKey: "e2e-private-key" } }]);
+      .toEqual([
+        {
+          body: {
+            methodId: "api-key",
+            credentials: { apiKey: "e2e-private-key" },
+            attemptId: expect.stringMatching(/^[\da-f-]{36}$/iu),
+          },
+          requestKey: expect.any(String),
+        },
+      ]);
+    // 认证问卷和重试必须使用与原请求相同的事务身份。
+    expect(auth[0]?.body).toHaveProperty("attemptId", auth[0]?.requestKey);
     await expect(
       settings.getByText("ChatGPT Pro · user@example.com", { exact: true }),
     ).toBeVisible();

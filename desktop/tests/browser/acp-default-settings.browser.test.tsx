@@ -51,6 +51,13 @@ function clientFixture() {
     }),
   );
   return {
+    // 快速模式只对已确认使用官方账号且无 API 覆盖的 Codex 显示。
+    getAcpAgent: vi.fn(async () => ({
+      engine: "codex" as const,
+      protocolVersion: 2,
+      authMethods: [],
+      authStatus: { kind: "account" as const, label: "ChatGPT" },
+    })),
     getAcpDefaults: vi.fn(async () => initial),
     setAcpDefaultConfig: vi.fn(
       async (
