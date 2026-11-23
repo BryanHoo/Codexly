@@ -73,7 +73,11 @@ export class AcpProviderConnection {
       const pending: Promise<AcpConnection> = Promise.resolve().then(() =>
         this.connect({
           supportsSubagents: this.callbacks.supportsSubagents === true,
-          isSubagent: (sessionId) => current() && this.subagents.get(sessionId) !== undefined,
+          subagentRoot: (sessionId) =>
+            current() ? this.subagents.get(sessionId)?.rootSessionId : undefined,
+          resetSubagentWork: (root) => {
+            if (current()) this.subagents.resetWork(root);
+          },
           onSessionState: (...args) => {
             if (current()) return this.callbacks.onSessionState?.(...args);
           },

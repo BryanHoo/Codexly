@@ -190,3 +190,4 @@ Expected: 无依赖方向违规；检查结果写入本计划。
 - 本次未创建 Git 提交。依赖版本未升级，锁文件只将固定 adapter 从生产依赖移至开发依赖。
 - 额外联网 smoke：在隔离临时目录尝试按官方目录安装 crow-cli，再做仅 initialize 的握手；直连 Node 与复用共享代理配置的 Bun 均在 GitHub / release-assets.githubusercontent.com 下载阶段遇到 ECONNRESET。临时目录与进程均清理，未创建用户安装记录；不能据此宣称真实外网下载安装或握手已通过。离线安装器校验/失败清理测试通过，外网可用后可重试。
 - 最终格式检查此前仅受临时并行公告 JSON 影响，公告完成移除后重跑；计划 preflight 通过。最终定向 ACP/CLI/Server/Client 回归 203 项通过（2 项真实运行时条件跳过），目录关闭/刷新等最终 7 项通过。
+- 桌面事件身份回归先复现 `acp-custom-2` 经 Tauri Channel 变成 `claude`。复用原生任务创建的引擎校验后，Channel 保留合法的第三方及内置引擎 ID，缺省和无效值仍使用 Claude 回退。`pnpm --dir desktop check:rust` 通过，含 949 项全特性测试和 6 项 Release 性能基线。Web 与共享 ACP 定向回归通过 28 项。

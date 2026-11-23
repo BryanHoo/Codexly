@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, readdir, rm, stat, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import { ZipFile } from "yazl";
 import { execFile } from "node:child_process";
@@ -65,6 +65,65 @@ it("ZIP 安装不依赖系统 tar 或 unzip，并保留嵌套入口、参数和�
   expect(await readFile(result.command, "utf8")).toBe("test executable");
   expect(result.args).toEqual(["acp"]);
   expect(result.env).toEqual({ ACP_MODE: "test" });
+});
+
+it.each([false, true])("npm 优先使用较快的源并在失败时清理暂存后切源，失败：%s", async (fail) => {
+  const { directory, agent } = await fixture();
+  const mirror = "https://registry.npmmirror.com";
+  const official = "https://registry.npmjs.org";
+  agent.distribution = { npx: { package: "@test/agent@1.0.0", args: ["--acp"] } };
+  const probe = vi.fn((url: string) =>
+    Promise.resolve(new Response(null, { status: url.startsWith(mirror) ? 200 : 404 })),
+  );
+  vi.stubGlobal("fetch", probe);
+
+  // 以真实 Node 子进程代替 npm 网络请求，覆盖命令参数、切源和暂存目录清理。
+  const windows = process.platform === "win32";
+  const cli = windows ? join(directory, "node_modules/npm/bin/npm-cli.js") : join(directory, "npm");
+  if (windows) {
+    await mkdir(dirname(cli), { recursive: true });
+    await writeFile(join(directory, "npm.cmd"), "");
+  }
+  const attempts = join(directory, "attempts");
+  await writeFile(
+    cli,
+    `#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+const args = process.argv.slice(2);
+const registry = args.find(arg => arg.startsWith("--registry="))?.slice(11);
+const stage = args[args.indexOf("--prefix") + 1];
+fs.appendFileSync(${JSON.stringify(attempts)}, registry + "\\n");
+if (!registry || !args.includes("--@test:registry=" + registry)) process.exit(2);
+if (${String(fail)} && registry === ${JSON.stringify(mirror)}) {
+  fs.writeFileSync(path.join(stage, "package-lock.json"), "stale");
+  console.error("npm error code ETIMEDOUT");
+  process.exit(1);
+}
+if (fs.existsSync(path.join(stage, "package-lock.json"))) process.exit(3);
+const pkg = path.join(stage, "node_modules", "@test", "agent");
+fs.mkdirSync(pkg, { recursive: true });
+fs.writeFileSync(path.join(pkg, "package.json"), '{"bin":{"agent":"index.js"}}');
+fs.writeFileSync(path.join(pkg, "index.js"), "");
+`,
+    { mode: 0o700 },
+  );
+  const result = await installRegistryAgent(agent, join(directory, "runtime"), {
+    ...process.env,
+    PATH: [directory, dirname(process.execPath), process.env["PATH"]].join(delimiter),
+  });
+  expect(probe.mock.calls.map(([url]) => url)).toEqual([
+    `${official}/@test%2fagent/1.0.0`,
+    `${mirror}/@test%2fagent/1.0.0`,
+  ]);
+  expect(await readFile(attempts, "utf8")).toBe(
+    [mirror, ...(fail ? [official] : []), ""].join("\n"),
+  );
+  expect(result.args).toEqual([
+    join(directory, "runtime/node_modules/@test/agent/index.js"),
+    "--acp",
+  ]);
+  expect(await readdir(directory)).not.toContainEqual(expect.stringContaining(".stage-"));
 });
 
 it.each(["../evilx", "/outside", "C:/evilx", "a\\evilxx"])(

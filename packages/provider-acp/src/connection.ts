@@ -23,7 +23,8 @@ export interface AcpClientCallbacks {
   /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
   onUpdate?(notification: acp.SessionNotification, historical: boolean): void | Promise<void>;
   supportsSubagents?: boolean;
-  isSubagent?(sessionId: string): boolean;
+  subagentRoot?(sessionId: string): string | undefined;
+  resetSubagentWork?(rootSessionId: string): void;
   onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
   requestElicitation?(
     request: acp.CreateElicitationRequest,
@@ -50,6 +51,7 @@ export class AcpConnection {
     readonly drainUpdates: () => Promise<void>,
     private readonly authStatus: AcpAuthStatusTracker,
     private readonly replaying: Set<string>,
+    private readonly resetSubagentWork: (rootSessionId: string) => void,
     private readonly metadata: AcpSessionMetadataStore,
     private readonly publishForeground: (
       sessionId: string,
@@ -114,9 +116,11 @@ export class AcpConnection {
       .onNotification(acp.methods.client.session.update, ({ params }) => {
         return enqueue(async () => {
           const { sessionId } = params;
-          const historical = replaying.has(sessionId);
+          // 子会话与根会话共用同一个 load 响应边界，嵌套公告也按根会话判定新旧。
+          const root = callbacks.subagentRoot?.(sessionId);
+          const historical = replaying.has(root ?? sessionId);
           // v1 回放的配置、命令和用量同样是 Agent 确认的会话元数据。
-          const state = callbacks.isSubagent?.(sessionId) ? undefined : metadata.update(params);
+          const state = root === undefined ? metadata.update(params) : undefined;
           if (state) await callbacks.onSessionState?.(sessionId, state);
           await callbacks.onUpdate?.(params, historical);
         });
@@ -178,6 +182,7 @@ export class AcpConnection {
         () => updates,
         authStatus,
         replaying,
+        (sessionId) => callbacks.resetSubagentWork?.(sessionId),
         metadata,
         (sessionId, foreground) =>
           enqueue(async () => {
@@ -284,6 +289,7 @@ export class AcpConnection {
     if (this.#activePrompts.has(sessionId)) throw new Error("会话正在进行中");
     // 必须保持原生会话身份；错误直接返回，禁止回退 newSession 丢失上下文。
     this.#beginBinding(sessionId);
+    this.resetSubagentWork(sessionId);
     const load = replay || !this.initialization.agentCapabilities?.sessionCapabilities?.resume;
     if (load) this.replaying.add(sessionId);
     try {
@@ -302,6 +308,10 @@ export class AcpConnection {
       await this.updateConfiguration(sessionId, configOptions, undefined);
       this.#sessions.add(sessionId);
       return { ...result, configOptions };
+    } catch (error) {
+      // 恢复失败时，丢弃请求期间收集的实时子会话工作状态。
+      this.resetSubagentWork(sessionId);
+      throw error;
     } finally {
       this.replaying.delete(sessionId);
       this.#finishBinding();

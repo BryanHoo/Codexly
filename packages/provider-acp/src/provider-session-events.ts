@@ -42,10 +42,11 @@ export async function routeAcpUpdate(
       replays.has(update.sessionId)
     )
       return;
-    const item = subagents?.announce(sessionId, root, update);
+    const item = subagents?.announce(sessionId, root, update, historical);
     if (!item) return;
-    if (replay) await replay.update(update, item);
-    else if (task)
+    // load 响应后的实时状态立即登记，后台记录在历史提交完成后才能创建。
+    if (historical) await replay?.update(update, item);
+    else if (task && !replay)
       (projection?.running ? projection : background?.(task, root))?.announceSubagent(item);
     return;
   }
@@ -167,7 +168,7 @@ export function acpSessionCallbacks({
         backgroundFor,
       );
       const { update } = notification;
-      if (update.sessionUpdate !== "subagent_update") return;
+      if (historical || update.sessionUpdate !== "subagent_update") return;
       const child = subagents.get(update.sessionId);
       if (
         !child ||

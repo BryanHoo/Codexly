@@ -1,6 +1,8 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { fixture, input } from "./provider.test-support.js";
+import { routeAcpUpdate } from "./provider-session-events.js";
+import { AcpSubagentSessions } from "./subagent-sessions.js";
 
 it("子会话同名工具分别归属，原始审批选项回复到发起请求的子会话", async () => {
   const finished = Promise.withResolvers<unknown[]>();
@@ -180,4 +182,86 @@ it("只加载根会话并重放嵌套子会话，流式委派可被完整消息�
     expect.objectContaining({ text: "嵌套回复" }),
     expect.objectContaining({ text: "根回复" }),
   ]);
+});
+
+it.each([true, false])("历史子会话保留记录并释放连接容量（支持 close：%s）", async (close) => {
+  const f = await fixture("claude", undefined, undefined, {
+    capabilities: { loadSession: true, sessionCapabilities: close ? { close: {} } : {} },
+  });
+  const task = await f.provider.startTask();
+  const stored = f.tasks.get(task.id);
+  if (!stored) throw new Error("缺少测试任务");
+  stored.sessionId = "saved";
+  f.loaded.mockImplementation(async ({ params, client }) => {
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: { sessionUpdate: "subagent_update", sessionId: "child", state: { state: "running" } },
+    });
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: "child",
+      update: {
+        sessionUpdate: "subagent_update",
+        sessionId: "nested",
+        state: { state: "requires_action" },
+      },
+    });
+    return {};
+  });
+
+  const snapshot = await f.provider.readTask(task.id);
+  expect(snapshot.turns[0]?.items).toEqual([
+    expect.objectContaining({ type: "acp_subagent", sessionId: "child", state: "running" }),
+    expect.objectContaining({
+      type: "acp_subagent",
+      sessionId: "nested",
+      state: "requires_action",
+    }),
+  ]);
+
+  // 等历史落盘后再推进时钟，分别验证原生关闭和暖连接的空闲回收。
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    expect(await f.provider.unsubscribeTask(task.id)).toBe("unsubscribed");
+    expect(f.closed).toHaveBeenCalledTimes(close ? 1 : 0);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await f.provider.readSessionState(task.id);
+    expect(f.connected).toHaveBeenCalledTimes(close ? 1 : 2);
+    expect(f.loaded).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("实时子会话状态保护连接，省略状态的补丁延续已有确认", async () => {
+  const subagents = new AcpSubagentSessions();
+  const sessions = new Map([["task", "root"]]);
+  const announce = (historical: boolean, patch: Partial<acp.SubagentUpdate>) =>
+    routeAcpUpdate(
+      {
+        sessionId: "root",
+        update: { sessionUpdate: "subagent_update", sessionId: "child", ...patch },
+      },
+      historical,
+      sessions,
+      new Map(),
+      new Map(),
+      () => undefined,
+      subagents,
+    );
+  await announce(true, { state: { state: "running" } });
+  await announce(false, { title: "实时标题" });
+  expect(subagents.hasWork()).toBe(false);
+
+  for (const state of ["running", "requires_action"] as const) {
+    await announce(false, { state: { state } });
+    await announce(false, { title: "更新标题" });
+    expect(subagents.hasWork("root")).toBe(true);
+  }
+  await announce(false, { state: { state: "idle" } });
+  expect(subagents.hasWork("root")).toBe(false);
+
+  await announce(false, { state: { state: "running" } });
+  subagents.resetWork("root");
+  expect(subagents.hasWork("root")).toBe(false);
+  expect(subagents.get("child")?.rootSessionId).toBe("root");
 });

@@ -52,6 +52,7 @@ mod process_job;
 mod protocol;
 mod runtime_manager;
 mod runtime_path;
+pub(crate) use runtime_path::resolve_runtime_path;
 mod sidebar;
 mod startup_config;
 mod stderr;

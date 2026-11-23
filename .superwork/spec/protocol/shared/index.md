@@ -81,4 +81,5 @@
 - 聊天连接通过 ACP v1 的 `clientCapabilities.subagents` 声明支持。子会话由直接父会话登记，连接结束后销毁关联。原生会话 ID 用于条目、审批和问卷的归属，现有应用任务 ID 管理访问边界。
 - Web、移动浏览器和桌面共用子会话折叠入口。子会话独立订阅展开后的条目，后续正文仍走既有增量事件通道。后台段使用 `acp.background.updated` 登记时间信息，根回合状态和队列由原有回合事件管理。
 - 审批使用已登记的会话和原始工具 ID 定位，响应精确回传原始 `optionId`。父回合返回后仍能处理子会话请求，子会话结束或连接关闭时按实际归属清理。
+- 根会话发起 `session/load` 或 `session/resume` 时，子会话工作状态重新等待确认。`session/load` 成功响应前的公告保留在历史中。退订和空闲回收只依据当前连接已确认的实时工作状态，包含嵌套子会话。回归入口为 `packages/provider-acp/src/provider-subagents.test.ts`。
 - 回归覆盖同名工具并发、未知会话、父回合结束后的审批、嵌套子会话回放，以及 Chromium 和 WebKit 中双端展开。 [ACP v1 子会话](https://agentclientprotocol.com/protocol/v1/subagents) [Codex ACP 实现](https://github.com/agentclientprotocol/codex-acp/blob/main/docs/subagent-sessions.md)

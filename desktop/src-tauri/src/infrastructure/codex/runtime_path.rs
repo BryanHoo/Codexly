@@ -20,7 +20,7 @@ const SHELL_PATH_END: u8 = 0x1f;
 const SHELL_PATH_PROBE: &str = r#"printf '\036%s\037' "$PATH""#;
 
 #[cfg(unix)]
-pub(super) async fn resolve_runtime_path() -> Option<OsString> {
+pub(crate) async fn resolve_runtime_path() -> Option<OsString> {
     for shell in login_shell_candidates() {
         if let Some(path) = probe_login_shell_path(&shell).await {
             return merge_unix_paths(Some(path));
@@ -102,7 +102,7 @@ async fn probe_login_shell_path(shell: &Path) -> Option<OsString> {
 }
 
 #[cfg(windows)]
-pub(super) async fn resolve_runtime_path() -> Option<OsString> {
+pub(crate) async fn resolve_runtime_path() -> Option<OsString> {
     use std::{env, path::PathBuf};
 
     use winreg::{
@@ -150,7 +150,7 @@ fn expand_registry_value(value: OsString) -> Option<OsString> {
 }
 
 #[cfg(not(any(unix, windows)))]
-pub(super) async fn resolve_runtime_path() -> Option<OsString> {
+pub(crate) async fn resolve_runtime_path() -> Option<OsString> {
     None
 }
 

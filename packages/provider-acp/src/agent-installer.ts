@@ -7,10 +7,12 @@ import { promisify } from "node:util";
 import { chmod, mkdir, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { dirname, join, resolve, relative, isAbsolute } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { selectRegistryOrder } from "@codexly/core";
 import { findAgentExecutable, type AgentCommand } from "./agent-executable.js";
 import type { AcpAgentInstallationStage } from "@codexly/protocol";
 import { extractAgentZip } from "./agent-zip.js";
 const execute = promisify(execFile);
+const INSTALL_TIMEOUT_MS = 300_000;
 interface Spec {
   args?: string[];
   env?: Record<string, string>;
@@ -38,11 +40,11 @@ export async function installRegistryAgent(
   signal?: AbortSignal,
   report?: (progress: AcpAgentInstallationStage) => void,
 ): Promise<AgentCommand> {
-  const run = (command: string, args: string[]) =>
+  const run = (command: string, args: string[], timeout = INSTALL_TIMEOUT_MS) =>
     execute(command, args, {
       ...(signal ? { signal } : {}),
       env: environment,
-      timeout: 300_000,
+      timeout,
       maxBuffer: 4 * 1024 * 1024,
       windowsHide: true,
     });
@@ -54,27 +56,72 @@ export async function installRegistryAgent(
     if (npm) {
       if (!/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+@[0-9][a-zA-Z0-9.+-]*$/.test(npm.package))
         throw new Error("目录 npm 包必须固定版本");
-      const node = await findAgentExecutable("node", environment);
-      const executable = await findAgentExecutable("npm", environment);
-      if (!node || !executable) throw new Error("请安装 Node.js（包含 npm）后重试");
+      const [nodePath, executable] = await Promise.all([
+        findAgentExecutable("node", environment),
+        findAgentExecutable("npm", environment),
+      ]);
+      if (!nodePath || !executable) throw new Error("请安装 Node.js（包含 npm）后重试");
+      // fnm 等版本管理器的 PATH 可能指向临时链接，持久化真实 Node 路径供重启后使用。
+      const node = await realpath(nodePath);
       // Windows 的 npm.cmd 不是可直接 spawn 的程序，使用 Node 运行 npm CLI，始终关闭 shell。
       const cli =
         process.platform === "win32"
           ? join(dirname(executable), "node_modules", "npm", "bin", "npm-cli.js")
           : await realpath(executable);
       report?.({ stage: "installing" });
-      await run(node, [
-        cli,
-        "install",
-        "--prefix",
-        stage,
-        "--no-audit",
-        "--no-fund",
-        "--omit=dev",
-        "--",
-        npm.package,
-      ]);
-      const name = npm.package.slice(0, npm.package.lastIndexOf("@"));
+      const separator = npm.package.lastIndexOf("@");
+      const name = npm.package.slice(0, separator);
+      const version = npm.package.slice(separator + 1);
+      const scope = name.startsWith("@") ? name.split("/")[0] : undefined;
+      const deadline = performance.now() + INSTALL_TIMEOUT_MS;
+      // 按目标版本测速，避免只因镜像可达就选中尚未同步该版本的源。
+      const registries = await selectRegistryOrder(
+        signal,
+        `/${name.replace("/", "%2f")}/${version}`,
+      );
+      for (const [index, registry] of registries.entries()) {
+        signal?.throwIfAborted();
+        const remaining = Math.ceil(deadline - performance.now());
+        if (remaining <= 0) throw new Error(`npm 安装 ${npm.package} 超时`);
+        try {
+          await run(
+            node,
+            [
+              cli,
+              "install",
+              `--registry=${registry}`,
+              ...(scope ? [`--${scope}:registry=${registry}`] : []),
+              "--fetch-retries=0",
+              "--fetch-timeout=30000",
+              "--prefix",
+              stage,
+              "--no-audit",
+              "--no-fund",
+              "--omit=dev",
+              "--",
+              npm.package,
+            ],
+            remaining,
+          );
+          break;
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (performance.now() >= deadline)
+            throw new Error(`npm 安装 ${npm.package} 超时`, { cause: error });
+          if (index === registries.length - 1) {
+            // 对外只提供 npm 错误码，原始 stderr 可能含私有路径、代理或凭据。
+            const stderr = (error as { stderr?: string }).stderr;
+            const code = stderr?.match(/^npm (?:error|ERR!) code ([A-Z0-9_-]{1,32})\s*$/m)?.[1];
+            throw new Error(
+              `npm 安装 ${npm.package} 失败（已尝试官方源和国内镜像${code ? `，${code}` : ""}）`,
+              { cause: error },
+            );
+          }
+          // 首次 npm 安装可能已写入锁文件或部分依赖，切源前清空暂存目录，保留 npm 缓存。
+          await rm(stage, { recursive: true, force: true });
+          await mkdir(stage, { mode: 0o700 });
+        }
+      }
       const manifest = JSON.parse(
         await readFile(join(stage, "node_modules", name, "package.json"), "utf8"),
       ) as { bin?: string | Record<string, string> };

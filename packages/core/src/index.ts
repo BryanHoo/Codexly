@@ -85,3 +85,4 @@ export type { TaskTitleGenerator } from "./agent-provider.js";
 export type { AcpAgentSettingsService, AcpAgentServices } from "./acp-service.js";
 
 export { HostOutput, createHostOutputStream, HOST_OUTPUT_BUDGET } from "./host-output.js";
+export { NPM_REGISTRIES, selectRegistryOrder, type RegistryOrder } from "./npm-registry.js";

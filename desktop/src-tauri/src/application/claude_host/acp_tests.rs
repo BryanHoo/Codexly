@@ -12,7 +12,7 @@ async fn compiled_acp_host_should_roundtrip_the_native_catalog_and_exit() {
         codex: native.clone(),
         claude: native,
     };
-    let mut command = HostLaunch::Acp(paths).command(root.path());
+    let mut command = HostLaunch::Acp(paths).command(root.path(), None);
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

@@ -76,7 +76,11 @@ pub(super) enum HostLaunch {
     Acp(crate::infrastructure::acp_runtime::AcpRuntimePaths),
 }
 impl HostLaunch {
-    fn command(self, app_data: &std::path::Path) -> Command {
+    fn command(
+        self,
+        app_data: &std::path::Path,
+        runtime_path: Option<&std::ffi::OsStr>,
+    ) -> Command {
         let mut command = match self {
             Self::Claude((binary, host)) => {
                 let mut command = Command::new(host);
@@ -91,6 +95,9 @@ impl HostLaunch {
                     .arg(paths.claude)
                     // 可信目录只由宿主装配传入；共享层只读应用旧设置，不推测用户或厂商路径。
                     .arg(app_data);
+                if let Some(path) = runtime_path {
+                    command.env("PATH", path);
+                }
                 command
             }
         };
@@ -223,8 +230,14 @@ impl ClaudeHost {
     async fn start(app: &AppHandle, launch: HostLaunch) -> Result<Self, AppError> {
         let app_data = crate::infrastructure::app_data::directory(app).map_err(failure)?;
         let catalog = LocalCatalog::at(&app_data)?;
+        // 图形界面的 PATH 可能缺少用户安装的 Node、npm 或 uv；只在创建 ACP 宿主时解析一次。
+        let runtime_path = if matches!(&launch, HostLaunch::Acp(_)) {
+            crate::infrastructure::codex::resolve_runtime_path().await
+        } else {
+            None
+        };
         // 两种宿主共用传输、原生目录与进程守卫，启动参数只来自安装资源与应用数据目录。
-        let mut command = launch.command(&app_data);
+        let mut command = launch.command(&app_data, runtime_path.as_deref());
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

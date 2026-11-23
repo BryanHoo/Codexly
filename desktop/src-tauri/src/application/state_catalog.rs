@@ -1,4 +1,5 @@
 use super::AppState;
+use crate::infrastructure::acp_runtime::valid_agent_engine;
 use serde_json::json;
 use tauri::AppHandle;
 
@@ -11,8 +12,8 @@ impl AppState {
         published: impl FnOnce(),
     ) {
         crate::application::claude_host::normalize_event(&mut event);
-        // 共享 ACP 宿主已提供任务引擎；仅旧 Claude 宿主缺省帧沿用原来的 Claude 标识。
-        if !matches!(event["provider"].as_str(), Some("codex" | "claude")) {
+        // 实时事件沿用任务创建的引擎校验，保留第三方身份。缺省或无效标识沿用旧宿主的回退值。
+        if !event["provider"].as_str().is_some_and(valid_agent_engine) {
             event["provider"] = json!("claude");
         }
         event["version"] = json!(2);
@@ -91,15 +92,26 @@ mod tests {
                 }
                 Ok(())
             }));
-        for engine in [Some("codex"), Some("claude"), None] {
+        for (index, (engine, expected)) in [
+            (Some("codex"), "codex"),
+            (Some("claude"), "claude"),
+            (Some("acp-custom-2"), "acp-custom-2"),
+            (None, "claude"),
+            (Some("acp-"), "claude"),
+            (Some("acp-invalid/path"), "claude"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let mut event = json!({"type":"acp.session.updated","taskId":"t","payload":{"state":{"configOptions":[],"availableCommands":[]}}});
             if let Some(engine) = engine {
                 event["provider"] = json!(engine);
             }
             state.publish_claude_event(None, event, || {}).await;
             let messages = received.lock().unwrap();
-            let event = &messages.last().unwrap()["data"]["event"];
-            assert_eq!(event["provider"], engine.unwrap_or("claude"));
+            assert_eq!(messages.len(), index + 1);
+            let event = &messages[index]["data"]["event"];
+            assert_eq!(event["provider"], expected, "provider 输入为 {engine:?}");
             assert_eq!(event["type"], "acp.session.updated");
         }
     }

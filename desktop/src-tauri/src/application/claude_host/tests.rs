@@ -411,15 +411,23 @@ async fn real_slow_catalog_write_should_not_delay_response_delivery() {
 }
 
 #[test]
-fn acp_launch_should_pass_only_shared_storage_and_bundled_executables() {
-    use std::path::PathBuf;
+fn acp_launch_should_pass_shared_storage_bundled_executables_and_runtime_path() {
+    use std::{ffi::OsStr, path::PathBuf};
     let paths = crate::infrastructure::acp_runtime::AcpRuntimePaths {
         host: PathBuf::from("/bundle/acp-host"),
         codex: PathBuf::from("/bundle/codex"),
         claude: PathBuf::from("/bundle/claude"),
     };
-    let command = super::HostLaunch::Acp(paths).command(std::path::Path::new("/private/app"));
+    let runtime_path = OsStr::new("/user/node/bin");
+    let command = super::HostLaunch::Acp(paths)
+        .command(std::path::Path::new("/private/app"), Some(runtime_path));
     assert_eq!(command.as_std().get_program(), "/bundle/acp-host");
+    assert!(
+        command
+            .as_std()
+            .get_envs()
+            .any(|(key, value)| key == "PATH" && value == Some(runtime_path))
+    );
     let args: Vec<_> = command
         .as_std()
         .get_args()
