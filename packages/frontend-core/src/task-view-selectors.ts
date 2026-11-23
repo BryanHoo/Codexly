@@ -37,13 +37,6 @@ export type TaskRuntimeMetadata = Pick<
   | "acpSession"
 >;
 
-export function taskRuntimeTitle(
-  metadata: Pick<AgentTaskSnapshot, "title" | "acpSession">,
-): string {
-  // 应用标题包含手动名称和历史数据，优先于当前连接上的 Agent 标题。
-  return metadata.title || (metadata.acpSession?.title ?? "");
-}
-
 export function selectTaskRuntimeMetadata(
   state: Pick<TaskViewStoreState, "snapshotMetadata">,
 ): TaskRuntimeMetadata | undefined {
@@ -54,7 +47,7 @@ export function selectTaskRuntimeMetadata(
     id: metadata.id,
     ...(metadata.engine === undefined ? {} : { engine: metadata.engine }),
     ...(metadata.workspacePath === undefined ? {} : { workspacePath: metadata.workspacePath }),
-    title: taskRuntimeTitle(metadata),
+    title: metadata.title,
     status: metadata.status,
     ...(metadata.settings === undefined ? {} : { settings: metadata.settings }),
     ...(metadata.runtime === undefined ? {} : { runtime: metadata.runtime }),

@@ -1,6 +1,5 @@
 import type { AgentEvent, AcpSessionState } from "@codexly/protocol";
 import { describe, expect, test, vi } from "vitest";
-import { taskRuntimeTitle } from "../task-view-selectors.js";
 
 const timestamp = "2026-10-29T00:00:00.000Z";
 const identity = { projectId: "project", taskId: "task" };
@@ -174,37 +173,35 @@ export function runTaskEventReplayContract<Store extends ReplayStore>(
           .getState()
           .reconstructSnapshot()
           ?.turns[0]?.items.map((item) => item.id);
-      test("当前会话实时接收 Agent 标题，手动名称优先", () => {
+      test("ACP 标题展示沿用目录事件，不受原生元数据乱序覆盖", () => {
         const initial = response();
-        initial.snapshot.title = "";
+        initial.snapshot.title = "自动标题";
         const store = createStore(initial);
-        const displayed = () => {
-          const metadata = store.getState().snapshotMetadata;
-          return metadata && taskRuntimeTitle(metadata);
-        };
-        const update = (sequence: number, title: string | null) => {
+        const current = () => store.getState().snapshotMetadata?.title;
+        const publish = (sequence: number, title: string) => {
           store.getState().applyEvents([
             {
               ...envelope(sequence, provider),
-              type: "acp.session.updated",
-              payload: { state: { title, configOptions: [], availableCommands: [] } },
+              type: "task.metadata_changed",
+              payload: { title },
             },
           ]);
         };
-        update(1, "Agent 标题");
-        expect(displayed()).toBe("Agent 标题");
-        update(2, null);
-        expect(displayed()).toBe("");
+        publish(1, "Agent 标题");
+        expect(current()).toBe("Agent 标题");
+        publish(2, "自动标题");
+        expect(current()).toBe("自动标题");
+        publish(3, "手动名称");
         store.getState().applyEvents([
           {
-            ...envelope(3, provider),
-            type: "task.metadata_changed",
-            payload: { title: "手动名称" },
+            ...envelope(4, provider),
+            type: "acp.session.updated",
+            payload: {
+              state: { title: "Agent 的迟到标题", configOptions: [], availableCommands: [] },
+            },
           },
         ]);
-        update(4, "Agent 更新后的标题");
-        expect(store.getState().snapshotMetadata?.acpSession?.title).toBe("Agent 更新后的标题");
-        expect(displayed()).toBe("手动名称");
+        expect(current()).toBe("手动名称");
       });
       test("晚到的空启动事件保留已经显示的提交消息与 Store 身份", () => {
         const initial = response([message("submitted-user-turn", "user", "继续")]);

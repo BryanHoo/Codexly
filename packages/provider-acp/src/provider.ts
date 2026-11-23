@@ -100,6 +100,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         replays: this.#replays,
         permissions: this.#permissions,
         elicitations: this.#elicitations,
+        syncTitle: this.#syncTitle,
       }),
       () => this.#operations.size === 0 && this.#active.size === 0,
       () => {
@@ -141,15 +142,12 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         listener({ ...event, provider: this.engine });
   };
   async #task(id: string): Promise<LocalTask> {
-    const task = this.#ephemeral.get(id) ?? (await this.store.catalog("task.read", { id }));
-    if (
-      !task ||
-      task.provider !== this.engine ||
-      task.projectId !== (this.scope.kind === "temporary" ? null : this.scope.id)
-    )
-      throw new Error("任务不属于当前项目或引擎");
-    return task;
+    return this.#ephemeral.get(id) ?? this.#management.readTask(id);
   }
+  readonly #syncTitle = (id: string, sessionId: string) => {
+    if (this.#ephemeral.has(id)) return;
+    this.#management.syncAgentTitle(id, sessionId, this.#link, (work) => this.#serial(id, work));
+  };
   async #patch(id: string, patch: Partial<LocalTask>): Promise<void> {
     const task = this.#ephemeral.get(id);
     if (task) {
@@ -189,12 +187,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       patch: (patch) => this.#patch(task.id, patch),
       store: this.store,
       updated: (connection, session) => {
-        publishAcpSessionState(
-          this.#link,
-          session,
-          connection.readSessionState(session),
-          this.#emit,
-        );
+        const state = connection.readSessionState(session);
+        publishAcpSessionState(this.#link, session, state, this.#emit);
+        if (state.title !== undefined) this.#syncTitle(task.id, session);
       },
     });
     this.#link.detached.delete(task.id);

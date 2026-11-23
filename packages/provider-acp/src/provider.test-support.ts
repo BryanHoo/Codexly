@@ -35,25 +35,27 @@ export async function fixture(
 ) {
   const directory = await mkdtemp(join(tmpdir(), "acp-provider-"));
   const tasks = new Map<string, LocalTask>();
-  const catalog = vi.fn((op: string, input: LocalTask) => {
-    // 测试目录按顺序执行，存储锁用于覆盖真实初始化文件的读写路径。
-    if (op === "acp.storage.read") return null;
-    if (op === "acp.storage.claim" || op === "acp.storage.release") return true;
-    if (op === "task.read") return tasks.get(input.id) ?? null;
-    if (op === "task.remove") return tasks.delete(input.id);
-    if (op === "task.put") {
-      tasks.set(input.id, input);
-      return input;
-    }
-    if (op === "task.patch") {
-      const old = tasks.get(input.id);
-      if (!old) throw new Error("不存在");
-      const next = { ...old, ...input };
-      tasks.set(input.id, next);
-      return next;
-    }
-    throw new Error(op);
-  });
+  const catalog = vi.fn<(op: string, input: LocalTask) => LocalTask | boolean | string | null>(
+    (op, input) => {
+      // 测试目录按顺序执行，存储锁用于覆盖真实初始化文件的读写路径。
+      if (op === "acp.storage.read") return null;
+      if (op === "acp.storage.claim" || op === "acp.storage.release") return true;
+      if (op === "task.read") return tasks.get(input.id) ?? null;
+      if (op === "task.remove") return tasks.delete(input.id);
+      if (op === "task.put") {
+        tasks.set(input.id, input);
+        return input;
+      }
+      if (op === "task.patch") {
+        const old = tasks.get(input.id);
+        if (!old) throw new Error("不存在");
+        const next = { ...old, ...input };
+        tasks.set(input.id, next);
+        return next;
+      }
+      throw new Error(op);
+    },
+  );
   const created = vi.fn<
     (
       context: acp.AgentRequestContext<acp.NewSessionRequest>,

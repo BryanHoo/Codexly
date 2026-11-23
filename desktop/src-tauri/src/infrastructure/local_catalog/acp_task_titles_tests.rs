@@ -5,6 +5,73 @@ fn sample(id: &str) -> Value {
     json!({"id":id,"provider":"claude","projectId":null,"title":"","cwd":"/workspace","sessionId":null,"updatedAt":1,"pinned":false,"archived":false,"status":"idle"})
 }
 #[tokio::test]
+async fn acp_agent_title_should_override_generated_and_preserve_same_name_manual_save() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LocalCatalog::at(root.path()).unwrap();
+    store.call("task.put", sample("priority")).await.unwrap();
+    store
+        .call("task.patch", json!({"id":"priority","sessionId":"current"}))
+        .await
+        .unwrap();
+    assert_eq!(
+        store
+            .call(
+                "acp.title.claim",
+                json!({"id":"priority","token":"one","engine":"claude","projectId":null})
+            )
+            .await
+            .unwrap(),
+        true
+    );
+    store
+        .call(
+            "acp.title.finish",
+            json!({"id":"priority","token":"one","title":"自动标题"}),
+        )
+        .await
+        .unwrap();
+    let reported = |session: &str, title: Option<&str>| json!({"id":"priority","engine":"claude","projectId":null,"sessionId":session,"title":title});
+    assert_eq!(
+        store
+            .call("acp.title.agent", reported("stale", Some("旧会话标题")))
+            .await
+            .unwrap(),
+        Value::Null
+    );
+    assert_eq!(
+        store
+            .call("acp.title.agent", reported("current", Some("Agent 标题")))
+            .await
+            .unwrap(),
+        "Agent 标题"
+    );
+    assert_eq!(
+        store
+            .call("acp.title.agent", reported("current", None))
+            .await
+            .unwrap(),
+        "自动标题"
+    );
+    store
+        .call("task.patch", json!({"id":"priority","title":"自动标题"}))
+        .await
+        .unwrap();
+    assert_eq!(
+        store
+            .call("acp.title.agent", reported("current", Some("Agent 新标题")))
+            .await
+            .unwrap(),
+        Value::Null
+    );
+    assert_eq!(
+        store
+            .call("task.read", json!({"id":"priority"}))
+            .await
+            .unwrap()["title"],
+        "自动标题"
+    );
+}
+#[tokio::test]
 async fn acp_title_should_claim_once_and_keep_manual_names() {
     let root = tempfile::tempdir().unwrap();
     let store = LocalCatalog::at(root.path()).unwrap();

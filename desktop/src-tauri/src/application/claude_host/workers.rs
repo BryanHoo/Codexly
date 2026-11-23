@@ -97,6 +97,7 @@ pub(super) async fn catalog_loop(
                 | "app.preferences.patch"
                 | "acp.title.claim"
                 | "acp.title.finish"
+                | "acp.title.agent"
                 | "acp.session.rebind"
                 | "acp.storage.read"
                 | "acp.storage.claim"
@@ -240,6 +241,10 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let catalog = LocalCatalog::at(root.path()).unwrap();
         catalog.call("task.put", json!({"id":"new","provider":"codex","projectId":null,"title":"","cwd":"/workspace","sessionId":null,"updatedAt":1,"pinned":false,"archived":false,"status":"idle"})).await.unwrap();
+        catalog
+            .call("task.patch", json!({"id":"new","sessionId":"native"}))
+            .await
+            .unwrap();
         let (transport, outbound) = Transport::new();
         let (writer, reader) = tokio::io::duplex(8192);
         let writing = tokio::spawn(writer_loop(writer, outbound, Arc::clone(&transport)));
@@ -277,6 +282,11 @@ mod tests {
                 "acp.title.finish",
                 json!({"id":"new","token":"one","title":"自动标题"}),
                 json!("自动标题"),
+            ),
+            (
+                "acp.title.agent",
+                json!({"id":"new","engine":"codex","projectId":null,"sessionId":"native","title":"Agent 标题"}),
+                json!("Agent 标题"),
             ),
         ] {
             sender

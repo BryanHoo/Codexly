@@ -2,7 +2,7 @@ const validAgentEngine = (value) =>
   value === "codex" ||
   value === "claude" ||
   (typeof value === "string" && /^acp-[a-z0-9][a-z0-9-]{0,95}$/.test(value));
-import { createAcpTaskTitleOperations } from "./acp-task-title-worker.js";
+import { createAcpTaskTitleOperations, markAcpTaskTitleManual } from "./acp-task-title-worker.js";
 import { createAcpStorageLockOperations } from "./acp-storage-lock-worker.js";
 import { createApplicationPreferencesOperations } from "./application-preferences-worker.js";
 import { createAcpPlanResourceOperations } from "./acp-plan-resource-worker.js";
@@ -174,6 +174,8 @@ export function createLocalCatalogOperations(db) {
       if (patch.title !== undefined) {
         if (!patch.title.trim()) throw new Error("Task title is required");
         patch.title = patch.title.trim();
+        // 明确提交同名也属于用户命名，必须在同一个写事务里清除自动来源。
+        markAcpTaskTitleManual(db, id);
       }
       const next = {
         ...current,

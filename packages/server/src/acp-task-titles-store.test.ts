@@ -17,6 +17,42 @@ const task: LocalTask = {
 };
 const claim = (store: LocalCatalogStore, id = task.id, token = "one") =>
   store.catalog("acp.title.claim", { id, token, engine: "claude", projectId: null });
+
+it("当前会话标题覆盖自动标题，清空后回退，同名手动保存锁定标题", async () => {
+  const root = await createWorkspace();
+  const a = await openRepository(root),
+    b = await openRepository(root);
+  const native = (title: string | null, sessionId = "bound") =>
+    b.catalog("acp.title.agent", {
+      id: task.id,
+      engine: "claude",
+      projectId: null,
+      sessionId,
+      title,
+    });
+  await a.catalog("task.put", task);
+  await a.catalog("task.patch", { id: task.id, sessionId: "bound" });
+  expect(await claim(a)).toBe(true);
+  await a.catalog("acp.title.finish", { id: task.id, token: "one", title: "自动标题" });
+  expect(await native("过期连接", "stale")).toBeNull();
+  expect(await native("Agent 标题")).toBe("Agent 标题");
+  expect((await a.catalog("task.read", { id: task.id }))?.title).toBe("Agent 标题");
+  expect(await native(null)).toBe("自动标题");
+  await a.catalog("task.patch", { id: task.id, title: "自动标题" });
+  expect(await native("新的 Agent 标题")).toBeNull();
+  expect((await a.catalog("task.read", { id: task.id }))?.title).toBe("自动标题");
+  await a.catalog("task.put", { ...task, id: "legacy", sessionId: "old", title: "旧目录名称" });
+  expect(
+    await b.catalog("acp.title.agent", {
+      id: "legacy",
+      sessionId: "old",
+      engine: "claude",
+      projectId: null,
+      title: "Agent 标题",
+    }),
+  ).toBeNull();
+  expect((await b.catalog("task.read", { id: "legacy" }))?.title).toBe("旧目录名称");
+});
 it("两连接只领取一次，手动命名及归档使在途标题失效，状态更新不误取消", async () => {
   const root = await createWorkspace();
   const a = await openRepository(root),
