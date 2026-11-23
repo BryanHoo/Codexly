@@ -10,6 +10,10 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
+  areTimelineTurnRowsEqual,
+  describeTimelineTurnRows,
+  getTimelineTurnRowKey,
+  type TimelineTurnRow,
   createTimelineTurnGrouper,
   mergeTimelineTurns,
 } from "@codexly/frontend-core/timeline-turn-groups";
@@ -35,7 +39,6 @@ import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 import { StoredUserMessage, groupStoredTurnTimelineItems } from "./task-timeline-store-items.js";
 import { TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 
-const getTurnIdKey = (turnId: string) => turnId;
 // 分组成员引用稳定后，父时间线的结构更新不会再触发未变化历史的正文与文件变更聚合。
 export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   onBuildPlan,
@@ -277,11 +280,6 @@ export function TaskStoreTimeline({
     void turnIds;
     return groupTurns(store.getState(), engine);
   }, [engine, groupTurns, itemStructureRevision, store, turnIds]);
-  const displayTurnIds = useMemo(() => turnGroups.map((group) => group.id), [turnGroups]);
-  const groupById = useMemo(
-    () => new Map(turnGroups.map((group) => [group.id, group])),
-    [turnGroups],
-  );
   const displayIndexByTurnId = useMemo(
     () =>
       new Map(
@@ -333,13 +331,21 @@ export function TaskStoreTimeline({
     submissionStartedAt !== undefined &&
     (submissionHandoffState === "awaiting-turn" || submissionHandoffState === "awaiting-assistant");
   const hasNotices = notices.some((notice) => notice.payload.code !== "runtime_warning");
-  // 回合渲染工厂只依赖正文输入；页脚通知、分页状态更新不能使共享列表重新遍历历史。
+  const rows = useMemo(
+    () =>
+      describeTimelineTurnRows(
+        turnGroups,
+        submissionTurnId,
+        showPendingSubmission,
+        showPendingSubmission,
+        submissionHandoffState === "assistant-started" ? pendingPrompt : undefined,
+      ),
+    [turnGroups, submissionTurnId, showPendingSubmission, submissionHandoffState, pendingPrompt],
+  );
   const renderTurn = useCallback(
-    (turnId: string, turnIndex: number) => (
+    (row: TimelineTurnRow<PendingPrompt>, turnIndex: number) => (
       <StoreTurnTimelineSection
-        {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
-          ? { onBuildPlan }
-          : {})}
+        {...(connected && row.isLast && onBuildPlan !== undefined ? { onBuildPlan } : {})}
         {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
         onOpenFileDiff={onOpenFileDiff}
         onOpenSourceFile={onOpenSourceFile}
@@ -347,41 +353,24 @@ export function TaskStoreTimeline({
         projectId={projectId}
         store={store}
         taskId={taskId}
-        turnId={turnId}
+        turnId={row.id}
         turnIndex={turnIndex}
-        groupedTurnIds={groupById.get(turnId)?.turnIds}
-        hasNextSubmission={
-          turnIndex < displayTurnIds.length - 1 ||
-          (showPendingSubmission &&
-            !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))
-        }
-        suppressEmptyRunningStatus={
-          showPendingSubmission &&
-          (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
-        }
-        {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") &&
-        submissionHandoffState === "assistant-started" &&
-        pendingPrompt !== undefined
-          ? { pendingPrompt }
-          : {})}
+        groupedTurnIds={row.turnIds}
+        hasNextSubmission={row.hasNextSubmission}
+        suppressEmptyRunningStatus={row.pending}
+        {...(row.prompt === undefined ? {} : { pendingPrompt: row.prompt })}
       />
     ),
     [
       connected,
-      displayTurnIds,
-      groupById,
       onBuildPlan,
       onForkTask,
       onOpenFileDiff,
       onOpenSourceFile,
       onReviewFileChanges,
-      pendingPrompt,
       projectId,
-      showPendingSubmission,
       store,
-      submissionTurnId,
       taskId,
-      submissionHandoffState,
     ],
   );
   if (
@@ -445,8 +434,9 @@ export function TaskStoreTimeline({
               ),
             }
           : {})}
-        getItemKey={getTurnIdKey}
-        items={displayTurnIds}
+        getItemKey={getTimelineTurnRowKey}
+        items={rows}
+        areItemsEqual={areTimelineTurnRowsEqual}
         renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
           <TaskTimelineSearchNavigation
             items={navigationItems}

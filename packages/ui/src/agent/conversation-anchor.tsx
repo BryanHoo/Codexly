@@ -24,6 +24,7 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
     let top = reading.current.top;
     let frame = 0;
     let restoring = false;
+    let turnRows: HTMLElement[] | undefined;
     const capture = () => {
       if (viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 24) {
         following = true;
@@ -32,8 +33,11 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       }
       if (following) return;
       const top = viewport.getBoundingClientRect().top;
-      // 已加载回合有界；二分测量只读取对数个节点，滚动事件本身不更新 React。
-      const rows = content.querySelectorAll<HTMLElement>('[data-conversation-row="turn"]');
+      // 回合是正文容器的直接子节点。行结构变化后才重建索引，滚动只二分测量节点。
+      const rows = (turnRows ??= Array.from(content.children).filter(
+        (node): node is HTMLElement =>
+          node instanceof HTMLElement && node.dataset["conversationRow"] === "turn",
+      ));
       let low = 0;
       let high = rows.length - 1;
       while (low < high) {
@@ -106,7 +110,13 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
     resize.observe(content);
     // 输入框收起/展开或软键盘改变视口时也同步锚点，避免只等正文尺寸回调留下旧阅读位置。
     resize.observe(viewport);
-    const mutations = new MutationObserver(syncLayout);
+    const mutations = new MutationObserver((records) => {
+      // 流式正文会修改回合内部，只有容器直接增删子节点才使回合索引失效。
+      if (turnRows !== undefined && records.some((record) => record.target === content)) {
+        turnRows = undefined;
+      }
+      syncLayout();
+    });
     mutations.observe(content, { childList: true, subtree: true });
     restoreAction.current = () => {
       if (following) return;

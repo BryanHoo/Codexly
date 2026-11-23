@@ -7,6 +7,54 @@ export interface TimelineTurnGroup {
   turnIds: string[];
 }
 
+export type TimelineTurnRow<Prompt> = Readonly<{
+  id: string;
+  turnIds: readonly string[];
+  isLast: boolean;
+  hasNextSubmission: boolean;
+  pending: boolean;
+  prompt: Prompt | undefined;
+}>;
+
+export function getTimelineTurnRowKey(row: TimelineTurnRow<unknown>): string {
+  return row.id;
+}
+
+export function areTimelineTurnRowsEqual(
+  previous: TimelineTurnRow<unknown>,
+  next: TimelineTurnRow<unknown>,
+): boolean {
+  return (
+    previous.turnIds === next.turnIds &&
+    previous.isLast === next.isLast &&
+    previous.hasNextSubmission === next.hasNextSubmission &&
+    previous.pending === next.pending &&
+    previous.prompt === next.prompt
+  );
+}
+
+/** 把提交状态限制在受影响的回合，行比较仅按分组引用和显示状态进行，无需临时 Map。 */
+export function describeTimelineTurnRows<Prompt>(
+  groups: readonly TimelineTurnGroup[],
+  submissionTurnId: string | undefined,
+  showPendingSubmission: boolean,
+  showPendingInRow: boolean,
+  prompt: Prompt | undefined,
+): TimelineTurnRow<Prompt>[] {
+  return groups.map((group, index) => {
+    const isLast = index === groups.length - 1;
+    const isSubmission = submissionTurnId !== undefined && group.turnIds.includes(submissionTurnId);
+    return {
+      id: group.id,
+      turnIds: group.turnIds,
+      isLast,
+      hasNextSubmission: !isLast || (showPendingSubmission && !isSubmission),
+      pending: showPendingInRow && isSubmission,
+      prompt: isSubmission ? prompt : undefined,
+    };
+  });
+}
+
 /** Claude 的无用户输入续跑与前一阶段共用回复；只读索引和消息角色，不物化流式正文。 */
 export function groupTimelineTurns(
   state: TimelineNavigationState<{ type: string; role?: string }>,

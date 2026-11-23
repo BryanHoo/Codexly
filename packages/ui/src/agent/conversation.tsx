@@ -19,6 +19,7 @@ import {
   type Key,
   type ReactNode,
   type RefObject,
+  type ReactElement,
 } from "react";
 import {
   MessageScrollerProvider,
@@ -113,6 +114,8 @@ export type ConversationItemsProps<T> = Omit<HTMLAttributes<HTMLDivElement>, "ch
   items: readonly T[];
   getItemKey: (item: T, index: number) => Key;
   renderItem: (item: T, index: number) => ReactNode;
+  /** 比较同一位置的行内容。返回 true 表示 renderItem 的输入在语义上相同。 */
+  areItemsEqual?: (previous: T, next: T) => boolean;
   header?: ReactNode;
   footer?: ReactNode;
   renderNavigation?: (
@@ -126,6 +129,7 @@ export function ConversationItems<T>({
   items,
   getItemKey,
   renderItem,
+  areItemsEqual = Object.is,
   renderNavigation,
   header,
   footer,
@@ -198,22 +202,44 @@ export function ConversationItems<T>({
     },
     [items, getItemKey, scrollToMessage, layoutActions],
   );
-  // 页脚、发送信号和导航宽度变化只更新外围；复用上一版行元素，避免遍历全部已加载回合。
-  // 这里只缓存当前列表的 React 元素，不卸载屏外正文，也不创建跨会话的行缓存。
-  const rows = useMemo(
-    () =>
-      items.map((item, index) => (
+  const committedRows = useRef<{
+    items: readonly T[];
+    rows: readonly ReactElement[];
+    renderer: typeof renderItem;
+    keyOf: typeof getItemKey;
+  } | null>(null);
+  // 仅复用上次提交的元素。并发渲染取消时不污染缓存，插入前页时仍按新位置重算行号。
+  const rows = useMemo(() => {
+    const previous = committedRows.current;
+    const reusable = previous?.renderer === renderItem && previous.keyOf === getItemKey;
+    return items.map((item, index) => {
+      const fixedLayout = index >= items.length - 2;
+      const key = getItemKey(item, index);
+      if (reusable) {
+        const previousRow = previous.rows[index];
+        if (
+          previousRow?.key === String(key) &&
+          fixedLayout === index >= previous.items.length - 2 &&
+          areItemsEqual(previous.items[index] as T, item)
+        ) {
+          return previousRow;
+        }
+      }
+      return (
         <MessageScrollerItem
-          key={getItemKey(item, index)}
-          messageId={String(getItemKey(item, index))}
-          style={index >= items.length - 2 ? { contentVisibility: "visible" } : undefined}
+          key={key}
+          messageId={String(key)}
+          style={fixedLayout ? { contentVisibility: "visible" } : undefined}
           data-conversation-row="turn"
         >
           {renderItem(item, index)}
         </MessageScrollerItem>
-      )),
-    [items, getItemKey, renderItem],
-  );
+      );
+    });
+  }, [items, getItemKey, renderItem, areItemsEqual]);
+  useLayoutEffect(() => {
+    committedRows.current = { items, rows, renderer: renderItem, keyOf: getItemKey };
+  }, [items, rows, renderItem, getItemKey]);
   return (
     <>
       {renderNavigation?.(navigate, scrollbarWidth, containerRef)}
