@@ -95,6 +95,7 @@ export const settings = {
     taskTitlePrompt: "任务标题提示词",
     commitModel: "提交模型",
     defaultOpenWith: "默认打开方式",
+    productName: "产品名称",
     fastMode: "快速模式",
     followUpMessages: "跟进消息",
     model: "模型",

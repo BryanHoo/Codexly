@@ -1,4 +1,6 @@
 import { Switch } from "@codexly/ui/core/switch";
+import { ProductNameInput } from "@codexly/ui/core/product-name-input";
+import { productNamePreference } from "../product-name-preference.js";
 import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import { ConversationDisplaySwitch } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../conversation-display-preferences.js";
@@ -62,6 +64,9 @@ export function GeneralSettingsPanel({
       <h1 className="mb-6 text-xl font-semibold">{t("sections.appearance")}</h1>
       <div className="space-y-6">
         <SettingsGroup title={t("general.preferences")}>
+          <SettingsField label={t("fields.productName")}>
+            <ProductNameInput label={t("fields.productName")} preference={productNamePreference} />
+          </SettingsField>
           {apps.some((app) => app.kind !== "system-default") ? (
             <SettingsField
               label={t("fields.defaultOpenWith")}

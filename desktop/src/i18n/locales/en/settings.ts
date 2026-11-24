@@ -95,6 +95,7 @@ export const settings = {
     taskTitlePrompt: "Task title prompt",
     commitModel: "Commit model",
     defaultOpenWith: "Default open with",
+    productName: "Product name",
     fastMode: "Fast mode",
     followUpMessages: "Follow-up messages",
     model: "Model",

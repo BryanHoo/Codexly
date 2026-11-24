@@ -13,6 +13,8 @@
 
 ## 契约与检查项
 
+- Web、移动浏览器和桌面在「设置 → 常规 → 通用」通过共享描边输入框编辑产品名称。失焦时自动保存并更新侧栏品牌与 Web 工作台标签页标题，独立文件窗口继续显示文件名。名称去除首尾空白，清空后失焦恢复 Codexly。两端通过现有平台存储保留名称，共用同一套偏好逻辑。[产品名称偏好](../../../../packages/frontend-core/src/product-name-preference.ts) [Web 回归](../../../../tests/e2e/app-shell-product-name.spec.ts) [桌面回归](../../../../desktop/src/features/settings/components/global-settings-page.browser.test.tsx)
+
 - Web 和桌面差异预览共用 `file-change-patch.ts`。已有标准补丁保留原文，缺少文件头的历史补丁补齐文件头，Codex 未编号的 `@@` 流式片段按已收到的正文生成预览范围。尾部空格、空白上下文行与换行属于补丁内容。回归入口为 Web `features/diff/file-change.test.ts` 和双端 `streaming-file-diff.browser.test.tsx`。
 - ACP 的 `diff --git` 头可能携带绝对路径。单文件补丁已有相邻 `---` / `+++` 文件头时，从 Unified Diff 头解析，兼容 macOS、Windows、空格路径和历史缓存。双端时间线隐藏重复的 `Editing files` 工具行，文件差异继续按回合状态呈现。浏览器回归须使用 ACP 原始绝对路径头并断言实际增删正文。
 - ACP 新生成的补丁用零行范围表示空原文，正文空行须保留增删前缀。读取旧版 ACP 新建文件或修改空文件的记录时，修复首个新增行前多出的无前缀空行，保留记录中的新增正文。

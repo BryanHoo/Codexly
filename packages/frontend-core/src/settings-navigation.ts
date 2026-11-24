@@ -58,6 +58,7 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
     "personalization.external",
   ],
   appearance: [
+    "fields.productName",
     "appearance.colorMode",
     "appearance.language",
     "appearance.notifications",

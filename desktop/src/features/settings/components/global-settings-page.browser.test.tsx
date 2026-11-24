@@ -3,7 +3,7 @@ import type { AgentGlobalSettings } from "@/protocol/index.js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AcpDefaults } from "@codexly/protocol";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import { I18nextProvider, i18n } from "../../../i18n/i18n.js";
@@ -12,6 +12,8 @@ import { GlobalSettingsPage } from "./global-settings-page.js";
 import { createFallbackSettings } from "./global-settings-model.js";
 import { getNotificationPreference } from "../notification-preference.js";
 import { nativeClient } from "../../projects/project-queries.js";
+import { ProductBrand } from "../../workbench/components/project-sidebar-header.js";
+import { appPreferenceStorage } from "../../../platform/tauri/app-storage.js";
 import "../../../shared/styles/globals.css";
 
 vi.mock("@/platform/tauri/autostart-client.js", () => ({
@@ -32,6 +34,31 @@ const models = [
 ];
 
 afterEach(() => vi.restoreAllMocks());
+
+it("产品名称失焦后更新桌面品牌，清空后恢复默认名称", async () => {
+  await renderSettings();
+  const name = page.getByRole("textbox", { name: "产品名称", exact: true });
+  await expect.element(name).toHaveValue("Codexly");
+  await expect.element(name).toHaveAttribute("data-slot", "input");
+  const nameBounds = name.element().getBoundingClientRect();
+  const languageBounds = page
+    .getByRole("combobox", { name: "语言", exact: true })
+    .element()
+    .getBoundingClientRect();
+  expect(nameBounds.left).toBeCloseTo(languageBounds.left);
+  expect(nameBounds.right).toBeCloseTo(languageBounds.right);
+  expect(page.getByRole("button", { name: "保存", exact: true }).all()).toHaveLength(0);
+  await name.fill(" 我的工作台 ✨ ");
+  expect(appPreferenceStorage.getItem("codeagent:product-name:v1")).not.toBe("我的工作台 ✨");
+  await userEvent.keyboard("{Tab}");
+  await expect.element(page.getByText("我的工作台 ✨", { exact: true })).toBeInTheDocument();
+  await expect.element(name).toHaveValue("我的工作台 ✨");
+  expect(appPreferenceStorage.getItem("codeagent:product-name:v1")).toBe("我的工作台 ✨");
+  await name.fill("");
+  await userEvent.keyboard("{Tab}");
+  await expect.element(name).toHaveValue("Codexly");
+  expect(document.querySelector('img[alt="Codexly"]')).not.toBeNull();
+});
 
 const acpDefaults: AcpDefaults = {
   defaults: {},
@@ -138,6 +165,7 @@ async function renderSettings(
         <TooltipProvider>
           <div style={{ height: "100dvh" }}>
             <Toaster />
+            <ProductBrand />
             <GlobalSettingsPage
               apps={[]}
               error={null}
@@ -191,7 +219,8 @@ describe("GlobalSettingsPage", () => {
       .toBeEnabled();
     const heading = screen.getByRole("heading", { name: "通用", exact: true }).element();
     const group = heading.nextElementSibling as HTMLElement;
-    const row = group.firstElementChild as HTMLElement;
+    const row = screen.getByText("开机启动", { exact: true }).element().parentElement!
+      .parentElement!;
     const label = row.querySelector("span")!;
     const description = row.querySelector("p")!;
     const cardStyle = getComputedStyle(group);

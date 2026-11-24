@@ -1,5 +1,8 @@
-import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
+import { useProductName } from "@codexly/ui/core/product-brand";
+import { Link, Outlet, createRootRoute, useMatch } from "@tanstack/react-router";
+import { useEffect } from "react";
 
+import { productNamePreference } from "../../features/settings/product-name-preference.js";
 import { useTranslation } from "../../i18n/i18n.js";
 import { Button } from "../../shared/components/core/button.js";
 import { NotFound } from "./not-found.js";
@@ -41,9 +44,24 @@ function RouteError({ error, reset }: Readonly<{ error: Error; reset: () => void
 function RootLayout() {
   return (
     <div className="h-full min-h-0 bg-window text-foreground" data-testid="app-root">
+      <ProductDocumentTitle />
       <Outlet />
     </div>
   );
+}
+
+function ProductDocumentTitle() {
+  const name = useProductName(productNamePreference);
+  const isFilePopup = useMatch({
+    from: "/p/$projectId/file",
+    shouldThrow: false,
+    select: () => true,
+  });
+  useEffect(() => {
+    // 独立文件窗口沿用文件标题，返回工作台时恢复已保存的产品名。
+    if (!isFilePopup) document.title = name;
+  }, [isFilePopup, name]);
+  return null;
 }
 
 export function BrandLink() {
