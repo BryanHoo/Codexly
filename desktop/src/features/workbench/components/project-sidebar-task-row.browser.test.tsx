@@ -143,8 +143,9 @@ describe("TaskActionMenu", () => {
 });
 
 describe("TaskLink", () => {
-  it("在父容器内保留完整任务行并单行省略溢出标题", async () => {
+  it("在父容器内直接裁切项目标签并单行省略溢出标题", async () => {
     await i18n.changeLanguage("zh-CN");
+    const projectName = "eco_new_project_with_a_long_name";
     const longTask = {
       ...task,
       title: "推送GitHub打包，发布 GitHub Draft 版本到 Release",
@@ -162,6 +163,7 @@ describe("TaskLink", () => {
             onDelete={vi.fn()}
             onPin={vi.fn()}
             onRename={vi.fn()}
+            projectName={projectName}
             task={longTask}
           />
         </div>
@@ -169,10 +171,15 @@ describe("TaskLink", () => {
     );
 
     const boundary = screen.getByTestId("task-clip-boundary").element();
+    const projectLabel = screen.getByText(projectName, { exact: true }).element();
     const title = screen.getByText(longTask.title).element();
     const link = title.closest("a");
 
     expect(link).not.toBeNull();
+    expect(projectLabel.scrollWidth).toBeGreaterThan(projectLabel.clientWidth);
+    expect(getComputedStyle(projectLabel).whiteSpace).toBe("nowrap");
+    expect(getComputedStyle(projectLabel).overflowX).toBe("hidden");
+    expect(getComputedStyle(projectLabel).textOverflow).toBe("clip");
     // 标题保持单行省略，任务行同时为 3px 焦点阴影保留裁切安全区。
     expect(getComputedStyle(title).whiteSpace).toBe("nowrap");
     expect(getComputedStyle(title).textOverflow).toBe("ellipsis");
