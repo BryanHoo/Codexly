@@ -73,18 +73,14 @@ for (const [platform, Page, Market] of [
         },
       ],
     });
-    vi.spyOn(nativeClient, "getAcpAgent").mockResolvedValue({
-      engine: "codex",
+    const profile = {
+      engine: "codex" as const,
       protocolVersion: 2,
       authMethods: [],
-    });
-    vi.spyOn(nativeClient, "getAcpDefaults").mockResolvedValue({
-      defaults: {},
-      configOptions: [],
-      unmappedLegacy: [],
-      invalidDefaults: [],
-    });
+    };
+    vi.spyOn(nativeClient, "getAcpAgent").mockResolvedValue(profile);
     const client = {
+      getAcpAgent: () => Promise.resolve(profile),
       getGlobalInstructions: () => {
         state.calls("instructions");
         return Promise.reject(new Error("legacy"));
@@ -114,7 +110,7 @@ for (const [platform, Page, Market] of [
       </QueryClientProvider>,
     );
     await expect
-      .element(screen.getByRole("heading", { name: "会话默认配置", exact: true }))
+      .element(screen.getByRole("heading", { name: "连接配置", exact: true }))
       .toBeVisible();
     expect(state.calls).not.toHaveBeenCalled();
     await screen.rerender(

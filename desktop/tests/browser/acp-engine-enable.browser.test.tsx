@@ -115,7 +115,7 @@ for (const [platform, client] of [
       expect(settingsInspect).toHaveBeenCalledTimes(platform === "web" ? 2 : 0);
       expect(oldSettings).not.toHaveBeenCalled();
       expect(oldProfile).not.toHaveBeenCalled();
-      expect(defaults).toHaveBeenCalledWith("claude", expect.anything());
+      expect(defaults).not.toHaveBeenCalled();
       expect(data.get(ENGINE_SETUP_KEY)).toBe(marker);
       expect(JSON.parse(data.get(ACP_ENGINE_SETUP_KEY) ?? "null")).toEqual({
         engines: ["codex", "claude"],

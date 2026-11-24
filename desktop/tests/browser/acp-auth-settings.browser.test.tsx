@@ -14,21 +14,23 @@ import "../../src/shared/styles/globals.css";
 async function fixture(
   platform: "web" | "desktop",
   language: "zh-CN" | "en" = "zh-CN",
-  source: "native" | "application" = "native",
+  source: "native" | "application" | "disconnected" = "native",
 ) {
   await Promise.all([webLanguage(language), nativeLanguage(language)]);
-  let connection: AcpAgentProfile["connection"] = {
-    source,
-    providerId: "openai",
-    baseUrl: "https://global-custom.example/v1",
-    apiType: "openai",
-    hasCredentials: true,
-  };
-  let account: AcpAgentProfile["authStatus"] = {
-    kind: "gateway",
-    label: "Custom model gateway",
-    detail: "OpenAI",
-  };
+  let connection: AcpAgentProfile["connection"] =
+    source === "disconnected"
+      ? undefined
+      : {
+          source,
+          providerId: "openai",
+          baseUrl: "https://global-custom.example/v1",
+          apiType: "openai",
+          hasCredentials: true,
+        };
+  let account: AcpAgentProfile["authStatus"] =
+    source === "disconnected"
+      ? { kind: "none", label: "Not signed in" }
+      : { kind: "gateway", label: "Custom model gateway", detail: "OpenAI" };
   const page = () => ({
     providers: [
       {
@@ -265,6 +267,26 @@ it(`${platform}：点击设置遮罩时先收起 API 协议下拉，保留连接
 });
 }
 for (const platform of ["web", "desktop"] as const) {
+  it(`${platform}：保存自定义 API 后加载会话默认配置`, async () => {
+    const f = await fixture(platform, "zh-CN", "disconnected");
+    try {
+      await expect.element(f.screen.getByText("未登录", { exact: true })).toBeVisible();
+      expect(f.client.getAcpDefaults).not.toHaveBeenCalled();
+      await f.screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
+      await page.getByRole("option", { name: "自定义 API", exact: true }).click();
+      await f.screen
+        .getByRole("textbox", { name: "API 地址", exact: true })
+        .fill("https://custom.example/v1");
+      await f.screen.getByLabelText("API Key", { exact: true }).fill("custom-form-key");
+      expect(f.client.getAcpDefaults).not.toHaveBeenCalled();
+      await f.screen.getByRole("button", { name: "保存连接", exact: true }).click();
+      await expect
+        .element(f.screen.getByRole("combobox", { name: "推理强度", exact: true }))
+        .toHaveTextContent("高");
+    } finally {
+      await f.close();
+    }
+  });
   it(`${platform}：自动填充全局自定义 API，完整填写保存且不回显密钥`, async () => {
     const f = await fixture(platform);
     try {
@@ -354,8 +376,10 @@ for (const platform of ["web", "desktop"] as const) {
     }
   });
   it(`${platform}：浏览器登录失败保留表单，重试成功后刷新真实账号`, async () => {
-    const f = await fixture(platform);
+    const f = await fixture(platform, "zh-CN", "disconnected");
     try {
+      await expect.element(f.screen.getByText("未登录", { exact: true })).toBeVisible();
+      expect(f.client.getAcpDefaults).not.toHaveBeenCalled();
       f.client.authenticateAcpAgent.mockRejectedValueOnce(new Error("offline"));
       await f.screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
       await page.getByRole("option", { name: "账号登录", exact: true }).click();
@@ -363,11 +387,15 @@ for (const platform of ["web", "desktop"] as const) {
       await page.getByRole("option", { name: "ChatGPT", exact: true }).click();
       await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
       await expect.element(f.screen.getByRole("alert")).toHaveTextContent("连接未保存");
+      expect(f.client.getAcpDefaults).not.toHaveBeenCalled();
       await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
       await expect
         .element(f.screen.getByText("ChatGPT Pro · user@example.com", { exact: true }))
         .toBeVisible();
       expect(f.client.authenticateAcpAgent).toHaveBeenCalledTimes(2);
+      await expect
+        .element(f.screen.getByRole("combobox", { name: "推理强度", exact: true }))
+        .toHaveTextContent("高");
     } finally {
       await f.close();
     }

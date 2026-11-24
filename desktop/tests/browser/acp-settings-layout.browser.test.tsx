@@ -24,6 +24,7 @@ for (const [platform, Frame] of [
         getAcpAgent: vi.fn(async () => ({
           engine: "codex" as const,
           protocolVersion: 2,
+          authStatus: { kind: "account" as const, label: "已登录" },
           authMethods: [],
         })),
         getAcpDefaults: vi.fn(async () => ({
@@ -82,6 +83,7 @@ for (const [platform, Frame] of [
       getAcpAgent: vi.fn(async () => ({
         engine: "codex" as const,
         protocolVersion: 2,
+        authStatus: { kind: "account" as const, label: "已登录" },
         authMethods: [],
       })),
       getAcpDefaults: vi.fn(() => new Promise<never>(() => {})),
@@ -99,9 +101,9 @@ for (const [platform, Frame] of [
         </Frame>
       </QueryClientProvider>,
     );
-    const section = page
-      .getByRole("heading", { name: "会话默认配置", exact: true })
-      .element().parentElement!;
+    const heading = page.getByRole("heading", { name: "会话默认配置", exact: true });
+    await expect.element(heading).toBeVisible();
+    const section = heading.element().parentElement!;
     const skeleton = section.querySelector<HTMLElement>('[data-slot="loading-skeleton"]')!;
     expect(skeleton.dataset.variant).toBe("settings-fields");
     expect(parseFloat(getComputedStyle(skeleton).paddingTop)).toBeGreaterThanOrEqual(4);

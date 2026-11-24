@@ -1,5 +1,5 @@
 import { SettingsGroup } from "./settings-group.js";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
 import type { AcpAgentProfile, AcpAuthCredentials, AgentEngine } from "@codexly/protocol";
@@ -34,11 +34,13 @@ export function AcpAuthSettings({
   engine,
   language,
   openExternalUrl,
+  connectedContent,
 }: Readonly<{
   client: Partial<AcpAuthClient>;
   engine: AgentEngine;
   language: "zh-CN" | "en";
   openExternalUrl?: ((url: string) => void | Promise<void>) | undefined;
+  connectedContent?: ReactNode;
 }>) {
   const chinese = language === "zh-CN";
   const cache = useQueryClient();
@@ -156,6 +158,10 @@ export function AcpAuthSettings({
       />
     );
   const identity = profile.data.authStatus;
+  // 默认配置会创建临时会话，只有检测到原生认证或生效的 API 配置时才挂载。
+  const connected =
+    profile.isSuccess &&
+    (profile.data.connection !== undefined || (identity !== undefined && identity.kind !== "none"));
   const nativeLabel =
     identity?.kind === "account"
       ? [identity.label, identity.account?.email].filter(Boolean).join(" · ")
@@ -173,34 +179,37 @@ export function AcpAuthSettings({
               ? "未检测到账号状态"
               : "Account status not reported";
   return (
-    <SettingsGroup title={chinese ? "连接配置" : "Connection settings"}>
-      {!profile.data.connection?.baseUrl ? (
-        <p className="break-words py-3 text-label text-muted-foreground">{nativeLabel}</p>
-      ) : null}
-      {providers.isError ? (
-        <p role="alert" className="py-2 text-label text-danger">
-          {chinese
-            ? "API 供应商读取失败，请重新检测。"
-            : "Could not read API providers. Detect again to retry."}
-        </p>
-      ) : null}
-      <AcpConnectionForm
-        profile={profile.data}
-        providers={providers.data?.providers ?? emptyProviders}
-        language={language}
-        submit={submit}
-        refresh={refresh}
-      />
-      {activeAttempt && client.acpAuthElicitation ? (
-        <AcpAuthElicitation
-          key={activeAttempt}
-          attemptId={activeAttempt}
-          engine={engine}
-          request={client.acpAuthElicitation.bind(client)}
+    <>
+      <SettingsGroup title={chinese ? "连接配置" : "Connection settings"}>
+        {!profile.data.connection?.baseUrl ? (
+          <p className="break-words py-3 text-label text-muted-foreground">{nativeLabel}</p>
+        ) : null}
+        {providers.isError ? (
+          <p role="alert" className="py-2 text-label text-danger">
+            {chinese
+              ? "API 供应商读取失败，请重新检测。"
+              : "Could not read API providers. Detect again to retry."}
+          </p>
+        ) : null}
+        <AcpConnectionForm
+          profile={profile.data}
+          providers={providers.data?.providers ?? emptyProviders}
           language={language}
-          openExternalUrl={openExternalUrl}
+          submit={submit}
+          refresh={refresh}
         />
-      ) : null}
-    </SettingsGroup>
+        {activeAttempt && client.acpAuthElicitation ? (
+          <AcpAuthElicitation
+            key={activeAttempt}
+            attemptId={activeAttempt}
+            engine={engine}
+            request={client.acpAuthElicitation.bind(client)}
+            language={language}
+            openExternalUrl={openExternalUrl}
+          />
+        ) : null}
+      </SettingsGroup>
+      {connected ? connectedContent : null}
+    </>
   );
 }

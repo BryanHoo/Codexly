@@ -288,18 +288,19 @@ export function AcpSettingsPanel({
                     engine={engine}
                     language={language}
                     openExternalUrl={openExternalUrl}
+                    connectedContent={
+                      <SettingsGroup title={chinese ? "会话默认配置" : "Session defaults"}>
+                        <AcpDefaultSettings
+                          client={client}
+                          engine={engine}
+                          Field={Field}
+                          Select={Select}
+                          labels={acpDefaultSettingsLabels[language]}
+                          language={language}
+                        />
+                      </SettingsGroup>
+                    }
                   />
-                  <SettingsGroup title={chinese ? "会话默认配置" : "Session defaults"}>
-                    <AcpDefaultSettings
-                      key={engine}
-                      client={client}
-                      engine={engine}
-                      Field={Field}
-                      Select={Select}
-                      labels={acpDefaultSettingsLabels[language]}
-                      language={language}
-                    />
-                  </SettingsGroup>
                 </div>
               </AcpEngineSettingsGate>
             </div>

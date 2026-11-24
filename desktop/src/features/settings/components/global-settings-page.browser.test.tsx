@@ -97,6 +97,7 @@ async function renderSettings(
   vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(async (engine) => ({
     engine,
     protocolVersion: 2,
+    authStatus: { kind: "account", label: "ChatGPT" },
     authMethods: [],
   }));
   vi.spyOn(nativeClient, "getAcpDefaults").mockImplementation(async () => current);

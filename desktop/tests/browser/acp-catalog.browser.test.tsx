@@ -62,15 +62,13 @@ for (const width of [390, 1280])
       }),
       installAcpAgent: install,
       configureAcpAgent: configure,
-      getAcpAgent: (engine: AgentEngine) =>
-        Promise.resolve({ engine, protocolVersion: 2, authMethods: [] }),
-      getAcpDefaults: () =>
-        Promise.resolve({
-          configOptions: [],
-          defaults: {},
-          unmappedLegacy: [],
-          invalidDefaults: [],
-        }),
+      getAcpAgent: async (engine: AgentEngine) => ({
+        engine,
+        protocolVersion: 2,
+        authStatus: { kind: "none" as const, label: "Not signed in" },
+        authMethods: [{ id: "login", name: "Google" }],
+      }),
+      getAcpDefaults: vi.fn().mockRejectedValue(new Error("Authentication required")),
       setAcpDefaultConfig: () => Promise.reject(new Error("unused")),
     };
     const screen = await render(
@@ -119,6 +117,11 @@ for (const width of [390, 1280])
     await expect
       .element(screen.getByRole("button", { name: "Gemini CLI", exact: true }))
       .toBeVisible();
+    await expect.element(screen.getByText("未登录", { exact: true })).toBeVisible();
+    expect(client.getAcpDefaults).not.toHaveBeenCalled();
+    await expect
+      .element(screen.getByRole("heading", { name: "会话默认配置", exact: true }))
+      .not.toBeInTheDocument();
     expect(install).toHaveBeenCalledExactlyOnceWith(
       "acp-gemini",
       expect.objectContaining({ idempotencyKey: expect.any(String) }),
@@ -391,8 +394,12 @@ it("目录模式保留左右配置布局，添加按钮固定在 Agent 栏底部
     getAcpAgentCatalog: () => Promise.resolve(data),
     installAcpAgent: () => Promise.resolve(data),
     configureAcpAgent: () => Promise.resolve(data),
-    getAcpAgent: () =>
-      Promise.resolve({ engine: "codex" as const, protocolVersion: 2, authMethods: [] }),
+    getAcpAgent: async () => ({
+      engine: "codex" as const,
+      protocolVersion: 2,
+      authStatus: { kind: "account" as const, label: "已登录" },
+      authMethods: [],
+    }),
     getAcpDefaults: () =>
       Promise.resolve({ configOptions: [], defaults: {}, unmappedLegacy: [], invalidDefaults: [] }),
     setAcpDefaultConfig: () => Promise.reject(new Error("unused")),
