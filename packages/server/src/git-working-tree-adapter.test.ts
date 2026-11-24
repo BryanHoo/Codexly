@@ -2,14 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 const gitCommand = vi.hoisted(() => ({
   executeGit: vi.fn((_root: string, arguments_: readonly string[]) => {
-    if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files") {
-      return Promise.resolve("");
-    }
     if (arguments_[0] === "status") {
-      return Promise.resolve("");
-    }
-    if (arguments_[0] === "branch") {
-      return Promise.resolve("adapter-main\n");
+      return Promise.resolve("# branch.oid (initial)\0# branch.head adapter-main\0");
     }
     if (arguments_[0] === "for-each-ref") {
       return Promise.resolve(
@@ -35,9 +29,18 @@ describe("readGitWorkingTreeStatus Git Adapter", () => {
 
     expect(gitCommand.executeGit).toHaveBeenCalledWith(process.cwd(), [
       "status",
-      "--porcelain=v1",
+      "--porcelain=v2",
+      "--branch",
+      "--no-ahead-behind",
       "-z",
       "--untracked-files=all",
+      "--ignore-submodules=none",
+    ]);
+    expect(gitCommand.executeGit.mock.calls.map(([, args]) => args[0])).toEqual([
+      "status",
+      "for-each-ref",
+      "for-each-ref",
+      "symbolic-ref",
     ]);
     expect(status).toMatchObject({ branch: "adapter-main", repositoryMode: "root" });
   });

@@ -187,6 +187,28 @@ describe("ProjectGitStatusCoordinator", () => {
     queryClient.clear();
   });
 
+  it("backs off idle worktree reads and restores the short interval after a manual refresh", async () => {
+    vi.useFakeTimers();
+    const { coordinator, getProjectGitStatus, queryClient } = createHarness();
+    queryClient.setQueryData(["projects", "project-1", rootPath, "git-status"], gitStatus);
+    const cleanup = coordinator.observeProject("project-1", rootPath, true);
+    try {
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(3);
+      await coordinator.refreshProject("project-1", rootPath);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(5);
+    } finally {
+      cleanup();
+      coordinator.dispose();
+      queryClient.clear();
+    }
+  });
+
   it("isolates worktree roots and returns to Task fallback polling when their panes leave", async () => {
     vi.useFakeTimers();
     const { coordinator, getProjectGitStatus, queryClient } = createHarness();

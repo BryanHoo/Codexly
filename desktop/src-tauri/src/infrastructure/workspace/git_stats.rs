@@ -13,16 +13,24 @@ pub(super) async fn read_stats(
     repo: &Path,
     staged: &mut [GitChange],
     unstaged: &mut [GitChange],
+    tracked_unstaged: bool,
 ) -> Result<FileChangeStats, WorkspaceError> {
+    // 未跟踪文件的行数在内容指纹阶段已计算，且 Git diff 只读取跟踪条目。
+    let total_changes = staged.len().saturating_add(unstaged.len());
+    let unstaged_for_diff = if tracked_unstaged {
+        &mut *unstaged
+    } else {
+        &mut []
+    };
     // Windows 大清单并发读取同一 index/blob 会放大磁盘争用，甚至让两路都超时。
     // 小清单与其他平台仍并行；大清单顺序读取，保留每个 Git 命令的原有超时预算。
-    if cfg!(windows) && staged.len().saturating_add(unstaged.len()) > 20_000 {
+    if cfg!(windows) && total_changes > 20_000 {
         read_side(repo, staged, true).await?;
-        read_side(repo, unstaged, false).await?;
+        read_side(repo, unstaged_for_diff, false).await?;
     } else {
         tokio::try_join!(
             read_side(repo, staged, true),
-            read_side(repo, unstaged, false)
+            read_side(repo, unstaged_for_diff, false)
         )?;
     }
     Ok(staged.iter().chain(unstaged.iter()).fold(

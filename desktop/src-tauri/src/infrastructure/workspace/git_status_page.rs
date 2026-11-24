@@ -1,11 +1,11 @@
 //! UI 每次仅接收一页元数据；后续页复用有界短期快照，写操作仍重新严格校验。
 use super::{
     git_models::{GitChange, GitStatus},
-    git_read::get_git_status_with_stats,
+    git_read::read_page_status,
     path_guard::WorkspaceError,
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
     time::{Duration, Instant},
@@ -14,7 +14,8 @@ use std::{
 const PAGE_SIZE: usize = 1_000;
 const CACHE_PATH_BYTES: usize = 32 * 1024 * 1024;
 const CACHE_TTL: Duration = Duration::from_secs(60);
-static CACHE: LazyLock<Mutex<Option<CachedStatus>>> = LazyLock::new(Mutex::default);
+const CACHE_REPOSITORIES: usize = 4;
+static CACHE: LazyLock<Mutex<VecDeque<CachedStatus>>> = LazyLock::new(Mutex::default);
 
 struct CachedChange {
     path: Arc<str>,
@@ -25,6 +26,7 @@ struct CachedStatus {
     root: PathBuf,
     repository: Option<String>,
     created: Instant,
+    bytes: usize,
     header: GitStatus,
     staged: Vec<CachedChange>,
     unstaged: Vec<CachedChange>,
@@ -44,39 +46,84 @@ pub async fn get_git_status_page(
                 .map(|offset| (snapshot, offset))
         });
     if let Some((snapshot, offset)) = cursor
-        && let Some(cached) = CACHE
-            .lock()
-            .map_err(|_| WorkspaceError::InvalidPath)?
-            .as_ref()
-        && cached.root == root
-        && cached.repository.as_deref() == repository
-        && cached.header.snapshot == snapshot
-        && cached.created.elapsed() < CACHE_TTL
+        && let Some(page) = cached_page(root, repository, snapshot, offset)?
     {
-        return Ok(cached.page(offset));
+        return Ok(page);
     }
 
-    // 游标失效时返回新快照首页；快照未变但缓存已淘汰时仍从原位置继续。
-    let status = get_git_status_with_stats(root, repository).await?;
+    // 首页仍读取当前状态与内容指纹，只有快照一致才复用旧统计。
+    let current = read_page_status(root, repository).await?;
+    let mut status = current.status;
     let offset = cursor
         .filter(|(snapshot, _)| *snapshot == status.snapshot)
         .map_or(0, |(_, offset)| offset);
+    if let Some(mut page) = cached_page(root, repository, &status.snapshot, offset)? {
+        // 分支候选可能独立于当前变更而更新，保留本次读取获得的引用。
+        page.base_branches = status.base_branches;
+        page.branches = status.branches;
+        return Ok(page);
+    }
+
+    if let Some(repo) = current.repo {
+        status.stats = Some(
+            super::git_stats::read_stats(
+                &repo,
+                &mut status.staged,
+                &mut status.unstaged,
+                current.tracked_unstaged,
+            )
+            .await?,
+        );
+    }
     let result = page(&status, offset);
     if let Some(cached) = CachedStatus::new(root, repository, status) {
-        *CACHE.lock().map_err(|_| WorkspaceError::InvalidPath)? = Some(cached);
-        // 无后续请求也须释放大清单；更新的快照由自己的到期任务负责清理。
+        {
+            let mut cache = CACHE.lock().map_err(|_| WorkspaceError::InvalidPath)?;
+            cache.retain(|entry| {
+                entry.created.elapsed() < CACHE_TTL
+                    && (entry.root != root || entry.repository.as_deref() != repository)
+            });
+            let mut bytes = cached.bytes + cache.iter().map(|entry| entry.bytes).sum::<usize>();
+            // 多个 worktree 共享原有总预算，优先淘汰最近最少访问的快照。
+            while cache.len() >= CACHE_REPOSITORIES || bytes > CACHE_PATH_BYTES {
+                if let Some(oldest) = cache.pop_front() {
+                    bytes -= oldest.bytes;
+                }
+            }
+            cache.push_back(cached);
+        }
+        // 即使没有新请求，到期快照也会退出缓存。
         tokio::spawn(async {
             tokio::time::sleep(CACHE_TTL).await;
-            if let Ok(mut cache) = CACHE.lock()
-                && cache
-                    .as_ref()
-                    .is_some_and(|entry| entry.created.elapsed() >= CACHE_TTL)
-            {
-                *cache = None;
+            if let Ok(mut cache) = CACHE.lock() {
+                cache.retain(|entry| entry.created.elapsed() < CACHE_TTL);
             }
         });
     }
     Ok(result)
+}
+
+fn cached_page(
+    root: &Path,
+    repository: Option<&str>,
+    snapshot: &str,
+    offset: usize,
+) -> Result<Option<GitStatus>, WorkspaceError> {
+    let mut cache = CACHE.lock().map_err(|_| WorkspaceError::InvalidPath)?;
+    let Some(position) = cache.iter().position(|entry| {
+        entry.root == root
+            && entry.repository.as_deref() == repository
+            && entry.header.snapshot == snapshot
+            && entry.created.elapsed() < CACHE_TTL
+    }) else {
+        return Ok(None);
+    };
+    let entry = cache
+        .remove(position)
+        .expect("cache position checked under lock");
+    let page = entry.page(offset);
+    cache.push_back(entry);
+    Ok(Some(page))
 }
 
 impl CachedStatus {
@@ -96,6 +143,7 @@ impl CachedStatus {
             root: root.to_owned(),
             repository: repository.map(str::to_owned),
             created: Instant::now(),
+            bytes,
             header: status,
             staged,
             unstaged,

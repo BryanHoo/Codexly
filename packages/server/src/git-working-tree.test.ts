@@ -43,13 +43,8 @@ describe("readGitWorkingTreeStatus", () => {
       await mkdir(join(projectRoot, ".git"));
       let refReads = 0;
       const executeGit = (_root: string, arguments_: readonly string[]) => {
-        if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files")
-          return Promise.resolve("");
         if (arguments_[0] === "status") {
-          return Promise.resolve("");
-        }
-        if (arguments_[0] === "branch") {
-          return Promise.resolve("feat/review\n");
+          return Promise.resolve("# branch.head feat/review\0");
         }
         if (arguments_[0] === "for-each-ref" && !arguments_.includes("refs/remotes")) {
           refReads += 1;
@@ -90,10 +85,8 @@ describe("readGitWorkingTreeStatus", () => {
       await writeFile(join(projectRoot, "tracked.txt"), "changed\n");
       const diffCommands: string[][] = [];
       const executeGit = (_root: string, arguments_: readonly string[]) => {
-        if (arguments_[0] === "status") return Promise.resolve(" M tracked.txt\0");
-        if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files")
-          return Promise.resolve("");
-        if (arguments_[0] === "branch") return Promise.resolve("main\n");
+        if (arguments_[0] === "status")
+          return Promise.resolve("1 .M N... 100644 100644 100644 0000000 0000000 tracked.txt\0");
         if (arguments_[0] === "for-each-ref" || arguments_[0] === "symbolic-ref") {
           return Promise.resolve("");
         }
@@ -121,10 +114,9 @@ describe("readGitWorkingTreeStatus", () => {
       await writeFile(join(projectRoot, "untracked.txt"), "new file\n");
       const executeGit = (_root: string, arguments_: readonly string[]) => {
         if (arguments_[0] === "status") {
-          return Promise.resolve("MM partial.txt\0M  staged.txt\0?? untracked.txt\0");
-        }
-        if (arguments_[0] === "branch") {
-          return Promise.resolve("feat/review\n");
+          return Promise.resolve(
+            "1 MM N... 100644 100644 100644 0000000 0000000 partial.txt\x001 M. N... 100644 100644 100644 0000000 0000000 staged.txt\0? untracked.txt\0",
+          );
         }
         if (arguments_[0] === "for-each-ref") {
           return Promise.resolve("main\norigin/main\n");
@@ -163,7 +155,9 @@ describe("readGitWorkingTreeStatus", () => {
       const diffCommands: string[][] = [];
       const executeGit = (_root: string, arguments_: readonly string[]) => {
         if (arguments_[0] === "status") {
-          return Promise.resolve("MM partial.txt\0M  staged.txt\0 M first.txt\0 M second.txt\0");
+          return Promise.resolve(
+            "1 MM N... 100644 100644 100644 0000000 0000000 partial.txt\x001 M. N... 100644 100644 100644 0000000 0000000 staged.txt\x001 .M N... 100644 100644 100644 0000000 0000000 first.txt\x001 .M N... 100644 100644 100644 0000000 0000000 second.txt\0",
+          );
         }
         if (arguments_[0] !== "diff") {
           return Promise.resolve("");
@@ -212,7 +206,9 @@ describe("readGitWorkingTreeStatus", () => {
       const diffCommands: string[][] = [];
       const executeGit = (_root: string, arguments_: readonly string[]) => {
         if (arguments_[0] === "status") {
-          return Promise.resolve(" M readable.txt\0 M oversized.txt\0");
+          return Promise.resolve(
+            "1 .M N... 100644 100644 100644 0000000 0000000 readable.txt\x001 .M N... 100644 100644 100644 0000000 0000000 oversized.txt\0",
+          );
         }
         if (arguments_[0] !== "diff") {
           return Promise.resolve("");
@@ -319,13 +315,8 @@ describe("readGitWorkingTreeStatus", () => {
       // 摘要快照使用文件元数据；显式设置时间，避免 Windows 快速等长写入未更新时间戳。
       await utimes(join(projectRoot, "tracked.txt"), 1_700_000_000, 1_700_000_000);
       const executeGit = (_root: string, arguments_: readonly string[]) => {
-        if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files")
-          return Promise.resolve("");
         if (arguments_[0] === "status") {
-          return Promise.resolve(" M tracked.txt\0");
-        }
-        if (arguments_[0] === "branch") {
-          return Promise.resolve("main\n");
+          return Promise.resolve("1 .M N... 100644 100644 100644 0000000 0000000 tracked.txt\0");
         }
         if (arguments_[0] === "for-each-ref" || arguments_[0] === "symbolic-ref") {
           return Promise.resolve("");

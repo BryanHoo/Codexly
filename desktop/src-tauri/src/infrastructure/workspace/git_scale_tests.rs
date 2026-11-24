@@ -173,3 +173,89 @@ async fn metadata_pages_should_retain_line_counts_without_patch_bodies() {
     assert_eq!(second.staged[0].stats.additions, 1);
     assert_eq!(second.unstaged[0].stats.removals, 1);
 }
+
+#[tokio::test]
+async fn alternating_worktrees_should_keep_both_cursor_snapshots() {
+    let repo = Repository::new();
+    let linked = repo.0.join("linked");
+    assert!(
+        Command::new("git")
+            .args(["worktree", "add", "-b", "linked", "linked"])
+            .current_dir(&repo.0)
+            .status()
+            .unwrap()
+            .success()
+    );
+    std::fs::write(repo.0.join(".git/info/exclude"), "/linked/\n").unwrap();
+    for root in [&repo.0, &linked] {
+        for index in 0..1_001 {
+            std::fs::write(root.join(format!("new-{index:04}.txt")), "first\n").unwrap();
+        }
+    }
+    let first = super::get_git_status_page(&repo.0, None, None)
+        .await
+        .unwrap();
+    let other = super::get_git_status_page(&linked, None, None)
+        .await
+        .unwrap();
+    assert_ne!(first.snapshot, other.snapshot);
+    std::fs::write(repo.0.join("new-1000.txt"), "changed\nmore\n").unwrap();
+
+    let next = super::get_git_status_page(&repo.0, None, first.next_cursor.as_deref())
+        .await
+        .unwrap();
+    assert_eq!(next.snapshot, first.snapshot);
+    assert_eq!(next.unstaged.len(), 1);
+    assert_eq!(next.unstaged[0].stats.additions, 1);
+
+    // 首页重新验证内容，旧游标页仍保持同一次浏览看到的快照。
+    let refreshed = super::get_git_status_page(&repo.0, None, None)
+        .await
+        .unwrap();
+    assert_ne!(refreshed.snapshot, first.snapshot);
+    assert_eq!(refreshed.stats.unwrap().additions, 1_002);
+}
+
+#[tokio::test]
+#[ignore = "isolated Git status refresh performance benchmark"]
+async fn performance_baseline_git_status_refresh() {
+    let Some(root) = std::env::var_os("CODEXLY_GIT_BENCH_ROOT") else {
+        return;
+    };
+    let root = std::path::PathBuf::from(root);
+    for (label, root, linked) in [
+        ("index", root.join("index"), None),
+        ("untracked", root.join("untracked"), None),
+        ("alternate", root.join("index"), Some(root.join("linked"))),
+    ] {
+        let first = super::get_git_status_page(&root, None, None).await.unwrap();
+        let other = match &linked {
+            Some(path) => Some(super::get_git_status_page(path, None, None).await.unwrap()),
+            None => None,
+        };
+        let mut samples = Vec::new();
+        for sample in 0..25 {
+            let start = std::time::Instant::now();
+            if let (Some(path), Some(other)) = (&linked, &other) {
+                let (target, initial) = if sample % 2 == 0 {
+                    (&root, &first)
+                } else {
+                    (path, other)
+                };
+                let page = super::get_git_status_page(target, None, initial.next_cursor.as_deref())
+                    .await
+                    .unwrap();
+                assert_eq!(page.snapshot, initial.snapshot);
+            } else {
+                let page = super::get_git_status_page(&root, None, None).await.unwrap();
+                assert_eq!(page.snapshot, first.snapshot);
+            }
+            samples.push(start.elapsed().as_secs_f64() * 1_000.0);
+        }
+        samples.sort_by(f64::total_cmp);
+        println!(
+            "git-status-refresh scenario={label} samples=25 p95_ms={:.3}",
+            samples[23]
+        );
+    }
+}

@@ -27,12 +27,8 @@ describe("switchProjectBranch", () => {
     const projectRoot = await createRepositoryRoot();
     let currentBranch = "main";
     const executeGit = vi.fn((_root: string, arguments_: readonly string[]) => {
-      if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files") return Promise.resolve("");
       if (arguments_[0] === "status") {
-        return Promise.resolve("");
-      }
-      if (arguments_[0] === "branch") {
-        return Promise.resolve(`${currentBranch}\n`);
+        return Promise.resolve(`# branch.head ${currentBranch}\0`);
       }
       if (arguments_[0] === "for-each-ref") {
         return Promise.resolve(

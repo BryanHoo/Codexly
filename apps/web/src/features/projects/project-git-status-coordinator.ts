@@ -7,6 +7,7 @@ import { type CodexlyGitStatusClient, projectGitStatusQueryOptions } from "./pro
 
 export const PROJECT_GIT_STATUS_POLL_INTERVAL_MS = 300_000;
 export const PROJECT_GIT_STATUS_WORKTREE_POLL_INTERVAL_MS = 10_000;
+const WORKTREE_IDLE_POLL_INTERVAL_MS = 30_000;
 export const PROJECT_GIT_STATUS_FILE_CHANGE_DEBOUNCE_MS = 300;
 export const PROJECT_GIT_STATUS_RETRY_BASE_MS = 1_000;
 export const PROJECT_GIT_STATUS_RETRY_MAX_MS = 30_000;
@@ -36,6 +37,7 @@ interface ProjectPollingState {
   rootPath: string;
   refreshPending: "background" | "manual" | undefined;
   retryTimer: ReturnType<typeof setTimeout> | undefined;
+  unchangedPolls: number;
 }
 
 function defaultPageVisibility(): boolean {
@@ -144,6 +146,8 @@ export class ProjectGitStatusCoordinator {
       "git-status",
     ]);
     if (!isRootGitProject(status)) return;
+    state.unchangedPolls = 0;
+    this.#ensurePolling(state);
     this.#requestBackgroundRefresh(state, "passive");
   }
 
@@ -251,8 +255,11 @@ export class ProjectGitStatusCoordinator {
 
   #ensurePolling(state: ProjectPollingState): void {
     const hasWorktreeObserver = [...state.observers].some((observer) => observer.worktree);
+    // 连续两次没有变化后降低轮询频率，活动任务仍使用短周期补查。
     const intervalMs = hasWorktreeObserver
-      ? PROJECT_GIT_STATUS_WORKTREE_POLL_INTERVAL_MS
+      ? state.activeTaskIds.size === 0 && state.unchangedPolls >= 2
+        ? WORKTREE_IDLE_POLL_INTERVAL_MS
+        : PROJECT_GIT_STATUS_WORKTREE_POLL_INTERVAL_MS
       : state.activeTaskIds.size > 0
         ? this.#pollIntervalMs
         : undefined;
@@ -272,7 +279,7 @@ export class ProjectGitStatusCoordinator {
     state.pollingIntervalMs = intervalMs;
     state.pollingTimer = setInterval(() => {
       if (this.#isPageVisible()) {
-        this.#requestBackgroundRefresh(state, "passive");
+        this.#requestBackgroundRefresh(state, "poll");
       }
     }, intervalMs);
   }
@@ -318,6 +325,7 @@ export class ProjectGitStatusCoordinator {
       rootPath,
       refreshPending: undefined,
       retryTimer: undefined,
+      unchangedPolls: 0,
     };
     this.#projects.set(key, state);
     return state;
@@ -329,14 +337,14 @@ export class ProjectGitStatusCoordinator {
 
   #requestRefresh(
     state: ProjectPollingState,
-    source: "background" | "manual" | "passive",
+    source: "background" | "manual" | "passive" | "poll",
   ): Promise<void> {
     if (state.closed || this.#disposed) {
       return Promise.resolve();
     }
     if (state.inFlight !== undefined) {
       // 焦点、路由和轮询只复用在途读取；仓库变更与手动操作才需要排队补读。
-      if (source === "passive") return state.inFlight;
+      if (source === "passive" || source === "poll") return state.inFlight;
       // 手动请求优先级更高，必须在当前读取结束后再次执行真实仓库探测。
       state.refreshPending =
         source === "manual" || state.refreshPending === "manual" ? "manual" : "background";
@@ -348,11 +356,18 @@ export class ProjectGitStatusCoordinator {
       state.rootPath,
       this.#client,
     );
+    const previousSnapshot = this.#queryClient.getQueryData<ProjectGitStatus>(
+      queryOptions.queryKey,
+    )?.snapshot;
     const refresh = this.#queryClient
       // 与初次挂载、Query 自身的可见性刷新共用在途请求，不取消后重新发送。
       .fetchQuery({ ...queryOptions, retry: false, staleTime: 0 })
       .then((status) => {
         state.consecutiveFailures = 0;
+        state.unchangedPolls =
+          source === "poll" && status.snapshot === previousSnapshot
+            ? Math.min(2, state.unchangedPolls + 1)
+            : 0;
         state.isGitProject = isRootGitProject(status);
         if (!state.isGitProject) {
           this.#clearFileChangeTimer(state);
@@ -397,7 +412,7 @@ export class ProjectGitStatusCoordinator {
 
   #requestBackgroundRefresh(
     state: ProjectPollingState,
-    source: "background" | "manual" | "passive" = "background",
+    source: "background" | "manual" | "passive" | "poll" = "background",
   ): void {
     void this.#requestRefresh(state, source).catch((error: unknown) => {
       recordInternalWarning("git_status_poll_failed", error, {

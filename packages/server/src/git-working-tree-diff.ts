@@ -76,37 +76,51 @@ export class WorkingTreeReadBudget {
 
 export function parsePorcelainStatus(
   output: string,
-  maxEntries = Number.POSITIVE_INFINITY,
-): readonly WorkingTreeEntry[] {
-  const records = output.split("\0");
+  maxEntries: number,
+): Readonly<{ branch: string | null; entries: readonly WorkingTreeEntry[] }> {
   const entries: WorkingTreeEntry[] = [];
-
-  for (let recordIndex = 0; recordIndex < records.length; recordIndex += 1) {
-    const record = records[recordIndex];
-    if (record === undefined || record.length < 4) {
+  let branch: string | null = null;
+  let offset = 0;
+  while (offset < output.length && entries.length < maxEntries) {
+    const end = output.indexOf("\0", offset);
+    if (end === -1) throw new Error("Incomplete Git status record");
+    const record = output.slice(offset, end);
+    offset = end + 1;
+    if (record.startsWith("# branch.head ")) {
+      const name = record.slice("# branch.head ".length);
+      branch = name === "(detached)" ? null : name;
+    }
+    if (record.startsWith("# ")) continue;
+    if (record.startsWith("? ")) {
+      entries.push({ indexStatus: "?", workingTreeStatus: "?", path: record.slice(2) });
       continue;
     }
-    const indexStatus = record[0] ?? " ";
-    const workingTreeStatus = record[1] ?? " ";
-    const path = record.slice(3);
-    entries.push({ indexStatus, path, workingTreeStatus });
 
-    if (entries.length >= maxEntries) {
-      break;
+    // 固定字段之后的全部字符均属于路径，包括空格、制表符和换行。
+    const kind = record[0];
+    const separators = kind === "1" ? 8 : kind === "2" ? 9 : kind === "u" ? 10 : 0;
+    let pathStart = -1;
+    for (let field = 0; field < separators; field += 1) {
+      pathStart = record.indexOf(" ", pathStart + 1);
+      if (pathStart === -1) throw new Error("Incomplete tracked Git status record");
     }
-
-    // Porcelain -z 会在重命名或复制记录后追加旧路径，本功能只展示新路径。
-    if (
-      indexStatus === "R" ||
-      indexStatus === "C" ||
-      workingTreeStatus === "R" ||
-      workingTreeStatus === "C"
-    ) {
-      recordIndex += 1;
+    if (separators === 0 || !record[2] || !record[3] || pathStart + 1 === record.length) {
+      throw new Error("Invalid Git status record");
+    }
+    entries.push({
+      indexStatus: record[2] === "." ? " " : record[2],
+      workingTreeStatus: record[3] === "." ? " " : record[3],
+      path: record.slice(pathStart + 1),
+    });
+    if (kind === "2") {
+      // rename/copy 的源路径是独立记录，展示沿用目标路径。
+      const sourceEnd = output.indexOf("\0", offset);
+      if (sourceEnd === -1) throw new Error("Missing original Git status path");
+      offset = sourceEnd + 1;
     }
   }
 
-  return entries;
+  return { branch, entries };
 }
 
 export function resolveChangeKind(status: string): GitFileChange["kind"] {

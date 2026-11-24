@@ -85,25 +85,6 @@ export async function resolveProjectGitRepositoryRoot(
   return limitGitFileIO(() => realpath(projectRoot));
 }
 
-async function readRepositoryWorkingTreeEntries(
-  repositoryRoot: string,
-  gitCommandExecutor: GitCommandExecutor,
-  repositoryFingerprints: Map<string, string>,
-): Promise<readonly WorkingTreeEntry[]> {
-  const [statusOutput, head, index] = await Promise.all([
-    gitCommandExecutor(repositoryRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
-    // 未产生首次提交时 --revs-only 返回空值；读取失败则向上传播，禁止弱化提交校验。
-    gitCommandExecutor(repositoryRoot, ["rev-parse", "--revs-only", "HEAD"]),
-    gitCommandExecutor(repositoryRoot, ["ls-files", "--stage", "-z"]),
-  ]);
-  // 索引记录包含 mode、完整对象 ID、冲突 stage 和 NUL 分隔的路径，无需读取 Diff 正文。
-  repositoryFingerprints.set(
-    repositoryRoot,
-    createHash("sha256").update(head).update("\0").update(index).digest("hex"),
-  );
-  return parsePorcelainStatus(statusOutput, MAX_WORKING_TREE_FILES);
-}
-
 async function readUntrackedFileChanges(
   repositoryRoot: string,
   entries: readonly WorkingTreeEntry[],
@@ -191,12 +172,8 @@ async function readOptionalGit(
 async function readRepositoryBranches(
   repositoryRoot: string,
   gitCommandExecutor: GitCommandExecutor,
+  branch: string | null,
 ): Promise<Pick<ProjectGitStatus, "baseBranches" | "branch" | "branches">> {
-  const branchOutputPromise = readOptionalGit(
-    repositoryRoot,
-    ["branch", "--show-current"],
-    gitCommandExecutor,
-  );
   const now = Date.now();
   let cachedCandidates = branchCandidatesByRepository.get(repositoryRoot);
   if (cachedCandidates === undefined || cachedCandidates.expiresAt <= now) {
@@ -234,11 +211,7 @@ async function readRepositoryBranches(
       }
     });
   }
-  const [branchOutput, { localRefsOutput, refsOutput, remoteHeadOutput }] = await Promise.all([
-    branchOutputPromise,
-    cachedCandidates.value,
-  ]);
-  const branch = branchOutput.trim() || null;
+  const { localRefsOutput, refsOutput, remoteHeadOutput } = await cachedCandidates.value;
   const localBranches = [...new Set(localRefsOutput.split("\n").map((ref) => ref.trim()))]
     .filter((ref) => ref !== "")
     .toSorted((left, right) => left.localeCompare(right));
@@ -284,7 +257,7 @@ async function readResolvedGitWorkingTreeStatus(
   options: Readonly<{ includeDiff?: boolean }>,
 ): Promise<ProjectGitStatus> {
   const budget = new WorkingTreeReadBudget();
-  const repositoryFingerprints = new Map<string, string>();
+  const snapshotHash = createHash("sha256");
   const limitedGitCommandExecutor = limitGitCommandExecutor(gitCommandExecutor);
   let status: GitWorkingTreeChanges;
   let repositoryBranches: Pick<ProjectGitStatus, "baseBranches" | "branch" | "branches"> = {
@@ -294,14 +267,20 @@ async function readResolvedGitWorkingTreeStatus(
   };
   let repositoryMode: ProjectGitStatus["repositoryMode"] = "root";
   if (await hasGitMetadata(resolvedProjectRoot)) {
-    const [entries, branches] = await Promise.all([
-      readRepositoryWorkingTreeEntries(
-        resolvedProjectRoot,
-        limitedGitCommandExecutor,
-        repositoryFingerprints,
-      ),
-      readRepositoryBranches(resolvedProjectRoot, limitedGitCommandExecutor),
+    // porcelain v2 在一次读取里绑定 HEAD、分支和相对 HEAD 变更的索引对象。
+    // 未变更的索引对象已由 HEAD 覆盖。完整 NUL 记录参与校验，连同超出展示上限的条目。
+    const statusOutput = await limitedGitCommandExecutor(resolvedProjectRoot, [
+      "status",
+      "--porcelain=v2",
+      "--branch",
+      "--no-ahead-behind",
+      "-z",
+      "--untracked-files=all",
+      "--ignore-submodules=none",
     ]);
+    snapshotHash.update(resolvedProjectRoot).update("\0").update(statusOutput);
+    const { branch, entries } = parsePorcelainStatus(statusOutput, MAX_WORKING_TREE_FILES);
+    const branches = readRepositoryBranches(resolvedProjectRoot, limitedGitCommandExecutor, branch);
     status = await materializeRepositoryWorkingTreeStatus(
       resolvedProjectRoot,
       budget.takeEntries(entries),
@@ -309,7 +288,7 @@ async function readResolvedGitWorkingTreeStatus(
       budget,
       options.includeDiff === true,
     );
-    repositoryBranches = branches;
+    repositoryBranches = await branches;
   } else {
     // 没有当前目录的 .git 就直接返回非 Git 状态，不扫描子目录或启动 Git 进程。
     status = { staged: [], unstaged: [] };
@@ -320,13 +299,6 @@ async function readResolvedGitWorkingTreeStatus(
     left.path.localeCompare(right.path);
   const staged = status.staged.toSorted(comparePaths);
   const unstaged = status.unstaged.toSorted(comparePaths);
-  const snapshotHash = createHash("sha256");
-  // 固定仓库顺序，避免并发命令完成顺序影响聚合快照。
-  for (const [root, fingerprint] of [...repositoryFingerprints].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    snapshotHash.update(root).update("\0").update(fingerprint).update("\0");
-  }
   snapshotHash
     .update(repositoryBranches.branch ?? "")
     .update("\0")

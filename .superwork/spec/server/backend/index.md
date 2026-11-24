@@ -10,6 +10,7 @@
 - [ ] `better-sqlite3` 同步 I/O 放入独立 `worker_threads` Worker，主线程不直接访问数据库；业务数据统一位于 `~/.codexly`，遵循共享 Schema 与迁移契约。
 - [ ] HTTP / WebSocket 交付遵循 Protocol，保留认证、目录权限、幂等和取消清理；事件按增量发送，保持背压与有界保留，避免逐 token 触发历史或统计 I/O。
 - [ ] 文件读取与条件保存遵循 [文本编辑契约](../../../../docs/text-file-editing.md)；Git 动作遵循 [Git 工作流](../../../../docs/git-workflow.md)，写锁、快照校验和幂等边界不能被路由拆分绕过。
+- [ ] Git 状态快照须覆盖 HEAD、分支、暂存对象与模式以及变更文件元数据。porcelain v2 的 NUL 记录须保留完整文件路径和对象信息，提交前重新读取并校验快照。Git 工作流回归覆盖相同状态码下替换索引对象、改变索引模式和移动 HEAD。
 - [ ] 本地任务目录和搜索分别遵循 [本地目录与任务](../../../../docs/local-catalog.md)、[全局搜索](../../../../docs/global-search.md)。
 - [ ] 执行 `pnpm exec vitest run packages/server/src`、`pnpm typecheck`、`pnpm lint:architecture`，补充受影响 Client / CLI 用例；性能变化运行 `pnpm test:performance`，完整根门槛为 `pnpm check`。
 

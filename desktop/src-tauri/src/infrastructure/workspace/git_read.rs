@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
@@ -29,16 +29,20 @@ pub async fn get_git_status(
     }
 }
 
-pub(super) async fn get_git_status_with_stats(
+pub(super) async fn read_page_status(
     root: &Path,
     repository: Option<&str>,
-) -> Result<GitStatus, WorkspaceError> {
-    match read_status(root, repository, false, false, true).await {
-        Err(WorkspaceError::SnapshotMismatch) => {
-            read_status(root, repository, false, false, true).await
-        }
+) -> Result<PageStatus, WorkspaceError> {
+    match read_status(root, repository, false, false).await {
+        Err(WorkspaceError::SnapshotMismatch) => read_status(root, repository, false, false).await,
         result => result,
     }
+}
+
+pub(super) struct PageStatus {
+    pub status: GitStatus,
+    pub repo: Option<PathBuf>,
+    pub tracked_unstaged: bool,
 }
 
 pub(super) async fn read_git_status(
@@ -47,7 +51,9 @@ pub(super) async fn read_git_status(
     include_diff: bool,
     strict: bool,
 ) -> Result<GitStatus, WorkspaceError> {
-    read_status(root, repository, include_diff, strict, false).await
+    Ok(read_status(root, repository, include_diff, strict)
+        .await?
+        .status)
 }
 
 async fn read_status(
@@ -55,21 +61,24 @@ async fn read_status(
     repository: Option<&str>,
     include_diff: bool,
     strict: bool,
-    include_stats: bool,
-) -> Result<GitStatus, WorkspaceError> {
+) -> Result<PageStatus, WorkspaceError> {
     let selected = select_repository(root, repository).await?;
     let Some(repo) = selected.path else {
-        return Ok(GitStatus {
-            stats: None,
-            next_cursor: None,
-            total_changes: None,
-            base_branches: Vec::new(),
-            branch: None,
-            branches: Vec::new(),
-            repository_mode: selected.mode,
-            snapshot: hash_parts(selected.repositories.iter().map(String::as_bytes)),
-            staged: Vec::new(),
-            unstaged: Vec::new(),
+        return Ok(PageStatus {
+            repo: None,
+            tracked_unstaged: false,
+            status: GitStatus {
+                stats: None,
+                next_cursor: None,
+                total_changes: None,
+                base_branches: Vec::new(),
+                branch: None,
+                branches: Vec::new(),
+                repository_mode: selected.mode,
+                snapshot: hash_parts(selected.repositories.iter().map(String::as_bytes)),
+                staged: Vec::new(),
+                unstaged: Vec::new(),
+            },
         });
     };
     // v2 分支头同时提供 HEAD 与分支名，消除额外进程与两次查询之间的身份漂移。
@@ -84,7 +93,7 @@ async fn read_status(
         "--untracked-files=all",
         "--ignore-submodules=none",
     ];
-    let ((mut status, status_hash), branches) = tokio::try_join!(
+    let ((mut status, status_hash, tracked_unstaged), branches) = tokio::try_join!(
         read_status_records(&repo, &status_args),
         git_lines(
             &repo,
@@ -98,32 +107,30 @@ async fn read_status(
         strict,
     )
     .await?;
-    // 仅 UI 清单读取 numstat；写入校验和单文件预览不额外计算全仓统计。
-    let stats = if include_stats {
-        Some(super::git_stats::read_stats(&repo, &mut status.staged, &mut status.unstaged).await?)
-    } else {
-        None
-    };
     if include_diff {
         add_diffs(&repo, &mut status.staged, true).await?;
         add_diffs(&repo, &mut status.unstaged, false).await?;
     }
     let snapshot = hash_parts([status_hash.as_slice(), fingerprint.as_bytes()]);
-    Ok(GitStatus {
-        stats,
-        next_cursor: None,
-        total_changes: None,
-        base_branches: branches
-            .iter()
-            .filter(|branch| matches!(branch.as_str(), "main" | "master"))
-            .cloned()
-            .collect(),
-        branch: status.branch,
-        branches,
-        repository_mode: selected.mode,
-        snapshot,
-        staged: status.staged,
-        unstaged: status.unstaged,
+    Ok(PageStatus {
+        repo: Some(repo),
+        tracked_unstaged,
+        status: GitStatus {
+            stats: None,
+            next_cursor: None,
+            total_changes: None,
+            base_branches: branches
+                .iter()
+                .filter(|branch| matches!(branch.as_str(), "main" | "master"))
+                .cloned()
+                .collect(),
+            branch: status.branch,
+            branches,
+            repository_mode: selected.mode,
+            snapshot,
+            staged: status.staged,
+            unstaged: status.unstaged,
+        },
     })
 }
 
@@ -208,23 +215,25 @@ pub async fn get_git_file_status(
 async fn read_status_records(
     repo: &Path,
     args: &[&str],
-) -> Result<(super::git_status_parse::StatusRecords, Vec<u8>), WorkspaceError> {
-    let (status, hash, pending) = super::git_stream::fold_records(
+) -> Result<(super::git_status_parse::StatusRecords, Vec<u8>, bool), WorkspaceError> {
+    let (status, hash, pending, tracked_unstaged) = super::git_stream::fold_records(
         repo,
         args,
         (
             super::git_status_parse::StatusRecords::default(),
             Sha256::new(),
             Vec::new(),
+            false,
         ),
-        |(status, hash, pending), record| {
+        |(status, hash, pending, tracked_unstaged), record| {
             hash.update(record);
             // rename 的源路径是独立 NUL 记录，必须与前一条一起解析。
             if pending.is_empty() && record.starts_with(b"2 ") {
                 pending.extend_from_slice(record);
                 return Ok(());
             }
-            let parsed = if pending.is_empty() {
+            let renamed = !pending.is_empty();
+            let parsed = if !renamed {
                 parse_status(record)?
             } else {
                 pending.extend_from_slice(record);
@@ -239,6 +248,9 @@ async fn read_status_records(
                 status.head = parsed.head;
             }
             status.staged.extend(parsed.staged);
+            // 工作区 create 也可能是已跟踪的 intent-to-add，按原始记录区分。
+            *tracked_unstaged |=
+                !parsed.unstaged.is_empty() && (renamed || !record.starts_with(b"? "));
             status.unstaged.extend(parsed.unstaged);
             status.gitlinks.extend(parsed.gitlinks);
             Ok(())
@@ -248,5 +260,5 @@ async fn read_status_records(
     if !pending.is_empty() {
         return Err(invalid("status", "missing rename source"));
     }
-    Ok((status, hash.finalize().to_vec()))
+    Ok((status, hash.finalize().to_vec(), tracked_unstaged))
 }

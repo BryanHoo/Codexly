@@ -23,6 +23,8 @@ if (command === "inspect") {
   }) + "\\0");
 } else if (command === "large-output") {
   process.stdout.write("x".repeat(2_048));
+} else if (command === "status" || command === "large-diff") {
+  process.stdout.write("x".repeat(11 * 1024 * 1024));
 } else if (command === "hang") {
   setInterval(() => undefined, 1_000);
 } else {
@@ -115,6 +117,16 @@ describe("createGitCommandExecutor", () => {
     });
 
     await expect(executeGit(root, ["large-output"])).rejects.toThrow(
+      "Git command output exceeded the limit",
+    );
+  });
+
+  it("accommodates object IDs in large porcelain v2 status while bounding other output", async () => {
+    const { root, scriptPath } = await createFakeGitRoot();
+    const executeGit = createGitCommandExecutor({ binary: [process.execPath, scriptPath] });
+    const status = await executeGit(root, ["status", "--porcelain=v2"]);
+    expect(status.length).toBe(11 * 1024 * 1024);
+    await expect(executeGit(root, ["large-diff"])).rejects.toThrow(
       "Git command output exceeded the limit",
     );
   });
