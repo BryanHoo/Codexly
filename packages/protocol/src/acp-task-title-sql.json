@@ -3,10 +3,5 @@
   "claim": "UPDATE acp_task_titles SET state='claimed',token=? WHERE task_id=? AND state='pending' AND EXISTS(SELECT 1 FROM managed_tasks t WHERE t.id=task_id AND t.provider=? AND t.project_id IS ? AND t.title='' AND t.archived=0)",
   "owned": "SELECT 1 FROM acp_task_titles WHERE task_id=? AND state='claimed' AND token=?",
   "finish": "UPDATE acp_task_titles SET state='done',token=NULL WHERE task_id=? AND state='claimed' AND token=?",
-  "write": "UPDATE managed_tasks SET title=? WHERE id=? AND title='' AND archived=0",
-  "sourcesSchema": "CREATE TABLE IF NOT EXISTS acp_task_title_sources (task_id TEXT PRIMARY KEY REFERENCES managed_tasks(id) ON DELETE CASCADE, generated_title TEXT, agent_title TEXT) STRICT;\nCREATE TRIGGER IF NOT EXISTS acp_task_title_sources_invalidate AFTER UPDATE OF title ON managed_tasks WHEN OLD.title IS NOT NEW.title BEGIN\n  DELETE FROM acp_task_title_sources WHERE task_id=NEW.id AND COALESCE(agent_title, generated_title, '') IS NOT NEW.title;\nEND;",
-  "saveGenerated": "INSERT INTO acp_task_title_sources(task_id, generated_title) VALUES (?, ?) ON CONFLICT(task_id) DO UPDATE SET generated_title=excluded.generated_title",
-  "saveAgent": "INSERT INTO acp_task_title_sources(task_id, agent_title)\nSELECT t.id, @title FROM managed_tasks t LEFT JOIN acp_task_title_sources s ON s.task_id=t.id\nWHERE t.id=@id AND t.provider=@engine AND t.project_id IS @projectId AND t.session_id=@sessionId AND t.archived=0\n  AND (s.task_id IS NOT NULL OR (t.title='' AND @title IS NOT NULL))\nON CONFLICT(task_id) DO UPDATE SET agent_title=excluded.agent_title\nWHERE agent_title IS NOT excluded.agent_title",
-  "publishAgent": "UPDATE managed_tasks AS t SET title=COALESCE(s.agent_title, s.generated_title, '')\nFROM acp_task_title_sources s WHERE t.id=? AND s.task_id=t.id\n  AND t.title IS NOT COALESCE(s.agent_title, s.generated_title, '') RETURNING title",
-  "markManual": "DELETE FROM acp_task_title_sources WHERE task_id=?"
+  "write": "UPDATE managed_tasks SET title=? WHERE id=? AND title='' AND archived=0"
 }

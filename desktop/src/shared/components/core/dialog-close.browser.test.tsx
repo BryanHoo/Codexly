@@ -56,15 +56,21 @@ for (const width of [375, 960]) {
   test(`重命名弹窗使用独立方形关闭按钮，窗口宽度 ${width}`, async () => {
     await page.viewport(width, 800);
     await i18n.changeLanguage("zh-CN");
+    const rename = vi.fn();
     const screen = await render(
       <TaskRenameDialog
         initialTitle="提交所有更改到远程仓库"
         isPending={false}
         onClose={vi.fn()}
-        onRename={vi.fn()}
+        onRename={rename}
       />,
     );
-    await expect.element(screen.getByRole("textbox", { name: "任务名称" })).toHaveFocus();
+    const input = screen.getByRole("textbox", { name: "任务名称" });
+    await expect.element(input).toHaveFocus();
+    const field = input.element() as HTMLInputElement;
+    expect(field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0)).toBe(
+      "提交所有更改到远程仓库",
+    );
     const title = screen.getByRole("heading", { name: "重命名任务" });
     const close = screen.getByRole("button", { name: "关闭", exact: true });
     await expect
@@ -86,6 +92,8 @@ for (const width of [375, 960]) {
     expect(parseFloat(getComputedStyle(title.element()).paddingInlineEnd)).toBeGreaterThanOrEqual(
       40,
     );
+    await userEvent.keyboard("  新任务标题  {Enter}");
+    expect(rename).toHaveBeenCalledExactlyOnceWith("新任务标题");
   });
 
   test(`关闭按钮避让长标题并遵守提交保护，窗口宽度 ${width}`, async () => {

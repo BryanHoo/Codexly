@@ -97,7 +97,6 @@ pub(super) async fn catalog_loop(
                 | "app.preferences.patch"
                 | "acp.title.claim"
                 | "acp.title.finish"
-                | "acp.title.agent"
                 | "acp.session.rebind"
                 | "acp.storage.read"
                 | "acp.storage.claim"
@@ -282,11 +281,6 @@ mod tests {
                 "acp.title.finish",
                 json!({"id":"new","token":"one","title":"自动标题"}),
                 json!("自动标题"),
-            ),
-            (
-                "acp.title.agent",
-                json!({"id":"new","engine":"codex","projectId":null,"sessionId":"native","title":"Agent 标题"}),
-                json!("Agent 标题"),
             ),
         ] {
             sender

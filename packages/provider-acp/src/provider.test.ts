@@ -10,55 +10,40 @@ import type { AgentTurnOptions, AcpConfigOption } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
 import { fixture, input } from "./provider.test-support.js";
 
-it("根会话标题走目录和任务事件，绑定前收到的标题也能发布", async () => {
+it("会话绑定前后都忽略 Agent 标题，仅更新会话活动时间", async () => {
   const f = await fixture("claude");
-  const catalog = f.catalog.getMockImplementation();
-  if (!catalog) throw new Error("缺少目录夹具");
-  f.catalog.mockImplementation((op, value) => {
-    if (op !== "acp.title.agent") return catalog(op, value);
-    const task = f.tasks.get(value.id);
-    if (!task || task.sessionId !== value.sessionId) return null;
-    const { title: reported } = value as { title: string | null };
-    const title = reported ?? "";
-    f.tasks.set(task.id, { ...task, title });
-    return title;
-  });
   f.created.mockImplementationOnce(async ({ client }) => {
     await client.notify(acp.methods.client.session.update, {
       sessionId: "native",
-      update: { sessionUpdate: "session_info_update", title: "初始标题" },
+      update: { sessionUpdate: "session_info_update", title: "Agent 初始标题" },
     });
     return { sessionId: "native" };
   });
   const events: AgentProviderEvent[] = [];
-  f.provider.subscribeEvents((event) => {
-    events.push(event);
-  });
+  f.provider.subscribeEvents((event) => events.push(event));
   const task = await f.provider.startTask();
-  await f.provider.readSessionState(task.id);
-  await expect.poll(async () => (await f.provider.readTask(task.id)).title).toBe("初始标题");
+  expect(await f.provider.readSessionState(task.id)).not.toHaveProperty("title");
+  expect((await f.provider.readTask(task.id)).title).toBe("新聊天");
+  await f.provider.renameTask(task.id, "  用户标题  ");
+  await f.provider.renameTask(task.id, "用户标题");
+
   const client = f.created.mock.calls[0]?.[0].client;
   if (!client) throw new Error("缺少协议对端");
-  for (const [sessionId, title] of [
-    ["foreign", "外部会话"],
-    ["native", "新标题"],
-    ["native", null],
-  ] as const) {
+  const updatedAt = "2026-11-23T00:00:00Z";
+  for (const title of ["Agent 新标题", null]) {
     await client.notify(acp.methods.client.session.update, {
-      sessionId,
-      update: { sessionUpdate: "session_info_update", title },
+      sessionId: "native",
+      update: { sessionUpdate: "session_info_update", title, updatedAt },
     });
-    if (sessionId === "native") {
-      await expect
-        .poll(async () => (await f.provider.readTask(task.id)).title)
-        .toBe(title ?? "新聊天");
-    }
   }
+  await expect.poll(() => f.provider.readSessionState(task.id)).toMatchObject({ updatedAt });
+  expect(await f.provider.readSessionState(task.id)).not.toHaveProperty("title");
+  expect((await f.provider.readTask(task.id)).title).toBe("用户标题");
   expect(
     events
       .filter((event) => event.type === "task.metadata_changed")
       .map((event) => event.payload.title),
-  ).toEqual(["初始标题", "新标题", "新聊天"]);
+  ).toEqual(["用户标题"]);
 });
 
 it.each(["codex", "claude"] as const)(

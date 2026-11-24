@@ -1,3 +1,4 @@
+import { ActiveTaskSnapshotRecoveryController } from "@codexly/frontend-core/task-snapshot-recovery";
 import type { AgentEventConnectionState } from "@/platform/native-client-types.js";
 import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@/protocol/index.js";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -16,10 +17,7 @@ import {
   type RecoverTaskSnapshot,
 } from "./project-runtime-history.js";
 
-import {
-  ActiveTaskSnapshotRecoveryController,
-  TaskEventTarget,
-} from "./project-runtime-recovery.js";
+import { TaskEventTarget } from "./project-runtime-recovery.js";
 
 type ProjectRuntimeCallbacks = Readonly<{
   getTaskActivity: () => TaskActivityMap;
@@ -65,6 +63,9 @@ export class ProjectEventRuntime {
       async (taskId) => this.#client.readTask(this.#projectId, taskId, { summary: true }),
       (_taskId, response) => {
         this.#callbacks.onSnapshot(response);
+      },
+      (error) => {
+        recordInternalWarning("snapshot_recovery_failed", error);
       },
     );
   }

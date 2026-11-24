@@ -135,16 +135,6 @@ export interface CatalogOperations {
     boolean,
   ];
   "acp.title.finish": [{ id: string; token: string; title: string | null }, string | null];
-  "acp.title.agent": [
-    {
-      id: string;
-      engine: AgentEngine;
-      projectId: string | null;
-      sessionId: string;
-      title: string | null;
-    },
-    string | null,
-  ];
   "app.preferences.read": [Record<string, never>, ApplicationPreferences | null];
   "app.preferences.importInstructions": [
     { baseline: ApplicationPreferences; content: string },

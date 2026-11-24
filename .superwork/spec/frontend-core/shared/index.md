@@ -110,8 +110,9 @@
 ## 任务事件消费与双端回放
 
 - Web 与桌面复用 [事件 reducer](../../../../packages/frontend-core/src/task-event-reducer.ts) 和 [计时规则](../../../../packages/frontend-core/src/task-event-timing.ts)。[TaskEventModel](../../../../packages/protocol/src/task-event-model.ts) 从公开 AgentEvent 派生判别联合，按平台绑定条目、回合、审批和推理载荷；默认模型与公开协议双向兼容，审批 created/resolved/expired 保持各自状态判别。
-- 此模型是消费契约，不新增线缆协议或逐事件转换。原有 HTTP/WebSocket、Tauri、checkpoint 校验、按目标条目的增量缓冲和字节预算继续由平台层负责。桌面公开摘要、文件修改 stats、终端审批及附件扩展不得因共享化丢失；message.skills_updated 仍由原生适配层原位应用。
-- 平台仅注入实体工厂、通知保留规则与终态错误权威策略。桌面以 Rust 归并的终态为准，null 错误也具有权威性；Web 保留原有不可重试错误回退。不能在共享逻辑中硬编码平台或 Provider 分支。
+- 此模型是消费契约，不新增线缆协议或逐事件转换。两端通过 [共享任务 Store 运行时](../../../../packages/frontend-core/src/task-store-runtime.ts) 校验身份与 checkpoint、恢复快照、拼接历史并提交事件批次。增量缓冲和命令输出预算由平台注入或装配，HTTP/WebSocket 与 Tauri 调用由平台入口执行。桌面公开摘要、文件修改 stats、终端审批及附件扩展不得因共享化丢失；message.skills_updated 仍由原生适配层原位应用。
+- 平台注入快照归一化、实体工厂、通知保留规则与终态错误权威策略。桌面以 Rust 归并的终态为准，null 错误也具有权威性；Web 保留原有不可重试错误回退。不能在共享逻辑中硬编码平台或 Provider 分支。
+- [共享快照恢复控制器](../../../../packages/frontend-core/src/task-snapshot-recovery.ts) 管理退避重试、并发上限和取消。任务取消后重新排队须重新确认请求身份，避免迟到响应覆盖新的会话基线。平台负责发起读取、诊断以及发布时机，桌面可见性控制继续在平台入口处理。
 - 提交响应先于空 turn.started 到达时，保留已显示条目及 Store 身份；权威用户消息必须原位接管提交占位，不能移动到已到达的助手回复之后。
 - 两端调用 [同一回放契约](../../../../packages/frontend-core/src/testing/task-event-replay.ts)，直接驱动真实 Store，覆盖 Codex/Claude、单条/批量、重复及身份过滤、审批终态、推理、命令输出、错误恢复和终态摘要接管。增量批次只发布目标条目一次，不读取无关历史全文。入口为各端 runtime/task-store-event-replay.test.ts；共享改动同时执行两端 runtime 测试、类型检查与根性能套件。
 

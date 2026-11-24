@@ -74,6 +74,14 @@ interface Store {
 export function runInterruptedReplyContract(
   create: (initial: FixtureResponse, storage: InterruptedReplyStorage) => Store,
 ) {
+  test("初始快照身份不符时不读取中断正文", () => {
+    const storage = { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() };
+    const initial = response("interrupted");
+    initial.snapshot.projectId = "other-project";
+    expect(() => create(initial, storage)).toThrow("Task store identity does not match");
+    expect(storage.getItem).not.toHaveBeenCalled();
+  });
+
   for (const mode of ["切换任务", "重启应用"] as const) {
     test(`${mode}后从持久记录恢复中断前的正文，过程信息不丢失`, () => {
       const values = new Map<string, string>();

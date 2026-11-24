@@ -1,5 +1,5 @@
 use super::{CatalogError, db_error, string};
-use rusqlite::{Connection, OptionalExtension, TransactionBehavior, named_params, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
 use std::sync::OnceLock;
 fn sql(key: &str) -> Result<&'static str, CatalogError> {
@@ -15,57 +15,7 @@ fn sql(key: &str) -> Result<&'static str, CatalogError> {
     string(contract, key)
 }
 pub(super) fn initialize(db: &Connection) -> Result<(), CatalogError> {
-    db.execute_batch(sql("schema")?).map_err(db_error)?;
-    db.execute_batch(sql("sourcesSchema")?).map_err(db_error)
-}
-pub(super) fn mark_manual(db: &Connection, id: &str) -> Result<(), CatalogError> {
-    db.execute(sql("markManual")?, [id]).map_err(db_error)?;
-    Ok(())
-}
-
-pub(super) fn publish_agent(db: &mut Connection, p: &Value) -> Result<Value, CatalogError> {
-    let id = string(p, "id")?;
-    let engine = string(p, "engine")?;
-    let session_id = string(p, "sessionId")?;
-    let project_id = match p.get("projectId") {
-        Some(Value::Null) => None,
-        Some(Value::String(value)) if identifier(value) => Some(value.as_str()),
-        _ => return Err(CatalogError::InvalidMessage),
-    };
-    let title = match p.get("title") {
-        Some(Value::Null) => None,
-        Some(Value::String(value))
-            if !value.trim().is_empty() && value.encode_utf16().take(513).count() <= 512 =>
-        {
-            Some(value.as_str())
-        }
-        _ => return Err(CatalogError::InvalidMessage),
-    };
-    if p.as_object().is_none_or(|object| object.len() != 5)
-        || !identifier(id)
-        || !crate::infrastructure::acp_runtime::valid_agent_engine(engine)
-        || session_id.is_empty()
-        || session_id.len() > 1024
-    {
-        return Err(CatalogError::InvalidMessage);
-    }
-    // 受绑定约束的来源和目录标题共用事务，防止并发手动保存被覆盖。
-    let transaction = db
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(db_error)?;
-    let changed = transaction.execute(sql("saveAgent")?, named_params! {
-        "@id": id, "@engine": engine, "@projectId": project_id, "@sessionId": session_id, "@title": title,
-    }).map_err(db_error)?;
-    let effective = if changed == 0 {
-        None
-    } else {
-        transaction
-            .query_row(sql("publishAgent")?, [id], |row| row.get::<_, String>(0))
-            .optional()
-            .map_err(db_error)?
-    };
-    transaction.commit().map_err(db_error)?;
-    Ok(json!(effective))
+    db.execute_batch(sql("schema")?).map_err(db_error)
 }
 fn identifier(value: &str) -> bool {
     !value.is_empty() && value.encode_utf16().take(257).count() <= 256
@@ -137,9 +87,6 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
                     .map_err(db_error)?
                     > 0
                 {
-                    transaction
-                        .execute(sql("saveGenerated")?, params![id, title])
-                        .map_err(db_error)?;
                     json!(title)
                 } else {
                     Value::Null

@@ -1,4 +1,4 @@
-import type { AgentEventConnectionState } from "@codexly/client";
+import type { TaskStoreRuntimeState } from "@codexly/frontend-core/task-store-runtime";
 import { createTaskItemKey, retainPendingRequest } from "@codexly/frontend-core";
 import { AppendOnlyTextBuffer, type TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import type {
@@ -46,38 +46,14 @@ export type TaskStoreHydrationResponse = Readonly<{
 
 export type { TaskStoreIdentity } from "@codexly/frontend-core";
 
-export interface TaskStoreState {
-  applyEvents: (events: readonly AgentEvent[]) => void;
-  checkpoint: EventCheckpoint | null;
-  commandOutputAccessByItemKey: Map<string, number>;
-  commandOutputAccessSequence: number;
-  commandOutputBytesByItemKey: Map<string, number>;
-  commandOutputBytes: number;
-  connectionState: AgentEventConnectionState;
-  error: Error | null;
-  hydrate: (response: TaskStoreHydrationResponse) => void;
-  itemKeysByTurnId: Readonly<Record<string, readonly string[]>>;
-  itemStoresByKey: Map<string, TaskItemStore>;
-  itemStructureRevision: number;
-  getItem: (itemId: string, turnId: string) => AgentItem | undefined;
-  getItemByKey: (itemKey: string) => AgentItem | undefined;
-  notices: readonly TaskNotice[];
-  pendingRequestIds: readonly string[];
-  pendingRequestsById: Readonly<Record<string, PendingRequest>>;
-  prependHistory: (response: TaskStoreHydrationResponse) => void;
-  projectId: string;
-  reconcile: (response: TaskStoreHydrationResponse) => void;
-  reconstructSnapshot: () => ReconstructedTaskSnapshot | undefined;
-  retainedBytes: number;
-  setConnectionState: (connectionState: AgentEventConnectionState) => void;
-  setError: (error: Error | null) => void;
-  setTaskSettings: (settings: AgentTaskSettings) => void;
-  snapshotMetadata: TaskSnapshotMetadata | null;
-  taskId: string;
-  turnIds: readonly string[];
-  turnsNextCursor: string | null;
-  turnsById: Readonly<Record<string, NormalizedAgentTurn>>;
-}
+export type TaskStoreState = TaskStoreRuntimeState<
+  AgentItem,
+  TaskItemStore,
+  PendingRequest,
+  TaskSnapshotMetadata,
+  AgentTaskSettings,
+  AgentEvent
+>;
 
 export type TaskStore = StoreApi<TaskStoreState>;
 

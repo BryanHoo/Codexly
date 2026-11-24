@@ -118,7 +118,6 @@ export function acpSessionCallbacks({
   replays,
   permissions,
   elicitations,
-  syncTitle,
 }: {
   link: () => AcpProviderConnection;
   engine: AgentEngine;
@@ -129,7 +128,6 @@ export function acpSessionCallbacks({
   replays: ReadonlyMap<string, AcpReplay>;
   permissions: AcpPermissions;
   elicitations: AcpElicitations;
-  syncTitle: (taskId: string, sessionId: string) => void;
 }): AcpClientCallbacks {
   const emitNotice: AgentProviderEventListener = (event) => {
     if (!link().detached.has(event.taskId) && !ephemeral.has(event.taskId)) emit(event);
@@ -159,16 +157,8 @@ export function acpSessionCallbacks({
     },
     onUpdate: async (notification, historical) => {
       const { sessions, subagents } = link();
-      const { sessionId, update } = notification;
-      if (
-        !historical &&
-        update.sessionUpdate === "session_info_update" &&
-        update.title !== undefined
-      ) {
-        const task = taskForAcpSession(sessions, sessionId);
-        if (task) syncTitle(task, sessionId);
-        return;
-      }
+      const { update } = notification;
+      if (update.sessionUpdate === "session_info_update") return;
       await routeAcpUpdate(
         notification,
         historical,

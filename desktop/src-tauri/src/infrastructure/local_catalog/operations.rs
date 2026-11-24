@@ -136,7 +136,6 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             .map_err(db_error)
         }
         "acp.title.claim" | "acp.title.finish" => super::acp_task_titles::execute(db, op, p),
-        "acp.title.agent" => super::acp_task_titles::publish_agent(db, p),
         "app.preferences.read" | "app.preferences.patch" | "app.preferences.importInstructions" => {
             super::application_preferences::execute(db, op, p)
         }
@@ -425,8 +424,6 @@ fn patch_task(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
             return Err(CatalogError::InvalidMessage);
         }
         next["title"] = json!(title);
-        // 用户明确保存同名时同样要锁定来源，和名称写入共用写事务。
-        super::acp_task_titles::mark_manual(db, string(p, "id")?)?;
     }
     db.execute("UPDATE managed_tasks SET title=?,cwd=?,session_id=?,updated_at=?,pinned=?,archived=?,status=? WHERE id=?",
         params![string(&next,"title")?,string(&next,"cwd")?,next["sessionId"].as_str(),next["updatedAt"].as_f64(),next["pinned"]==true,next["archived"]==true,string(&next,"status")?,string(&next,"id")?]).map_err(db_error)?;

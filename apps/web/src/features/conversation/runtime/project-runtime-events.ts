@@ -1,3 +1,4 @@
+import { ActiveTaskSnapshotRecoveryController } from "@codexly/frontend-core/task-snapshot-recovery";
 import { CodexlyEventError, type AgentEventConnectionState } from "@codexly/client";
 import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@codexly/protocol";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -15,10 +16,7 @@ import {
   type RecoverTaskSnapshot,
 } from "./project-runtime-history.js";
 
-import {
-  ActiveTaskSnapshotRecoveryController,
-  TaskEventTarget,
-} from "./project-runtime-recovery.js";
+import { TaskEventTarget } from "./project-runtime-recovery.js";
 import { TaskUnsubscribeRetryController } from "./task-unsubscribe-retry.js";
 
 type ProjectRuntimeCallbacks = Readonly<{
@@ -65,6 +63,9 @@ export class ProjectEventRuntime {
       async (taskId) => this.#client.readTask(this.#projectId, taskId, { summary: true }),
       (_taskId, response) => {
         this.#callbacks.onSnapshot(response);
+      },
+      (error) => {
+        recordInternalWarning("snapshot_recovery_failed", error);
       },
     );
     this.#taskUnsubscribe = new TaskUnsubscribeRetryController(

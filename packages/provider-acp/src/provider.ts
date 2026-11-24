@@ -99,7 +99,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         replays: this.#replays,
         permissions: this.#permissions,
         elicitations: this.#elicitations,
-        syncTitle: this.#syncTitle,
       }),
       () => this.#operations.size === 0 && this.#active.size === 0,
       () => {
@@ -143,10 +142,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   async #task(id: string): Promise<LocalTask> {
     return this.#ephemeral.get(id) ?? this.#management.readTask(id);
   }
-  readonly #syncTitle = (id: string, sessionId: string) => {
-    if (this.#ephemeral.has(id)) return;
-    this.#management.syncAgentTitle(id, sessionId, this.#link, (work) => this.#serial(id, work));
-  };
   async #patch(id: string, patch: Partial<LocalTask>): Promise<void> {
     const task = this.#ephemeral.get(id);
     if (task) {
@@ -188,7 +183,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       updated: (connection, session) => {
         const state = connection.readSessionState(session);
         publishAcpSessionState(this.#link, session, state, this.#emit);
-        if (state.title !== undefined) this.#syncTitle(task.id, session);
       },
     });
     this.#link.detached.delete(task.id);

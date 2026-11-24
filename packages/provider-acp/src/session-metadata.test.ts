@@ -10,17 +10,19 @@ const model: SessionConfigOption = {
   options: [{ value: "a", name: "A" }],
 };
 
-it("按会话合并标题和活动时间，保留省略值并允许显式清空", () => {
+it("忽略 Agent 标题，仅按会话处理活动时间及显式清空", () => {
   const store = new AcpSessionMetadataStore();
   const update = (fields: { title?: string | null; updatedAt?: string | null }) =>
     store.update({ sessionId: "s", update: { sessionUpdate: "session_info_update", ...fields } });
-  expect(update({ title: "Agent 标题" })).toMatchObject({ title: "Agent 标题" });
+  expect(update({ title: "Agent 标题" })).toBeUndefined();
   store.configure("s", [model]);
   const updatedAt = "2026-11-23T00:00:00Z";
-  expect(update({ updatedAt })).toMatchObject({ title: "Agent 标题", updatedAt });
+  expect(update({ title: "Agent 标题", updatedAt })).toMatchObject({ updatedAt });
   expect(update({ updatedAt })).toBeUndefined();
-  expect(update({ title: null })).toMatchObject({ title: null, updatedAt, configOptions: [model] });
-  expect(store.read("other")).not.toHaveProperty("title");
+  expect(update({ title: null })).toBeUndefined();
+  expect(update({ updatedAt: null })).toMatchObject({ updatedAt: null, configOptions: [model] });
+  expect(store.read("s")).not.toHaveProperty("title");
+  expect(store.read("other")).not.toHaveProperty("updatedAt");
 });
 
 it("会话用量独立隔离、覆盖最新值并随元数据清理，配置更新不丢失用量", () => {
