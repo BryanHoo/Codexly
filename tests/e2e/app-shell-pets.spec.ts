@@ -10,7 +10,7 @@ test("saves pet settings without waiting for the asset download", async ({ page 
     await downloadReleased;
     await route.fulfill({
       contentType: "application/json",
-      json: { data: { ...workbenchPet, availability: "ready" } },
+      json: { pets: { data: [{ ...workbenchPet, availability: "ready" }] } },
     });
   });
   page.on("request", (request) => {
@@ -27,7 +27,9 @@ test("saves pet settings without waiting for the asset download", async ({ page 
   await dialog.getByRole("switch", { name: "启用工作台宠物" }).click();
   await expect.poll(() => petRequests).toContain("POST /v1/pets/downloads");
 
-  const save = dialog.getByRole("button", { exact: true, name: "返回应用" });
+  const save = page
+    .getByRole("dialog", { name: "全局设置", exact: true })
+    .getByRole("button", { name: "关闭", exact: true });
   await expect(save).toBeEnabled();
   await save.click();
   await expect.poll(() => petRequests).toContain("PUT /v1/settings");
@@ -54,7 +56,10 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
   await expect(dialog.getByText("已就绪")).toBeVisible();
   await expect(dialog.getByRole("radio", { name: /Codex/u }).locator("canvas")).toHaveCount(1);
   await dialog.getByRole("switch", { name: "启用工作台宠物" }).click();
-  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page
+    .getByRole("dialog", { name: "全局设置", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
 
   const pet = page.getByRole("button", { name: "移动工作台宠物 Codex" });
   await expect(pet).toBeVisible();
@@ -91,9 +96,11 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
   expect(Math.abs(restored.y - moved.y)).toBeLessThanOrEqual(2);
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const reopenedDialog = page.getByRole("region", { name: "全局设置" });
-  await expect(page.locator(".workbench-pet-layer")).toBeHidden();
-  await reopenedDialog.getByRole("button", { name: "返回应用" }).click();
+  await expect(page.locator(".workbench-pet-layer")).toHaveAttribute("aria-hidden", "true");
+  await page
+    .getByRole("dialog", { name: "全局设置", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();
@@ -115,7 +122,10 @@ test("opens a temporary task from its pet bubble without entering a Project rout
   await settings.getByRole("button", { name: "宠物" }).click();
   await expect(settings.getByText("已就绪")).toBeVisible();
   await settings.getByRole("switch", { name: "启用工作台宠物" }).click();
-  await settings.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page
+    .getByRole("dialog", { name: "全局设置", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("检查临时任务");
   await page.getByRole("button", { exact: true, name: "提交" }).click();

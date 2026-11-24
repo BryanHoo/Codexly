@@ -1,17 +1,24 @@
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CodexAppServerProcess, createCodexRuntimeProvider } from "../../.artifacts/e2e/codex.js";
-import { createCodexlyServer, SqliteStateRepository } from "../../dist/server/index.js";
+const runDirectory = process.env["CODEXLY_E2E_RUN_DIRECTORY"];
+if (!runDirectory) throw new Error("缺少 Playwright 构建目录，请通过测试配置启动夹具。");
+const [
+  { CodexAppServerProcess, createCodexRuntimeProvider },
+  { createCodexlyServer, SqliteStateRepository },
+] = await Promise.all([
+  import(pathToFileURL(join(runDirectory, "fixture/codex.js")).href),
+  import(pathToFileURL(join(runDirectory, "dist/server/index.js")).href),
+]);
 
 const projectRoot = "/workspace/Codexly";
 const fakeAppServerPath = fileURLToPath(
   new URL("../../packages/provider-codex/test/fixtures/fake-app-server.mjs", import.meta.url),
 );
-const staticRoot = fileURLToPath(new URL("../../dist/web", import.meta.url));
+const staticRoot = join(runDirectory, "dist/web");
 
 // Fake Server 由当前 Node.js 执行，确保 Windows 不会把测试脚本当成原生 .exe。
 const fakeAppServer = spawn(

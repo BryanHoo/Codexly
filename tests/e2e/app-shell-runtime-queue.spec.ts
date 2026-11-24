@@ -141,6 +141,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
     .poll(() => dispatchPayload)
     .toEqual({
       queuedSubmissionId: expect.any(String),
+      expectedTurnId: "turn-action-1",
     });
   expect(dispatchWrites).toEqual([`/v1/projects/codexly/tasks/${taskId}/queue/start`]);
   await expect(

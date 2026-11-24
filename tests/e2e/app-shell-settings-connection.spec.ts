@@ -2,8 +2,6 @@ import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
 import { expect, mockAppShellApi, parseRequestRecord, test } from "./fixtures/app-shell.js";
 import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
 
-test.describe.configure({ mode: "serial" });
-
 function parseCssAlpha(color: string): number {
   const alpha =
     /\/\s*([\d.]+)\s*\)$/u.exec(color)?.[1] ??

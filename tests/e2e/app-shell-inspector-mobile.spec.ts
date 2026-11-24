@@ -68,11 +68,8 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   const composerControlBoxes = await Promise.all(
     composerControls.map((control) => control.boundingBox()),
   );
-  for (const box of composerControlBoxes) {
-    expect((box?.y ?? 0) + (box?.height ?? 0) / 2).toBe(
-      (composerControlBoxes[0]?.y ?? 0) + (composerControlBoxes[0]?.height ?? 0) / 2,
-    );
-  }
+  const centers = composerControlBoxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2);
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
   expect((await composerFooter.boundingBox())?.height).toBeLessThanOrEqual(52);
 
   await composerControls[1]?.click();

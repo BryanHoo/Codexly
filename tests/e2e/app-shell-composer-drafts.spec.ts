@@ -124,26 +124,19 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
   await snapshotRequested;
 
   const nextPrompt = page.getByRole("textbox", { name: "任务输入" });
-  const inputStateWhileSnapshotLoads = await nextPrompt.evaluate((editor) => {
-    if (!(editor instanceof HTMLTextAreaElement) || editor.disabled) {
-      throw new Error("任务输入不是 textarea");
-    }
-    const wasEmpty = editor.value === "";
-    editor.focus();
-    const acceptsFocus = document.activeElement === editor;
-    editor.dispatchEvent(new CompositionEvent("compositionstart"));
-    editor.value = "n";
-    editor.dispatchEvent(new CompositionEvent("compositionupdate", { data: "n" }));
-    return { acceptsFocus, wasEmpty };
-  });
+  // 等待目标快照时暂时禁止写入，避免把上一任务的草稿提交到新任务。
+  await expect(nextPrompt).toBeDisabled();
+  await expect(nextPrompt).toHaveValue("");
   releaseSnapshot();
-  expect(inputStateWhileSnapshotLoads).toEqual({ acceptsFocus: true, wasEmpty: true });
-  await expect(nextPrompt).toHaveValue("n");
+  await expect(nextPrompt).toBeEditable();
+  await expect(nextPrompt).toHaveValue("");
   await expect
     .poll(() =>
       nextPrompt.evaluate((editor) => Reflect.get(globalThis, "__testComposerEditor") === editor),
     )
     .toBe(true);
+  await nextPrompt.fill("只属于 Task B 的草稿");
+  await expect(nextPrompt).toHaveValue("只属于 Task B 的草稿");
 });
 
 test("keeps the workbench shell mounted between a task and a new task route", async ({ page }) => {

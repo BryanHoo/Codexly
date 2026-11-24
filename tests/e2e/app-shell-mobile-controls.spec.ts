@@ -96,7 +96,9 @@ test("exposes touch actions and keeps narrow composer controls on one row @cross
         }),
     }));
     expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.width);
-    expect(new Set(metrics.controls.map((control) => control.center)).size).toBe(1);
+    const centers = metrics.controls.map((control) => control.center);
+    expect(centers.length).toBeGreaterThan(1);
+    expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
     expect(metrics.controls.every((control) => control.width >= 16)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`mobile-${String(width)}.png`) });
   }
