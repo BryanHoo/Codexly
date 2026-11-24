@@ -37,7 +37,14 @@ pub(super) async fn publish_mapped_event_at_boundary(
     };
     let metadata_update = super::task_snapshot_metadata::MetadataUpdate::prepare(&event);
     let skill_message = super::task_skill_message::SkillMessage::prepare(&event);
-    let visible_route = if event.event_type() == Some("turn.completed") {
+    let visible_route = if is_terminal_task_event(&event)
+        || (event.event_type() == Some("task.status_updated")
+            && event
+                .as_json()
+                .and_then(|event| event.pointer("/payload/status"))
+                .and_then(Value::as_str)
+                == Some("idle"))
+    {
         app.and_then(visible_main_window_route)
     } else {
         None
@@ -65,6 +72,12 @@ pub(super) async fn publish_mapped_event_at_boundary(
     session
         .task_skill_projection
         .observe(&project_id, &mut event, skill_message);
+    let sequence = session
+        .project_sequences
+        .entry(project_id.clone())
+        .or_default();
+    *sequence += 1;
+    event.set_sequence(*sequence);
     let activity_changed =
         session
             .task_activity
@@ -82,12 +95,6 @@ pub(super) async fn publish_mapped_event_at_boundary(
     if event.event_type() == Some("task.removed") {
         session.task_projects.remove(&task_id);
     }
-    let sequence = session
-        .project_sequences
-        .entry(project_id.clone())
-        .or_default();
-    *sequence += 1;
-    event.set_sequence(*sequence);
     session.task_snapshot_metadata.observe_read_change(&task_id);
     if let Some(update) = metadata_update {
         session

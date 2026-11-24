@@ -1,6 +1,6 @@
 use super::AppState;
 use crate::application::task_activity::{
-    TaskActivitySnapshot, TaskActivityState, is_approval_request_type,
+    TaskActivitySnapshot, TaskActivityState, TaskActivityStatus, is_approval_request_type,
 };
 use crate::domain::conversation::AgentTaskSnapshot;
 use crate::domain::sidebar::{Project, ProjectPage};
@@ -25,6 +25,19 @@ impl AppState {
             .await
             .task_activity
             .acknowledge(project_id, task_id)
+    }
+
+    pub(in crate::application) async fn acknowledge_task_activity_at(
+        &self,
+        project_id: &str,
+        task_id: &str,
+        sequence: Option<u64>,
+    ) -> bool {
+        self.runtime
+            .lock()
+            .await
+            .task_activity
+            .acknowledge_at(project_id, task_id, sequence)
     }
 
     pub async fn remember_project_page(&self, page: &ProjectPage) {
@@ -69,7 +82,13 @@ impl AppState {
     pub(crate) async fn task_activity_read_snapshot(&self) -> Vec<serde_json::Value> {
         let runtime = self.runtime.lock().await;
         runtime.task_activity.snapshot().into_iter().map(|snapshot| {
-            let sequence = runtime.project_sequences.get(&snapshot.project_id).copied().unwrap_or_default();
+            let terminal_sequence = match snapshot.status {
+                TaskActivityStatus::Completed | TaskActivityStatus::Failed => snapshot.terminal_sequence,
+                _ => None,
+            };
+            let sequence = terminal_sequence.unwrap_or_else(|| {
+                runtime.project_sequences.get(&snapshot.project_id).copied().unwrap_or_default()
+            });
             let mut value = serde_json::json!(&snapshot);
             value["checkpoint"] = serde_json::json!({ "sequence": sequence, "sessionId": crate::infrastructure::codex::runtime_session_id() });
             value

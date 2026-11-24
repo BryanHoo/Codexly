@@ -34,29 +34,25 @@ describe("project runtime events", () => {
     expect(onTaskMetadataChanged).not.toHaveBeenCalled();
     manager.dispose();
   });
-  it("keeps a completed sidebar shortcut until that task is focused and includes later runs again", () => {
+  it("shows background completion on the task row and includes later runs in shortcuts", () => {
     const harness = createClientHarness();
     const manager = createProjectRuntimeManager(harness.client);
     const shortcuts = () =>
       getSidebarActiveTasks(manager.getTaskActivity(), new Set(["project-1"]));
+    const activity = () => getTaskActivity(manager.getTaskActivity(), "project-1", "task-1");
     try {
       manager.observeSnapshot(createSnapshotResponse("task-1"));
       harness.emit(createTurnCompletedEvent("task-1", 1));
-      expect(shortcuts().tasks).toEqual([
-        expect.objectContaining({ id: "task-1", status: "completed" }),
-      ]);
-      manager.viewTask("project-1", "task-2");
-      expect(shortcuts().tasks).toHaveLength(1);
-      manager.viewTask("project-1", "task-1");
       expect(shortcuts().tasks).toEqual([]);
+      expect(activity().attention).toBe("completed");
+      manager.viewTask("project-1", "task-1");
+      expect(activity().attention).toBeNull();
       manager.viewTask("project-1", "task-2");
       harness.emit(createTurnStartedEvent("task-1", 2));
       expect(shortcuts().runningCount).toBe(1);
       harness.emit(createTurnCompletedEvent("task-1", 3));
-      expect(shortcuts().tasks).toEqual([
-        expect.objectContaining({ id: "task-1", status: "completed" }),
-      ]);
-      expect(shortcuts().runningCount).toBe(0);
+      expect(shortcuts().tasks).toEqual([]);
+      expect(activity().attention).toBe("completed");
     } finally {
       manager.dispose();
     }

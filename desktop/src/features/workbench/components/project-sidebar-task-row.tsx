@@ -60,7 +60,7 @@ export function getTaskRoute(projectId: string, taskId: string) {
 export function ActiveTaskLink({ task, active, projectName }: Readonly<{ task: SidebarActiveTask; active: boolean; projectName: string }>) {
   const { t } = useTranslation("workbench");
   return <SidebarActiveTaskRow task={task} active={active} projectName={projectName}
-    labels={{ approval: t("sidebar.taskApproval"), input: t("sidebar.taskInput"), running: t("sidebar.taskRunning"), completed: t("sidebar.taskComplete") }}
+    labels={{ approval: t("sidebar.taskApproval"), input: t("sidebar.taskInput"), running: t("sidebar.taskRunning") }}
     renderLink={props => <TaskRouteLink {...props} {...getTaskRoute(task.projectId, task.id)} />} />;
 }
 

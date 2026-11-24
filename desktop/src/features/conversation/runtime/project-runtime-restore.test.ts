@@ -323,10 +323,10 @@ describe("ProjectRuntimeManager task activity restoration", () => {
     expect(readTask).toHaveBeenCalledTimes(2);
     expect(subscribeEvents).toHaveBeenCalledTimes(1);
     const shortcuts = () => getSidebarActiveTasks(runtime.getTaskActivity(), new Set(["project-1", "project-2"]));
-    expect(shortcuts().tasks).toContainEqual(expect.objectContaining({ id: "task-3", status: "completed" }));
+    expect(shortcuts().tasks.map(task => task.id)).toEqual(["task-1", "task-2"]);
     expect(shortcuts()).toMatchObject({ runningCount: 2, approvalCount: 0 });
     runtime.viewTask("project-1", "task-1");
-    expect(shortcuts().tasks).toHaveLength(3);
+    expect(shortcuts().tasks).toHaveLength(2);
     runtime.viewTask("project-2", "task-3");
     expect(shortcuts().tasks.map(task => task.id)).toEqual(["task-1", "task-2"]);
     runtime.dispose();

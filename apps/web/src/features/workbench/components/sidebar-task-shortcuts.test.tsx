@@ -46,21 +46,6 @@ describe("SidebarTaskShortcuts", () => {
     expect(markup.indexOf("已固定")).toBeLessThan(markup.indexOf("运行中"));
   });
 
-  it("counts completed tasks in the group total", () => {
-    const markup = renderToStaticMarkup(
-      <SidebarTaskShortcuts
-        pinnedTasks={[]}
-        activeTasks={[{ id: "finished", projectId: "p", title: "已完成任务", status: "completed" }]}
-        approvalCount={0}
-        labels={labels}
-        renderPinned={() => null}
-        renderActive={(task) => <a href="/task">{task.title}</a>}
-      />,
-    );
-    expect(markup).toContain("<span>1</span>");
-    expect(markup).not.toContain("<span>0</span>");
-  });
-
   it("omits empty groups and hides previews without losing counters when manually collapsed", () => {
     const storage = {
       getItem: () => JSON.stringify({ version: 1, pinned: false, active: false }),

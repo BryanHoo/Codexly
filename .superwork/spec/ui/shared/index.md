@@ -61,6 +61,11 @@
 - 回归入口为 `packages/frontend-core/src/project-document-link.test.ts` 和 `desktop/tests/browser/project-document-links.browser.test.tsx`，覆盖两端 Markdown 实际解析、Chromium/WebKit、宽窄视口、父目录、编码路径与宿主路径差异。
 - 文件导航必须覆盖中间文档标签页（`workbench-document-workspace`）、侧栏和独立窗口，不能只验证 Markdown 组件；`project-document-workspace-links.browser.test.tsx` 从真实工作区渲染 SKILL.md 的 `references/*.md` 链接，断言目标正文、返回原文及原生打开调用。
 
+## 侧栏任务状态
+
+- Web、移动浏览器和桌面的「运行中」快捷列表只收录正在执行、等待审批或等待输入的任务。后台回合的完成与失败提醒显示在任务原有位置，前台已查看的结果在切换任务或设置后仍保持已读。
+- 实时事件和后续活动摘要按任务与终态事件水位确认同一结果。历史详情刷新不得重新创建已读终态，迟到的已读确认也不得消费下一回合的新结果。回归覆盖两端的 `project-runtime-activity-sync.test.ts` 和桌面的 `task-visibility.browser.test.tsx`。
+
 ## 左栏底部入口与帮助浮层
 
 - 左栏底部不再提供通知入口或通知列表；定时任务、扩展中心按顺序放在设置右侧，复用两端已有路由和项目上下文。正常 Toast、浏览器与原生系统通知继续保留。

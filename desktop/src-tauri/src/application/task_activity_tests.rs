@@ -392,3 +392,33 @@ fn async_questions_should_preserve_other_questions_and_approvals_when_dismissed(
     assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Running);
     assert!(!state.resolve_async_question("other", "t", "q-1"));
 }
+
+#[test]
+fn acknowledged_failure_stays_read_when_task_details_are_refreshed() {
+    let mut state = TaskActivityState::default();
+    state.apply_event(
+        "p",
+        &event(json!({"type":"task.status_updated","taskId":"t","payload":{"status":"failed"}})),
+    );
+    assert!(state.acknowledge("p", "t"));
+    state.remember_task_snapshot("p", "t", "任务", "failed", Vec::new(), None);
+    assert!(state.snapshot().is_empty());
+}
+
+#[test]
+fn delayed_acknowledgement_does_not_clear_a_new_turn_result() {
+    let mut state = TaskActivityState::default();
+    for sequence in [2, 4] {
+        state.apply_event_for_viewed_task(
+            "p",
+            &event(
+                json!({"type":"turn.completed","taskId":"t","sequence":sequence,
+                "payload":{"turn":{"status":"interrupted"}}}),
+            ),
+            false,
+        );
+    }
+    assert_eq!(state.snapshot()[0].terminal_sequence, Some(4));
+    assert!(!state.acknowledge_at("p", "t", Some(2)));
+    assert!(state.acknowledge_at("p", "t", Some(4)));
+}

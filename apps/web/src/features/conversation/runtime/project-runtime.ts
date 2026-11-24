@@ -36,10 +36,15 @@ import {
 
 import { ProjectEventRuntime } from "./project-runtime-events.js";
 
-import { reconcileActivitySnapshots } from "@codexly/frontend-core/task-activity-sync";
+import {
+  isTerminalTaskActivityEvent,
+  reconcileActivitySnapshots,
+  TaskActivityReadState,
+} from "@codexly/frontend-core/task-activity-sync";
 import type { TaskActivitySnapshot as ActivitySnapshot } from "@codexly/protocol";
 
 export class ProjectRuntimeManager {
+  readonly #taskActivityRead = new TaskActivityReadState();
   readonly #synchronizedActivityKeys = new Set<string>();
   readonly #activityVersions = new Map<string, number>();
   public onTaskActivityViewed:
@@ -133,6 +138,7 @@ export class ProjectRuntimeManager {
     this.#activityListeners.clear();
     this.#synchronizedActivityKeys.clear();
     this.#taskActivityCheckpoints.clear();
+    this.#taskActivityRead.clear();
     this.#taskTitles.clear();
     this.#titleRefreshedRunningTurns.clear();
   }
@@ -142,6 +148,7 @@ export class ProjectRuntimeManager {
     this.#synchronizedActivityKeys.delete(createProjectTaskKey(projectId, taskId));
     this.#updateTaskActivity(removeTaskActivity(this.#taskActivity, projectId, taskId));
     this.#taskActivityCheckpoints.delete(createProjectTaskKey(projectId, taskId));
+    this.#taskActivityRead.delete(createProjectTaskKey(projectId, taskId));
     this.#taskTitles.delete(createProjectTaskKey(projectId, taskId));
     this.#projects.get(projectId)?.forgetTask(taskId);
   }
@@ -163,6 +170,7 @@ export class ProjectRuntimeManager {
     for (const key of this.#taskActivityCheckpoints.keys()) {
       if (key.startsWith(projectKeyPrefix)) {
         this.#taskActivityCheckpoints.delete(key);
+        this.#taskActivityRead.delete(key);
       }
     }
     for (const key of this.#taskTitles.keys()) {
@@ -208,12 +216,13 @@ export class ProjectRuntimeManager {
           previous === undefined ? new Map() : new Map([[key, previous]]);
         const updated = recordNativeTaskActivity(singleton, task);
         if (task.version !== undefined) this.#activityVersions.set(key, task.version);
-        const viewed = this.#isTaskViewed(task.projectId, task.taskId);
-        if (
-          viewed &&
-          task.version !== undefined &&
-          (task.status === "completed" || task.status === "failed")
-        )
+        const terminal = task.status === "completed" || task.status === "failed";
+        const visible = this.#isTaskViewed(task.projectId, task.taskId);
+        // 先对照终态水位确认已读，随后用摘要携带的身份向宿主确认同一条记录。
+        const viewed = terminal
+          ? this.#taskActivityRead.observe(key, checkpoint, visible)
+          : visible;
+        if (viewed && terminal && task.version !== undefined)
           this.onTaskActivityViewed?.(task.projectId, task.taskId, task.version);
         const result = viewed ? clearTaskAttention(updated, task.projectId, task.taskId) : updated;
         const record = result.get(key);
@@ -283,6 +292,7 @@ export class ProjectRuntimeManager {
     markTaskNotificationsRead(projectId, taskId);
     const version = this.#activityVersions.get(createProjectTaskKey(projectId, taskId));
     const attention = getTaskActivity(this.#taskActivity, projectId, taskId).attention;
+    this.#taskActivityRead.markRead(createProjectTaskKey(projectId, taskId));
     if (version !== undefined && (attention === "completed" || attention === "failed"))
       this.onTaskActivityViewed?.(projectId, taskId, version);
     this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
@@ -375,26 +385,27 @@ export class ProjectRuntimeManager {
               taskId: event.taskId,
             });
           }
-          // 可见任务收到新的提醒事件时立即回收系统通知，不再收集底栏通知历史。
-          if (
-            isTaskNotificationReadEvent(event) &&
-            this.#isTaskViewed(eventProjectId, event.taskId)
-          )
+          const visible = this.#isTaskViewed(eventProjectId, event.taskId);
+          // 可见任务收到新的提醒事件时立即回收系统通知。
+          if (isTaskNotificationReadEvent(event) && visible)
             markTaskNotificationsRead(eventProjectId, event.taskId);
+          let viewed = visible;
           if (event.type !== "task.removed") {
-            // 所有 Task 实时事件都推进 Activity 水位，避免流式期间到达的旧 Snapshot 回滚侧栏状态。
-            this.#taskActivityCheckpoints.set(createProjectTaskKey(eventProjectId, event.taskId), {
-              sequence: event.sequence,
-              sessionId: event.sessionId,
-            });
+            const key = createProjectTaskKey(eventProjectId, event.taskId);
+            const checkpoint = { sequence: event.sequence, sessionId: event.sessionId };
+            // 正文水位用于阻止旧详情回滚；终态单独登记，后续元数据事件不会覆盖其已读身份。
+            this.#taskActivityCheckpoints.set(key, checkpoint);
+            if (
+              isTerminalTaskActivityEvent(
+                event,
+                event.type === "task.status_updated" ? this.#taskActivity.get(key) : undefined,
+              )
+            ) {
+              viewed = this.#taskActivityRead.observe(key, checkpoint, visible);
+            }
           }
           this.#updateTaskActivity(
-            reduceTaskActivityEvent(
-              this.#taskActivity,
-              eventProjectId,
-              event,
-              this.#isTaskViewed(eventProjectId, event.taskId),
-            ),
+            reduceTaskActivityEvent(this.#taskActivity, eventProjectId, event, viewed),
           );
         },
         onIdle: (idleProject) => {

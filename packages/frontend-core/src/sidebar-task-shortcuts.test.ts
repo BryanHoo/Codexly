@@ -7,7 +7,7 @@ import {
 } from "./sidebar-task-shortcuts.js";
 
 describe("sidebar task shortcuts", () => {
-  it.each(["running", "approval", "completed"] as const)(
+  it.each(["running", "approval"] as const)(
     "preserves known and unknown engines for %s shortcuts",
     (status) => {
       const activity = new Map(
@@ -18,7 +18,7 @@ describe("sidebar task shortcuts", () => {
             taskId: String(index),
             projectId: "a",
             isRunning: status === "running",
-            attention: status === "completed" ? ("completed" as const) : null,
+            attention: null,
             pendingApprovalRequestIds: new Set(status === "approval" ? ["request"] : []),
           },
         ]),
@@ -29,46 +29,24 @@ describe("sidebar task shortcuts", () => {
     },
   );
 
-  it("puts unread completed tasks before approvals and running tasks with stable order within each group", () => {
-    const record = (taskId: string, status: "running" | "approval" | "completed") => ({
-      taskId,
-      projectId: "a",
-      isRunning: status === "running",
-      attention: status === "completed" ? ("completed" as const) : null,
-      pendingApprovalRequestIds: new Set(status === "approval" ? ["request"] : []),
-    });
-    const activity = new Map([
-      ["running", record("running", "running")],
-      ["completed-1", record("completed-1", "completed")],
-      ["approval", record("approval", "approval")],
-      ["completed-2", record("completed-2", "completed")],
-    ]);
-    expect(getSidebarActiveTasks(activity, new Set(["a"])).tasks.map((task) => task.id)).toEqual([
-      "completed-1",
-      "completed-2",
-      "approval",
-      "running",
-    ]);
-  });
-
-  it("retains unread completed tasks without counting them as running and removes them once viewed", () => {
-    const record = {
-      taskId: "finished",
-      projectId: "a",
-      taskName: "已完成任务",
-      isRunning: false,
-      attention: "completed" as "completed" | null,
-      pendingApprovalRequestIds: new Set<string>(),
-    };
-    const activity = new Map([["finished", record]]);
-    const projects = new Set(["a"]);
-    expect(getSidebarActiveTasks(activity, projects)).toEqual({
-      tasks: [{ id: "finished", projectId: "a", title: "已完成任务", status: "completed" }],
-      runningCount: 0,
+  it("keeps completed and failed tasks out of both the shortcut list and its counts", () => {
+    const activity = new Map(
+      (["running", "completed", "failed"] as const).map((status) => [
+        status,
+        {
+          taskId: status,
+          projectId: "a",
+          isRunning: status === "running",
+          attention: status === "running" ? null : status,
+          pendingApprovalRequestIds: new Set<string>(),
+        },
+      ]),
+    );
+    expect(getSidebarActiveTasks(activity, new Set(["a"]))).toEqual({
+      tasks: [{ id: "running", projectId: "a", title: "running", status: "running" }],
+      runningCount: 1,
       approvalCount: 0,
     });
-    activity.set("finished", { ...record, attention: null });
-    expect(getSidebarActiveTasks(activity, projects).tasks).toEqual([]);
   });
 
   it("includes unloaded tasks and paused approvals, keeps stable order and separates counts", () => {

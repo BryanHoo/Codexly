@@ -6,8 +6,8 @@ export async function getTaskActivities(): Promise<readonly TaskActivitySnapshot
   return invoke<readonly TaskActivitySnapshot[]>("get_task_activities");
 }
 
-export async function acknowledgeTaskActivity(projectId: string, taskId: string): Promise<void> {
-  await invoke("acknowledge_task_activity", { projectId, taskId });
+export async function acknowledgeTaskActivity(projectId: string, taskId: string, sequence?: number): Promise<void> {
+  await invoke("acknowledge_task_activity", { projectId, taskId, ...(sequence === undefined ? {} : { sequence }) });
 }
 
 export async function dismissTaskNotifications(tasks: readonly Readonly<{ projectId: string; taskId: string }>[]): Promise<void> {

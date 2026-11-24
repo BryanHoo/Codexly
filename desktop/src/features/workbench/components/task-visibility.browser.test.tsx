@@ -19,8 +19,9 @@ test("分屏可见时无需点击即已读，Activity 隐藏后新通知保持�
     <Pane runtime={runtime} taskId="left" />
     <Activity mode={rightVisible ? "visible" : "hidden"}><Pane runtime={runtime} taskId="right" /></Activity>
   </StrictMode>;
-  const activity = (taskId: string, status: "completed" | "failed") => ({
+  const activity = (taskId: string, status: "completed" | "failed", sequence = 1) => ({
     projectId: "visibility-test", taskId, taskName: taskId, status, requiresApproval: false,
+    checkpoint: { sessionId: "runtime", sequence },
   });
   const publish = (tasks: ReturnType<typeof activity>[]) => {
     reads.length = 0;
@@ -34,11 +35,16 @@ test("分屏可见时无需点击即已读，Activity 隐藏后新通知保持�
     const pane = screen.getByRole("region", { name: "right" }).element();
     pane.scrollTop = 100;
     pane.dispatchEvent(new Event("scroll"));
-    publish([activity("right", "failed")]);
+    const viewedFailure = activity("right", "failed", 2);
+    publish([viewedFailure]);
     expect(reads).toContain("right");
     await screen.rerender(view(false));
-    publish([activity("right", "completed")]);
+    // 模拟进入设置后重新读取同一结果；新回合在隐藏时结束才保留提醒。
+    publish([viewedFailure]);
+    expect(runtime.getTaskActivity().get("visibility-test\u0000right")?.attention).toBeNull();
+    publish([activity("right", "completed", 3)]);
     expect(reads).not.toContain("right");
+    expect(runtime.getTaskActivity().get("visibility-test\u0000right")?.attention).toBe("completed");
     await screen.rerender(view(true));
     expect(reads).toContain("right");
     expect(runtime.getTaskActivity().get("visibility-test\u0000right")?.attention).toBeNull();

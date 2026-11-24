@@ -7,6 +7,8 @@ use crate::domain::runtime::AgentEvent;
 const MAX_TASK_METADATA: usize = 2_048;
 #[path = "task_activity_async_questions.rs"]
 pub(super) mod async_questions;
+#[path = "task_activity_terminal_events.rs"]
+mod terminal_events;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -29,6 +31,8 @@ pub struct TaskActivitySnapshot {
     pub(super) status: TaskActivityStatus,
     pub(super) task_id: String,
     pub(super) task_name: String,
+    #[serde(skip)]
+    pub(super) terminal_sequence: Option<u64>,
 }
 
 #[derive(Clone, Debug)]
@@ -67,20 +71,6 @@ pub(super) struct TaskActivityState {
 }
 
 impl TaskActivityState {
-    pub(super) fn acknowledge(&mut self, project_id: &str, task_id: &str) -> bool {
-        let Some(index) = self.activity_index(project_id, task_id) else {
-            return false;
-        };
-        if matches!(
-            self.activities[index].snapshot.status,
-            TaskActivityStatus::Running | TaskActivityStatus::Waiting
-        ) {
-            return false;
-        }
-        self.activities.remove(index);
-        true
-    }
-
     pub(super) fn fail_active(&mut self) -> bool {
         let mut changed = false;
         for record in &mut self.activities {
@@ -89,6 +79,7 @@ impl TaskActivityState {
                 TaskActivityStatus::Running | TaskActivityStatus::Waiting
             ) {
                 record.snapshot.status = TaskActivityStatus::Failed;
+                record.snapshot.terminal_sequence = None;
                 record.clear_pending_requests();
                 changed = true;
             }
@@ -226,25 +217,6 @@ impl TaskActivityState {
         }
     }
 
-    pub(super) fn apply_event_for_viewed_task(
-        &mut self,
-        project_id: &str,
-        event: &AgentEvent,
-        task_is_viewed: bool,
-    ) -> bool {
-        let changed = self.apply_event(project_id, event);
-        let terminal_event = event.event_type() == Some("turn.completed")
-            || (event.event_type() == Some("task.status_updated")
-                && event_text(event, "/payload/status") == Some("idle"));
-        if !task_is_viewed || !terminal_event {
-            return changed;
-        }
-        let acknowledged = event
-            .task_id()
-            .is_some_and(|task_id| self.acknowledge(project_id, task_id));
-        changed || acknowledged
-    }
-
     pub(super) fn remember_project_root(&mut self, project_id: &str, root_path: Option<&str>) {
         let Some(root_path) = normalized(root_path) else {
             return;
@@ -331,18 +303,22 @@ impl TaskActivityState {
             }
             return;
         }
-        match status {
-            "running" => self.remember_running_activity(project_id, task_id, started_at),
-            "failed" => {
-                self.set_terminal_status(project_id, task_id, true);
-            }
-            _ => {
-                // 普通空闲任务不创建活动；已有运行记录必须由权威快照收敛为完成。
-                if let Some(index) = self.activity_index(project_id, task_id) {
-                    let record = &mut self.activities[index];
-                    record.snapshot.status = TaskActivityStatus::Completed;
-                    record.clear_pending_requests();
-                }
+        if status == "running" {
+            self.remember_running_activity(project_id, task_id, started_at);
+        } else if let Some(index) = self.activity_index(project_id, task_id) {
+            let record = &mut self.activities[index];
+            // 详情只收敛活跃任务，避免历史失败重新生成提醒或被空闲快照降级。
+            if matches!(
+                record.snapshot.status,
+                TaskActivityStatus::Running | TaskActivityStatus::Waiting
+            ) {
+                record.snapshot.status = if status == "failed" {
+                    TaskActivityStatus::Failed
+                } else {
+                    TaskActivityStatus::Completed
+                };
+                record.snapshot.terminal_sequence = None;
+                record.clear_pending_requests();
             }
         }
     }
@@ -407,6 +383,7 @@ impl TaskActivityState {
                 requires_approval: false,
                 root_path: metadata.and_then(|metadata| metadata.root_path.clone()),
                 started_at: None,
+                terminal_sequence: None,
                 status: TaskActivityStatus::Running,
                 task_id: task_id.to_owned(),
                 task_name: metadata

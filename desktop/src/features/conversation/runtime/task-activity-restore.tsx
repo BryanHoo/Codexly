@@ -39,8 +39,8 @@ export function TaskActivityRestore() {
 
   useEffect(() => {
     // 可见窗口在终态到达时也要确认原生活动，不能只在用户点击导航时确认。
-    projectRuntime.onTaskActivityViewed = (projectId, taskId) => {
-      void acknowledgeTaskActivity(projectId, taskId).catch((error: unknown) =>
+    projectRuntime.onTaskActivityViewed = (projectId, taskId, sequence) => {
+      void acknowledgeTaskActivity(projectId, taskId, sequence).catch((error: unknown) =>
         recordInternalWarning("task_activity_acknowledge_failed", error, { projectId, taskId }));
     };
     const stop = installTaskActivitySync({
