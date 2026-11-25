@@ -12,19 +12,15 @@ interface SetupClient extends AcpEngineSetupClient {
   getCapabilities: (options: { signal: AbortSignal }) => Promise<AgentCapabilities>;
 }
 
-/** 运行时选择不触发厂商探测；沿用工作区能力缓存，旧实现只在旧分支加载。 */
+/** 沿用工作区能力缓存确认宿主可达，Agent 发现统一通过 ACP 目录。 */
 export function AgentRuntimeSetupGate({
   client,
   children,
-  legacy,
   language,
-  claudeSupported = true,
 }: Readonly<{
   client: SetupClient;
   children: ReactNode;
-  legacy: ReactNode;
   language: string;
-  claudeSupported?: boolean;
 }>) {
   const capabilities = useQuery({
     queryKey: ["capabilities"],
@@ -45,13 +41,9 @@ export function AgentRuntimeSetupGate({
   if (!capabilities.data) return loading;
   return (
     <Suspense fallback={loading}>
-      {capabilities.data.runtime === "acp" ? (
-        <AcpSetup client={client} language={language} claudeSupported={claudeSupported}>
-          {children}
-        </AcpSetup>
-      ) : (
-        legacy
-      )}
+      <AcpSetup client={client} language={language}>
+        {children}
+      </AcpSetup>
     </Suspense>
   );
 }

@@ -31,7 +31,6 @@ for (const [platform, Gate, client] of [
     const failed = vi.spyOn(toast, "error");
     const pending = Promise.withResolvers<AcpAgentCatalogPage>();
     const capabilities = vi.spyOn(client, "getCapabilities").mockResolvedValue({
-      runtime: "acp",
       provider: "codex",
       feedback: { upload: false },
       goals: { clear: false, read: false, update: false },
@@ -85,15 +84,22 @@ for (const [platform, Gate, client] of [
       query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       screen = await render(
         <QueryClientProvider client={query}>
-          <Gate><Workspace /></Gate>
+          <Gate>
+            <Workspace />
+          </Gate>
         </QueryClientProvider>,
       );
       await expect.poll(() => catalog.mock.calls.length).toBe(2);
       expect(loading).toHaveBeenCalledTimes(loadingCount);
       reloaded.resolve(await pending.promise);
-      await expect.element(screen.getByText("已进入工作区：acp-gemini", { exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByText("已进入工作区：acp-gemini", { exact: true }))
+        .toBeVisible();
       expect(ready).toHaveBeenCalledOnce();
-      expect(JSON.parse(localStorage.getItem(PRIVATE_KEY) ?? "null")).toEqual({ engines: ["acp-gemini"], complete: true });
+      expect(JSON.parse(localStorage.getItem(PRIVATE_KEY) ?? "null")).toEqual({
+        engines: ["acp-gemini"],
+        complete: true,
+      });
       expect(localStorage.getItem(ENGINE_SETUP_KEY)).toBe(oldMarker);
       await screen.unmount();
       query.clear();
@@ -102,7 +108,9 @@ for (const [platform, Gate, client] of [
       query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       screen = await render(
         <QueryClientProvider client={query}>
-          <Gate><Workspace /></Gate>
+          <Gate>
+            <Workspace />
+          </Gate>
         </QueryClientProvider>,
       );
       await expect.poll(() => failed.mock.calls.length).toBe(1);

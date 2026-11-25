@@ -46,7 +46,7 @@ describe("commitSelectedProjectChanges", () => {
     const root = await createRepository();
     const paths = Array.from({ length: 800 }, (_, index) => {
       const directory = index < 400 ? "staged" : "unstaged";
-      return `${directory}/${"long-file-name-".repeat(8)}${index}.txt`;
+      return `${directory}/${"long-file-name-".repeat(8)}${String(index)}.txt`;
     });
     await Promise.all(["staged", "unstaged"].map((directory) => mkdir(join(root, directory))));
     await Promise.all(paths.map((path) => writeFile(join(root, path), path)));

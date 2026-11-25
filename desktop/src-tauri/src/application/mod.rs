@@ -35,7 +35,6 @@ pub mod desktop_pet_commands;
 mod desktop_pet_panel;
 mod desktop_pet_window;
 pub mod diagnostic_commands;
-pub mod engine_setup;
 pub mod error;
 pub mod notification_commands;
 pub(crate) mod notification_delivery;

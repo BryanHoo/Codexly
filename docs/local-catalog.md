@@ -4,7 +4,7 @@ Codexly 是目录、任务及其管理状态的唯一数据源。Web 和桌面�
 
 ## 设计依据
 
-[Codex App Server](https://learn.chatgpt.com/docs/app-server) 提供 thread/start、thread/resume、thread/fork 和分页历史接口。[Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/sessions) 也通过独立 session ID 恢复会话。因此应用任务和引擎会话采用两种身份：应用 ID 用于路由、偏好、附件和事件；provider + sessionId 只用于执行适配器。
+ACP 为每个执行会话返回独立的 session ID。应用任务 ID 用于路由、偏好、附件和事件；引擎与 session ID 用于在同一个 Agent 上恢复原会话。
 
 目录与任务元数据采用 SQLite，沿用项目已有的 Worker 与异步 I/O 边界。SQLite 的 [WAL](https://www.sqlite.org/wal.html) 支持读写并行；[外键约束](https://www.sqlite.org/foreignkeys.html) 与事务保证迁移、目录删除及任务归属的一致性。实现不复制引擎的整个 Thread JSON，不新增轮询同步。
 
@@ -79,20 +79,11 @@ Web 与桌面共用 `local-catalog-schema.json` 中的 `previewSql`，通过独�
 5. Web 在同一事务迁移任务偏好、队列和异步问题的作用域；拆分目录复制项目默认值。桌面端复制任务偏好和项目默认值，保留旧文件以便失败重试。
 6. 记录与完成标记同时提交。分页错误、约束失败或文件复制失败不会标记完成；成功后重启不再从上游重建目录或覆盖本地名称。
 
-删除应用目录只移除应用记录及相关状态，不删除用户磁盘文件夹。显式归档、恢复或永久删除任务则优先使用底层 Agent 的开放能力，成功后再更新应用记录；应用独占的临时任务工作区继续按现有安全边界清理。
+删除应用目录只移除应用记录及相关状态，用户磁盘文件夹继续可用。应用独占的临时工作区沿用既有清理流程。
 
 ### 归档、恢复与永久删除
 
-| 引擎                     | 归档与恢复                                                                           | 永久删除                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| Codex                    | 使用原生 sessionId 调用 `thread/archive`、`thread/unarchive`，同步底层历史的归档状态 | 调用 `thread/delete`，清理原生历史后移除应用任务及关联状态                        |
-| Claude Agent SDK 0.3.316 | 未开放会话归档接口，保留应用本地归档及恢复，历史不删除                               | 调用官方 `deleteSession(sessionId, { dir: cwd })`，再清理应用历史、附件和任务记录 |
-
-Codex 能力依据为 [官方 App Server 文档](https://developers.openai.com/codex/app-server#api-overview)及项目固定的 0.166.0 协议；归档和删除可能同时处理原生派生子会话。Claude 能力核对 [官方 TypeScript SDK 参考](https://code.claude.com/docs/en/agent-sdk/typescript)与已安装 SDK 的公开类型：`deleteSession` 明确删除本地会话正文及子代理正文目录，当前没有 `archiveSession` 导出。
-
-Web、移动浏览器和桌面遵循相同顺序：先校验任务归属及运行状态，再调用底层能力，最后提交本地管理状态。无原生会话绑定的空任务只操作应用记录，不为管理操作创建会话，也不要求引擎在线。Codex 仅在官方 RPC 明确返回方法不存在（`-32601`）时回退本地操作；断连、超时、权限或其他错误会保留本地记录供用户重试，不能作为“不支持”处理。已删除原生会话的精确 not-found 响应允许完成剩余本地删除。
-
-旧版本仅在本地归档的 Codex 会话，恢复时可能得到“没有归档历史”的原生响应；适配器会按原生 ID 读取元数据确认会话仍存在后再恢复本地状态，不读取完整正文。旧导入会话在真正恢复执行时仍保留按需 unarchive 的兼容路径。整个流程不新增后台同步、轮询或逐任务启动预热。
+归档和恢复更新应用目录，Web 和桌面读取同一状态。永久删除先校验任务归属与运行状态。对于尚未绑定会话的任务，直接清理应用记录。已绑定任务需要 Agent 公布 `sessionCapabilities.delete`，由共享运行时调用 `session/delete`；成功或 ACP 明确返回会话不存在后，才清理应用历史、附件与任务记录。能力缺失或请求失败时保留记录。
 
 早期本地迁移若把 macOS/Linux 的路径比较键写成小写反斜杠路径，启动时会根据原 Codex 目录恢复正确路径，同时保留本地项目 ID、名称、任务和设置。修复只在检测到这种异常时读取原目录，正常启动不重新同步上游管理状态。
 

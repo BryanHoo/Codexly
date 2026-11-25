@@ -63,8 +63,9 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
     await browser.refresh();
     await waitForWebviewBridge(async () => {
       const ready = await browser.execute(
-        () => window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__ !== undefined
-          && window.__CODEAGENT_WEBVIEW_TEST_READY__ !== true,
+        () =>
+          window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__ !== undefined &&
+          window.__CODEAGENT_WEBVIEW_TEST_READY__ !== true,
       );
       if (!ready) throw new Error("Fresh WebView test bridge is unavailable");
     });
@@ -117,7 +118,6 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           updateAvailable: false,
         },
         get_global_settings: { settings },
-        get_configured_engines: ["codex"],
         get_project_defaults: { settings: projectDefaults },
         get_project_git_status: gitStatus,
         get_project_open_capabilities: {

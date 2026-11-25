@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { lstat, mkdtemp, open, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -11,11 +11,9 @@ import {
   SaveDiagnosticsResponseSchema,
   type SaveDiagnosticsRequest,
 } from "@codexly/protocol";
-import type { AgentRuntimeProvider } from "@codexly/core";
 import type { FastifyInstance } from "fastify";
 import { ACCESS_SESSION_COOKIE } from "./routes/access-routes.js";
 
-const MAX_NATIVE_BYTES = 256 * 1024 * 1024;
 const DOWNLOAD_TTL_MS = 5 * 60_000;
 interface ExportFile {
   directory: string;
@@ -25,10 +23,7 @@ interface ExportFile {
   timer: NodeJS.Timeout;
 }
 
-export function registerCodexDiagnosticRoutes(
-  app: FastifyInstance,
-  provider: Pick<AgentRuntimeProvider, "saveCodexDiagnostics">,
-): void {
+export function registerDiagnosticArchiveRoutes(app: FastifyInstance): void {
   const files = new Map<string, ExportFile>();
   const cleanups = new Set<Promise<unknown>>();
   const generations = new Set<Promise<unknown>>();
@@ -47,10 +42,10 @@ export function registerCodexDiagnosticRoutes(
     return pending;
   };
   app.post<{ Body: SaveDiagnosticsRequest }>(
-    "/v1/diagnostics/codex",
+    "/v1/diagnostics/archive",
     {
       bodyLimit: 10 * 1024 * 1024,
-      handlerTimeout: 150_000,
+      handlerTimeout: 30_000,
       schema: {
         body: SaveDiagnosticsRequestSchema,
         response: { 200: SaveDiagnosticsResponseSchema },
@@ -70,29 +65,6 @@ export function registerCodexDiagnosticRoutes(
         return reply.code(500).send({ message: "Diagnostic export failed" });
       }
       const generation = (async () => {
-        const nativePath = join(directory, "codex.zip");
-        let nativeStatus: "included" | "unavailable" = "unavailable";
-        try {
-          if (provider.saveCodexDiagnostics) {
-            await provider.saveCodexDiagnostics(nativePath);
-            const metadata = await lstat(nativePath);
-            if (!metadata.isFile() || metadata.size < 4 || metadata.size > MAX_NATIVE_BYTES)
-              throw new Error("invalid native archive");
-            const file = await open(nativePath, "r");
-            try {
-              const signature = Buffer.alloc(4);
-              await file.read(signature, 0, 4, 0);
-              if (!signature.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])))
-                throw new Error("invalid native archive");
-            } finally {
-              await file.close();
-            }
-            nativeStatus = "included";
-          }
-        } catch {
-          // 运行时故障正是导出的常见原因；只记录固定状态，不泄露上游路径或错误正文。
-          app.log.warn({ event: "codex_diagnostics_unavailable" });
-        }
         const path = join(directory, "diagnostics.zip");
         const archive = new ZipFile();
         const output = createWriteStream(path, { flags: "wx", mode: 0o600 });
@@ -100,17 +72,15 @@ export function registerCodexDiagnosticRoutes(
         archive.on("error", (error: unknown) => {
           output.destroy(error instanceof Error ? error : new Error("Diagnostic archive failed"));
         });
-        // 应用快照有界，原生 ZIP 按流存储，避免再次压缩和加载整份原生诊断。
+        // 应用快照有界，写入临时 ZIP 时沿用流式输出和现有下载租约。
         archive.addBuffer(Buffer.from(request.body.application), "application.json", {
           compress: false,
         });
         archive.addBuffer(
-          Buffer.from(JSON.stringify({ version: 1, codexDiagnostics: { status: nativeStatus } })),
+          Buffer.from(JSON.stringify({ version: 1, runtime: "acp" })),
           "manifest.json",
           { compress: false },
         );
-        if (nativeStatus === "included")
-          archive.addFile(nativePath, "codex/diagnostics.zip", { compress: false });
         archive.end();
         await writing;
         return path;

@@ -123,19 +123,12 @@ describe("CI 质量门禁", () => {
   });
 
   it("应用包只通过 ACP 目录获取 Agent", () => {
-    const root = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
-      dependencies: Record<string, string>;
-      devDependencies: Record<string, string>;
-    };
-    const codex = JSON.parse(
-      readFileSync(join(process.cwd(), "packages/provider-codex/package.json"), "utf8"),
-    ) as Omit<typeof root, "devDependencies"> & { devDependencies?: Record<string, string> };
+    const lock = readFileSync(join(process.cwd(), "pnpm-lock.yaml"), "utf8");
+    const tauri = readFileSync(join(process.cwd(), "desktop/src-tauri/build.rs"), "utf8");
     for (const name of ["@anthropic-ai/claude-agent-sdk", "@openai/codex"]) {
-      expect(root.dependencies[name]).toBeUndefined();
-      expect(root.devDependencies[name]).toBeUndefined();
+      expect(lock).not.toContain(name);
     }
-    expect(codex.dependencies["@openai/codex"]).toBeUndefined();
-    expect(codex.devDependencies?.["@openai/codex"]).toBeUndefined();
+    expect(tauri).not.toContain("get_configured_engines");
   });
 
   it("分离增量构建与 Release clean build", () => {

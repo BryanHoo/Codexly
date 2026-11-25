@@ -131,7 +131,9 @@ export async function loadAcpSession(
         !source.repairHistory &&
         task.status === "idle" &&
         (await source.history.hasCompleteHistory(task.id));
-      if (complete) await connection.resumeSession(request);
+      // 只支持 resume 的 Agent 仍可续聊。本地正文继续保留，只有显式修复才必须重放。
+      if (complete || (!source.repairHistory && !evicted && !connection.canReplaySessions))
+        await connection.resumeSession(request);
       else {
         const replay = new AcpReplay(source.history, task.id);
         source.replays.set(sessionId, replay);

@@ -34,7 +34,6 @@ Codexly 不联动写入 `model_auto_compact_token_limit`：该字段有独立的
 - [配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)：`model_context_window` 与自动压缩阈值定义。
 - [配置基础](https://learn.chatgpt.com/docs/config-file/config-basic)：用户配置目录与配置优先级。
 - [GPT-5.4 模型文档](https://developers.openai.com/api/docs/models/gpt-5.4)：272K 长上下文计费分界和 1,050,000 tokens 最大窗口。
-- 官方源码：`codex-rs/config/src/config_toml.rs` 定义整数配置；`codex-rs/models-manager/src/model_info.rs` 应用模型窗口覆盖及最大值限制；`codex-rs/app-server/src/config_manager_service.rs` 处理 `null` 删除与配置写入。
 
 ## Claude 上下文管理
 

@@ -72,7 +72,6 @@ fn main() {
         "download_workbench_background",
         "list_workbench_pets",
         "download_workbench_pet",
-        "get_configured_engines",
         "get_temporary_workspace_settings",
         "choose_temporary_workspace_root",
         "get_global_instructions",

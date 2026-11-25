@@ -1,4 +1,4 @@
-import type { SessionConfigOption } from "@agentclientprotocol/sdk/unstable";
+import type { SessionConfigOption, SessionModeState } from "@agentclientprotocol/sdk/unstable";
 import type { AgentModelPage, AcpConfigOption } from "@codexly/protocol";
 
 type SelectOptions = Extract<AcpConfigOption, { type: "select" }>["options"];
@@ -6,6 +6,22 @@ type SelectOptions = Extract<AcpConfigOption, { type: "select" }>["options"];
 /** v1 选项 ID 与应用持久化契约一致，保留 Agent 的原始顺序和值。 */
 export function projectAcpConfig(options: SessionConfigOption[]): AcpConfigOption[] {
   return structuredClone(options);
+}
+
+export const ACP_V1_MODE_OPTION = "_codexly_v1_mode";
+
+/** 较早的 v1 Agent 通过 modes 公布同一组选择，沿用共享设置和验证逻辑。 */
+export function projectAcpModes(modes: SessionModeState): AcpConfigOption[] {
+  return [
+    {
+      id: ACP_V1_MODE_OPTION,
+      category: "mode",
+      type: "select",
+      name: "Mode",
+      currentValue: modes.currentModeId,
+      options: modes.availableModes.map(({ id, ...choice }) => ({ ...choice, value: id })),
+    },
+  ];
 }
 
 export function acpSelectOptions(options: SelectOptions) {

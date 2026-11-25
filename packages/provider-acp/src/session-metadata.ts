@@ -1,4 +1,4 @@
-import { projectAcpConfig } from "./session-options.js";
+import { ACP_V1_MODE_OPTION, projectAcpConfig } from "./session-options.js";
 import type {
   AvailableCommand,
   SessionNotification,
@@ -15,6 +15,7 @@ interface Entry {
   json: string;
   bytes: number;
   usage: AgentContextUsage | null;
+  usesV1Modes: boolean;
 }
 
 /** 保存 ACP 会话元数据；允许创建响应前的命令更新，不为聊天 token 分配缓存。 */
@@ -54,14 +55,23 @@ export class AcpSessionMetadataStore {
   foreground(sessionId: string, foreground: "running" | "idle") {
     return this.#write(sessionId, { ...this.read(sessionId), foreground });
   }
-  configure(sessionId: string, configOptions: AcpConfigOption[], commands?: AvailableCommand[]) {
-    return this.#write(sessionId, {
+  configure(sessionId: string, configOptions: AcpConfigOption[], usesV1Modes?: boolean) {
+    const state = this.#write(sessionId, {
       ...this.read(sessionId),
       configOptions,
-      availableCommands: commands
-        ? this.#commands(commands)
-        : (this.#entries.get(sessionId)?.value.availableCommands ?? []),
     });
+    const entry = this.#entries.get(sessionId);
+    if (entry && usesV1Modes !== undefined) entry.usesV1Modes = usesV1Modes;
+    return state;
+  }
+  v1ModeOptions(sessionId: string, value: string): AcpConfigOption[] | undefined {
+    const entry = this.#entries.get(sessionId);
+    if (!entry?.usesV1Modes) return undefined;
+    return entry.value.configOptions.map((option) =>
+      option.type === "select" && option.id === ACP_V1_MODE_OPTION
+        ? { ...option, currentValue: value }
+        : option,
+    );
   }
   update({ sessionId, update }: SessionNotification): AcpSessionMetadata | undefined {
     if (update.sessionUpdate === "usage_update") {
@@ -73,7 +83,11 @@ export class AcpSessionMetadataStore {
       return undefined;
     }
     if (update.sessionUpdate === "config_option_update")
-      return this.configure(sessionId, projectAcpConfig(update.configOptions));
+      return this.configure(sessionId, projectAcpConfig(update.configOptions), false);
+    if (update.sessionUpdate === "current_mode_update") {
+      const options = this.v1ModeOptions(sessionId, update.currentModeId);
+      return options ? this.configure(sessionId, options) : undefined;
+    }
     if (update.sessionUpdate === "session_info_update") {
       const { updatedAt } = update;
       if (updatedAt === undefined) return undefined;
@@ -118,7 +132,13 @@ export class AcpSessionMetadataStore {
     if (bytes > 256 * 1024 || total > 4 * 1024 * 1024)
       throw new Error("ACP 会话元数据超过字节预算");
     const copy = structuredClone(value);
-    this.#entries.set(sessionId, { value: copy, json, bytes, usage: previous?.usage ?? null });
+    this.#entries.set(sessionId, {
+      value: copy,
+      json,
+      bytes,
+      usage: previous?.usage ?? null,
+      usesV1Modes: previous?.usesV1Modes ?? false,
+    });
     this.#bytes = total;
     return structuredClone(copy);
   }

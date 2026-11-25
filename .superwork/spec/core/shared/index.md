@@ -44,9 +44,10 @@
 - 审核、模型及其他会话配置以 Agent 已确认的完整选项保存到任务私有初始化记录，与新会话全局默认值独立。历史任务重新打开或进程重启后先恢复当前仍公布的合法值，再发布会话状态；暂时缺失或失效的选项保留私有原值。旧任务缺少快照时首次沿用 Agent 返回配置。配置只在初始化、明确修改及发送边界保存，不能随聊天增量写盘。回归入口为 `provider-lifecycle.test.ts` 的重新打开和 Provider 重建用例。
 - 发送取消通知后，Agent 通过请求取消信号终止关联审批，并通过 v1 `session/prompt` 响应报告回合停止原因。超时只把目标回合结算为结果未知，原请求和取消通知收敛前隔离该会话；不得为回收取消占用而中断其他回合或销毁不可恢复的会话。
 - ACP 回合增量正常流式交付；持久回合只在历史提交后发出完成事件并允许队列续发。短暂写入错误只按原回合 ID 有界重试，永久故障保留当前可见内容且不发布成功。超长正文与工具详情以任务归属校验的分块附件保留，聊天快照只携带内联预览和引用；实时与重放使用同一预算和内容指纹。
-- 可重放正文是共享缓存：v1 握手确认 `loadSession` 能力后才允许淘汰，闲置正文容量目标 256 MiB；会话能力未知时保守保留历史。视图、运行、搜索和导出通过 SQLite owner CAS 使用租约保护，释放后按最近访问回收；新生成的回答续文与工具详情附件计入缓存，用户上传和旧版混合附件保守保留，不能删除任务或独有附件。重放只留当前及一个旧代际，过期游标明确失效，历史被淘汰后即使仍有暖绑定也必须重新请求重放。原生 stdio 已断开时不再请求释放租约，由下一进程确认旧 PID 死亡后接管。回归入口为 `history-cache.test.ts`、`provider-history-cache.test.ts` 与根 `src/acp-history-cache.test.ts`。
+- 可重放正文是共享缓存：v1 握手确认 `loadSession` 能力后才允许淘汰。闲置正文容量目标 256 MiB；会话能力未知时保守保留历史。视图、运行、搜索和导出通过 SQLite owner CAS 使用租约保护，释放后按最近访问回收；新生成的回答续文与工具详情附件计入缓存，用户上传和旧版混合附件保守保留，不能删除任务或独有附件。重放只留当前及一个旧代际，过期游标明确失效，历史被淘汰后即使仍有暖绑定也必须重新请求重放。原生 stdio 已断开时不再请求释放租约，由下一进程确认旧 PID 死亡后接管。回归入口为 `history-cache.test.ts`、`provider-history-cache.test.ts` 与根 `src/acp-history-cache.test.ts`。
 - 历史重放按顺序及正文指纹保留原回合 / 消息身份和附件。错位后仅在有界窗口内按唯一的完整指纹重新对齐，不以相似内容推断。近期回合提交凭证与历史字节边界一并原子发布，正常追加不再扫描历史页。搜索只匹配可见正文，缓存搜索不启动 agent，冷搜索仅加载原会话且必须可取消、关闭和限制并发。
-- 共享连接仅接受 ACP v1。完整本地历史只有在 Agent 声明 `sessionCapabilities.resume` 后才通过 `session/resume` 绑定；否则使用 `session/load` 并忽略已有缓存对应的回放。缓存缺失或损坏时必须使用 `session/load`，等待成功响应及此前投影完成后提交；不发送 v2 的 `replayFrom`，不等待 `replay_complete`。旧游标、普通 I/O 错误和活动回合不能触发重放。[ACP v1 会话规范](https://agentclientprotocol.com/protocol/v1/session-setup)
+- 共享连接使用 ACP v1。有完整缓存时优先使用已声明的 `session/resume`，也可以通过 `session/load` 绑定原会话。仅支持 resume 的 Agent 可继续原会话并保留本地历史。历史重建和修复需要 `session/load` 及完整回放，等待响应和此前投影后提交。旧游标、普通 I/O 错误和活动回合不能触发重放。[ACP v1 会话规范](https://agentclientprotocol.com/protocol/v1/session-setup)
+- 会话创建和恢复优先采用 Agent 公布的 `configOptions`。仅公布 v1 `modes` 的 Agent 复用共享下拉，切换走 `session/set_mode`，主动模式变更走 `current_mode_update`。回归见 `connection-v1.test.ts`。
 - 快照同步捕获时，只有历史正文与最新完整 `acp.session.updated` 状态同时纳入快照，才能覆盖冷加载期间的会话状态通知。旧状态、缺失状态和其他结构变化沿用一致性校验。回归入口为 [快照检查点测试](../../../../packages/core/src/task-snapshot-checkpoint.test.ts)。
 - v1 `session/prompt` 响应返回整个回合的 `stopReason`，不等待 v2 前台终态、不发送 v2 幂等键、不伪造接受回执。应用持久提交记录继续去重，发送结果不明时不得自动重发。缺少消息 ID 时按连续角色段生成局部身份，回放通过顺序及完整指纹保留历史身份。[ACP v1 回合规范](https://agentclientprotocol.com/protocol/v1/prompt-turn)
 - v1 工具创建与更新分别消费 `tool_call` 和 `tool_call_update`；文件差异消费 `path`、`oldText`、`newText`，空新正文不能推断为删除。v1 不公布 v2 后台清单或单项取消方法。引导仅使用已显式协商的适配器安全扩展。
@@ -70,8 +71,8 @@
 
 ## 外部客户端占用的 Codex 历史
 
-- Codex Agent 返回精确匹配当前会话的 `RequestError(-32600)` 和 `data.reason=thread_active_writer` 时，快照携带 `writeAccess=external`。占用期间通过原生只读 RPC 分页读取历史，不恢复会话或取得写入权。只读页的游标同时绑定应用任务与原生会话，附件复用持久仓储；取消与失败均回收独占读取进程。只读读取失败时仍展示已有缓存，冷会话及损坏缓存可通过只读接口获取正文。
+- Codex Agent 返回精确匹配当前会话的 `RequestError(-32600)` 和 `data.reason=thread_active_writer` 时，快照携带 `writeAccess=external`。占用期间保留已有的 ACP 历史快照，等待占用解除后由原 Agent 恢复或重放。
 - 首屏通过 `checkWriteAccess` 确认写入权，旧页使用绑定任务及版本的 ACP 游标。两端保留草稿、禁用输入并说明已同步历史的范围，重新打开后重新确认。
-- 回归入口为 `packages/provider-acp/src/task-snapshot-ownership.test.ts`，覆盖热缓存、冷缓存、续页、外部占用解除及缓存损坏；原生只读分页与释放覆盖见 `packages/provider-codex/src/read-only-history.test.ts`。
+- 回归入口为 `packages/provider-acp/src/task-snapshot-ownership.test.ts`，覆盖热缓存、冷缓存、续页、外部占用解除及缓存损坏；正文来自 ACP 重放或应用已保存的快照。
 
 - 输入占用遮罩必须限定在编辑框的边框内，居中显示提示，不覆盖项目底栏、阴影或外部留白；沿用明暗主题的浮层底色与控件灰度。外层仍负责禁用和 Portal 事件拦截，无障碍状态提示放在 inert 之外。布局回归核对四边与编辑框一致，覆盖宽窄屏及明暗主题。

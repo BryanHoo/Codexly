@@ -17,7 +17,7 @@
 | 能力                                  | 当前实现与边界                                                                                                                |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | v1 初始化、stdio 与协议版本校验       | `packages/provider-acp/src/connection.ts`、`process.ts`；客户端仅声明已实现能力                                               |
-| 新建、加载与续聊                      | `connection.ts`、`session-loading.ts`；声明 resume 扩展且本地正文完整时才使用无回放绑定，否则 load                            |
+| 新建、加载与续聊                      | `connection.ts`、`session-loading.ts`；仅支持 resume 时沿用本地正文并绑定原会话，完整回放需要 load                            |
 | 历史目录分页发现                      | `catalog-import.ts`；有条目、游标预算与循环游标保护                                                                           |
 | 单会话关闭、原生删除                  | `connection.ts`；能力门控，未支持 close 的会话继续计入真实容量                                                                |
 | 消息、公开思考、计划、工具与文件 diff | `event-projection.ts`、`file-changes.ts`；逐增量投影，有界保留与附件溢出                                                      |
@@ -43,7 +43,7 @@
 | 中     | 客户端文件系统 RPC             | 未注册 `fs/read_text_file`、`fs/write_text_file`，未声明 fs。Agent 仍可自行读写磁盘；若要提供编辑器未保存正文，须接入共享编辑缓冲区和客户端路径授权，不能只开能力开关                                                       |
 | 中     | 客户端终端 RPC 与终端引用展示  | 未注册 `terminal/*`，未声明 terminal。Agent 自行执行命令可用；标准终端引用尚不能查询输出。需要有界输出、字符边界截断、退出/kill/release 和连接结束回收                                                                      |
 | 中     | 富内容展示                     | 本次补齐工具内容中的文本、嵌入文本资源和资源链接；混合 diff/terminal、图片、音频及二进制资源仍回退 JSON。聊天正文中的非文本块也未完整保留为可交互附件；不能仅优化工具面板便声称多模态输出完整支持                           |
-| 低     | 仅提供旧 modes/models 的 Agent | 当前配置入口基于 configOptions；没有完整旧模式 API 回退。官方优先推荐 configOptions，是否增加兼容层应由目标 Agent 实测需求决定                                                                                              |
+| 低     | 仅提供实验性旧 models 的 Agent | 配置入口优先读取 configOptions；稳定 v1 modes 已接入。早期实验性模型字段依赖 Agent 升级至标准配置选项                                                                                                                       |
 | 待评估 | 原生 fork、systemPrompt 等扩展 | 共享能力明确关闭 fork；扩展需要按所用 SDK/schema 和 Agent 握手逐项验证，不能把官方 RFD 当作稳定必选项。当前全局指令已有原生文件路径，不应另建相互冲突的指令来源                                                             |
 
 费用统计目前不作为新增目标：项目已移除历史用量统计；当前 usage 只显示上下文占用。远端 ACP 传输也不应与 Web 客户端访问本机服务混为一谈。

@@ -60,7 +60,7 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      # 在真实 Darwin runner 上验证 Web 目录浏览、原生 Codex 包解析与宿主命令分支，不重复完整 E2E。
+      # 在真实 Darwin runner 上验证 Web 目录浏览、ACP 稳定协议与宿主命令分支，不重复完整 E2E。
       - name: Run macOS smoke tests
         run: |
           test_files=(
@@ -68,7 +68,7 @@ jobs:
             apps/web/src/features/projects/components/project-directory-picker-dialog.test.tsx
             src/system-browser.test.ts
             packages/server/src/project-open.test.ts
-            packages/provider-codex/src/binary.test.ts
+            packages/provider-acp/src/connection-v1.test.ts
           )
           # Vitest 会忽略不存在的过滤项，运行前必须逐项校验。
           for test_file in "${test_files[@]}"; do

@@ -103,11 +103,7 @@ $RECYCLE.BIN/
 .directory
 .Trash-*
 
-# Generated standalone Claude SDK runtime (rebuilt for each host platform).
-desktop/src-tauri/resources/claude/
-desktop/src-tauri/resources/claude-native-cache/
 
 desktop/src-tauri/resources/runtime/
 desktop/src-tauri/resources/.runtime-*/
-desktop/src-tauri/resources/codex-native-cache/
 desktop/src-tauri/binaries/

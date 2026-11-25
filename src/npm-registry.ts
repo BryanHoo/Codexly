@@ -39,7 +39,6 @@ export function runNpmWithRegistryFallback(
         [
           ...args.slice(0, 1),
           `--registry=${registry}`,
-          `--@openai:registry=${registry}`,
           `--@bryanhu:registry=${registry}`,
           // 沿用用户的持久 npm cache，并保留 npm 默认的过期元数据重新校验行为。
           // 限制单源等待，避免 npm 默认重试退避延迟备用源兜底。

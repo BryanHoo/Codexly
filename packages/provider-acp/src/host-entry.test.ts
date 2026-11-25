@@ -22,19 +22,11 @@ it("版本探测不启动 agent，非法参数拒绝，EOF 与截断帧使用不
       runAcpHost(["relative"], { input: new PassThrough(), output }, launch),
     ).rejects.toThrow("绝对路径");
     const input = new PassThrough();
-    const normal = runAcpHost(
-      [root],
-      { input, output },
-      launch,
-    );
+    const normal = runAcpHost([root], { input, output }, launch);
     input.end();
     expect(await normal).toBe(0);
     const broken = new PassThrough();
-    const truncated = runAcpHost(
-      [root],
-      { input: broken, output },
-      launch,
-    );
+    const truncated = runAcpHost([root], { input: broken, output }, launch);
     broken.end(Buffer.from('{"id":1'));
     expect(await truncated).toBe(1);
     const failedInput = new PassThrough();
@@ -43,11 +35,7 @@ it("版本探测不启动 agent，非法参数拒绝，EOF 与截断帧使用不
         callback(new Error("closed output"));
       },
     });
-    const failed = runAcpHost(
-      [root],
-      { input: failedInput, output: failedOutput },
-      launch,
-    );
+    const failed = runAcpHost([root], { input: failedInput, output: failedOutput }, launch);
     failedInput.write('{"id":1,"method":"unknown"}\n');
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {

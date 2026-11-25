@@ -30,7 +30,7 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 - [智能体引擎与连接](agent-engines.md)：Codex / Claude 的配置来源、能力边界及扩展范围。
 - [ACP 接入核对](acp-integration-audit.md)：官方 v1 能力、尚未接入项与跨端优化边界。
 - [模型与思考强度](model-discovery.md)：模型目录、Claude 模型映射与能力来源。
-- [会话记忆摘要](thread-memory.md)：查看与刷新当前 Codex 会话的记忆内容。
+- [会话上下文](thread-memory.md)：查看上下文占用与 Agent 公布的压缩摘要。
 - [模型上下文窗口](model-context-window.md)：两种引擎的窗口和自动压缩设置。
 - [本地目录与任务](local-catalog.md)：同机共享数据、旧数据导入与配置目录。
 - [会话加载与性能](conversation-performance.md)：历史与执行过程按需加载。

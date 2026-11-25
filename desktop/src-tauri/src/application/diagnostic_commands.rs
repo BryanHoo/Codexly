@@ -73,7 +73,7 @@ pub async fn export_diagnostics(
         "exportedAtUnixSeconds": OffsetDateTime::now_utc().unix_timestamp(),
         "os": std::env::consts::OS,
         "schemaVersion": 1,
-        "codexDiagnostics": { "status": "unavailable" },
+        "runtime": "acp",
     });
 
     let archive_destination = destination.clone();

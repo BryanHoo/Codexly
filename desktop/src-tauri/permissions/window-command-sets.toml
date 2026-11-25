@@ -18,7 +18,6 @@ permissions = [
   "allow-save-network-proxy",
   "allow-test-network-proxy",
 
-  "allow-get-configured-engines",
   "allow-enable-autostart",
   "allow-get-tray-icon-visible",
   "allow-set-tray-icon-visible",

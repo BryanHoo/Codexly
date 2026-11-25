@@ -293,11 +293,7 @@ it("原生宿主从可信第四参数只读旧公共偏好，反向目录调用�
       callback();
     },
   });
-  const running = runAcpHost(
-    [join(f.root, "native-acp"), directory],
-    { input, output },
-    f.launch,
-  );
+  const running = runAcpHost([join(f.root, "native-acp"), directory], { input, output }, f.launch);
   try {
     input.write(
       `${JSON.stringify({ id: 1, method: "prompt.start", scope: { id: "temporary", kind: "temporary", rootPath: f.root, runtimeWorkspaceRoots: [f.root] }, params: { taskId: f.task.id, input: f.input } })}\n`,

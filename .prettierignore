@@ -5,4 +5,6 @@ test-results
 .tmp-published-*/
 pnpm-lock.yaml
 .agents
+# Superwork 在本地生成的协作记录采用自己的 JSON 序列化格式。
+.superwork/parallel/**/*.json
 desktop

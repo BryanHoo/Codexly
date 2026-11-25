@@ -93,7 +93,7 @@ export class CodexlyClient extends ApplicationPreferencesHttpClient {
 
   public saveDiagnostics(input: SaveDiagnosticsRequest): Promise<SaveDiagnosticsResponse> {
     return this.request(
-      "/v1/diagnostics/codex",
+      "/v1/diagnostics/archive",
       SaveDiagnosticsResponseSchema,
       {
         method: "POST",

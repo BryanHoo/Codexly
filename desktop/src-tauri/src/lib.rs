@@ -251,7 +251,6 @@ pub fn run() {
             download_workbench_background,
             list_workbench_pets,
             download_workbench_pet,
-            application::engine_setup::get_configured_engines,
             application::personalization_commands::get_global_instructions,
             application::saved_prompts_commands::sync_saved_prompts,
             application::personalization_commands::save_global_instructions,

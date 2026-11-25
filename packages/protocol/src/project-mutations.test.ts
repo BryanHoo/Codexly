@@ -249,7 +249,7 @@ describe("project mutation protocol", () => {
   });
 
   it("accepts the full Web Git status selection for a single commit", () => {
-    const paths = Array.from({ length: 1_000 }, (_, index) => `src/change-${index}.ts`);
+    const paths = Array.from({ length: 1_000 }, (_, index) => `src/change-${String(index)}.ts`);
     const selection = { expectedSnapshot: "a".repeat(64), paths };
     const commit = { ...selection, action: "commit", message: "test(git): 提交文件" };
 

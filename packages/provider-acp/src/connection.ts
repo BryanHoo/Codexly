@@ -1,4 +1,5 @@
-import { projectAcpConfig } from "./session-options.js";
+import { backpressureAcpUpdates } from "./connection-backpressure.js";
+import { ACP_V1_MODE_OPTION, projectAcpConfig, projectAcpModes } from "./session-options.js";
 import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpAuthStatusTracker } from "./auth-status.js";
@@ -63,7 +64,7 @@ export class AcpConnection {
     private readonly updateConfiguration: (
       sessionId: string,
       options: AcpConfigOption[],
-      commands?: acp.AvailableCommand[],
+      usesV1Modes?: boolean,
     ) => Promise<void>,
   ) {
     this.supportsSteering = AcpSessionMetadataStore.supportsSteering(initialization);
@@ -80,7 +81,6 @@ export class AcpConnection {
     options: { handshakeTimeoutMs?: number } = {},
   ): Promise<AcpConnection> {
     let updates = Promise.resolve();
-    let connection: AcpConnection | undefined;
     const replaying = new Set<string>();
     const metadata = new AcpSessionMetadataStore();
     const authStatus = new AcpAuthStatusTracker();
@@ -94,22 +94,6 @@ export class AcpConnection {
       });
       return updates;
     };
-    const reader = stream.readable.getReader();
-    // 文件投影形成背压；不让 SDK 持续读入整份历史而堆积异步回调。
-    const incoming = new ReadableStream<acp.AnyMessage>(
-      {
-        async pull(controller) {
-          await updates;
-          const next = await reader.read();
-          if (next.done) controller.close();
-          else controller.enqueue(next.value);
-        },
-        async cancel(reason) {
-          await reader.cancel(reason);
-        },
-      },
-      { highWaterMark: 0 },
-    );
     const client = acp
       .client({ name: "codexly" })
       .onNotification(
@@ -146,7 +130,7 @@ export class AcpConnection {
         );
       })
       .connect({
-        readable: incoming,
+        readable: backpressureAcpUpdates(stream.readable, () => updates),
         writable: requestElicitation?.writable(stream.writable) ?? stream.writable,
       });
     const timeout = setTimeout(() => {
@@ -183,7 +167,7 @@ export class AcpConnection {
         }
       };
       void transport.closed.then(cleanUp, cleanUp).catch(() => undefined);
-      connection = new AcpConnection(
+      return new AcpConnection(
         initialization,
         transport,
         () => updates,
@@ -197,13 +181,12 @@ export class AcpConnection {
             const state = metadata.foreground(sessionId, foreground);
             if (state) await callbacks.onSessionState?.(sessionId, state);
           }),
-        (id, options, commands) =>
+        (id, options, usesV1Modes) =>
           enqueue(async () => {
-            const state = metadata.configure(id, options, commands);
+            const state = metadata.configure(id, options, usesV1Modes);
             if (state) await callbacks.onSessionState?.(id, state);
           }),
       );
-      return connection;
     } catch (error) {
       transport.close(error);
       throw error;
@@ -222,6 +205,11 @@ export class AcpConnection {
     return !!this.initialization.agentCapabilities?.sessionCapabilities?.close;
   }
   get canRestoreSessions(): boolean {
+    return (
+      this.canReplaySessions || !!this.initialization.agentCapabilities?.sessionCapabilities?.resume
+    );
+  }
+  get canReplaySessions(): boolean {
     return this.initialization.agentCapabilities?.loadSession === true;
   }
 
@@ -275,8 +263,7 @@ export class AcpConnection {
     this.#beginBinding();
     try {
       const result = await this.transport.agent.request(acp.methods.agent.session.new, request);
-      const configOptions = projectAcpConfig(result.configOptions ?? []);
-      await this.updateConfiguration(result.sessionId, configOptions, undefined);
+      const configOptions = await this.#publishSessionOptions(result.sessionId, result);
       this.#sessions.add(result.sessionId);
       await this.drainUpdates();
       return { ...result, configOptions };
@@ -292,6 +279,7 @@ export class AcpConnection {
     Omit<acp.ResumeSessionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }
   > {
     const { sessionId } = request;
+    if (replay && !this.canReplaySessions) throw new Error("ACP Agent 未声明历史重放能力");
     if (!this.canRestoreSessions) throw new Error("ACP Agent 未声明会话能力");
     this.assertSessionReady(sessionId);
     if (this.#activePrompts.has(sessionId)) throw new Error("会话正在进行中");
@@ -302,18 +290,14 @@ export class AcpConnection {
     if (load) this.replaying.add(sessionId);
     try {
       // v1 的 load 响应即回放边界；resume 仅在明确声明且无需正文时使用。
-      const params = request;
+      const params = { ...request, mcpServers: request.mcpServers ?? [] };
       const result = load
-        ? await this.transport.agent.request(acp.methods.agent.session.load, {
-            ...params,
-            mcpServers: params.mcpServers ?? [],
-          })
+        ? await this.transport.agent.request(acp.methods.agent.session.load, params)
         : await this.transport.agent.request(acp.methods.agent.session.resume, params);
       this.replaying.delete(sessionId);
       await this.drainUpdates();
 
-      const configOptions = projectAcpConfig(result.configOptions ?? []);
-      await this.updateConfiguration(sessionId, configOptions, undefined);
+      const configOptions = await this.#publishSessionOptions(sessionId, result);
       this.#sessions.add(sessionId);
       return { ...result, configOptions };
     } catch (error) {
@@ -324,6 +308,13 @@ export class AcpConnection {
       this.replaying.delete(sessionId);
       this.#finishBinding();
     }
+  }
+  async #publishSessionOptions(sessionId: string, result: acp.LoadSessionResponse) {
+    // Agent 同时返回新旧字段时，以 configOptions 为完整、权威的配置集合。
+    const modes = result.configOptions == null ? result.modes : undefined;
+    const options = modes ? projectAcpModes(modes) : projectAcpConfig(result.configOptions ?? []);
+    await this.updateConfiguration(sessionId, options, Boolean(modes));
+    return options;
   }
   #beginBinding(sessionId?: string): void {
     // 绑定中的并发请求也占用额度，退订但无法 close 的会话仍计入真实连接容量。
@@ -393,6 +384,20 @@ export class AcpConnection {
   > {
     this.assertSessionReady(sessionId);
     if (!this.#sessions.has(sessionId)) throw new Error("ACP 会话尚未加载");
+    if (
+      configId === ACP_V1_MODE_OPTION &&
+      typeof value === "string" &&
+      this.metadata.v1ModeOptions(sessionId, value)
+    ) {
+      const result = await this.transport.agent.request(acp.methods.agent.session.setMode, {
+        sessionId,
+        modeId: value,
+      });
+      const options = this.metadata.v1ModeOptions(sessionId, value);
+      if (options) await this.updateConfiguration(sessionId, options);
+      await this.drainUpdates();
+      return { ...result, configOptions: this.readSessionState(sessionId).configOptions };
+    }
     const request: acp.SetSessionConfigOptionRequest =
       typeof value === "boolean"
         ? { sessionId, configId, type: "boolean", value }
@@ -402,7 +407,7 @@ export class AcpConnection {
       request,
     );
     const configOptions = projectAcpConfig(result.configOptions);
-    await this.updateConfiguration(sessionId, configOptions);
+    await this.updateConfiguration(sessionId, configOptions, false);
     await this.drainUpdates();
     return { configOptions };
   }

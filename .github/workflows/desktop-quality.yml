@@ -10,7 +10,6 @@ on:
       - ".github/workflows/desktop-quality.yml"
       - ".node-version"
       - "package.json"
-      - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
       - "tools/*acp*"
       - "tools/runtime-licenses/**"
@@ -23,7 +22,6 @@ on:
       - ".github/workflows/desktop-quality.yml"
       - ".node-version"
       - "package.json"
-      - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
       - "tools/*acp*"
       - "tools/runtime-licenses/**"
@@ -57,13 +55,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       # 直接安装目录快照的 npm / 二进制产物；Ubuntu 同时验证 GNU tar 和 Linux ZIP。
-      - name: Verify registry installations and official handshakes
+      - name: Verify registry installations and ACP handshakes
         env:
           CODEXLY_REGISTRY_RELEASE_TEST: "1"
         run: pnpm exec vitest run packages/provider-acp/src/agent-installer.test.ts packages/provider-acp/src/registry-release.test.ts
 
   protocol-contract:
-    name: Codex Protocol Contract
+    name: ACP Host Protocol Contract
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -85,7 +83,6 @@ jobs:
       - name: Install dependencies
         working-directory: .
         run: pnpm install --frozen-lockfile
-
 
   supply-chain:
     name: Supply Chain

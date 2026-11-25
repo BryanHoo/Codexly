@@ -69,7 +69,6 @@
     "pnpm lint",
     "pnpm lint:architecture",
     "pnpm typecheck",
-    "pnpm codex:schema:check",
     "pnpm test:performance",
     "pnpm build",
     "pnpm bundle:check",

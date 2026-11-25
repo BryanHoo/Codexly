@@ -47,7 +47,7 @@ it("requires a paired session when LAN access is enabled", async () => {
     (
       await app.inject({
         method: "POST",
-        url: "/v1/diagnostics/codex",
+        url: "/v1/diagnostics/archive",
         payload: { application: "{}" },
       })
     ).statusCode,

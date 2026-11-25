@@ -11,33 +11,7 @@ export * from "./skill-market.js";
 export * from "./scheduled-task.js";
 export * from "./scheduled-task-wall-time.js";
 export * from "./access.js";
-export {
-  AgentProviderAccountSchema,
-  AgentProviderConnectionMutationResponseSchema,
-  AgentProviderConnectionRecordSchema,
-  AgentProviderConnectionStateSchema,
-  AgentProviderConnectionStatusSchema,
-  AgentProviderModeSchema,
-  AgentProviderPendingLoginSchema,
-  CancelProviderLoginRequestSchema,
-  ConfigureCustomProviderRequestSchema,
-  ConfigureCustomProviderResponseSchema,
-  isAgentFastModeAvailable,
-  StartOfficialProviderLoginRequestSchema,
-  StartOfficialProviderLoginResponseSchema,
-  type AgentProviderAccount,
-  type AgentProviderConnectionMutationResponse,
-  type AgentProviderConnectionRecord,
-  type AgentProviderConnectionState,
-  type AgentProviderConnectionStatus,
-  type AgentProviderMode,
-  type AgentProviderPendingLogin,
-  type CancelProviderLoginRequest,
-  type ConfigureCustomProviderRequest,
-  type ConfigureCustomProviderResponse,
-  type StartOfficialProviderLoginRequest,
-  type StartOfficialProviderLoginResponse,
-} from "./provider-connection.js";
+export * from "./provider-connection.js";
 export { MAX_AGENT_EVENT_BYTES, MAX_EVENT_BATCH_BYTES } from "./agent-event.js";
 export {
   AgentEventEnvelopeProperties,

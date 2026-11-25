@@ -9,7 +9,7 @@ export type RegistryOrder = readonly [string, string];
 
 export async function selectRegistryOrder(
   signal?: AbortSignal,
-  metadataPath = "/@openai/codex",
+  metadataPath = "/@bryanhu%2fcodexly",
 ): Promise<RegistryOrder> {
   signal?.throwIfAborted();
   const controller = new AbortController();

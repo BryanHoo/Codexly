@@ -13,7 +13,7 @@ export class AcpHistoryUse {
   async connect(id: string, get: () => Promise<AcpConnection>, ephemeral: boolean) {
     await this.retain(id, ephemeral);
     const agent = await get();
-    if (!ephemeral) await this.history.cache.setReplayable(id, agent.canRestoreSessions);
+    if (!ephemeral) await this.history.cache.setReplayable(id, agent.canReplaySessions);
     return agent;
   }
   async release(id: string): Promise<void> {
