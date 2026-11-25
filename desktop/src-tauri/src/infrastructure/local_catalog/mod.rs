@@ -73,9 +73,6 @@ pub fn project_path(path: &Path) -> String {
 }
 
 impl LocalCatalog {
-    pub fn app_data(&self) -> Result<&Path, CatalogError> {
-        self.path.parent().ok_or(CatalogError::StateUnavailable)
-    }
     pub fn at(app_data: &Path) -> Result<Self, CatalogError> {
         let path = app_data.join("state.sqlite3");
         let mut stores = STORES

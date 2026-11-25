@@ -109,7 +109,10 @@ pub async fn create_project_terminal(
     }
     if let Some(task_id) = input.root_id.strip_prefix("worktree:") {
         // 与文件、Git 操作使用同一归属校验，客户端不能借终端访问任意目录。
-        let task = super::claude_tasks::task(&app, &input.project_id, task_id).await?;
+        let directory = crate::infrastructure::app_data::directory(&app)
+            .map_err(|_| TerminalError::ProjectNotFound)?;
+        let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
+        let task = catalog.owned_task(&input.project_id, task_id).await?;
         let path = task["cwd"].as_str().ok_or(TerminalError::RootInvalid)?;
         let (root, _) =
             super::workspace_commands::project_root(&app, &input.project_id, path).await?;

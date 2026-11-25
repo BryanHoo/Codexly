@@ -154,7 +154,6 @@ jobs:
         shell: bash
         run: |
           pnpm run audit:prod
-          pnpm run codex:schema:check
           pnpm run format:check
           pnpm run lint
           pnpm run lint:architecture

@@ -105,7 +105,7 @@ impl TaskCreationRegistry {
                     let result = create.await;
                     // 此类型只由取得运行时之前的检查返回，不能按 RPC 错误文案推断安全重试。
                     retry_allowed.store(
-                        matches!(&result, Err(AppError::CodexRuntimeUnavailable)),
+                        matches!(&result, Err(AppError::AcpHostUnavailable)),
                         Ordering::Release,
                     );
                     let result = result.map_err(|error| {

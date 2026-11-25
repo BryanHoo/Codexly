@@ -294,7 +294,7 @@ it("原生宿主从可信第四参数只读旧公共偏好，反向目录调用�
     },
   });
   const running = runAcpHost(
-    [join(f.root, "native-acp"), process.execPath, process.execPath, directory],
+    [join(f.root, "native-acp"), directory],
     { input, output },
     f.launch,
   );

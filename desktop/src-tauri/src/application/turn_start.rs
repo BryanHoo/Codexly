@@ -13,11 +13,8 @@ use tokio::sync::watch;
 
 #[path = "turn_start_payload.rs"]
 mod payload;
+pub use payload::fingerprint_pending_resolution;
 use payload::{TurnStartIdentity, encode_result};
-pub use payload::{
-    fingerprint, fingerprint_pending_resolution, fingerprint_queue_content,
-    fingerprint_queue_start, fingerprint_queued_steer, fingerprint_review, fingerprint_steer,
-};
 
 pub type TurnStartResult = Result<Value, Value>;
 type StoredResult = Arc<[u8]>;
@@ -56,30 +53,6 @@ fn unavailable() -> Value {
 }
 
 impl TurnStartRegistry {
-    pub(super) fn check_identity(
-        &self,
-        key: &str,
-        identity: &TurnStartIdentity,
-    ) -> Result<(), Value> {
-        if key.trim().is_empty() || key.len() > 128 {
-            return Err(error(
-                "INVALID_REQUEST",
-                "Turn start requires a bounded idempotency key",
-            ));
-        }
-        let entries = self.entries.lock().map_err(|_| unavailable())?;
-        if entries.get(key).is_some_and(|entry| {
-            (entry.started.elapsed() < RETENTION || entry.in_flight())
-                && entry.identity.digest != identity.digest
-        }) {
-            return Err(error(
-                "IDEMPOTENCY_CONFLICT",
-                "Turn start key belongs to a different request",
-            ));
-        }
-        Ok(())
-    }
-
     pub async fn run<F>(&self, key: &str, identity: TurnStartIdentity, start: F) -> TurnStartResult
     where
         F: Future<Output = Result<Value, AppError>> + Send + 'static,
@@ -144,7 +117,7 @@ impl TurnStartRegistry {
                     retry_allowed.store(
                         matches!(
                             &result,
-                            Err(AppError::CodexRuntimeUnavailable
+                            Err(AppError::AcpHostUnavailable
                                 | AppError::QueueRecoveryCapacityExceeded)
                         ),
                         Ordering::Release,
@@ -182,7 +155,3 @@ async fn wait_for_result(
 #[cfg(test)]
 #[path = "turn_start_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "turn_start_rpc_tests.rs"]
-mod rpc_tests;

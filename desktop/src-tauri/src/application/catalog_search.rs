@@ -184,7 +184,7 @@ mod tests {
         let catalog = LocalCatalog::at(root.path()).unwrap();
         populate(&catalog).await;
         let page = search(&catalog, input("history", None), |task, _| async move {
-            if task["provider"] == "codex" { return Err(AppError::CodexRuntimeUnavailable); }
+            if task["provider"] == "codex" { return Err(AppError::AcpHostUnavailable); }
             Ok(serde_json::from_value(json!({"data":[{"itemId":"message","turnId":"turn","turnCursor":"anchor","snippet":"搜索","snippetMatchRange":{"start":0,"end":2}}],"nextCursor":null})).unwrap())
         }).await.unwrap();
         assert_eq!(page.data[0].task.id, "claude");

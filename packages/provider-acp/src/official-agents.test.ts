@@ -1,29 +1,24 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { createServer, type Server, type Socket } from "node:net";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { AcpAgentCatalog } from "./agent-catalog.js";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AcpProcess } from "./process.js";
 import { methods } from "@agentclientprotocol/sdk/unstable";
 
-const require = createRequire(import.meta.url);
 /** 真实 adapter 仅握手，不创建会话或请求模型；用户目录及历史保持隔离。 */
 describe.skipIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] !== "1")("官方 ACP adapter", () => {
-  it.each(["@agentclientprotocol/codex-acp", "@agentclientprotocol/claude-agent-acp"])(
+  it.each(["codex", "claude"] as const)(
     "%s 稳定协议握手",
-    async (name) => {
+    async (engine) => {
       const root = await mkdtemp(join(tmpdir(), "codexly-official-acp-"));
       let agent: AcpProcess | undefined;
-      let lifetime: Server | undefined;
-      let lifetimeSocket: Socket | undefined;
       try {
-        const manifest = require.resolve(`${name}/package.json`);
-        const metadata = JSON.parse(await readFile(manifest, "utf8")) as {
-          bin: Record<string, string>;
-        };
-        const entry = Object.values(metadata.bin)[0];
-        if (!entry) throw new Error("官方包未声明 agent 入口");
+        const catalog = new AcpAgentCatalog(
+          join(process.env["CODEXLY_HOME"] ?? join(homedir(), ".codexly"), "engines/acp/agents"),
+        );
+        // 集成测试通过应用登记的外部 ACP 命令握手。
+        const command = await catalog.command(engine);
         await Promise.all([mkdir(join(root, "codex")), mkdir(join(root, "claude"))]);
         // 使用临时目录中的旧配置验证真实 agent 启动，绝不接触用户自己的凭据或配置。
         const preserved = [
@@ -37,29 +32,13 @@ describe.skipIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] !== "1")("官方 ACP ad
           },
         ];
         await Promise.all(preserved.map((file) => writeFile(file.path, file.text)));
-        const lifetimePath =
-          process.env["CODEXLY_COMPILED_ACP_HOST"] && process.platform !== "win32"
-            ? join(root, "lifetime.sock")
-            : undefined;
-        if (lifetimePath) {
-          lifetime = createServer((socket) => {
-            lifetimeSocket = socket;
-          });
-          await new Promise<void>((resolve, reject) => {
-            lifetime?.once("error", reject);
-            lifetime?.listen(lifetimePath, resolve);
-          });
-        }
         agent = await AcpProcess.start({
-          command: process.env["CODEXLY_COMPILED_ACP_HOST"] ?? process.execPath,
-          args: process.env["CODEXLY_COMPILED_ACP_HOST"]
-            ? ["--acp-agent", name === "@agentclientprotocol/codex-acp" ? "codex" : "claude"]
-            : [resolve(dirname(manifest), entry)],
+          ...command,
           cwd: root,
           env: {
             CODEX_HOME: join(root, "codex"),
             CLAUDE_CONFIG_DIR: join(root, "claude"),
-            ...(lifetimePath ? { CODEXLY_ACP_LIFETIME_SOCKET: lifetimePath } : {}),
+            ...command.env,
           },
         });
         expect(agent.connection.initialization.protocolVersion).toBe(1);
@@ -78,24 +57,11 @@ describe.skipIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] !== "1")("官方 ACP ad
         expect(agent.connection.initialization.agentCapabilities?.sessionCapabilities).toBeTruthy();
         const history = agent.connection.transport.agent.request(methods.agent.session.list, {});
         // 隔离环境没有账号；明确保留认证错误，不能将其当成“没有历史”。
-        if (name === "@agentclientprotocol/codex-acp")
-          await expect(history).rejects.toMatchObject({ code: -32000 });
+        if (engine === "codex") await expect(history).rejects.toMatchObject({ code: -32000 });
         else expect((await history).sessions).toEqual([]);
         for (const file of preserved) expect(await readFile(file.path, "utf8")).toBe(file.text);
-        if (lifetimePath) {
-          await expect.poll(() => lifetimeSocket !== undefined).toBe(true);
-          lifetimeSocket?.destroy();
-          await expect.poll(() => agent?.child.signalCode).toBe("SIGKILL");
-        }
       } finally {
         await agent?.close();
-        lifetimeSocket?.destroy();
-        if (lifetime)
-          await new Promise<void>((resolve) => {
-            lifetime?.close(() => {
-              resolve();
-            });
-          });
         await rm(root, { recursive: true, force: true });
       }
     },

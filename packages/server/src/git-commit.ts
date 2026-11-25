@@ -10,7 +10,7 @@ import type {
   CommitProjectChangesResponse,
 } from "@codexly/protocol";
 
-import { executeGit } from "./git-mutation-command.js";
+import { executeGit, pathBatches } from "./git-mutation-command.js";
 import { operateGitRemote } from "./git-remote.js";
 import { originalErrorMessage } from "./error-message.js";
 import { readGitWorkingTreeStatus, resolveProjectGitRepositoryRoot } from "./git-working-tree.js";
@@ -84,34 +84,41 @@ export async function commitSelectedProjectChanges(
     // 从 HEAD 组装隔离索引，避免把未选择的暂存文件带入本次提交。
     await executeGit(repositoryRoot, ["read-tree", "HEAD"], "", temporaryIndexEnvironment);
     if (selectedStagedPaths.length > 0) {
-      const stagedEntries = await executeGit(repositoryRoot, [
+      // 先清除 HEAD 中的旧条目，暂存删除在真实索引中没有待复制对象。
+      await executeGit(
+        repositoryRoot,
+        ["update-index", "--force-remove", "-z", "--stdin"],
+        `${selectedStagedPaths.join("\0")}\0`,
+        temporaryIndexEnvironment,
+      );
+    }
+    // ls-files 只接收命令行路径，按字面量分批，始终读取选择范围内的暂存对象。
+    const stagedEntries: string[] = [];
+    for (const batch of pathBatches(selectedStagedPaths.map(literalPath))) {
+      const entries = await executeGit(repositoryRoot, [
         "ls-files",
         "--stage",
         "-z",
         "--",
-        ...selectedStagedPaths.map(literalPath),
+        ...batch,
       ]);
+      if (entries.stdout.length > 0) stagedEntries.push(entries.stdout);
+    }
+    if (stagedEntries.length > 0) {
+      // 一次写入真实索引条目，使 MM 文件提交暂存版本并保留工作区版本。
       await executeGit(
         repositoryRoot,
-        ["update-index", "--force-remove", "--", ...selectedStagedPaths],
-        "",
+        ["update-index", "-z", "--index-info"],
+        stagedEntries.join(""),
         temporaryIndexEnvironment,
       );
-      if (stagedEntries.stdout.length > 0) {
-        // 复制真实索引条目，使 MM 文件提交暂存版本并保留工作区版本。
-        await executeGit(
-          repositoryRoot,
-          ["update-index", "-z", "--index-info"],
-          stagedEntries.stdout,
-          temporaryIndexEnvironment,
-        );
-      }
     }
     if (selectedUnstagedPaths.length > 0) {
+      // 通过 NUL 分隔的标准输入传递路径，避免大批长路径超出系统命令行长度。
       await executeGit(
         repositoryRoot,
-        ["add", "--", ...selectedUnstagedPaths.map(literalPath)],
-        "",
+        ["add", "--pathspec-from-file=-", "--pathspec-file-nul"],
+        `${selectedUnstagedPaths.map(literalPath).join("\0")}\0`,
         temporaryIndexEnvironment,
       );
     }
@@ -122,7 +129,11 @@ export async function commitSelectedProjectChanges(
       temporaryIndexEnvironment,
     );
     // 新 HEAD 落定后只校准已提交路径，保留其他文件原有的暂存状态。
-    await executeGit(repositoryRoot, ["reset", "--quiet", "HEAD", "--", ...selectedPaths]);
+    await executeGit(
+      repositoryRoot,
+      ["reset", "--quiet", "--pathspec-from-file=-", "--pathspec-file-nul", "HEAD"],
+      `${selectedPaths.join("\0")}\0`,
+    );
   } catch (error) {
     throw new GitCommitError("GIT_COMMIT_FAILED", originalErrorMessage(error, "Git commit failed"));
   } finally {

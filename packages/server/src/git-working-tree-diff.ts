@@ -1,7 +1,11 @@
 import { lstat, open, readlink } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import type { AgentItem, ProjectGitStatus } from "@codexly/protocol";
+import {
+  MAX_WEB_GIT_STATUS_FILES as MAX_WORKING_TREE_FILES,
+  type AgentItem,
+  type ProjectGitStatus,
+} from "@codexly/protocol";
 
 import { GitCommandOutputLimitError, type GitCommandExecutor } from "./git-command.js";
 import { limitGitFileIO } from "./git-concurrency.js";
@@ -17,7 +21,7 @@ export type WorkingTreeEntry = Readonly<{
 }>;
 
 const MAX_WORKING_TREE_DIFF_BYTES = 10 * 1024 * 1024;
-export const MAX_WORKING_TREE_FILES = 1_000;
+export { MAX_WORKING_TREE_FILES };
 const MAX_UNTRACKED_DIFF_BYTES = 5 * 1024 * 1024;
 
 export async function mapWithConcurrency<Item, Result>(

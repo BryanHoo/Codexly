@@ -24,6 +24,7 @@ type StoreEventWithPayload<Item> =
       payload: { turn: TaskEventTurn & { items: Item[] } };
     }
   | { type: "turn.started" | "provider.error"; turnId: string }
+  | Extract<AgentEvent, { type: "usage.updated" }>
   | TurnOutputRateEvent;
 
 export type TaskStoreEvent<Item> = {

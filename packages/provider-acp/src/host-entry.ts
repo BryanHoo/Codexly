@@ -9,7 +9,7 @@ import {
 } from "./legacy-settings.js";
 
 export const ACP_HOST_VERSION = "codexly-acp-host/1";
-/** 宿主与两个 agent 模式由同一独立程序供应；原生二进制仍由应用资源管理器校验。 */
+/** 共享宿主由应用装配，具体 Agent 由 ACP 目录提供。 */
 export async function runAcpHost(
   args: readonly string[],
   io: { input: Readable; output: Writable; signal?: AbortSignal },
@@ -19,18 +19,12 @@ export async function runAcpHost(
     io.output.write(`${ACP_HOST_VERSION}\n`);
     return 0;
   }
-  const [directory, codex, claude, applicationDirectory] = args;
-  if (
-    (args.length !== 3 && args.length !== 4) ||
-    !directory ||
-    !codex ||
-    !claude ||
-    !args.every(isAbsolute)
-  )
-    throw new Error("ACP 宿主需要数据目录及两个原生程序的绝对路径");
+  const [directory, applicationDirectory] = args;
+  if ((args.length !== 1 && args.length !== 2) || !directory || !args.every(isAbsolute))
+    throw new Error("ACP 宿主需要应用数据目录的绝对路径");
   io.signal?.throwIfAborted();
   await mkdir(directory, { recursive: true, mode: 0o700 });
-  // 仅可信原生启动器提供旧应用目录；三参数独立宿主不推测父目录或读取用户文件。
+  // 仅可信原生启动器提供旧应用目录；单参数独立宿主不推测父目录或读取用户文件。
   const host = new AcpHost(
     directory,
     io.output,

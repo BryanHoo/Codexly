@@ -109,12 +109,6 @@ jobs:
         working-directory: .
         run: pnpm build:desktop-runtime
 
-      # Windows 上的 Tauri 测试进程存在装载器问题，真实应用链路在后续步骤覆盖相同行为。
-      - name: Run real Codex lifecycle test
-        if: matrix.platform != 'windows-latest'
-        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features --locked bundled_codex_should_complete_real_app_server_lifecycle -- --ignored --nocapture
-
-      # Linux Cargo 集成测试会写入同一个 debug 二进制，最后重建以保留 WebView 测试配置。
       - name: Build native WebView test application
         run: pnpm test:webview:build
 
@@ -125,14 +119,6 @@ jobs:
       - name: Run native WebView tests on WebKitGTK
         if: matrix.platform == 'ubuntu-24.04'
         run: xvfb-run --auto-servernum --server-args="-screen 0 1440x900x24" pnpm test:webview
-
-      - name: Run real Codex WebView chain
-        if: matrix.platform != 'ubuntu-24.04'
-        run: pnpm test:webview:real
-
-      - name: Run real Codex WebView chain on WebKitGTK
-        if: matrix.platform == 'ubuntu-24.04'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1440x900x24" pnpm test:webview:real
 
       - name: Build release native performance application
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || inputs.run_performance

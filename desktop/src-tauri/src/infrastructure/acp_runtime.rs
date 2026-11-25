@@ -20,8 +20,6 @@ struct Manifest {
     platform: String,
     arch: String,
     host: Host,
-    #[serde(default)]
-    engines: Engines,
 }
 
 #[derive(serde::Deserialize)]
@@ -30,20 +28,6 @@ struct Host {
     path: String,
     protocol_version: u32,
     placement: Option<String>,
-}
-
-#[derive(Default, serde::Deserialize)]
-struct Engines {
-    codex: Option<Engine>,
-    claude: Option<Engine>,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Engine {
-    version: String,
-    entrypoint: String,
-    sdk_version: Option<String>,
 }
 
 fn local_path(value: &str) -> bool {
@@ -108,36 +92,12 @@ async fn read_manifest(resources: &Path) -> Result<Option<Manifest>, ()> {
     {
         return Err(());
     }
-    for entry in [&manifest.engines.codex, &manifest.engines.claude]
-        .into_iter()
-        .flatten()
-    {
-        if !local_path(&entry.entrypoint) || semver::Version::parse(&entry.version).is_err() {
-            return Err(());
-        }
-    }
-    if let Some(claude) = &manifest.engines.claude {
-        semver::Version::parse(claude.sdk_version.as_deref().ok_or(())?).map_err(|_| ())?;
-    }
     Ok(Some(manifest))
-}
-
-pub(crate) async fn bundled_version(resources: &Path, engine: &str) -> Result<Option<String>, ()> {
-    let Some(manifest) = read_manifest(resources).await? else {
-        return Ok(None);
-    };
-    match engine {
-        "codex" => Ok(manifest.engines.codex.map(|entry| entry.version)),
-        "claude" => Ok(manifest.engines.claude.map(|entry| entry.version)),
-        _ => Err(()),
-    }
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct AcpRuntimePaths {
     pub host: PathBuf,
-    pub codex: PathBuf,
-    pub claude: PathBuf,
 }
 
 async fn controlled_executable(root: &Path, relative: &str) -> Result<PathBuf, &'static str> {
@@ -213,19 +173,7 @@ impl AcpRuntimeManager {
             }
             controlled_executable(&root, &manifest.host.path).await?
         };
-        let paths = AcpRuntimePaths {
-            host,
-            codex: if let Some(entry) = &manifest.engines.codex {
-                controlled_executable(&root, &entry.entrypoint).await?
-            } else {
-                root.clone()
-            },
-            claude: if let Some(entry) = &manifest.engines.claude {
-                controlled_executable(&root, &entry.entrypoint).await?
-            } else {
-                root.clone()
-            },
-        };
+        let paths = AcpRuntimePaths { host };
         *prepared = Some((root, sidecar.map(Path::to_path_buf), paths.clone()));
         Ok(paths)
     }

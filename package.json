@@ -71,10 +71,8 @@
     "build:node": "tsup",
     "bundle:check": "node ./tools/verify-web-bundle.mjs --report .artifacts/web-bundle-report.json",
     "bundle:report": "node ./tools/verify-web-bundle.mjs --read-report .artifacts/web-bundle-report.json",
-    "check": "pnpm run audit:prod && pnpm run codex:schema:check && pnpm run format:check && pnpm run lint && pnpm run lint:architecture && pnpm run test && pnpm run test:release && pnpm run test:highlight && pnpm run test:performance && pnpm run build && pnpm run bundle:check && pnpm run package:check",
+    "check": "pnpm run audit:prod && pnpm run format:check && pnpm run lint && pnpm run lint:architecture && pnpm run test && pnpm run test:release && pnpm run test:highlight && pnpm run test:performance && pnpm run build && pnpm run bundle:check && pnpm run package:check",
     "clean": "node ./tools/clean.mjs",
-    "codex:schema:check": "node ./tools/verify-codex-schema.mjs",
-    "codex:schema:update": "node ./tools/verify-codex-schema.mjs --update",
     "dev": "pnpm --filter @codexly/web dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -112,9 +110,7 @@
     "vite": "catalog:",
     "vitest": "catalog:",
     "ws": "catalog:",
-    "bun": "catalog:",
-    "@agentclientprotocol/codex-acp": "catalog:",
-    "@agentclientprotocol/claude-agent-acp": "catalog:"
+    "bun": "catalog:"
   },
   "license": "MIT"
 }

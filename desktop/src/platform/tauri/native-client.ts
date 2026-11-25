@@ -1,4 +1,4 @@
-import { connectCodexRuntime, ensureCodexRuntime, subscribeAgentEvents } from "./runtime.js";
+import { connectAcpEvents, subscribeAgentEvents } from "./runtime.js";
 import { invoke, type NativeInvoke } from "./native-invoke.js";
 import { requiresLegacyTaskRuntime, AcpLegacyTaskCommandError } from "./task-command-boundary.js";
 import { requiresLegacyGlobalRuntime, AcpLegacyGlobalCommandError } from "./global-command-boundary.js";
@@ -74,8 +74,8 @@ export class TauriNativeClient {
   protected readonly taskProjects = new Map<string, string>();
 
   public constructor(options: TauriClientOptions = {}) {
-    this.ensureRuntime = options.ensureRuntime ?? ensureCodexRuntime;
-    this.connectRuntime = options.connectEvents ?? options.ensureRuntime ?? connectCodexRuntime;
+    this.ensureRuntime = options.ensureRuntime ?? connectAcpEvents;
+    this.connectRuntime = options.connectEvents ?? options.ensureRuntime ?? connectAcpEvents;
     this.invokeNative = options.invoke ?? invoke;
     this.subscribeNativeEvents = options.subscribeAgentEvents ?? subscribeAgentEvents;
   }

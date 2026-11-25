@@ -224,41 +224,6 @@ void test("Tauri should use signed GitHub release metadata", async () => {
   ]);
 });
 
-void test("Windows should verify Codex through the app instead of the Tauri test harness", async () => {
-  const workflow = await readFile(
-    new URL("../../.github/workflows/desktop-webview.yml", import.meta.url),
-    "utf8",
-  );
-
-  // Tauri 的 Windows 测试进程存在装载器问题，产品应用链路仍必须保留真实运行时覆盖。
-  assert.match(
-    workflow,
-    /name: Run real Codex lifecycle test\n\s+if: matrix\.platform != 'windows-latest'/,
-  );
-  assert.match(
-    workflow,
-    /name: Run real Codex WebView chain\n\s+if: matrix\.platform != 'ubuntu-24\.04'/,
-  );
-});
-
-void test("native WebView CI should exercise private installation without global Codex", async () => {
-  const [workflow, processSource] = await Promise.all([
-    readFile(new URL("../../.github/workflows/desktop-webview.yml", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src-tauri/src/infrastructure/codex/process.rs", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  const supportedVersion = processSource.match(
-    /SUPPORTED_CODEX_VERSION: &str = "(\d+\.\d+\.\d+)"/,
-  )?.[1];
-
-  assert.ok(supportedVersion, "Rust must declare a supported Codex runtime version");
-  assert.doesNotMatch(workflow, /npm install --global @openai\/codex/);
-  assert.doesNotMatch(workflow, /run: codex --version/);
-  assert.match(workflow, /bundled_codex_should_complete_real_app_server_lifecycle/);
-});
-
 void test("non-macOS commands should remain unchanged", () => {
   const argumentsList = ["build", "--no-sign"];
 

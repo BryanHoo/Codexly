@@ -13,10 +13,6 @@
   "dependencies": {
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
-    "image-dimensions": "catalog:",
-    "pino": "catalog:"
-  },
-  "devDependencies": {
-    "@openai/codex": "catalog:"
+    "image-dimensions": "catalog:"
   }
 }

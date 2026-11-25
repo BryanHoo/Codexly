@@ -237,7 +237,7 @@ export async function runStart(
       });
       const provider = runtime;
       const petProvider = dependencies.createPetProvider({ codexHome });
-      const versions = await dependencies.readEngineVersions();
+      const versions = await dependencies.readEngineVersions(environment);
       const appUpdateService = createAppUpdateService({
         appVersion: dependencies.appVersion,
         ...versions,

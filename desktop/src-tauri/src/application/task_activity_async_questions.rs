@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+#[cfg(test)]
 use crate::domain::conversation::{AgentItem, AgentTaskSnapshot};
 use crate::domain::runtime::AgentEvent;
 
@@ -111,6 +112,7 @@ fn matches_answer(titles: &[String], text: &str) -> bool {
 }
 
 impl TaskActivityState {
+    #[cfg(test)]
     pub(crate) fn remember_async_question_snapshot(
         &mut self,
         snapshot: &AgentTaskSnapshot,
@@ -174,6 +176,7 @@ impl TaskActivityState {
         previous != record.snapshot.status
     }
 
+    #[cfg(test)]
     pub(super) fn remember_running_activity(
         &mut self,
         project_id: &str,

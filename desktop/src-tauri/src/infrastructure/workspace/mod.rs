@@ -50,9 +50,7 @@ mod git_tests;
 #[cfg(test)]
 mod git_workflow_tests;
 
-pub use attachments::{
-    import_attachment, store_attachment, validate_attachment, validate_generated_attachment,
-};
+pub use attachments::{import_attachment, store_attachment, validate_attachment};
 pub use file_search::ProjectFileSearch;
 pub use files::{delete_project_file, list_project_files, read_source_file, rename_project_file};
 pub use git_commit_context::prepare_commit_message;
@@ -62,7 +60,7 @@ pub use git_remote::{RemoteAction, operate_project_remote};
 pub use git_status_page::get_git_status_page;
 pub use git_worktree::{create_worktree, list_worktrees, switch_worktree};
 pub use git_write::{commit_changes, create_branch, push_commits, switch_branch};
-pub use open::{open_path, platform_apps, reveal_path};
+pub use open::{open_path, platform_apps};
 pub use path_guard::{WorkspaceError, canonical_root, resolve_existing};
 pub use text_files::{SaveTextInput, read_text_file, read_text_file_revision, save_text_file};
 

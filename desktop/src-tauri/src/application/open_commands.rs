@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, State};
 
 use super::{error::AppError, state::AppState, task_workspace};
-use crate::infrastructure::{codex, workspace};
+use crate::infrastructure::workspace;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,65 +92,29 @@ pub async fn open_task_attachment(
     agent_runtime: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
-    if super::search_commands::use_acp(agent_runtime.as_deref())? {
-        let directory = crate::infrastructure::app_data::directory(&app)
-            .map_err(|_| AppError::FilesystemRequestFailed)?;
-        let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
-        let task = catalog.owned_task(&project_id, &task_id).await?;
-        // 导出由共享宿主再次校验附件归属，只向系统 opener 交付受控临时副本。
-        let exported = state
-            .acp
-            .host
-            .request(
-                &app,
-                "attachment.export",
-                Some(super::search_commands::acp_scope(&task)?),
-                json!({"taskId":task_id,"attachmentId":attachment_id}),
-            )
-            .await?;
-        let path = exported["path"]
-            .as_str()
-            .ok_or(AppError::FilesystemRequestFailed)?;
-        workspace::open_path("system-default", Path::new(path))
-            .await
-            .map_err(|_| AppError::FilesystemRequestFailed)?;
-        return Ok(json!({"attachmentId":attachment_id,"status":"opened"}));
-    }
-    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
-    if task["provider"] == "claude" {
-        let exported =
-            super::claude_attachments::export(&app, &project_id, &task_id, &attachment_id).await?;
-        let path = exported["path"]
-            .as_str()
-            .ok_or(AppError::FilesystemRequestFailed)?;
-        workspace::open_path("system-default", Path::new(path))
-            .await
-            .map_err(|_| AppError::FilesystemRequestFailed)?;
-        return Ok(json!({"attachmentId":attachment_id,"status":"opened"}));
-    }
-    let connection = state.codex_connection().await?;
-    codex::read_task(&connection, project_id.clone(), task_id.clone())
-        .await
-        .map_err(AppError::from)?;
-    let app_data = crate::infrastructure::app_data::directory(&app)
+    super::search_commands::require_acp(agent_runtime.as_deref())?;
+    let directory = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    let path = match crate::infrastructure::temporary_task_storage::validate_attachment(
-        &app_data,
-        &project_id,
-        &task_id,
-        &attachment_id,
-    )
-    .await
-    {
-        Ok(path) => path,
-        Err(_) => workspace::validate_generated_attachment(&app_data, &attachment_id)
-            .await
-            .map_err(|_| AppError::FilesystemRequestFailed)?,
-    };
-    workspace::open_path("system-default", &path)
+    let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
+    let task = catalog.owned_task(&project_id, &task_id).await?;
+    // 导出由共享宿主再次校验附件归属，只向系统 opener 交付受控临时副本。
+    let exported = state
+        .acp
+        .host
+        .request(
+            &app,
+            "attachment.export",
+            Some(super::search_commands::acp_scope(&task)?),
+            json!({"taskId":task_id,"attachmentId":attachment_id}),
+        )
+        .await?;
+    let path = exported["path"]
+        .as_str()
+        .ok_or(AppError::FilesystemRequestFailed)?;
+    workspace::open_path("system-default", Path::new(path))
         .await
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    Ok(json!({"attachmentId": attachment_id, "status": "opened"}))
+    Ok(json!({"attachmentId":attachment_id,"status":"opened"}))
 }
 
 #[cfg(test)]

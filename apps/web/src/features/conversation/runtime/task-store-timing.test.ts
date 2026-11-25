@@ -1,4 +1,4 @@
-import type { AgentItem, AgentTurn } from "@codexly/protocol";
+import type { AgentEvent, AgentItem, AgentTurn } from "@codexly/protocol";
 import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
 import { describe, expect, it, vi } from "vitest";
 
@@ -21,8 +21,9 @@ it("estimates the output rate from accepted foreground text and expires idle sam
     payload: { delta: "text".repeat(40) },
   } as const;
   try {
-    state.applyEvents([reply]);
     expect(rates.read(turnId, now)).toBeNull();
+    state.applyEvents([reply]);
+    expect(rates.read(turnId, now)).toBe(40);
     clock.mockReturnValue(now + 1_000);
     state.applyEvents([
       {
@@ -37,12 +38,69 @@ it("estimates the output rate from accepted foreground text and expires idle sam
       { ...reply, sequence: 14, turnId: "turn-completed", itemId: "message-completed" },
       { ...reply, sequence: 15, itemId: "acp:child:other:acp:message:assistant:reply" },
     ]);
-    expect(rates.read(turnId, now + 1_000)).toBe(40);
+    expect(rates.read(turnId, now + 1_000)).toBe(80);
     expect(rates.read(turnId, now + 4_000)).toBeNull();
     state.reconcile(createResponse());
-    expect(rates.read(turnId, now + 1_000)).toBe(40);
+    expect(rates.read(turnId, now + 1_000)).toBe(80);
+    clock.mockReturnValue(now + 4_000);
+    state.applyEvents([{ ...reply, sequence: 16 }]);
+    expect(rates.read(turnId, now + 4_000)).toBe(40);
     state.hydrate(createResponse());
-    expect(rates.read(turnId, now + 1_000)).toBeNull();
+    expect(rates.read(turnId, now + 4_000)).toBeNull();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it("优先显示 ACP 同一回合的上报差值，过期或计数重置时恢复估算", () => {
+  const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
+  const start = Date.parse(timestamp);
+  const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+  const state = store.getState();
+  const rates = new TurnOutputRates();
+  state.turnOutputRates.current = rates;
+  const turnId = "turn-running";
+  const send = (deltaMs: number, event: AgentEvent) => {
+    clock.mockReturnValue(start + deltaMs);
+    state.applyEvents([event]);
+  };
+  const usage = (sequence: number, outputTokens?: number): AgentEvent => ({
+    ...eventEnvelope(sequence),
+    provider: "acp-any-agent",
+    turnId,
+    type: "usage.updated",
+    payload: {
+      usage: { usedTokens: 5000, contextWindow: 10000 },
+      ...(outputTokens === undefined ? {} : { outputTokens }),
+    },
+  });
+  const reply = (sequence: number): AgentEvent => ({
+    ...eventEnvelope(sequence),
+    provider: "acp-any-agent",
+    turnId,
+    itemId: "message-running",
+    type: "message.delta",
+    payload: { delta: "text".repeat(40) },
+  });
+  const rate = (deltaMs: number) => rates.read(turnId, start + deltaMs);
+  try {
+    send(0, usage(11, 100));
+    expect(rate(0)).toBeNull();
+    send(1000, reply(12));
+    send(1000, usage(13));
+    expect(rate(1000)).toBe(40);
+    send(1000, usage(14, 300));
+    expect(rate(1000)).toBe(200);
+    send(2000, usage(15, 300));
+    expect(rate(2000)).toBe(200);
+    send(3500, reply(16));
+    expect(rate(4000)).toBeCloseTo(40 / 3);
+    send(4500, usage(17, 350));
+    expect(rate(4500)).toBeCloseTo(50 / 3.5);
+    send(4750, usage(18, 0));
+    expect(rate(4750)).toBeCloseTo(40 / 3);
+    send(5750, usage(19, 100));
+    expect(rate(5750)).toBe(100);
   } finally {
     clock.mockRestore();
   }

@@ -221,39 +221,12 @@ test("sends a Codex ACP custom answer from the original question card @cross-bro
   await expect(card.getByRole("button", { name: "发送回答" })).toBeDisabled();
 });
 
-test("streams Fake App Server notifications into the Timeline @smoke", async ({ page }) => {
+test("loads ACP session history in the Timeline @smoke", async ({ page }) => {
   await page.unroute("**/v1/**");
   await page.goto("/p/codexly/t/task-realtime");
 
-  await expect(page.getByText("Realtime connected", { exact: true })).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("button", { name: "上下文已使用 13%" })).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("button", { name: /启动子代理 · 1 个子代理已完成/ })).toBeVisible();
-  const contextTab = page.getByRole("tab", { name: "上下文" });
-  await contextTab.click();
-  await expect(contextTab).toHaveAttribute("aria-selected", "true");
-  await expect(
-    page.getByRole("region", { name: "MCP" }).getByText("context7", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "查看子代理 frontend_analysis 的输出" }),
-  ).toBeVisible();
-  await expect(page.getByText("理解前端项目", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "查看子代理 frontend_analysis 的输出" }).click();
-  const subagentDialog = page.getByRole("dialog", { name: "子代理输出" });
-  await expect(subagentDialog).toBeVisible();
-  await expect(subagentDialog.getByText("正在分析前端", { exact: true })).toBeVisible();
-
-  // 关闭弹窗会卸载子线程 Runtime；再次打开时从最新 Snapshot 继续，而非重启子代理。
-  await page.getByRole("button", { name: "关闭子代理输出" }).click();
-  await expect(subagentDialog).toHaveCount(0);
-  await page.waitForTimeout(750);
-  await page.getByRole("button", { name: "查看子代理 frontend_analysis 的输出" }).click();
-  await expect(page.getByRole("dialog", { name: "子代理输出" })).toContainText("前端流式分析完成");
-  await expect(page.getByText("agent/spawn", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("ACP 历史输入", { exact: true })).toBeVisible();
+  await expect(page.getByText("ACP 历史回复", { exact: true })).toBeVisible();
 });
 
 test("shows MCP connection states and manually retries the current task", async ({ page }) => {

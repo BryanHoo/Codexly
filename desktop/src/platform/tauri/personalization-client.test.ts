@@ -7,7 +7,7 @@ import type { NativeInvoke } from "./native-invoke.js";
 
 describe("personalization native contract", () => {
   it("grants all commands only to the main window", () => {
-    for (const command of ["get_global_instructions", "save_global_instructions", "get_memory_settings", "update_memory_settings", "reset_memories"]) {
+    for (const command of ["get_global_instructions", "save_global_instructions"]) {
       expect(manifest).toContain(`"${command}"`);
       expect(handlers).toContain(`personalization_commands::${command}`);
       for (const set of permissions.split("[[set]]").slice(1)) {

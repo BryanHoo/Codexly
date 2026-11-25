@@ -12,11 +12,13 @@
 
 ## 契约与检查项
 
-- 运行回合的「已处理」耗时旁共用实时输出速率，按秒刷新，以 `≈40.0 t/s` 标识流式文本估算。会话打开时启用计量，按客户端接收时间统计前台回合的助手回答和推理增量。无可用样本、空闲三秒或回合结束时隐藏。ACP `usage_update` 继续用于上下文用量。回归入口为 [任务 Store](../../../../apps/web/src/features/conversation/runtime/task-store-timing.test.ts) 和 [双端窄屏计时](../../../../desktop/tests/browser/turn-processing-alignment.browser.test.tsx)。
+- 回合运行期间在「已处理」耗时旁持续显示实时输出速率，按秒刷新并直接显示 `40.0 t/s`。计时栏预留数字宽度并右对齐，从 `999.95 t/s` 起缩写为 `1.0k t/s`，避免速率变位推动后方控件。优先用同一前台回合的 ACP 上报差值，样本不足或过期时根据助手回答和推理增量估算。等待输出或最近三秒无可用速率时显示 `0.0 t/s`，耗时未知时也保留速率，回合结束时隐藏。回归入口为 [任务 Store](../../../../apps/web/src/features/conversation/runtime/task-store-timing.test.ts) 和 [双端窄屏计时](../../../../desktop/tests/browser/turn-processing-alignment.browser.test.tsx)。
+- 任意 ACP Agent 均可在 `session/update` 的 `usage_update` 中通过 `update._meta["codexly.dev/turnOutputTokens"]` 上报从当前回合开始累计的输出 token 数，取非负安全整数。连续样本按客户端接收时间计算速率，重复值不延长有效期，回退值只重建基线。标准 `used` 和 `size` 用于上下文展示。回归入口为 [ACP 事件投影](../../../../packages/provider-acp/src/event-projection.test.ts)。[ACP 扩展机制](https://agentclientprotocol.com/protocol/v1/extensibility)
 - [ ] 通过 props 接收翻译与平台动作，不反向导入两端应用或服务运行时。
 - [ ] 共享 Dialog 的非模态入口（`modal={false}`）不渲染遮罩，保留后台工作台交互；懒加载完成后再读取弹窗 DOM，浏览器交互测试须加载实际样式。回归入口为桌面 `project-sidebar-actions.browser.test.tsx`、`pdf-preview.browser.test.tsx`、`subagent.browser.test.tsx` 和 `task-timeline-operation-groups.browser.test.tsx`。
 - [ ] 模态弹窗统一复用 `Dialog` / `Drawer`，共享内容组件默认提供固定右上角关闭按钮；业务必须传入本地化 `closeLabel`，不得另写重复的关闭图标。操作期间使用 `closeDisabled` 统一保护按钮、Escape 与遮罩关闭，`onOpenChange` 保留提交锁和未保存草稿保护。按钮命中区域为 32px 方形、图标为 16px，与弹窗右上边缘间隔 16px；`DialogTitle` 自动预留右侧空间，预览和搜索工具栏中的其他操作也须避让按钮。关闭与焦点恢复复用 Base UI，草稿/待办锚点浮层复用 `Popover` / `PopoverClose`。回归入口为 `tools/dialog-contract.test.mjs`（纳入 `lint:architecture`）、桌面 `dialog-close.browser.test.tsx`（宽窄屏、长标题、默认关闭入口、提交保护和嵌套焦点恢复）、`acp-catalog.browser.test.tsx`（添加与安装保护）、`saved-prompts.browser.test.tsx`（脏草稿）和 Web `app-shell-new-project.spec.ts`（嵌套选择器）。
 - [ ] 渲染模型复用 Frontend Core；重型语法、编辑器和面板按需加载，缓存与任务调度保持有界。
+- [ ] Git 提交信息的 AI 生成按当前选中顺序发送前 500 个路径，保留完整勾选状态供提交等操作使用。Web、移动浏览器与桌面共用此入口，回归见 `git-commit-generation-scope.browser.test.tsx`。
 - [ ] 交互变更同步检查 Web / 移动与桌面，核对焦点、滚动、触控、键盘及流式追加行为。
 - [ ] 仅有聊天时隐藏标签栏；存在文档标签时聊天始终首位且可见；常规批量关闭保留固定项，显式关闭固定文件也不能关闭聊天。批量关闭经过单次保存保护，失败整批保留；拖动仅在放下时提交顺序，不逐帧刷新 React。交互约定与验证见 [文档工作区](../../../../docs/document-workspace.md)。
 - [ ] 工作台左栏和中栏底栏共用高度与纵向留白，保持底边及内容中心线对齐；桌面底栏通过 Portal 移出文档容器时，单独保留输入框阴影的绘制空间。

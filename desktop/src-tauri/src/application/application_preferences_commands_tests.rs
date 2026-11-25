@@ -15,9 +15,6 @@ async fn application_preferences_delivery_should_preserve_old_bytes_and_survive_
     let bytes =
         serde_json::to_vec_pretty(&json!({"version":1,"projects":{},"global":global})).unwrap();
     tokio::fs::write(&path, &bytes).await.unwrap();
-    let old = crate::infrastructure::local_settings::read_global_settings(directory.path())
-        .await
-        .unwrap();
     assert_eq!(
         deliver(directory.path(), json!({"type":"read"}))
             .await
@@ -26,12 +23,6 @@ async fn application_preferences_delivery_should_preserve_old_bytes_and_survive_
     );
     let updated=deliver(directory.path(),json!({"type":"patch","changes":{"defaultAgent":"claude","defaultModel":"新原始模型/😀".repeat(1000)}})).await.unwrap();
     assert_eq!(tokio::fs::read(&path).await.unwrap(), bytes);
-    assert_eq!(
-        crate::infrastructure::local_settings::read_global_settings(directory.path())
-            .await
-            .unwrap(),
-        old
-    );
     tokio::fs::write(&path, b"broken old settings")
         .await
         .unwrap();

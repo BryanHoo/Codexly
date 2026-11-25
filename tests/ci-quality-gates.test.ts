@@ -122,20 +122,20 @@ describe("CI 质量门禁", () => {
     );
   });
 
-  it("发布包仅通过 ACP 目录获取 Agent，原生 Codex 版本用于兼容性测试", () => {
+  it("应用包只通过 ACP 目录获取 Agent", () => {
     const root = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
     };
     const codex = JSON.parse(
       readFileSync(join(process.cwd(), "packages/provider-codex/package.json"), "utf8"),
-    ) as typeof root;
+    ) as Omit<typeof root, "devDependencies"> & { devDependencies?: Record<string, string> };
     for (const name of ["@anthropic-ai/claude-agent-sdk", "@openai/codex"]) {
       expect(root.dependencies[name]).toBeUndefined();
       expect(root.devDependencies[name]).toBeUndefined();
     }
     expect(codex.dependencies["@openai/codex"]).toBeUndefined();
-    expect(codex.devDependencies["@openai/codex"]).toBe("catalog:");
+    expect(codex.devDependencies?.["@openai/codex"]).toBeUndefined();
   });
 
   it("分离增量构建与 Release clean build", () => {
@@ -185,7 +185,6 @@ describe("CI 质量门禁", () => {
 
     for (const gate of [
       "pnpm run audit:prod",
-      "pnpm run codex:schema:check",
       "pnpm run format:check",
       "pnpm run lint",
       "pnpm run lint:architecture",

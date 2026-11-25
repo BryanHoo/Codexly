@@ -43,11 +43,6 @@ async fn acp_journal_should_keep_released_catalog_schema_and_old_sql_writes_usab
         settings_bytes
     );
     // 读取器沿用迁移前的原生本地偏好契约，ACP 自有目录中的新枚举不会进入旧记录。
-    let legacy_settings = crate::infrastructure::local_settings::read_global_settings(root.path())
-        .await
-        .unwrap();
-    assert_eq!(legacy_settings["defaultModel"], "legacy-model");
-    assert_eq!(legacy_settings["followUpBehavior"], "queue");
     // 模拟旧进程重新打开同库；旧 INSERT VALUES 不带列名，列数变化也会直接暴露。
     let old = Connection::open(&path).unwrap();
     assert_eq!(

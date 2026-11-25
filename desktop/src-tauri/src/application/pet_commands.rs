@@ -7,13 +7,13 @@ use std::{
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 use tokio::{fs, io::AsyncWriteExt};
 
 use crate::encoding::encode_lower_hex;
 
+use super::error::AppError;
 use super::pet_assets::scan_custom_pets;
-use super::{error::AppError, state::AppState};
 
 const CDN_ROOT: &str = "https://persistent.oaistatic.com/codex/pets/v1";
 const MAX_ASSET_BYTES: usize = 4 * 1_024 * 1_024;
@@ -104,11 +104,8 @@ pub struct PetDownloadResponse {
 }
 
 #[tauri::command]
-pub async fn list_workbench_pets(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<PetCatalogResponse, AppError> {
-    let codex_home = state.codex_home().await?;
+pub async fn list_workbench_pets(app: AppHandle) -> Result<PetCatalogResponse, AppError> {
+    let codex_home = super::personalization_commands::codex_home(&app)?;
     let mut data = Vec::with_capacity(BUILTIN_PETS.len());
     for pet in &BUILTIN_PETS {
         data.push(describe_pet(&codex_home, pet).await);
@@ -122,13 +119,12 @@ pub async fn list_workbench_pets(
 pub async fn download_workbench_pet(
     app: AppHandle,
     pet_id: String,
-    state: State<'_, AppState>,
 ) -> Result<PetDownloadResponse, AppError> {
     let pet = BUILTIN_PETS
         .iter()
         .find(|pet| pet.id == pet_id)
         .ok_or(AppError::PetAssetUnavailable)?;
-    let codex_home = state.codex_home().await?;
+    let codex_home = super::personalization_commands::codex_home(&app)?;
     if describe_pet(&codex_home, pet).await.availability != "ready" {
         download_pet(&codex_home, pet).await?;
     }

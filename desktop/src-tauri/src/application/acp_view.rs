@@ -45,10 +45,10 @@ mod tests {
     #[test]
     fn acp_public_thought_should_survive_native_events_without_changing_legacy_thought() {
         let mut event = json!({"type":"item.completed","payload":{"item":{"id":"r","type":"reasoning","content":"","summary":"公开思考"}}});
-        crate::application::claude_host::normalize_event(&mut event);
+        crate::application::acp_host::normalize_event(&mut event);
         assert_eq!(event["payload"]["item"]["text"], "公开思考");
         let mut legacy = json!({"type":"item.completed","payload":{"item":{"id":"r","type":"reasoning","content":"旧公开思考","summary":""}}});
-        crate::application::claude_host::normalize_event(&mut legacy);
+        crate::application::acp_host::normalize_event(&mut legacy);
         assert_eq!(legacy["payload"]["item"]["text"], "旧公开思考");
     }
     #[test]

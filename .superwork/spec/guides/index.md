@@ -21,7 +21,7 @@
 | TypeScript 单元与集成 | `pnpm test`                                                      | `vitest.config.ts` 覆盖 apps、packages、src 与 tests 根层用例      |
 | 类型与边界            | `pnpm typecheck`、`pnpm lint:architecture`                       | `tsconfig.json`、`dependency-cruiser.config.cjs`                   |
 | 格式与静态检查        | `pnpm format:check`、`pnpm lint`                                 | 根 `package.json`；桌面由自身检查覆盖                              |
-| Codex 契约            | `pnpm codex:schema:check`                                        | `tools/verify-codex-schema.mjs`                                    |
+| Codex 契约            | `pnpm test:acp-host`                                             | `tools/test-acp-host.mjs`                                          |
 | Web 性能              | `pnpm test:performance`、`pnpm test:performance:browser`         | `vitest.performance.config.ts`、`playwright.performance.config.ts` |
 | 构建与发布内容        | `pnpm build`、`pnpm bundle:check`、`pnpm package:check`          | 根 `package.json` 与 tools 校验器；先构建再检查 bundle 和包        |
 | Web 工作流            | `pnpm test:e2e`                                                  | `playwright.config.ts`、`tests/e2e`                                |

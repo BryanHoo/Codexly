@@ -16,9 +16,6 @@
       "path": "../core"
     },
     {
-      "path": "../provider-codex"
-    },
-    {
       "path": "../provider-acp"
     }
   ]

@@ -260,7 +260,7 @@ export function TurnProcessingTime({
     readOutputRate,
   );
 
-  if (totalSeconds === null && onToggle === undefined) return null;
+  if (totalSeconds === null && !isRunning && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
   // 标题始终表达执行状态；展开/收起只保留为按钮的可访问名称。
   const content = (

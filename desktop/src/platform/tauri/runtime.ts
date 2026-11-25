@@ -42,7 +42,6 @@ export type AgentEventSubscription = Readonly<{
   onResyncRequired?: (message: NativeResyncRequired) => void;
 }>;
 
-let runtimePromise: Promise<RuntimeSnapshot> | undefined;
 let connectionPromise: Promise<RuntimeSnapshot> | undefined;
 const runtimeListeners = new Set<(event: RuntimeStatusEvent) => void>();
 const agentEventSubscriptions = new Set<AgentEventSubscription>();
@@ -60,19 +59,7 @@ export function subscribeAgentEvents(options: AgentEventSubscription): () => voi
   return () => agentEventSubscriptions.delete(options);
 }
 
-export function ensureCodexRuntime(): Promise<RuntimeSnapshot> {
-  runtimePromise ??= (async () => {
-    const snapshot = await connectCodexRuntime();
-    // WebView 重建只需恢复事件通道；后台进程就绪时不再执行启动命令。
-    return snapshot.status === "ready" ? snapshot : invoke<RuntimeSnapshot>("start_runtime");
-  })().catch((error: unknown) => {
-    runtimePromise = undefined;
-    throw error;
-  });
-  return runtimePromise;
-}
-
-export function connectCodexRuntime(): Promise<RuntimeSnapshot> {
+export function connectAcpEvents(): Promise<RuntimeSnapshot> {
   connectionPromise ??= (async () => {
     const acknowledge = createRuntimeEventAcknowledger();
     const consume = (event: RuntimeEvent) => {
@@ -85,8 +72,6 @@ export function connectCodexRuntime(): Promise<RuntimeSnapshot> {
               status: event.data.status,
             });
         for (const listener of runtimeListeners) listener(event);
-        // 后端进程已失效时清除已兑现 Promise，让下一次命令重新握手。
-        if (event.data.status === "failed") runtimePromise = undefined;
         return;
       }
       if (event.type === "resyncRequired") {

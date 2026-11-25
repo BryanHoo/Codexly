@@ -78,6 +78,27 @@ describe("ACP 增量事件投影", () => {
     expect(projection.snapshot().items).toEqual([]);
   });
 
+  it("通过 ACP 扩展转发当前回合上报的累计输出 token", () => {
+    const { projection, events } = fixture();
+    for (const count of [0, 120, -1, 0.5, "120", Number.MAX_SAFE_INTEGER + 1]) {
+      projection.update({
+        sessionUpdate: "usage_update",
+        used: 1000,
+        size: 10000,
+        _meta: { "codexly.dev/turnOutputTokens": count },
+      });
+    }
+    const usage = { usedTokens: 1000, contextWindow: 10000 };
+    expect(events.map((event) => event.payload)).toEqual([
+      { usage, outputTokens: 0 },
+      { usage, outputTokens: 120 },
+      { usage },
+      { usage },
+      { usage },
+      { usage },
+    ]);
+  });
+
   it.each([
     ["end_turn", "completed"],
     ["refusal", "completed"],

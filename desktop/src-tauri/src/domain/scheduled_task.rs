@@ -136,7 +136,7 @@ impl AgentTaskSettingsView<'_> {
 }
 
 /// 执行身份由已保存的引擎选项决定；缺省是旧版 Codex，非法选项不能静默回退。
-/// auto 与共享协议保持一致，模型及服务商是否支持由实际执行的 Claude SDK 判断。
+/// auto 与共享协议保持一致，模型及服务商由 Agent 的 ACP 能力决定。
 pub fn scheduled_task_engine(options: &AgentTurnOptions) -> Option<&'static str> {
     match options.engine_options.as_ref() {
         None => Some("codex"),

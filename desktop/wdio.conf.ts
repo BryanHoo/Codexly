@@ -10,7 +10,6 @@ const buildProfile = process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" :
 const appBinaryPath = process.env.CODEAGENT_WEBVIEW_APP_BINARY
   ? resolve(process.env.CODEAGENT_WEBVIEW_APP_BINARY)
   : resolve("src-tauri", ...targetPath, buildProfile, executable);
-const realRuntimeEnabled = process.env.CODEAGENT_REAL_RUNTIME_TEST === "1";
 const performanceEnabled = process.env.CODEAGENT_WEBVIEW_PERFORMANCE_TEST === "1";
 
 export const config: Options.Testrunner = {
@@ -28,7 +27,7 @@ export const config: Options.Testrunner = {
   maxInstances: 1,
   // WDIO 在执行 hook 前捕获超时；hook 内 this.timeout 无法延长外层计时器。
   // 仅真实运行时模式预留受控下载窗口，普通交互与性能测试仍保持一分钟上限。
-  mochaOpts: { timeout: realRuntimeEnabled ? 20 * 60_000 : 60_000, ui: "bdd" },
+  mochaOpts: { timeout: 60_000, ui: "bdd" },
   reporters: ["spec"],
   runner: "local",
   services: [
@@ -49,8 +48,6 @@ export const config: Options.Testrunner = {
   ],
   specs: performanceEnabled
     ? ["./tests/webview/performance.spec.ts"]
-    : realRuntimeEnabled
-      ? ["./tests/webview/real-codex-runtime.spec.ts"]
-      : ["./tests/webview/critical-flows.spec.ts", "./tests/webview/clipboard.spec.ts", ...(process.platform === "linux" ? ["./tests/webview/linux-autostart.spec.ts"] : [])],
+    : ["./tests/webview/critical-flows.spec.ts", "./tests/webview/clipboard.spec.ts", ...(process.platform === "linux" ? ["./tests/webview/linux-autostart.spec.ts"] : [])],
   waitforTimeout: 10_000,
 };

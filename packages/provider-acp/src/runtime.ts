@@ -1,6 +1,4 @@
 import type { SaveAgentInstructions } from "@codexly/protocol/application-preferences";
-import { readCodexReadOnlyHistory } from "@codexly/provider-codex";
-import { isAbsolute } from "node:path";
 import { nativeInstructionsPlan, replaceNativeInstructions } from "./native-global-instructions.js";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -341,15 +339,6 @@ export class AcpRuntime {
           return target[key];
         if (!target[key]) {
           const provider = create(key);
-          if (key === "codex")
-            provider.readExternalHistory = async (task, input) => {
-              const command = await this.catalog.command("codex");
-              const entry = command.args.find((arg) => isAbsolute(arg) && /\.[cm]?js$/u.test(arg));
-              return readCodexReadOnlyHistory(task, input, provider.attachments, {
-                env: { ...this.#environment, ...command.env },
-                ...(entry ? { packageRoot: entry } : {}),
-              });
-            };
           const scheduler = new AcpTaskTitles(
             this.store,
             key,

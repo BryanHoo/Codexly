@@ -157,7 +157,14 @@ export const TurnCompletedEventSchema = createEventSchema({
 });
 
 export const UsageUpdatedEventSchema = createEventSchema({
-  payload: Type.Object({ usage: AgentContextUsageSchema }, { additionalProperties: false }),
+  payload: Type.Object(
+    {
+      usage: AgentContextUsageSchema,
+      // 仅供实时速率取样，计数从当前前台回合开始累计。
+      outputTokens: Type.Optional(Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
+    },
+    { additionalProperties: false },
+  ),
   turnId: Type.String({ minLength: 1 }),
   type: Type.Literal("usage.updated"),
 });

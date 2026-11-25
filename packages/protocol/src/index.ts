@@ -125,6 +125,7 @@ export {
   CompactAgentTaskResponseSchema,
   ClearAgentGoalResponseSchema,
   DiscardProjectChangesRequestSchema,
+  MAX_WEB_GIT_STATUS_FILES,
   CommitProjectChangesRequestSchema,
   CommitProjectChangesResponseSchema,
   CreateProjectBranchRequestSchema,

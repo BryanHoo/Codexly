@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { waitForWebviewBridge } from "../tests/webview/bridge-readiness.mjs";
-import "./webview-timeouts.test.mjs";
 
 void test("WebView bridge readiness retries transient startup failures", async () => {
   let attempts = 0;
@@ -37,9 +36,9 @@ void test("Native WebView workflow installs the Ubuntu WebKit driver", async () 
   assert.match(workflow, /\bwebkit2gtk-driver\b/u);
 });
 
-void test("Native WebView workflow builds the test application after Cargo lifecycle tests", async () => {
+void test("Native WebView workflow builds the test application after ACP resources", async () => {
   const workflow = await readFile(new URL("../../.github/workflows/desktop-webview.yml", import.meta.url), "utf8");
-  const lifecycleTestAt = workflow.indexOf("- name: Run real Codex lifecycle test");
+  const lifecycleTestAt = workflow.indexOf("- name: Prepare bundled desktop runtimes");
   const webviewBuildAt = workflow.indexOf("- name: Build native WebView test application");
   const webviewTestAt = workflow.indexOf("- name: Run native WebView tests");
 
@@ -48,7 +47,7 @@ void test("Native WebView workflow builds the test application after Cargo lifec
   assert.notEqual(webviewTestAt, -1);
   assert.ok(
     lifecycleTestAt < webviewBuildAt && webviewBuildAt < webviewTestAt,
-    "Cargo tests must not overwrite the configured WebView test application",
+    "ACP resources must be ready before the WebView application is built",
   );
 });
 

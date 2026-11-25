@@ -1,6 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { createCodexRuntimeProvider } from "@codexly/provider-codex";
-import { createLocalCatalogClient } from "../../provider-codex/src/local-catalog-client.js";
+import { AcpApplicationRuntime } from "@codexly/provider-acp";
 import { createCodexlyServer } from "./app.js";
 import { LocalProjectRepository } from "./local-project-repository.js";
 import { createServerOptions } from "./app-options.test-support.js";
@@ -16,27 +15,20 @@ it("serves the complete sidebar lifecycle while the execution engine is unavaila
     createdAt: "2026-10-15T00:00:00Z",
   });
   const request = vi.fn(() => Promise.reject(new Error("engine offline")));
-  const client = await createLocalCatalogClient(
-    {
-      request,
-      notify: vi.fn(),
-      onNotification: vi.fn(() => () => undefined),
-      onServerRequest: vi.fn(() => () => undefined),
-      rejectServerRequest: vi.fn(),
-      respondToServerRequest: vi.fn(),
-    },
-    store,
-  );
-  const runtime = createCodexRuntimeProvider({ client });
+  const runtime = new AcpApplicationRuntime(root, store, () => Promise.resolve(undefined), request);
   const provider = runtime.forProject({
     id: "p",
     name: "项目",
     createdAt: "2026-10-15T00:00:00Z",
     roots: [{ id: "root", path: root }],
   });
-  const app = await createCodexlyServer(
-    createServerOptions(provider, { projectRepository: new LocalProjectRepository(store, store) }),
-  );
+  const app = await createCodexlyServer({
+    ...createServerOptions(provider, {
+      projectRepository: new LocalProjectRepository(store, store),
+    }),
+    provider: runtime,
+    acpAgents: runtime.acpAgents,
+  });
   try {
     const created = await app.inject({
       method: "POST",
@@ -86,5 +78,6 @@ it("serves the complete sidebar lifecycle while the execution engine is unavaila
     expect(request).not.toHaveBeenCalled();
   } finally {
     await app.close();
+    await runtime.close();
   }
 });

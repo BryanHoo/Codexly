@@ -3,7 +3,7 @@
 use std::{os::windows::process::CommandExt, path::Path, process::Stdio, time::Duration};
 use tokio::{process::Command, time::timeout};
 
-#[path = "../src/infrastructure/codex/process_job.rs"]
+#[path = "support/windows_process_job.rs"]
 mod process_job;
 
 const FIXTURE_DIRECTORY: &str = "CODEXLY_UPDATE_PROCESS_FIXTURE";

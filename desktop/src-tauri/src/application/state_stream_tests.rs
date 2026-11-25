@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use serde_json::{Value, json, value::to_raw_value};
+use serde_json::{Value, json};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
-use super::{RuntimeSession, spawn_event_forwarder};
+use super::RuntimeSession;
 use crate::domain::runtime::AppEvent;
-use crate::infrastructure::codex::{ServerMessage, server_message_channel};
 
 #[tokio::test]
 async fn publication_boundary_should_confirm_only_after_native_delivery() {
@@ -23,8 +22,7 @@ async fn publication_boundary_should_confirm_only_after_native_delivery() {
     let runtime = Arc::new(tokio::sync::Mutex::new(session));
     let confirmed = AtomicBool::new(false);
     super::event_publisher::publish_mapped_event_at_boundary(&runtime,
-        json!({"type":"message.delta","taskId":"task","turnId":"turn","itemId":"item","payload":{"delta":"text"}}).into(),
-        None, None, || {
+        json!({"type":"message.delta","taskId":"task","turnId":"turn","itemId":"item","payload":{"delta":"text"}}).into(), None, || {
             assert!(delivered.load(Ordering::SeqCst));
             confirmed.store(true, Ordering::SeqCst);
         }).await;
@@ -127,167 +125,4 @@ fn stream_packet_should_include_enqueue_timestamp() {
         .as_millis() as u64;
     let packet: Value = serde_json::from_str(&received.lock().unwrap()[0]).unwrap();
     assert!((before..=after).contains(&packet["enqueuedAtUnixMs"].as_u64().unwrap()));
-}
-
-#[tokio::test]
-async fn rpc_and_approval_should_progress_through_the_full_pipeline_without_webview_ack() {
-    use crate::infrastructure::codex::AppServerConnection;
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, duplex, split};
-    use tokio::time::{Duration, timeout};
-
-    let runtime = Arc::new(tokio::sync::Mutex::new(RuntimeSession::default()));
-    let received = Arc::new(Mutex::new(Vec::new()));
-    let output = Arc::clone(&received);
-    {
-        let mut state = runtime.lock().await;
-        state
-            .task_projects
-            .insert("thread-a".to_owned(), "project-a".to_owned());
-        state.set_event_channel(Channel::new(move |body| {
-            if let InvokeResponseBody::Json(body) = body {
-                output.lock().unwrap().push(body);
-            }
-            Ok(())
-        }));
-    }
-    let (client, server) = duplex(64 * 1024);
-    let (reader, writer) = split(client);
-    let connection = AppServerConnection::new(reader, writer);
-    let forwarder = super::spawn_event_forwarder(
-        Arc::clone(&runtime),
-        connection.take_server_messages().await.unwrap(),
-        None,
-    );
-    let (server_reader, mut server_writer) = split(server);
-    let server = tokio::spawn(async move {
-        let request: Value = serde_json::from_str(
-            &BufReader::new(server_reader)
-                .lines()
-                .next_line()
-                .await
-                .unwrap()
-                .unwrap(),
-        )
-        .unwrap();
-        let output = format!(
-            "{}\n",
-            json!({"method":"item/commandExecution/outputDelta","params":{
-                "threadId":"thread-a","turnId":"turn-a","itemId":"item-a","delta":"x".repeat(16_384)
-            }})
-        );
-        for _ in 0..2_000 {
-            server_writer.write_all(output.as_bytes()).await.unwrap();
-        }
-        let approval = format!(
-            "{}\n",
-            json!({"id":9,"method":"item/commandExecution/requestApproval","params":{
-                "threadId":"thread-a","turnId":"turn-a","itemId":"item-a","kind":"command",
-                "command":"pwd","cwd":"/work","startedAtMs":1735689600000_i64,"availableDecisions":["accept","decline"]
-            }})
-        );
-        server_writer.write_all(approval.as_bytes()).await.unwrap();
-        server_writer
-            .write_all(
-                format!("{}\n", json!({"id":request["id"],"result":{"done":true}})).as_bytes(),
-            )
-            .await
-            .unwrap();
-        server_writer
-    });
-    let response: Value = connection
-        .request("test/pressure", &json!({}), Duration::from_secs(10))
-        .await
-        .unwrap();
-    assert_eq!(response["done"], true);
-    let server_writer = server.await.unwrap();
-    timeout(Duration::from_secs(2), async {
-        loop {
-            if runtime
-                .lock()
-                .await
-                .pending_requests
-                .contains_key("number:9")
-            {
-                break;
-            }
-            tokio::task::yield_now().await;
-        }
-    })
-    .await
-    .expect("approval registration must not wait for WebView");
-    let stats = runtime
-        .lock()
-        .await
-        .event_sender
-        .as_ref()
-        .unwrap()
-        .snapshot();
-    assert!(stats.in_flight_high_watermark <= 1_048_576);
-    assert!(stats.queued_high_watermark <= 4 * 1_048_576);
-    assert!(
-        received
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|body| body.contains("pending_request.created"))
-    );
-    println!(
-        "RUNTIME_BACKPRESSURE {}",
-        serde_json::to_string(&stats).unwrap()
-    );
-    drop(server_writer);
-    forwarder.await.unwrap();
-}
-
-#[tokio::test]
-async fn dropped_delta_signal_should_request_project_resync() {
-    let published = Arc::new(Mutex::new(Vec::new()));
-    let published_for_channel = Arc::clone(&published);
-    let channel = Channel::new(move |body| {
-        if let InvokeResponseBody::Json(value) = body {
-            published_for_channel.lock().unwrap().push(value);
-        }
-        Ok(())
-    });
-    let runtime = Arc::new(tokio::sync::Mutex::new(RuntimeSession::default()));
-    {
-        let mut session = runtime.lock().await;
-        session.set_event_channel(channel);
-        session
-            .task_projects
-            .insert("thread-a".to_owned(), "project-a".to_owned());
-        session.project_sequences.insert("project-a".to_owned(), 17);
-    }
-    let (sender, receiver) = server_message_channel(1);
-    let task = spawn_event_forwarder(Arc::clone(&runtime), receiver, None);
-    sender
-        .send(ServerMessage {
-            id: None,
-            method: "codeagent/eventRetentionExceeded".to_owned(),
-            params: to_raw_value(&json!({"threadId": "thread-a"})).unwrap(),
-        })
-        .await
-        .unwrap();
-    drop(sender);
-    task.await.expect("event forwarder should stop cleanly");
-
-    let events = published.lock().unwrap();
-    let resync = events
-        .iter()
-        .filter_map(|event| serde_json::from_str::<Value>(event).ok())
-        .find(|event| event.get("type").and_then(Value::as_str) == Some("resyncRequired"))
-        .expect("dropped delta should publish an explicit resync signal");
-    assert_eq!(resync["type"], "resyncRequired");
-    assert!(resync["enqueuedAtUnixMs"].is_u64());
-    assert_eq!(
-        resync["data"],
-        json!({
-            "latestSequence": 17,
-            "projectId": "project-a",
-            "reason": "event_retention_exceeded",
-            "sessionId": crate::infrastructure::codex::runtime_session_id(),
-            "type": "resync.required",
-            "version": 3
-        })
-    );
 }

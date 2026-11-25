@@ -8,28 +8,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-for (const engine of ["codex", "claude"]) {
-  test(
-    `compiled ${engine} agent rejects a damaged proxy snapshot before CLI startup`,
-    { skip: !process.env.CODEXLY_COMPILED_ACP_HOST },
-    () => {
-      const env = {
-        ...process.env,
-        CODEXLY_NETWORK_PROXY_SNAPSHOT: '{"password":"secret",broken}',
-      };
-      delete env.CODEXLY_ACP_LIFETIME_SOCKET;
-      const result = spawnSync(process.env.CODEXLY_COMPILED_ACP_HOST, ["--acp-agent", engine], {
-        env,
-        encoding: "utf8",
-        timeout: 10_000,
-      });
-      assert.equal(result.status, 1);
-      assert.equal(result.stdout, "");
-      assert.equal(result.stderr.trim(), "ACP_HOST_START_FAILED");
-    },
-  );
-}
-
 test(
   "compiled ACP proxy uses SOCKS remote DNS and releases the bridge on stdin EOF",
   { timeout: 20_000 },

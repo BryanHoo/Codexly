@@ -1,5 +1,5 @@
 # `@codexly/provider-codex`
 
-维护 Codex App Server 的进程生命周期、JSONL/RPC 客户端和协议适配。
+提供 Codex 本机资源、配置诊断及辅助 JSONL/RPC 工具。Web 与桌面的会话功能由共享 ACP Provider 实现。
 
-该包实现 Core 定义的端口，不得依赖 Server、Client 或 Web 层。
+该包依赖 Core 和公共协议。

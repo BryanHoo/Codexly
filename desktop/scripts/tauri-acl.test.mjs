@@ -89,7 +89,11 @@ void test("every registered production command has an ACL definition and a windo
 
 void test("frontend IPC calls have registered handlers and at least one enabled window grant", () => {
   const granted = new Set(capabilities.flatMap((capability) => expand(capability.permissions)));
+  const retired = new Set(["global", "task"].flatMap((kind) =>
+    strings(read(`src/platform/tauri/${kind}-command-boundary.ts`).split("new Set([")[1].split("]);")[0]),
+  ));
   for (const { path, command } of frontendCommands()) {
+    if (retired.has(command) && !manifest.has(command)) continue;
     if (command.startsWith("plugin:")) continue;
     assert.ok(handlers.has(command), `${path}: ${command} has no native handler`);
     assert.ok(granted.has(command), `${path}: ${command} has no window grant`);

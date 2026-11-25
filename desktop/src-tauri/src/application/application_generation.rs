@@ -4,18 +4,14 @@ use serde_json::{Value, json};
 use std::path::Path;
 use tauri::AppHandle;
 
-/// 旧调用省略运行时标记；未知标记不能悄悄回退到旧 SDK。
-pub(super) fn is_acp(runtime: Option<&str>, request_id: Option<&str>) -> Result<bool, AppError> {
+/// 校验宿主标记和取消标识，缺省运行时走共享 ACP。
+pub(super) fn validate(runtime: Option<&str>, request_id: Option<&str>) -> Result<(), AppError> {
     if request_id.is_some_and(|id| id.is_empty() || id.len() > 256) {
         return Err(AppError::Acp(
             "Invalid generation cancellation request".into(),
         ));
     }
-    match runtime {
-        None => Ok(false),
-        Some("acp") => Ok(true),
-        Some(_) => Err(AppError::Acp("Unsupported application runtime".into())),
-    }
+    super::search_commands::require_acp(runtime)
 }
 
 async fn prepare(

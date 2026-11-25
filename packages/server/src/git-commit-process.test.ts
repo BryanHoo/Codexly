@@ -68,8 +68,12 @@ describe("Git commit process input", () => {
     });
 
     expect(spawnMock).toHaveBeenCalledTimes(5);
-    expect(spawnMock.mock.calls[2]?.[2]).toMatchObject({ stdio: ["pipe", "pipe", "pipe"] });
-    for (const commandIndex of [0, 1, 3, 4]) {
+    for (const commandIndex of [1, 2, 3]) {
+      expect(spawnMock.mock.calls[commandIndex]?.[2]).toMatchObject({
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    }
+    for (const commandIndex of [0, 4]) {
       expect(spawnMock.mock.calls[commandIndex]?.[2]).toMatchObject({
         stdio: ["ignore", "pipe", "pipe"],
       });

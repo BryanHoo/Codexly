@@ -8,7 +8,8 @@ export function resolveTurnProcessingTime(
   nowMs: number,
 ): Readonly<{ isRunning: boolean; totalSeconds: number | null }> {
   const startedAtMs = startedAt === null ? Number.NaN : Date.parse(startedAt);
-  const isRunning = status === "running" && completedAt === null && Number.isFinite(startedAtMs);
+  // 起始时间缺失时仍保留运行状态，耗时单独显示为未知。
+  const isRunning = status === "running" && completedAt === null;
   // 异常退出后的终态可能没有可靠结束时间；不把离线时长或恢复页面的时间算作处理耗时。
   const endedAtMs =
     completedAt === null ? (isRunning ? nowMs : Number.NaN) : Date.parse(completedAt);

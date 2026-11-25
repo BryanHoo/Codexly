@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const binary = process.env.CODEXLY_COMPILED_ACP_HOST;
 
 function connect(root) {
-  const child = spawn(binary, [root, process.execPath, process.execPath], {
+  const child = spawn(binary, [root], {
     stdio: ["pipe", "pipe", "pipe"],
   });
   child.stderr.resume();

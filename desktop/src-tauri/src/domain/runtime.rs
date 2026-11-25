@@ -3,10 +3,7 @@ use serde_json::Value;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ProviderKind {
-    Codex,
-    Claude,
-}
+pub enum ProviderKind {}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -219,7 +216,7 @@ mod tests {
 
     use super::{
         AppEvent, CodexRuntimeAvailability, CodexRuntimeAvailabilityStatus,
-        CodexRuntimeInstallPhase, CodexRuntimeInstallProgress, ProviderKind, RuntimeStatus,
+        CodexRuntimeInstallPhase, CodexRuntimeInstallProgress, RuntimeStatus,
     };
 
     #[test]
@@ -227,7 +224,7 @@ mod tests {
         let event = AppEvent::RuntimeStatus {
             seq: 7,
             status: RuntimeStatus::Ready,
-            provider: Some(ProviderKind::Codex),
+            provider: None,
         };
 
         let value = serde_json::to_value(event).expect("event serialization should succeed");
@@ -239,7 +236,7 @@ mod tests {
                 "data": {
                     "seq": 7,
                     "status": "ready",
-                    "provider": "codex"
+                    "provider": null
                 }
             })
         );

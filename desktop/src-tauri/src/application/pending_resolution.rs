@@ -1,5 +1,4 @@
 use super::{error::AppError, prompt_submission::SubmissionBudget, turn_start::TurnStartRegistry};
-use crate::infrastructure::codex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{future::Future, sync::Arc};
@@ -16,48 +15,26 @@ pub struct PendingResolutionReference {
     pub created_at: String,
 }
 
-/// 迁移期间只按显式 ACP 请求标记选择宿主；两条链路共用审批幂等与独立预算。
+/// ACP 权限请求共用审批幂等登记和独立预算，窗口关闭后不会重复发出授权。
 #[tauri::command(rename_all = "camelCase")]
 pub async fn resolve_pending_request(
     app: AppHandle,
     request: PendingResolutionReference,
     resolution: Value,
     idempotency_key: String,
-    acp: Option<bool>,
     acp_request_type: Option<String>,
 ) -> Result<Value, Value> {
-    let acp_type = match (acp.unwrap_or(false), acp_request_type.as_deref()) {
-        (true, Some("mcp_elicitation")) => Some("mcp_elicitation"),
-        (true, None) => Some("tool_approval"),
-        (false, None) => None,
+    let acp_type = match acp_request_type.as_deref() {
+        Some("mcp_elicitation") => "mcp_elicitation",
+        None => "tool_approval",
         _ => {
             return Err(
                 serde_json::json!({"code":"INVALID_REQUEST", "message":"Invalid ACP request type"}),
             );
         }
     };
-    resolve(app, request, resolution, idempotency_key, acp_type).await
-}
-
-impl PendingResolutionReference {
-    pub(crate) fn matches(&self, request: &Value) -> bool {
-        request["status"] == "pending"
-            && request["projectId"] == self.project_id
-            && request["taskId"] == self.task_id
-            && request["turnId"] == self.turn_id
-            && request["itemId"] == self.item_id
-            && request["requestId"] == self.request_id
-            && request["createdAt"] == self.created_at
-    }
-}
-
-pub async fn resolve(
-    app: AppHandle,
-    reference: PendingResolutionReference,
-    resolution: Value,
-    key: String,
-    acp_type: Option<&'static str>,
-) -> Result<Value, Value> {
+    let reference = request;
+    let key = idempotency_key;
     let state = app.state::<super::state::AppState>();
     let worker_app = app.clone();
     let worker_reference = reference.clone();
@@ -71,120 +48,40 @@ pub async fn resolve(
         &resolution,
         &key,
         async move {
-            if let Some(acp_type) = acp_type {
-                // 与旧审批复用同一幂等登记和独立预算；取消 WebView 等待不重复发出授权。
-                let mut wire_resolution = (*worker_resolution).clone();
-                if acp_type == "mcp_elicitation" {
-                    // 桌面沿用原生待办的省略格式。ACP 宿主使用两端通用的结构化回应契约。
-                    let fields = wire_resolution
-                        .as_object_mut()
-                        .ok_or(AppError::CodexRequestFailed)?;
-                    let default_content =
-                        if fields.get("action").and_then(Value::as_str) == Some("accept") {
-                            serde_json::json!({})
-                        } else {
-                            Value::Null
-                        };
-                    fields.entry("content").or_insert(default_content);
-                }
-                let request = super::acp_task_commands::acp_task_request(
-                    worker_app,
-                    worker_reference.project_id.clone(),
-                    "request.resolve".into(),
-                    serde_json::json!({
-                        "projectId":worker_reference.project_id,
-                        "taskId":worker_reference.task_id,
-                        "turnId":worker_reference.turn_id,
-                        "itemId":worker_reference.item_id,
-                        "requestId":worker_reference.request_id,
-                        "type":acp_type,
-                        "resolution":wire_resolution,
-                    }),
-                    None,
-                )
-                .await?;
-                Ok(serde_json::json!({"request":request}))
-            } else {
-                execute(worker_app, worker_reference, worker_resolution).await
+            let mut wire_resolution = (*worker_resolution).clone();
+            if acp_type == "mcp_elicitation" {
+                // ACP 宿主使用 Web 与桌面共用的结构化回应契约。
+                let fields = wire_resolution
+                    .as_object_mut()
+                    .ok_or(AppError::CodexRequestFailed)?;
+                let default_content =
+                    if fields.get("action").and_then(Value::as_str) == Some("accept") {
+                        serde_json::json!({})
+                    } else {
+                        Value::Null
+                    };
+                fields.entry("content").or_insert(default_content);
             }
+            let request = super::acp_task_commands::acp_task_request(
+                worker_app,
+                worker_reference.project_id.clone(),
+                "request.resolve".into(),
+                serde_json::json!({
+                    "projectId":worker_reference.project_id,
+                    "taskId":worker_reference.task_id,
+                    "turnId":worker_reference.turn_id,
+                    "itemId":worker_reference.item_id,
+                    "requestId":worker_reference.request_id,
+                    "type":acp_type,
+                    "resolution":wire_resolution,
+                }),
+                None,
+            )
+            .await?;
+            Ok(serde_json::json!({"request":request}))
         },
     )
     .await
-}
-
-async fn execute(
-    app: AppHandle,
-    reference: PendingResolutionReference,
-    resolution: Arc<Value>,
-) -> Result<Value, AppError> {
-    let state = app.state::<super::state::AppState>();
-    let task = super::claude_tasks::task(&app, &reference.project_id, &reference.task_id).await?;
-    if task["provider"] == "claude" {
-        let scope = Some(super::claude_tasks::scope(&task));
-        let snapshot = state
-            .claude
-            .request(
-                &app,
-                "task.read",
-                scope.clone(),
-                serde_json::json!({"taskId":reference.task_id}),
-            )
-            .await?;
-        let pending = snapshot["pendingRequests"]
-            .as_array()
-            .and_then(|requests| requests.iter().find(|request| reference.matches(request)))
-            .ok_or_else(|| AppError::Claude("Pending request expired or mismatched".into()))?;
-        let mut params =
-            serde_json::to_value(&reference).map_err(|_| AppError::CodexRequestFailed)?;
-        params.as_object_mut().unwrap().remove("createdAt");
-        params["type"] = pending["type"].clone();
-        params["resolution"] = (*resolution).clone();
-        let request = state
-            .claude
-            .request(&app, "request.resolve", scope, params)
-            .await?;
-        return Ok(serde_json::json!({"request":request}));
-    }
-    // 同一临界区获取连接并核对请求身份，不能取走其他任务或新一代请求。
-    let (connection, pending) = state.claim_pending_resolution(&reference).await?;
-    let result = async {
-        let response =
-            codex::response_for_resolution(&pending, &resolution).map_err(AppError::from)?;
-        if pending.request["type"] == "plugin_install_suggestion"
-            && resolution["action"] == "accept"
-            && pending.request["toolType"] == "plugin"
-        {
-            let marketplace = pending.request["remoteMarketplaceName"]
-                .as_str()
-                .ok_or(AppError::CodexRequestFailed)?;
-            let plugin = pending.request["remotePluginId"]
-                .as_str()
-                .ok_or(AppError::CodexRequestFailed)?;
-            codex::install_official_plugin(
-                &connection,
-                marketplace,
-                None,
-                plugin,
-                pending.request["suggestionId"].as_str(),
-            )
-            .await
-            .map_err(AppError::from)?;
-        }
-        connection
-            .respond(pending.rpc_id, &response)
-            .await
-            .map_err(AppError::from)?;
-        Ok(())
-    }
-    .await;
-    if let Err(error) = result {
-        state.restore_pending_resolution(&connection, pending).await;
-        return Err(error);
-    }
-    let request = state
-        .publish_pending_resolution(&connection, &pending)
-        .await?;
-    Ok(serde_json::json!({"request":request}))
 }
 
 async fn run<F>(

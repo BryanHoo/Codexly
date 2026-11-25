@@ -1,29 +1,5 @@
-import {
-  CodexProtocolMappingError,
-  CodexProviderConnectionError,
-  RpcConnectionClosedError,
-  RpcProtocolError,
-  RpcResponseError,
-  RpcTimeoutError,
-} from "@codexly/provider-codex";
-
 import { MutationHttpError, type RunIdempotent } from "./routes/context.js";
 import { fingerprintPayload } from "./server-runtime.js";
-import { originalErrorMessage } from "./error-message.js";
-
-function codexErrorMessage(error: unknown): string | undefined {
-  if (
-    error instanceof CodexProtocolMappingError ||
-    error instanceof CodexProviderConnectionError ||
-    error instanceof RpcConnectionClosedError ||
-    error instanceof RpcProtocolError ||
-    error instanceof RpcResponseError ||
-    error instanceof RpcTimeoutError
-  ) {
-    return originalErrorMessage(error, "Agent provider request failed");
-  }
-  return undefined;
-}
 
 type CompletedIdempotencyEntry = Readonly<{
   expiresAt: number;
@@ -113,12 +89,7 @@ export function createIdempotencyRunner(
         if (error instanceof MutationHttpError) {
           throw error;
         }
-        throw new MutationHttpError(
-          "PROVIDER_ERROR",
-          codexErrorMessage(error) ?? "Agent provider request failed",
-          502,
-          true,
-        );
+        throw new MutationHttpError("PROVIDER_ERROR", "Agent provider request failed", 502, true);
       });
     const entry: InFlightIdempotencyEntry = { fingerprint, promise };
     inFlightEntries.set(entryKey, entry);

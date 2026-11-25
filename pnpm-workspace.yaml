@@ -17,8 +17,6 @@ allowBuilds:
 
 catalog:
   "@agentclientprotocol/sdk": 2.8.0
-  "@agentclientprotocol/codex-acp": 2.8.0
-  "@agentclientprotocol/claude-agent-acp": 0.109.0
   "@shadcn/react": 0.3.1
   bun: 1.4.2
   "@fastify/cookie": 11.1.2
@@ -27,7 +25,6 @@ catalog:
   "@fastify/websocket": 11.3.0
   "@headless-tree/core": 1.7.0
   "@headless-tree/react": 1.7.0
-  "@openai/codex": 0.166.0
   "@playwright/test": 1.62.1
   "@sinclair/typebox": 0.34.52
   "@streamdown/mermaid": 1.0.2
@@ -49,7 +46,6 @@ catalog:
   fastify: 5.12.6
   lucide-react: 1.25.0
   p-limit: 7.3.1
-  pino: 10.3.1
   oxlint: 1.80.0
   oxlint-tsgolint: 7.0.2001
   prettier: 3.9.6
@@ -116,13 +112,6 @@ linkWorkspacePackages: false
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   # 已核对正式 release 和官方包完整性；只豁免本次固定版本。
-  - "@openai/codex@0.166.0"
-  - "@openai/codex@0.166.0-darwin-x64"
-  - "@openai/codex@0.166.0-darwin-arm64"
-  - "@openai/codex@0.166.0-linux-arm64"
-  - "@openai/codex@0.166.0-linux-x64"
-  - "@openai/codex@0.166.0-win32-arm64"
-  - "@openai/codex@0.166.0-win32-x64"
   - prettier@3.9.6
   - react-dom@19.2.8
   - react@19.2.8

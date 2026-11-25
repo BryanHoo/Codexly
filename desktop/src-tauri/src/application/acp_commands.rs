@@ -1,16 +1,10 @@
-use super::{claude_host::ClaudeHostManager, error::AppError, state::AppState};
+use super::{acp_host::AcpHostManager, error::AppError, state::AppState};
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 
+#[derive(Default)]
 pub struct AcpDesktopRuntime {
-    pub(super) host: ClaudeHostManager,
-}
-impl Default for AcpDesktopRuntime {
-    fn default() -> Self {
-        Self {
-            host: ClaudeHostManager::for_acp(),
-        }
-    }
+    pub(super) host: AcpHostManager,
 }
 impl AcpDesktopRuntime {
     pub async fn close(&self) {
@@ -129,7 +123,7 @@ pub async fn acp_agent_request(
     request_id: Option<String>,
 ) -> Result<Value, AppError> {
     let mut params = settings_params(&engine, &method, params)?;
-    let cancellable = super::claude_host::cancellable_acp_request(&method);
+    let cancellable = super::acp_host::cancellable_acp_request(&method);
     if request_id
         .as_ref()
         .is_some_and(|id| id.is_empty() || id.len() > 256)

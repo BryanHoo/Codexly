@@ -91,7 +91,7 @@ for (const explicit of [false, true])
     };
     let failure: unknown;
     const done = runAcpHost(
-      [directory, process.execPath, process.execPath, ...(explicit ? [app] : [])],
+      [directory, ...(explicit ? [app] : [])],
       { input, output },
       launch,
     ).catch((error: unknown) => {

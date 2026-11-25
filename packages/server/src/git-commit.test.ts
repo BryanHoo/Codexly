@@ -1,11 +1,13 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createCodexlyServer } from "./app.js";
+import { createProvider, createServerOptions, project } from "./app-all.test-support.js";
 import { commitSelectedProjectChanges, pushProjectCommits } from "./git-commit.js";
 import type { GitCommitError } from "./git-commit.js";
 import { readGitWorkingTreeStatus } from "./git-working-tree.js";
@@ -40,6 +42,58 @@ afterEach(async () => {
 });
 
 describe("commitSelectedProjectChanges", () => {
+  it("commits a large HTTP selection in one commit and keeps the unselected index entry", async () => {
+    const root = await createRepository();
+    const paths = Array.from({ length: 800 }, (_, index) => {
+      const directory = index < 400 ? "staged" : "unstaged";
+      return `${directory}/${"long-file-name-".repeat(8)}${index}.txt`;
+    });
+    await Promise.all(["staged", "unstaged"].map((directory) => mkdir(join(root, directory))));
+    await Promise.all(paths.map((path) => writeFile(join(root, path), path)));
+    await writeFile(join(root, "unselected.txt"), "keep staged\n");
+    await runGit(root, "add", "--", "staged", "unselected.txt");
+    const status = await readGitWorkingTreeStatus(root);
+    const { provider } = createProvider();
+    const options = createServerOptions(provider);
+    const app = await createCodexlyServer({
+      ...options,
+      projectRepository: {
+        ...options.projectRepository,
+        read: () => Promise.resolve({ ...project, roots: [{ id: "root-codexly", path: root }] }),
+      },
+    });
+    try {
+      const response = await app.inject({
+        method: "POST",
+        headers: { "idempotency-key": "commit-large-selection" },
+        url: `/v1/projects/${project.id}/git/commits?rootPath=${encodeURIComponent(root)}`,
+        payload: {
+          action: "commit",
+          expectedSnapshot: status.snapshot,
+          message: "test(git): 一次提交全部勾选文件",
+          paths,
+        },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      const saved = await runGit(
+        root,
+        "diff-tree",
+        "--no-commit-id",
+        "--name-only",
+        "-z",
+        "-r",
+        "HEAD",
+      );
+      expect(saved.stdout.split("\0").filter(Boolean).sort()).toEqual(paths.toSorted());
+      expect((await runGit(root, "rev-list", "--count", "HEAD")).stdout.trim()).toBe("2");
+      expect((await runGit(root, "diff", "--cached", "--name-only")).stdout.trim()).toBe(
+        "unselected.txt",
+      );
+    } finally {
+      await app.close();
+    }
+  }, 15_000);
+
   it("reads the current commit after commit with an outdated snapshot, then pushes that HEAD", async () => {
     const root = await createRepository();
     const remote = await mkdtemp(join(tmpdir(), "codexly-git-after-commit-"));

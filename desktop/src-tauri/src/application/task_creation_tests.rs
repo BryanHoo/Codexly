@@ -24,11 +24,11 @@ async fn task_creation_should_retry_after_runtime_becomes_available() {
     let registry = TaskCreationRegistry::default();
     let error = registry
         .run("project", "key", async {
-            Err(AppError::CodexRuntimeUnavailable)
+            Err(AppError::AcpHostUnavailable)
         })
         .await
         .unwrap_err();
-    assert_eq!(error, json!("Codex runtime is unavailable"));
+    assert_eq!(error, json!("ACP host is unavailable"));
     let result = registry
         .run("project", "key", async { Ok(response()) })
         .await;
@@ -41,7 +41,7 @@ async fn task_creation_retry_should_preserve_scope_capacity_and_original_retenti
     for index in 0..CAPACITY {
         registry
             .run("project", &index.to_string(), async {
-                Err(AppError::CodexRuntimeUnavailable)
+                Err(AppError::AcpHostUnavailable)
             })
             .await
             .unwrap_err();
@@ -78,10 +78,7 @@ async fn task_creation_retry_should_not_trust_rpc_error_text() {
     let registry = TaskCreationRegistry::default();
     let error = registry
         .run("project", "key", async {
-            Err(AppError::CodexRpc {
-                rpc_code: -32603,
-                message: "Codex runtime is unavailable".into(),
-            })
+            Err(AppError::Acp("ACP host is unavailable".into()))
         })
         .await
         .unwrap_err();
@@ -101,7 +98,7 @@ async fn task_creation_retry_should_merge_concurrent_retries_and_preserve_old_wa
     let registry = TaskCreationRegistry::default();
     let error = registry
         .run("project", "key", async {
-            Err(AppError::CodexRuntimeUnavailable)
+            Err(AppError::AcpHostUnavailable)
         })
         .await
         .unwrap_err();
@@ -193,15 +190,12 @@ async fn task_creation_should_replay_failure_without_repeating_unknown_side_effe
         let result = registry
             .run("project", "key", async move {
                 calls.fetch_add(1, Ordering::SeqCst);
-                Err(AppError::CodexRpc {
-                    rpc_code: -32602,
-                    message: "creation failed".into(),
-                })
+                Err(AppError::Acp("creation failed".into()))
             })
             .await;
         assert_eq!(
             result.unwrap_err(),
-            json!({"code":"CODEX_RPC_ERROR","rpcCode":-32602,"message":"creation failed"})
+            json!({"code":"ACP_REQUEST_FAILED","message":"creation failed"})
         );
     }
     assert_eq!(calls.load(Ordering::SeqCst), 1);

@@ -11,9 +11,9 @@ import "../../src/shared/styles/globals.css";
 import { changeAppLanguage as webLanguage } from "../../../apps/web/src/i18n/i18n.js";
 import { changeAppLanguage as nativeLanguage } from "../../src/i18n/i18n.js";
 
-it.each(["web", "desktop"])("%s 在窄屏任务计时旁显示实时速率，完成后隐藏", async (platform) => {
+it.each(["web", "desktop"])("%s 在窄屏任务整个运行过程中显示速率，完成后隐藏", async (platform) => {
   const timestamp = new Date().toISOString();
-  const turn = { id: "turn", status: "running" as const, startedAt: timestamp, completedAt: null, error: null, items: [{ id: "user", type: "message" as const, role: "user" as const, text: "测试流式输出" }] };
+  const turn = { id: "turn", status: "running" as const, startedAt: timestamp, completedAt: null, error: null, items: [] };
   const identity = { projectId: "project", taskId: "task" };
   const response = { checkpoint: { sessionId: "session", sequence: 0 }, snapshot: {
     id: "task", projectId: "project", title: "Task", pinned: false, status: "running" as const,
@@ -29,22 +29,52 @@ it.each(["web", "desktop"])("%s 在窄屏任务计时旁显示实时速率，完
     {platform === "web" ? <WebTimeline connected store={web} {...actions} /> : <DesktopTimeline connected store={desktop} {...actions} />}
   </div></TooltipProvider>);
   const timer = () => screen.container.querySelector<HTMLElement>("[data-turn-processing-time]");
+  const speed = () => timer()?.querySelector("time")?.nextElementSibling?.textContent;
+  expect(speed()).toBe("· 0.0 t/s");
   const event = { version: 2, provider: "claude", sessionId: "session", taskId: identity.taskId, turnId: turn.id, timestamp } as const;
-  const message = { ...event, sequence: 1, type: "message.delta", itemId: "acp:message:assistant:reply", payload: { delta: "streaming output ".repeat(10) } } as const;
-  store.getState().applyEvents([message]);
-  await expect.poll(() => timer()?.querySelector("time")?.textContent).toBe("0s");
-  expect(timer()?.textContent).not.toContain("t/s");
-  // 等待现有秒级计时推进后，再交付一批文本以形成可观察的流式间隔。
-  await expect.poll(() => timer()?.querySelector("time")?.textContent).not.toBe("0s");
-  store.getState().applyEvents([{ ...message, sequence: 2 }]);
-  await expect.poll(() => timer()?.textContent).toMatch(/≈\d+\.\d t\/s/);
-  expect(timer()?.querySelector("time")?.nextElementSibling?.textContent).toContain("t/s");
-  store.getState().applyEvents([{ ...event, sequence: 3, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
-  await expect.poll(() => timer()?.textContent).not.toContain("t/s");
+  const reported = { ...event, sequence: 1, type: "usage.updated", payload: { usage: { usedTokens: 500, contextWindow: 10000 }, outputTokens: 0 } } as const;
+  const message = { ...event, sequence: 2, type: "message.delta", itemId: "acp:message:assistant:reply", payload: { delta: "streaming output ".repeat(10) } } as const;
+  store.getState().applyEvents([reported, message]);
+  // ACP 可能把短答复合并为单个文本块，收到这一批就应显示非零速率。
+  await expect.poll(speed, { timeout: 2_000 }).toMatch(/^· [1-9]\d*\.\d t\/s$/);
+  // 流式估算只有几十 t/s。收到已上报的差值后，两端都应切换到 k t/s。
+  store.getState().applyEvents([{ ...reported, sequence: 3, payload: { ...reported.payload, outputTokens: 10000 } }]);
+  await expect.poll(speed, { timeout: 2_000 }).toMatch(/^· [1-9]\d*\.\dk t\/s$/);
+  await expect.poll(speed, { timeout: 5_000 }).toBe("· 0.0 t/s");
+  store.getState().applyEvents([{ ...message, sequence: 4 }]);
+  await expect.poll(speed, { timeout: 2_000 }).toMatch(/^· [1-9]\d*\.\d t\/s$/);
+  store.getState().applyEvents([{ ...event, sequence: 5, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
+  await expect.poll(() => timer()?.textContent ?? "").not.toContain("t/s");
   await screen.unmount();
-});
+}, 10_000);
 
 for (const [platform, Timer] of [["web", WebTimer], ["desktop", DesktopTimer]] as const) {
+  it(`${platform} 速率跨位数变化时，窄屏计时栏的展开箭头不移动`, async () => {
+    const startedAt = new Date().toISOString();
+    const timer = (rate: number) => (
+      <div style={{ width: 360 }}>
+        <Timer status="running" startedAt={startedAt} completedAt={null} readOutputRate={() => rate} onToggle={() => undefined} />
+      </div>
+    );
+    const screen = await render(timer(0));
+    const header = screen.container.querySelector<HTMLElement>("[data-turn-processing-time]")!;
+    const speed = header.querySelector("time")!.nextElementSibling!;
+    const arrow = header.lastElementChild!;
+    const arrowLeft = arrow.getBoundingClientRect().left;
+    for (const [rate, expected] of [[86, "86.0 t/s"], [412, "412.0 t/s"], [999.9, "999.9 t/s"], [999.95, "1.0k t/s"], [1240, "1.2k t/s"]] as const) {
+      await screen.rerender(timer(rate));
+      expect(speed.textContent).toContain(expected);
+      expect(Math.abs(arrow.getBoundingClientRect().left - arrowLeft)).toBeLessThan(0.5);
+    }
+    await screen.unmount();
+  });
+  it(`${platform} 运行时间未知时仍显示速率`, async () => {
+    const screen = await render(<Timer status="running" startedAt={null} completedAt={null} />);
+    const timer = screen.container.querySelector<HTMLElement>("[data-turn-processing-time]");
+    expect(timer?.textContent).toContain("0.0 t/s");
+    expect(timer?.querySelector("time")).toBeNull();
+    await screen.unmount();
+  });
   it(`${platform} 显示持续计时和完成耗时，不把折叠动作当作标题`, async () => {
     await Promise.all([webLanguage("zh-CN"), nativeLanguage("zh-CN")]);
     const start = new Date(Date.now() - 3000).toISOString();

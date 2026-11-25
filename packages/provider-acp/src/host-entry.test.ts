@@ -23,7 +23,7 @@ it("版本探测不启动 agent，非法参数拒绝，EOF 与截断帧使用不
     ).rejects.toThrow("绝对路径");
     const input = new PassThrough();
     const normal = runAcpHost(
-      [root, process.execPath, process.execPath],
+      [root],
       { input, output },
       launch,
     );
@@ -31,7 +31,7 @@ it("版本探测不启动 agent，非法参数拒绝，EOF 与截断帧使用不
     expect(await normal).toBe(0);
     const broken = new PassThrough();
     const truncated = runAcpHost(
-      [root, process.execPath, process.execPath],
+      [root],
       { input: broken, output },
       launch,
     );
@@ -44,7 +44,7 @@ it("版本探测不启动 agent，非法参数拒绝，EOF 与截断帧使用不
       },
     });
     const failed = runAcpHost(
-      [root, process.execPath, process.execPath],
+      [root],
       { input: failedInput, output: failedOutput },
       launch,
     );

@@ -18,26 +18,15 @@ async fn acp_prepare_should_reject_missing_resources_and_retry_after_repair() {
         "x64"
     };
     let manifest = serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,
-        "host":{"path":"host","protocolVersion":1},
-        "engines":{"codex":{"version":"0.166.0","entrypoint":"codex"},"claude":{"version":"2.1.318","sdkVersion":"0.3.318","entrypoint":"claude"}}});
+        "host":{"path":"host","protocolVersion":1}});
     std::fs::write(root.path().join("manifest.json"), manifest.to_string()).unwrap();
-    for name in ["host", "codex", "claude"] {
-        std::fs::write(root.path().join(name), "binary").unwrap();
-    }
+    std::fs::write(root.path().join("host"), "binary").unwrap();
     let paths = manager.prepare(root.path()).await.unwrap();
     assert_eq!(
         paths.host,
         std::fs::canonicalize(root.path().join("host")).unwrap()
     );
-    assert_eq!(
-        paths.codex,
-        std::fs::canonicalize(root.path().join("codex")).unwrap()
-    );
-    assert_eq!(
-        paths.claude,
-        std::fs::canonicalize(root.path().join("claude")).unwrap()
-    );
-    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 4);
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 2);
 }
 
 #[cfg(unix)]
@@ -71,12 +60,9 @@ async fn acp_prepare_should_not_fall_back_to_an_unsigned_resource_host() {
     };
     for placement in ["sidecar", "unknown"] {
         let manifest = serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,
-            "host":{"path":"acp-host","placement":placement,"protocolVersion":1},
-            "engines":{"codex":{"version":"0.166.0","entrypoint":"codex"},"claude":{"version":"2.1.318","sdkVersion":"0.3.318","entrypoint":"claude"}}});
+            "host":{"path":"acp-host","placement":placement,"protocolVersion":1}});
         std::fs::write(root.path().join("manifest.json"), manifest.to_string()).unwrap();
-        for name in ["acp-host", "codex", "claude"] {
-            std::fs::write(root.path().join(name), "binary").unwrap();
-        }
+        std::fs::write(root.path().join("acp-host"), "binary").unwrap();
         assert!(
             AcpRuntimeManager::default()
                 .prepare(root.path())
@@ -104,12 +90,8 @@ async fn acp_prepare_should_use_one_external_sidecar_and_cache_its_identity() {
         "x64"
     };
     let manifest = serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,
-      "host":{"path":"acp-host","placement":"sidecar","protocolVersion":1},
-      "engines":{"codex":{"version":"0.166.0","entrypoint":"codex"},"claude":{"version":"2.1.318","sdkVersion":"0.3.318","entrypoint":"claude"}}});
+      "host":{"path":"acp-host","placement":"sidecar","protocolVersion":1}});
     std::fs::write(resource.join("manifest.json"), manifest.to_string()).unwrap();
-    for name in ["codex", "claude"] {
-        std::fs::write(resource.join(name), "binary").unwrap();
-    }
     let host = root.path().join("acp-host");
     std::fs::write(&host, "signed-sidecar").unwrap();
     let manager = AcpRuntimeManager::default();
@@ -155,6 +137,4 @@ async fn acp_host_only_bundle_should_not_require_any_agent() {
             .await
             .is_ok()
     );
-    assert_eq!(bundled_version(root.path(), "codex").await.unwrap(), None);
-    assert_eq!(bundled_version(root.path(), "claude").await.unwrap(), None);
 }

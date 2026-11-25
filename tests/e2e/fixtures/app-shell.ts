@@ -96,7 +96,7 @@ async function stopServer(serverProcess: ChildProcessWithoutNullStreams): Promis
 const testFixture = base.extend<Record<never, never>, WorkerFixtures>({
   e2eServerUrl: [
     async ({ browserName }, use, workerInfo) => {
-      // 每个 worker 独占 Fake Server 及其子 App Server，隔离全部内存数据和实时事件。
+      // 每个 worker 独占 HTTP 服务和 ACP Agent，隔离任务数据和实时事件。
       const serverProcess = spawn(process.execPath, [fakeServerPath], {
         env: { ...process.env, CODEXLY_E2E_PORT: "0" },
         shell: false,

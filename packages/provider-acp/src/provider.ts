@@ -60,7 +60,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   readonly #elicitations: AcpElicitations;
   readonly attachments: HistoricalTaskAttachments;
   readonly #management: AcpTaskManagement;
-  readExternalHistory?: taskSnapshot.AcpExternalHistoryReader;
   prepareTaskTitle?: (task: LocalTask, input: AgentProviderTurnInput) => Promise<void>;
   publishTaskTitle(id: string, title: string): void {
     this.#emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
@@ -205,7 +204,6 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         background: this.#background,
         needsReplay: async () =>
           !this.#link.sessions.has(id) && (await this.history.needsReplay(id)),
-        ...(this.readExternalHistory ? { readExternalHistory: this.readExternalHistory } : {}),
         pending: () => [...this.#permissions.list(id), ...this.#elicitations.list(id)],
         contextUsage: () =>
           this.#link.instance?.readSessionUsage(this.#link.sessions.get(id)) ?? null,

@@ -160,17 +160,25 @@ export class AcpEventProjection {
       case "compaction_summary_chunk":
         this.#compaction(update, scope);
         break;
-      case "usage_update":
+      case "usage_update": {
         if (subagent) break;
+        // ACP 的 used 是上下文占用。仅采信命名空间内、明确按当前回合累计的输出计数。
+        const outputTokens = update._meta?.["codexly.dev/turnOutputTokens"];
         this.emit({
           type: "usage.updated",
           taskId: this.taskId,
           turnId: this.turnId,
           payload: {
             usage: acpContextUsage(update),
+            ...(typeof outputTokens === "number" &&
+            Number.isSafeInteger(outputTokens) &&
+            outputTokens >= 0
+              ? { outputTokens }
+              : {}),
           },
         });
         break;
+      }
       case "agent_message_chunk":
       case "user_message_chunk":
       case "agent_thought_chunk":

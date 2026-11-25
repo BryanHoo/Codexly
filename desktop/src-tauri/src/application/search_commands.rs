@@ -1,7 +1,7 @@
 use super::{error::AppError, state::AppState};
 use crate::{
     domain::search::{SearchOccurrencesPage, TaskSearchInput, TaskSearchPage},
-    infrastructure::{codex, local_catalog::LocalCatalog},
+    infrastructure::local_catalog::LocalCatalog,
 };
 use serde_json::{Value, json};
 use tauri::{AppHandle, State};
@@ -17,7 +17,7 @@ pub async fn search_tasks(
     agent_runtime: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<TaskSearchPage, AppError> {
-    let acp = use_acp(agent_runtime.as_deref())?;
+    require_acp(agent_runtime.as_deref())?;
     state
         .run_cancellable(request_id.as_deref(), async {
             let catalog = LocalCatalog::at(
@@ -25,7 +25,7 @@ pub async fn search_tasks(
                     .map_err(|_| AppError::FilesystemRequestFailed)?,
             )?;
             catalog::search(&catalog, input, |task, query| {
-                occurrences(&app, &state, task, query, None, 1, acp)
+                occurrences(&app, &state, task, query, None, 1)
             })
             .await
         })
@@ -42,7 +42,7 @@ pub async fn search_task_occurrences(
     agent_runtime: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<SearchOccurrencesPage, AppError> {
-    let acp = use_acp(agent_runtime.as_deref())?;
+    require_acp(agent_runtime.as_deref())?;
     state
         .run_cancellable(request_id.as_deref(), async {
             let catalog = LocalCatalog::at(
@@ -50,7 +50,7 @@ pub async fn search_task_occurrences(
                     .map_err(|_| AppError::FilesystemRequestFailed)?,
             )?;
             let task = catalog.call("task.read", json!({"id":task_id})).await?;
-            occurrences(&app, &state, task, query, cursor, 30, acp).await
+            occurrences(&app, &state, task, query, cursor, 30).await
         })
         .await
 }
@@ -62,72 +62,29 @@ async fn occurrences(
     query: String,
     cursor: Option<String>,
     limit: usize,
-    acp: bool,
 ) -> Result<SearchOccurrencesPage, AppError> {
     let id = task["id"].as_str().ok_or(AppError::CodexRequestFailed)?;
-    if acp {
-        // 任务目录决定作用域，前端只选择协议；两种引擎共用同一个 ACP 摘要实现。
-        let mut input = json!({"query":query});
-        if let Some(cursor) = cursor {
-            input["cursor"] = json!(cursor);
-        }
-        let result = state
-            .acp
-            .host
-            .request(
-                app,
-                "search.occurrences",
-                Some(acp_scope(&task)?),
-                json!({"taskId":id,"input":input,"limit":limit}),
-            )
-            .await?;
-        return serde_json::from_value(result)
-            .map_err(|_| AppError::Acp("Invalid ACP search response".into()));
+    // 任务目录决定作用域，前端只选择协议；两种引擎共用同一个 ACP 摘要实现。
+    let mut input = json!({"query":query});
+    if let Some(cursor) = cursor {
+        input["cursor"] = json!(cursor);
     }
-    match task["provider"].as_str() {
-        Some("claude") => {
-            // 检索走共享摘要服务，不建立 Claude SDK 会话，更不会初始化 Codex。
-            let mut input = json!({"query":query});
-            if let Some(cursor) = cursor {
-                input["cursor"] = json!(cursor);
-            }
-            let result = state
-                .claude
-                .request(
-                    app,
-                    "search.occurrences",
-                    Some(super::claude_tasks::scope(&task)),
-                    json!({"taskId":id,"input":input,"limit":limit}),
-                )
-                .await?;
-            serde_json::from_value(result).map_err(|error| AppError::Claude(error.to_string()))
-        }
-        Some("codex") => {
-            let connection = state.codex_connection().await?;
-            if limit == 30 {
-                codex::search_task_occurrences(&connection, id, &query, cursor.as_deref())
-                    .await
-                    .map_err(Into::into)
-            } else {
-                codex::search_task_occurrences_with_limit(
-                    &connection,
-                    id,
-                    &query,
-                    cursor.as_deref(),
-                    limit,
-                )
-                .await
-                .map_err(Into::into)
-            }
-        }
-        _ => Err(AppError::CodexRequestFailed),
-    }
+    let result = state
+        .acp
+        .host
+        .request(
+            app,
+            "search.occurrences",
+            Some(acp_scope(&task)?),
+            json!({"taskId":id,"input":input,"limit":limit}),
+        )
+        .await?;
+    serde_json::from_value(result).map_err(|_| AppError::Acp("Invalid ACP search response".into()))
 }
 
-pub(super) fn use_acp(runtime: Option<&str>) -> Result<bool, AppError> {
+pub(super) fn require_acp(runtime: Option<&str>) -> Result<(), AppError> {
     match runtime {
-        None => Ok(false),
-        Some("acp") => Ok(true),
+        None | Some("acp") => Ok(()),
         Some(_) => Err(AppError::Acp("Unknown agent runtime".into())),
     }
 }

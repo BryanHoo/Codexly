@@ -35,7 +35,7 @@ test(
     assert.equal(version.status, 0);
     assert.equal(version.stdout.trim(), "codexly-acp-host/1");
     const root = await mkdtemp(join(tmpdir(), "acp-compiled-host-"));
-    const child = spawn(binary, [root, process.execPath, process.execPath], {
+    const child = spawn(binary, [root], {
       stdio: ["pipe", "pipe", "pipe"],
     });
     const exit = new Promise((resolve, reject) => {
@@ -109,7 +109,7 @@ test(
     );
     assert.equal(prepared.status, 0, prepared.stderr);
     const attachment = JSON.parse(prepared.stdout)[0];
-    const child = spawn(binary, [root, process.execPath, process.execPath], {
+    const child = spawn(binary, [root], {
       stdio: ["pipe", "pipe", "pipe"],
     });
     child.stderr.resume();
@@ -177,7 +177,7 @@ test(
     const original =
       '{"version":1,"global":{"model":"old","future":false,"defaultAgent":"claude"},"projects":{}}\n';
     await writeFile(join(root, "agent-settings.json"), original);
-    const child = spawn(binary, [directory, process.execPath, process.execPath, root], {
+    const child = spawn(binary, [directory, root], {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
         ...process.env,
@@ -233,7 +233,7 @@ test(
       Buffer.from('"},"projects":{}}'),
     ]);
     await writeFile(join(root, "agent-settings.json"), invalid);
-    const child = spawn(binary, [directory, process.execPath, process.execPath, root], {
+    const child = spawn(binary, [directory, root], {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
         ...process.env,

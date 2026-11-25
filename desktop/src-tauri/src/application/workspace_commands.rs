@@ -394,11 +394,10 @@ pub async fn generate_commit_message(
     request_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
-    let acp =
-        super::application_generation::is_acp(agent_runtime.as_deref(), request_id.as_deref())?;
+    super::application_generation::validate(agent_runtime.as_deref(), request_id.as_deref())?;
     // 在授权和 Git 采集前登记取消，避免准备期间的取消丢失；旧调用行为保持不变。
     state
-        .run_cancellable(if acp { request_id.as_deref() } else { None }, async {
+        .run_cancellable(request_id.as_deref(), async {
             let (root, _) = project_root(&app, &project_id, &root_path).await?;
             let context = workspace::prepare_commit_message(
                 &root,
@@ -408,26 +407,16 @@ pub async fn generate_commit_message(
             )
             .await
             .map_err(AppError::from)?;
-            if acp {
-                let message = super::application_generation::generate(
-                    &app,
-                    &state,
-                    &project_id,
-                    &root,
-                    "commit",
-                    &context.changes,
-                )
-                .await?;
-                return Ok(json!({"message":message,"snapshot":context.snapshot}));
-            }
-            super::legacy_commit_generation::generate(
+            let message = super::application_generation::generate(
                 &app,
                 &state,
+                &project_id,
                 &root,
+                "commit",
                 &context.changes,
-                &context.snapshot,
             )
-            .await
+            .await?;
+            Ok(json!({"message":message,"snapshot":context.snapshot}))
         })
         .await
 }

@@ -1,10 +1,12 @@
 use serde::{Serialize, ser::SerializeStruct, ser::Serializer};
 use thiserror::Error;
 
-use crate::infrastructure::{codex::ConnectionError, workspace::WorkspaceError};
+use crate::infrastructure::workspace::WorkspaceError;
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("ACP host is unavailable")]
+    AcpHostUnavailable,
     #[error("ACP submission outcome is unknown; inspect the task before sending again")]
     AcpSubmissionUnknown,
     #[error("ACP submission key belongs to a different request")]
@@ -19,44 +21,22 @@ pub enum AppError {
     LocalCatalog(#[from] crate::infrastructure::local_catalog::CatalogError),
     #[error("failed to enable login startup")]
     AutostartFailed,
-    #[error("No Agent models are available")]
-    ModelCatalogUnavailable,
-    #[error("pending request is unavailable or its identity has changed")]
-    PendingRequestUnavailable,
     #[error(transparent)]
     GoalInput(#[from] crate::domain::goal_input::GoalInputError),
     #[error("queue recovery capacity is exhausted; retry later")]
     QueueRecoveryCapacityExceeded,
-    #[error("the task queue is empty")]
-    QueueEmpty,
-    #[error("queued prompt acceptance is unconfirmed; inspect the task before retrying")]
-    QueueRecoveryUncertain,
-    #[error("queued content differs from the accepted prompt; inspect it before cleanup")]
-    QueuedContentChanged,
     #[error("global instructions changed; reload before saving")]
     GlobalInstructionsChanged,
     #[error(transparent)]
     Terminal(#[from] crate::domain::project_terminal::TerminalError),
-    #[error("failed to start Codex runtime")]
-    CodexRuntimeStartFailed,
-    #[error("failed to install Codex runtime")]
-    CodexRuntimeInstallFailed,
     #[error("failed to check for a Codexly update")]
     AppUpdateCheckFailed,
     #[error("the selected Codexly update is no longer available")]
     AppUpdateUnavailable,
     #[error("failed to install the Codexly update")]
     AppUpdateInstallFailed,
-    #[error("Codex runtime is unavailable")]
-    CodexRuntimeUnavailable,
     #[error("Codex request failed")]
     CodexRequestFailed,
-    #[error("Task snapshot is temporarily busy; retry the snapshot request")]
-    TaskSnapshotBusy,
-    #[error("{message}")]
-    CodexRpc { rpc_code: i64, message: String },
-    #[error("Codex thread is active in another session")]
-    CodexThreadBusy,
     #[error("native request was cancelled")]
     RequestCancelled,
     #[error("filesystem request failed")]
@@ -96,36 +76,20 @@ impl Serialize for AppError {
     where
         S: Serializer,
     {
-        if let Self::CodexRpc { rpc_code, message } = self {
-            let mut payload = serializer.serialize_struct("AppError", 3)?;
-            payload.serialize_field("code", "CODEX_RPC_ERROR")?;
-            payload.serialize_field("message", message)?;
-            payload.serialize_field("rpcCode", rpc_code)?;
-            return payload.end();
-        }
         let structured_error = match self {
             Self::AcpSubmissionUnknown => Some(("SUBMISSION_OUTCOME_UNKNOWN", self.to_string())),
             Self::AcpSubmissionConflict => Some(("IDEMPOTENCY_CONFLICT", self.to_string())),
             Self::ScheduledTaskConfigConflict => Some(("IDEMPOTENCY_CONFLICT", self.to_string())),
             Self::Acp(message) => Some(("ACP_REQUEST_FAILED", message.clone())),
             Self::Claude(message) => Some(("CLAUDE_ERROR", message.clone())),
-            Self::ModelCatalogUnavailable => Some(("MODEL_CATALOG_UNAVAILABLE", self.to_string())),
-            Self::PendingRequestUnavailable => {
-                Some(("PENDING_REQUEST_UNAVAILABLE", self.to_string()))
-            }
             Self::GoalInput(error) => Some((error.code(), error.to_string())),
             Self::QueueRecoveryCapacityExceeded => {
                 Some(("IDEMPOTENCY_CAPACITY_EXCEEDED", self.to_string()))
             }
-            Self::QueueEmpty => Some(("QUEUE_EMPTY", self.to_string())),
-            Self::QueueRecoveryUncertain => Some(("TURN_START_UNCERTAIN", self.to_string())),
-            Self::QueuedContentChanged => Some(("IDEMPOTENCY_CONFLICT", self.to_string())),
             Self::GlobalInstructionsChanged => {
                 Some(("GLOBAL_INSTRUCTIONS_CHANGED", self.to_string()))
             }
             Self::Terminal(error) => Some((error.code(), error.to_string())),
-            Self::CodexThreadBusy => Some(("CODEX_THREAD_BUSY", self.to_string())),
-            Self::TaskSnapshotBusy => Some(("TASK_SNAPSHOT_BUSY", self.to_string())),
             Self::RequestCancelled => Some(("REQUEST_CANCELLED", self.to_string())),
             Self::FileOpenTargetUnavailable => {
                 Some(("FILE_OPEN_TARGET_UNAVAILABLE", self.to_string()))
@@ -147,38 +111,6 @@ impl Serialize for AppError {
             return payload.end();
         }
         serializer.serialize_str(&self.to_string())
-    }
-}
-
-impl From<ConnectionError> for AppError {
-    fn from(error: ConnectionError) -> Self {
-        // active writer 保持稳定业务码，其余 RPC 错误保留 Codex 返回的诊断信息。
-        match error {
-            ConnectionError::Request {
-                code: -32600,
-                message,
-            } if message.starts_with("thread ")
-                && message.ends_with(" already has an active writer") =>
-            {
-                Self::CodexThreadBusy
-            }
-            ConnectionError::Request { code, message } => Self::CodexRpc {
-                rpc_code: code,
-                message,
-            },
-            _ => Self::CodexRequestFailed,
-        }
-    }
-}
-
-impl From<crate::infrastructure::codex::AgentSettingsError> for AppError {
-    fn from(error: crate::infrastructure::codex::AgentSettingsError) -> Self {
-        match error {
-            crate::infrastructure::codex::AgentSettingsError::Connection(error) => error.into(),
-            crate::infrastructure::codex::AgentSettingsError::Local(_) => {
-                Self::FilesystemRequestFailed
-            }
-        }
     }
 }
 
@@ -236,39 +168,6 @@ mod tests {
             json!({
                 "code": "GIT_OUTPUT_TOO_LARGE",
                 "message": "git references output exceeded 2097152 bytes"
-            })
-        );
-    }
-
-    #[test]
-    fn active_thread_writer_should_preserve_a_stable_error_code() {
-        let error = crate::infrastructure::codex::ConnectionError::Request {
-            code: -32600,
-            message: "thread thread-a already has an active writer".to_owned(),
-        };
-
-        assert_eq!(
-            serde_json::to_value(AppError::from(error)).unwrap(),
-            json!({
-                "code": "CODEX_THREAD_BUSY",
-                "message": "Codex thread is active in another session"
-            })
-        );
-    }
-
-    #[test]
-    fn codex_rpc_errors_should_preserve_code_and_message() {
-        let error = crate::infrastructure::codex::ConnectionError::Request {
-            code: -32600,
-            message: "invalid turn options".to_owned(),
-        };
-
-        assert_eq!(
-            serde_json::to_value(AppError::from(error)).unwrap(),
-            json!({
-                "code": "CODEX_RPC_ERROR",
-                "message": "invalid turn options",
-                "rpcCode": -32600
             })
         );
     }

@@ -4,6 +4,8 @@
 identifier = "main-window-commands"
 description = "Allows the main window to call the application commands used by the workbench."
 permissions = [
+  "allow-record-frontend-diagnostic",
+  "allow-export-diagnostics",
   "allow-read-acp-agent",
   "allow-read-acp-scheduled-config",
   "allow-set-acp-scheduled-config",
@@ -15,7 +17,7 @@ permissions = [
   "allow-read-network-proxy",
   "allow-save-network-proxy",
   "allow-test-network-proxy",
-  "allow-claude-engine-request",
+
   "allow-get-configured-engines",
   "allow-enable-autostart",
   "allow-get-tray-icon-visible",
@@ -34,61 +36,32 @@ permissions = [
   "allow-update-custom-backgrounds",
   "allow-connect-runtime",
   "allow-acknowledge-runtime-events",
-  "allow-start-runtime",
-  "allow-inspect-codex-runtime",
-  "allow-install-codex-runtime",
+
   "allow-cancel-native-request",
   "allow-get-app-info",
   "allow-install-app-update",
   "allow-get-runtime-performance-metrics",
-  "allow-record-frontend-diagnostic",
-  "allow-export-diagnostics",
   # 导出只能写入原生保存窗口选中的路径，不提供任意文件写入命令。
   "allow-save-conversation-export",
   "allow-get-task-activities",
   "allow-acknowledge-task-activity",
   "allow-dismiss-task-notifications",
-  "allow-release-task-subscription",
-  "allow-retain-task-subscription",
+
   "allow-configure-desktop-pet",
   "allow-get-workbench-background",
   "allow-list-workbench-backgrounds",
   "allow-download-workbench-background",
   "allow-list-workbench-pets",
   "allow-download-workbench-pet",
-  "allow-list-models",
-  "allow-get-provider-connection",
-  "allow-start-official-provider-login",
-  "allow-cancel-provider-login",
-  "allow-configure-custom-provider",
-  "allow-logout-provider",
-  "allow-get-global-settings",
+
   "allow-get-temporary-workspace-settings",
   "allow-choose-temporary-workspace-root",
   "allow-get-global-instructions",
     "allow-sync-saved-prompts",
   "allow-save-global-instructions",
-  "allow-get-memory-settings",
-  "allow-update-memory-settings",
-  "allow-reset-memories",
-  "allow-compress-history",
-  "allow-update-global-settings",
-  "allow-get-project-defaults",
-  "allow-update-project-defaults",
-  "allow-list-skills",
-  "allow-list-installed-skills",
-  "allow-list-configured-mcp-servers",
-  "allow-open-skill-directory",
-  "allow-set-skill-enabled",
-  "allow-set-mcp-server-enabled",
-  "allow-list-official-plugins",
+
   # 仅主窗口的扩展中心可同步官方插件，辅助窗口不授予此权限。
-  "allow-reconcile-official-plugins",
-  "allow-get-official-plugin",
-  "allow-install-official-plugin",
-  "allow-uninstall-official-plugin",
-  "allow-list-mcp-servers",
-  "allow-retry-mcp-servers",
+
   "allow-list-projects",
   "allow-add-project",
   "allow-rename-project",
@@ -100,30 +73,10 @@ permissions = [
   "allow-list-tasks",
   "allow-search-tasks",
   "allow-search-task-occurrences",
-  "allow-read-task",
   "allow-start-task",
-  "allow-submit-prompt",
-  "allow-start-turn",
-  "allow-steer-turn",
-  "allow-interrupt-turn",
-  "allow-stop-task-session",
+
   "allow-resolve-pending-request",
-  "allow-submit-review",
-  "allow-compact-task",
-  "allow-fork-task",
-  "allow-get-task-settings",
-  "allow-update-task-settings",
-  "allow-update-task-goal",
-  "allow-clear-task-goal",
-  "allow-upload-feedback",
-  "allow-read-thread-memory",
-  "allow-list-background-terminals",
-  "allow-terminate-background-terminal",
-  "allow-list-queued-submissions",
-  "allow-add-queued-submission",
-  "allow-delete-queued-submission",
-  "allow-move-queued-submission",
-  "allow-start-queued-submission",
+
   "allow-list-project-files",
   "allow-search-project-files",
   "allow-stop-project-file-search",
@@ -167,19 +120,17 @@ permissions = [
   "allow-run-scheduled-task-now",
   "allow-rename-task",
   "allow-pin-task",
-  "allow-archive-task",
-  "allow-unarchive-task",
-  "allow-delete-task",
+
 ]
 
 [[set]]
 identifier = "project-file-window-commands"
 description = "Allows project file windows to preview and edit scoped project text files."
 permissions = [
+  "allow-record-frontend-diagnostic",
   "allow-initialize-app-storage",
   # 独立文件窗口的 Markdown 预览切换沿用共享偏好存储，需要允许持久化。
   "allow-update-app-preferences",
-  "allow-record-frontend-diagnostic",
   "allow-read-project-source-file",
   "allow-read-project-text-file",
   "allow-read-project-text-file-revision",
@@ -198,6 +149,7 @@ permissions = [
 identifier = "desktop-pet-window-commands"
 description = "Allows the desktop pet window to call only its rendering and navigation commands."
 permissions = [
+  "allow-record-frontend-diagnostic",
   "allow-get-desktop-pet-state",
   "allow-get-desktop-pet-drag-strategy",
   "allow-get-desktop-pet-position",
@@ -208,5 +160,4 @@ permissions = [
   "allow-layout-desktop-pet",
   "allow-open-desktop-pet-task",
   "allow-list-workbench-pets",
-  "allow-record-frontend-diagnostic",
 ]

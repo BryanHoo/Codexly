@@ -25,19 +25,24 @@ export function useTurnProcessingTime(
   const { startedAt } = timing;
 
   useEffect(() => {
-    // 终态、无效时间和 SSR 不建立订阅；完成或卸载时释放共享资源。
+    // 终态与 SSR 不建立订阅，运行中的回合继续按秒读取速率，完成或卸载时释放共享资源。
     if (!isRunning || typeof document === "undefined") return;
     return subscribeTurnProcessingClock(setNow);
   }, [isRunning, startedAt]);
 
-  return { ...result, outputRate: isRunning ? (readOutputRate?.(now) ?? null) : null };
+  // 等待首批输出以及输出暂停时保留速率位置，避免数字反复消失。
+  return { ...result, outputRate: isRunning ? (readOutputRate?.(now) ?? 0) : null };
 }
 
-/** 「≈」标识流式文本估算，数字和单位保持同行。 */
+/** 速率以一位小数展示，数字和单位保持同行。 */
 export function TurnOutputRateLabel({ rate }: Readonly<{ rate: number | null }>) {
-  return rate === null ? null : (
+  if (rate === null) return null;
+  // 一位小数会把 999.95 进位为四位数，从该阈值起缩写，避免数字变宽推移后方控件。
+  const value = rate >= 999.95 ? `${(rate / 1_000).toFixed(1)}k` : rate.toFixed(1);
+  return (
     <span className="whitespace-nowrap">
-      <span aria-hidden="true">· </span>≈{rate.toFixed(1)} t/s
+      <span aria-hidden="true">· </span>
+      <span className="inline-block min-w-[8ch] text-right">{value} t/s</span>
     </span>
   );
 }

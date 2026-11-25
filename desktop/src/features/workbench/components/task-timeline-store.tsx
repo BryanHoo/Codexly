@@ -51,7 +51,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnId,
   turnIndex,
   groupedTurnIds,
-  pendingSubmission,
+  suppressEmptyRunningStatus,
   pendingPrompt,
   hasNextSubmission = false,
 }: Readonly<{
@@ -66,7 +66,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnId: string;
   turnIndex: number;
   groupedTurnIds?: readonly string[] | undefined;
-  pendingSubmission: boolean;
+  suppressEmptyRunningStatus: boolean;
   pendingPrompt?: PendingPrompt;
   hasNextSubmission?: boolean;
 }>) {
@@ -190,7 +190,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
         )}
       />
       {/* 引导或问答答案会让用户消息成为尾组；运行提示应接在该消息后，不能依赖历史助手组是否存在。 */}
-      {turn.status === "running" && (itemKeys.length > 0 || pendingSubmission) &&
+      {turn.status === "running" && !suppressEmptyRunningStatus &&
       timelineGroups.at(-1)?.type !== "assistant" ? (
         <Message from="assistant">
           {/* 已有助手组承载回合计时，尾部补位只显示运行提示，避免重复计时。 */}
@@ -368,8 +368,8 @@ export function TaskStoreTimeline({
       turnIndex={turnIndex}
       groupedTurnIds={groupById.get(turnId)?.turnIds}
       hasNextSubmission={turnIndex < displayTurnIds.length - 1 || (showPendingSubmission && !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))}
-      pendingSubmission={
-        !showPendingFooter && showPendingSubmission && (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
+      suppressEmptyRunningStatus={
+        showPendingFooter && (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
       }
       {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") && showPendingSubmission && pendingPrompt !== undefined
         ? { pendingPrompt }

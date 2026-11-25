@@ -6,6 +6,7 @@ import {
   CreateProjectWorktreeRequestSchema,
   CreateProjectWorktreeResponseSchema,
   CreateProjectBranchRequestSchema,
+  DiscardProjectChangesRequestSchema,
   GenerateCommitMessageRequestSchema,
   GenerateCommitMessageResponseSchema,
   ProjectGitWorktreePageSchema,
@@ -245,6 +246,20 @@ describe("project mutation protocol", () => {
         repository: "packages/server",
       }),
     ).toBe(false);
+  });
+
+  it("accepts the full Web Git status selection for a single commit", () => {
+    const paths = Array.from({ length: 1_000 }, (_, index) => `src/change-${index}.ts`);
+    const selection = { expectedSnapshot: "a".repeat(64), paths };
+    const commit = { ...selection, action: "commit", message: "test(git): 提交文件" };
+
+    expect(Value.Check(CommitProjectChangesRequestSchema, commit)).toBe(true);
+    expect(
+      Value.Check(CommitProjectChangesRequestSchema, { ...commit, paths: [...paths, "extra.ts"] }),
+    ).toBe(false);
+    const largeSelection = { ...selection, paths: paths.slice(0, 501) };
+    expect(Value.Check(GenerateCommitMessageRequestSchema, largeSelection)).toBe(false);
+    expect(Value.Check(DiscardProjectChangesRequestSchema, largeSelection)).toBe(false);
   });
 
   it("strictly validates branch-switch mutations", () => {
