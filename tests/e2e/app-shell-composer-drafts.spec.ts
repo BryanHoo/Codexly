@@ -453,7 +453,7 @@ test("keeps generation status between a question card and the input at 390px @cr
   await expectAbove(status, prompt);
   await expectStatusCentered(status, prompt);
   await expect.poll(() => sockets.length).toBeGreaterThan(0);
-  // 模拟 ACP 一次性送达的短回复，确认工作台无需继续收包即可刷新速度。
+  // 先复现单包集中送达，再提供两个服务端采样间隔。
   const event = {
     version: 2,
     type: "message.delta",
@@ -464,12 +464,26 @@ test("keeps generation status between a question card and the input at 390px @cr
     turnId: "turn-1",
     itemId: "single-chunk",
     timestamp: startedAt,
-    payload: { delta: "已完成检查" },
+    payload: { delta: "首批集中输出" + "x".repeat(1_400) },
   };
-  for (const socket of sockets) {
-    socket.send(JSON.stringify({ type: "events.batch", version: 3, events: [event] }));
-  }
-  await expect(status).toContainText("4.0 t/s");
+  const sendDelta = (elapsed: number, delta: string) => {
+    const update = {
+      ...event,
+      sequence: event.sequence + elapsed / 1_000,
+      timestamp: new Date(Date.parse(startedAt) + elapsed).toISOString(),
+      payload: { delta },
+    };
+    for (const socket of sockets) {
+      socket.send(JSON.stringify({ type: "events.batch", version: 3, events: [update] }));
+    }
+  };
+  sendDelta(0, event.payload.delta);
+  await expect(page.getByText(/首批集中输出/u)).toBeVisible();
+  await expect(status).not.toContainText("t/s");
+  sendDelta(1_000, "甲".repeat(40));
+  await expect(page.getByText(/甲{40}/u)).toBeVisible();
+  sendDelta(2_000, "乙".repeat(40));
+  await expect(status).toContainText("30.0 t/s");
   await expectAbove(question, status);
   await expectStatusCentered(status, prompt);
 });

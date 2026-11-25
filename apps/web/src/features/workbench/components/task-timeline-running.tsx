@@ -1,11 +1,8 @@
-import { isHiddenFileEditingTool } from "@codexly/frontend-core/timeline-operation";
-import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
+import { RunningReplyStatus as SharedRunningReplyStatus } from "@codexly/ui/agent/running-reply-status";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
-import { SquareTerminal } from "lucide-react";
 
 import { i18n } from "../../../i18n/i18n.js";
 
-import { Shimmer } from "../../../shared/components/agent/shimmer.js";
 import {
   Task,
   TaskContent,
@@ -15,116 +12,18 @@ import {
 } from "../../../shared/components/agent/task.js";
 import { PENDING_COMMAND_LABEL } from "../../conversation/runtime/task-store.js";
 
-export type IndexedAgentItem = Readonly<{
-  item: AgentItem;
-  itemIndex: number;
-}>;
-
-export type RunningOperation = Readonly<{
-  label: string;
-  type: "command" | "operation";
-}>;
-
 export function getCommandLabel(command: string): string {
   return command === PENDING_COMMAND_LABEL
     ? i18n.t("timeline.commandPending", { ns: "conversation" })
     : command;
 }
 
-export function resolveRunningOperation(
-  items: readonly IndexedAgentItem[],
-): RunningOperation | undefined {
-  // 优先展示仍在运行的操作，避免并发 Item 的完成事件覆盖真实当前状态。
-  const runningItem = items.findLast(({ item }) => {
-    if (isHiddenFileEditingTool(item)) return false;
-    if (item.type === "command" || item.type === "tool") {
-      return item.status === "pending" || item.status === "running";
-    }
-    if (item.type === "activity") {
-      return item.status === "pending" || item.status === "running";
-    }
-    if (item.type === "approval_review") {
-      return item.status === "in_progress";
-    }
-    return false;
-  })?.item;
-
-  if (runningItem?.type === "command") {
-    return { label: getCommandLabel(runningItem.command), type: "command" };
-  }
-  if (runningItem?.type === "tool") {
-    return { label: getToolTitle(runningItem), type: "operation" };
-  }
-  if (runningItem?.type === "activity") {
-    return { label: runningItem.label, type: "operation" };
-  }
-  if (runningItem?.type === "approval_review") {
-    return {
-      label: i18n.t("timeline.approvalReview.reviewing", { ns: "conversation" }),
-      type: "operation",
-    };
-  }
-
-  const latestItem = items.at(-1)?.item;
-  if (latestItem?.type === "plan") {
-    return {
-      label: i18n.t("timeline.planGenerating", { ns: "conversation" }),
-      type: "operation",
-    };
-  }
-
-  // 快速操作可能在一次浏览器绘制前完成，但后续 Assistant 文本表示执行阶段已经推进。
-  // 只回退到该消息之后完成的操作，避免把上下文压缩等历史状态重复显示为当前活动。
-  const latestAssistantMessageIndex =
-    items.findLast(({ item }) => item.type === "message" && item.role === "assistant")?.itemIndex ??
-    -1;
-  const recentItem = items.findLast(
-    ({ item, itemIndex }) =>
-      itemIndex > latestAssistantMessageIndex &&
-      !isHiddenFileEditingTool(item) &&
-      (item.type === "command" ||
-        item.type === "tool" ||
-        (item.type === "activity" && item.transient !== true)),
-  )?.item;
-  if (recentItem?.type === "command") {
-    return { label: getCommandLabel(recentItem.command), type: "command" };
-  }
-  if (recentItem?.type === "tool") {
-    return { label: getToolTitle(recentItem), type: "operation" };
-  }
-  if (recentItem?.type === "activity") {
-    return { label: recentItem.label, type: "operation" };
-  }
-  return undefined;
-}
-
-export function RunningReplyStatus({
-  operation,
-}: Readonly<{ operation?: RunningOperation | undefined }>) {
-  const statusText =
-    operation === undefined
-      ? i18n.t("timeline.running", { ns: "conversation" })
-      : i18n.t("timeline.runningOperation", {
-          ns: "conversation",
-          operation: operation.label,
-        });
-  const accessibleLabel =
-    operation === undefined
-      ? i18n.t("timeline.aiRunning", { ns: "conversation" })
-      : i18n.t("timeline.aiRunningOperation", {
-          ns: "conversation",
-          operation: operation.label,
-        });
-
+export function RunningReplyStatus() {
   return (
-    <div className="flex min-w-0 items-center gap-2 text-muted-foreground" role="status">
-      {operation?.type === "command" ? (
-        <SquareTerminal aria-hidden="true" className="size-3.5 shrink-0" />
-      ) : null}
-      <Shimmer aria-label={accessibleLabel} as="span" className="min-w-0 truncate text-body-small">
-        {statusText}
-      </Shimmer>
-    </div>
+    <SharedRunningReplyStatus
+      accessibleLabel={i18n.t("timeline.aiRunning", { ns: "conversation" })}
+      text={i18n.t("timeline.running", { ns: "conversation" })}
+    />
   );
 }
 

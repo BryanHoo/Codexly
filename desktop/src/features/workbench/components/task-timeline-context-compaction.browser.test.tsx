@@ -43,7 +43,10 @@ test.each([undefined, "running", "completed"] as const)(
         onOpenFileDiff={() => undefined} onOpenSourceFile={() => undefined}
         onReviewFileChanges={() => undefined} onResolvePendingRequest={() => Promise.resolve()} />
     </div></TooltipProvider>);
-    await expect.element(screen.getByLabelText(live ? "AI 回复正在运行：上下文压缩" : "展开执行过程")).toBeVisible();
+    const timelineIndicator = live
+      ? screen.getByText("正在运行", { exact: true })
+      : screen.getByLabelText("展开执行过程");
+    await expect.element(timelineIndicator).toBeVisible();
     if (live) {
       store.getState().applyEvents([{
         version: 2, provider: "codex", sessionId: "session", taskId: "task", turnId: "turn",

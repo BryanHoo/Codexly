@@ -75,16 +75,18 @@ it.each(["web", "desktop"])("%s 在窄屏任务整个运行过程中显示速率
   };
   receive(0, [reported, message, { ...event, sequence: 3, type: "item.started", itemId: tool.id, payload: { item: tool } }]);
   await expect.poll(() => status()?.textContent).toContain("1 次工具调用");
-  // 单批输出也应立即显示估算。第二批到达后，推理和回答共用实际采样间隔。
-  await expect.poll(speed, { timeout: 500 }).toBe("· 43.0 t/s");
-  receive(1_000, [{ ...message, sequence: 4, type: "reasoning.delta", itemId: "reasoning" }]);
+  // 单批没有可测间隔。两段有效采样都到达后才显示前台文本估算。
+  expect(status()?.textContent).not.toContain("t/s");
+  const reasoning = { ...message, type: "reasoning.delta", itemId: "reasoning" } as const;
+  receive(1_000, [{ ...reasoning, sequence: 4 }]);
+  receive(2_000, [{ ...reasoning, sequence: 5 }]);
   await expect.poll(speed, { timeout: 2_000 }).toBe("· 42.0 t/s");
-  receive(2_000, [{ ...reported, sequence: 5, payload: { ...reported.payload, outputTokens: 2_480 } }]);
+  receive(3_000, [{ ...reported, sequence: 6, payload: { ...reported.payload, outputTokens: 3_720 } }]);
   await expect.poll(speed, { timeout: 2_000 }).toBe("· 1.2k t/s");
   // 等待工具时重复的累计值只确认了原有计数，保留已测速度。
-  receive(10_000, [{ ...reported, sequence: 6, payload: { ...reported.payload, outputTokens: 2_480 } }]);
+  receive(10_000, [{ ...reported, sequence: 7, payload: { ...reported.payload, outputTokens: 3_720 } }]);
   expect(speed()).toBe("· 1.2k t/s");
-  receive(11_000, [{ ...event, sequence: 7, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
+  receive(11_000, [{ ...event, sequence: 8, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
   await expect.poll(status).toBeNull();
   await screen.unmount();
 }, 10_000);

@@ -10,6 +10,7 @@ class TokenRateSample {
   #baseline: { count: number; at: number } | undefined;
   #lastCount = 0;
   #lastGrowthAt: number | undefined;
+  #previousEstimate: number | undefined;
   rate: number | null = null;
 
   observe(count: number, timestamp: number, estimated = false): void {
@@ -30,6 +31,7 @@ class TokenRateSample {
     ) {
       // 上一段生成的速度继续显示，恢复后的采样区间从新一段正文开始。
       this.#baseline = { count, at: timestamp };
+      this.#previousEstimate = undefined;
       return;
     }
 
@@ -41,7 +43,16 @@ class TokenRateSample {
       baseline.count = count;
     }
     if (elapsedMs < sampleIntervalMs) return;
-    this.rate = ((count - baseline.count) * 1_000) / elapsedMs;
+    const sample = ((count - baseline.count) * 1_000) / elapsedMs;
+    if (estimated) {
+      // 单次合包可能跨过多个生成时段。估算上升需要相邻两段输出支持，避免单个窗口抬高读数。
+      if (this.#previousEstimate !== undefined) {
+        this.rate = Math.min(this.#previousEstimate, sample);
+      }
+      this.#previousEstimate = sample;
+    } else {
+      this.rate = sample;
+    }
     this.#baseline = { count, at: timestamp };
   }
 }
@@ -63,10 +74,7 @@ class TurnOutputRate {
   }
 
   read(): number | null {
-    const sampledRate = this.#reported.rate ?? this.#estimated.rate;
-    if (sampledRate !== null || this.#estimatedBytes === 0) return sampledRate;
-    // 首批文本以一秒为估算窗口，短回复或合并推送也能在首个增长样本前显示速度。
-    return (this.#estimatedTokens * 1_000) / sampleIntervalMs;
+    return this.#reported.rate ?? this.#estimated.rate;
   }
 
   get #estimatedTokens(): number {

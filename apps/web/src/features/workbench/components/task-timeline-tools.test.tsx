@@ -207,7 +207,7 @@ describe("task timeline tools", () => {
     expect(markup.indexOf("参数")).toBeLessThan(markup.indexOf("268 passed"));
   });
 
-  it("keeps a running command collapsed while preserving its visible running status", () => {
+  it("keeps a running command collapsed and shows the generic running status", () => {
     const runningCommandSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       status: "running",
@@ -235,11 +235,11 @@ describe("task timeline tools", () => {
     expect(markup).not.toMatch(/<details[^>]* open/u);
     expect(markup).not.toContain('data-terminal=""');
     expect(markup).not.toContain("/workspace/Codexly");
-    expect(markup).toContain('aria-label="AI 回复正在运行：pnpm test"');
-    expect(markup).toContain("正在运行 pnpm test");
+    expect(markup).toContain('aria-label="AI 回复正在运行"');
+    expect(markup).toContain(">正在运行</span>");
   });
 
-  it("keeps the latest completed operation visible while the turn continues", () => {
+  it("keeps completed commands in the timeline while the turn shows a generic running status", () => {
     const runningSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       status: "running",
@@ -271,8 +271,8 @@ describe("task timeline tools", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={runningSnapshot} />);
 
     expect(markup).toContain('data-agent-shimmer=""');
-    expect(markup).toContain('aria-label="AI 回复正在运行：sed -n &#x27;1,240p&#x27; SKILL.md"');
-    expect(markup).toContain("正在运行 sed -n &#x27;1,240p&#x27; SKILL.md");
+    expect(markup).toContain('aria-label="AI 回复正在运行"');
+    expect(markup).toContain(">正在运行</span>");
     expect(markup).not.toContain("已运行");
   });
 
@@ -311,7 +311,7 @@ describe("task timeline tools", () => {
     expect(markup).not.toContain('aria-label="AI 回复正在运行：上下文压缩"');
   });
 
-  it("shows transient context compaction only while it is running", () => {
+  it("shows a generic running status during transient context compaction", () => {
     const runningSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       status: "running",
@@ -335,8 +335,8 @@ describe("task timeline tools", () => {
 
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={runningSnapshot} />);
 
-    expect(markup).toContain('aria-label="AI 回复正在运行：上下文压缩"');
-    expect(markup).toContain("正在运行 上下文压缩");
+    expect(markup).toContain('aria-label="AI 回复正在运行"');
+    expect(markup).toContain(">正在运行</span>");
   });
 
   it("does not retain transient context compaction after the turn completes", () => {
