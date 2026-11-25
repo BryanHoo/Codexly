@@ -1,3 +1,4 @@
+import { TurnGenerationStatus } from "@codexly/ui/agent/turn-generation-status";
 import { ComposerWriteAccessNotice } from "@codexly/ui/core/composer-interaction-boundary";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import {
@@ -127,6 +128,18 @@ export function ComposerProjectRootControls({
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const terminal = useContext(TerminalContext);
   const { t, i18n } = useTranslation(["workbench", "settings"]);
+  const generationRuntime = props.generationRuntime;
+  // 生成状态先占位，让异步问答和引导队列仍紧邻输入框。
+  const generationStatus =
+    generationRuntime?.store !== undefined && generationRuntime.activeTurnId !== undefined ? (
+      <TurnGenerationStatus
+        store={generationRuntime.store}
+        turnId={generationRuntime.activeTurnId}
+        engine={generationRuntime.metadata?.engine}
+        generatingLabel={t("composer.generating")}
+        toolCallsLabel={(count) => t("composer.generationToolCalls", { count })}
+      />
+    ) : null;
   const sendLabel = i18n.language.startsWith("zh") ? "发送" : "Send";
   const submitButton = (
     <PromptInputSubmit
@@ -175,6 +188,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         collapseLabel={t("split.collapseComposer")}
         stopLabel={t("composer.stop")}
         onInterrupt={props.onInterrupt}
+        notice={generationStatus}
         footer={(controls, collapsed) => (
           <WorkbenchComposerFooter
             props={props}

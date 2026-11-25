@@ -21,3 +21,22 @@ export function resolveTurnProcessingTime(
         : null,
   };
 }
+
+/** 共享输入框状态行和执行过程标题的紧凑耗时格式。 */
+export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
+  dateTime: string;
+  label: string;
+}> {
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  return {
+    dateTime: `PT${hours > 0 ? `${String(hours)}H` : ""}${minutes > 0 ? `${String(minutes)}M` : ""}${String(seconds)}S`,
+    label:
+      hours > 0
+        ? `${String(hours)}h ${String(minutes)}m ${String(seconds)}s`
+        : minutes > 0
+          ? `${String(minutes)}m ${String(seconds)}s`
+          : `${String(seconds)}s`,
+  };
+}

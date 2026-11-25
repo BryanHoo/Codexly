@@ -48,6 +48,9 @@ export const workbench = {
     showFileTree: "切换为文件树",
   },
   composer: {
+    generating: "生成中",
+    generationToolCalls_one: "{{count}} 次工具调用",
+    generationToolCalls_other: "{{count}} 次工具调用",
     addedAttachments: "已添加附件",
     applyDraft: "应用待办",
     applyDraftDescription: "应用待办将覆盖输入框中的当前内容。是否继续？",

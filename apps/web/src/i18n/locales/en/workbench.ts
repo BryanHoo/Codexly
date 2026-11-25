@@ -55,6 +55,9 @@ export const workbench = {
     showFileTree: "Switch to file tree",
   },
   composer: {
+    generating: "Generating",
+    generationToolCalls_one: "{{count}} tool call",
+    generationToolCalls_other: "{{count}} tool calls",
     threadBusy:
       "This task is being edited in another app. Sending is temporarily disabled. History shows previously synced messages.",
     addedAttachments: "Added attachments",

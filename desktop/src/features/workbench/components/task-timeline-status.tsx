@@ -4,8 +4,8 @@ import type { MessageFileReference } from "../../../shared/components/agent/mess
 import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
 import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
 import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
-import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
-import { TurnOutputRateLabel, useTurnProcessingTime } from "@codexly/ui/agent/use-turn-processing-time";
+import { formatTurnProcessingDuration, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import { useTurnProcessingTime } from "@codexly/ui/agent/use-turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -232,37 +232,15 @@ export function SubagentToolItem({
   );
 }
 
-export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
-  dateTime: string;
-  label: string;
-}> {
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-  return {
-    dateTime: `PT${hours > 0 ? `${String(hours)}H` : ""}${minutes > 0 ? `${String(minutes)}M` : ""}${String(seconds)}S`,
-    label:
-      hours > 0
-        ? `${String(hours)}h ${String(minutes)}m ${String(seconds)}s`
-        : minutes > 0
-          ? `${String(minutes)}m ${String(seconds)}s`
-          : `${String(seconds)}s`,
-  };
-}
-
 export function TurnProcessingTime({
   completedAt,
   expanded,
   onToggle,
-  readOutputRate,
   startedAt,
   status,
 }: TurnProcessingTiming &
-  Readonly<{ expanded?: boolean; onToggle?: () => void; readOutputRate?: (nowMs: number) => number | null }>) {
-  const { isRunning, totalSeconds, outputRate } = useTurnProcessingTime(
-    { status, startedAt, completedAt },
-    readOutputRate,
-  );
+  Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
+  const { isRunning, totalSeconds } = useTurnProcessingTime({ status, startedAt, completedAt });
 
   if (totalSeconds === null && !isRunning && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
@@ -270,7 +248,6 @@ export function TurnProcessingTime({
   const content = <>
     <span>{i18n.t(status === "completed" ? "timeline.processingCompleted" : "timeline.processing", { ns: "conversation" })}&nbsp;</span>
     {duration === null ? <span>{i18n.t("timeline.durationUnknown", { ns: "conversation" })}</span> : <time dateTime={duration.dateTime}>{duration.label}</time>}
-    <TurnOutputRateLabel rate={outputRate} />
   </>;
   const className =
     "agent-process-header";

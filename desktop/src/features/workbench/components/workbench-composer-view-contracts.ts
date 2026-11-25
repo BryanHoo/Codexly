@@ -1,3 +1,4 @@
+import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type { ReactNode } from "react";
 import type {
@@ -36,6 +37,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   }>;
   nativeDrop?: import("@codexly/ui/agent/prompt-input").NativeAttachmentDrop;
   engineControls?: ReactNode;
+  generationRuntime?: TaskRuntimeView | undefined;
   promptOptimization?: ReactNode;
   writeAccess?: import("../../conversation/runtime/use-task-runtime.js").TaskRuntimeView["writeAccess"];
   activeCommandIndex: number;

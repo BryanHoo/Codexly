@@ -1,3 +1,4 @@
+import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentContextUsage,
@@ -35,6 +36,7 @@ export type WorkbenchComposerViewProps = Readonly<{
     isBusy: boolean;
   }>;
   engineControls?: ReactNode;
+  generationRuntime?: TaskRuntimeView | undefined;
   promptOptimization?: ReactNode;
   asyncQuestions?: ReactNode;
   activeCommandIndex: number;

@@ -1,61 +1,83 @@
 import { getUtf8ByteLength } from "./byte-lru.js";
 import type { TaskEventTurn, TaskStoreEvent } from "./task-event-model.js";
 
-const windowMs = 3_000;
-const bucketMs = 250;
+const sampleIntervalMs = 1_000;
+const outputPauseMs = 3_000;
+const startupBurstMs = 100;
+const bytesPerToken = 4;
 
-/** 只保留最近三秒的文本计数和最新上报样本，无需保留或重扫正文。 */
+class TokenRateSample {
+  #baseline: { count: number; at: number } | undefined;
+  #lastCount = 0;
+  #lastGrowthAt: number | undefined;
+  rate: number | null = null;
+
+  observe(count: number, timestamp: number, estimated = false): void {
+    const baseline = this.#baseline;
+    const reset = count < this.#lastCount || (baseline !== undefined && timestamp < baseline.at);
+    if (count === this.#lastCount && baseline !== undefined && !reset) return;
+    this.#lastCount = count;
+    if (reset) {
+      this.rate = null;
+      this.#lastGrowthAt = undefined;
+    }
+    const lastGrowthAt = this.#lastGrowthAt;
+    this.#lastGrowthAt = timestamp;
+    if (
+      baseline === undefined ||
+      reset ||
+      (estimated && lastGrowthAt !== undefined && timestamp - lastGrowthAt >= outputPauseMs)
+    ) {
+      // 上一段生成的速度继续显示，恢复后的采样区间从新一段正文开始。
+      this.#baseline = { count, at: timestamp };
+      return;
+    }
+
+    // 累计不足一秒的增长留给下一次采样，避免同一批到达的增量瞬间推高读数。
+    // 相同计数不推进采样时间，工具执行或等待期间继续显示最近一次有效读数。
+    const elapsedMs = timestamp - baseline.at;
+    if (estimated && this.rate === null && elapsedMs < startupBurstMs) {
+      // 首批缓冲内容没有生成起点，合并进初始基线，避免把集中到达算成瞬时生成。
+      baseline.count = count;
+    }
+    if (elapsedMs < sampleIntervalMs) return;
+    this.rate = ((count - baseline.count) * 1_000) / elapsedMs;
+    this.#baseline = { count, at: timestamp };
+  }
+}
+
+/** 每个回合独立保留两类累计样本，切换数据来源时只切换已算出的读数。 */
 class TurnOutputRate {
-  readonly #buckets: { index: number; bytes: number }[] = [];
-  #startedAt = 0;
-  #lastReceivedAt = -Infinity;
-  #reported: { count: number; at: number; rate: number | null } | undefined;
+  #estimatedBytes = 0;
+  readonly #estimated = new TokenRateSample();
+  readonly #reported = new TokenRateSample();
 
-  append(delta: string, receivedAt: number): void {
-    if (receivedAt < this.#lastReceivedAt || receivedAt - this.#lastReceivedAt >= windowMs) {
-      this.#buckets.length = 0;
-      this.#startedAt = receivedAt;
-    }
-    this.#lastReceivedAt = receivedAt;
-    const index = Math.floor((receivedAt - this.#startedAt) / bucketMs);
-    const firstIndex = index - windowMs / bucketMs + 1;
-    while (this.#buckets[0] && this.#buckets[0].index < firstIndex) this.#buckets.shift();
-    const bytes = getUtf8ByteLength(delta);
-    const last = this.#buckets.at(-1);
-    if (last?.index === index) last.bytes += bytes;
-    else this.#buckets.push({ index, bytes });
+  append(delta: string, timestamp: number): void {
+    // Codex 的近似计数采用 UTF-8 字节，每次只处理新增正文。
+    this.#estimatedBytes += getUtf8ByteLength(delta);
+    this.#estimated.observe(this.#estimatedTokens, timestamp, true);
   }
 
-  report(count: number, now: number): void {
-    const previous = this.#reported;
-    // 重复上报不刷新有效期。首次上报与累计值回退只建立基线，避免误算历史输出。
-    if (previous?.count === count && now >= previous.at) return;
-    const rate =
-      previous && count > previous.count && now >= previous.at
-        ? ((count - previous.count) * 1_000) / Math.max(1_000, now - previous.at)
-        : null;
-    this.#reported = { count, at: now, rate };
+  report(count: number, receivedAt: number): void {
+    this.#reported.observe(count, receivedAt);
   }
 
-  read(now: number): number | null {
-    const reported = this.#reported;
-    if (reported && reported.rate !== null && now - reported.at < windowMs) {
-      return reported.rate;
-    }
-    // React 提交计时值前可能又收到一批输出，仍以最新的采样时刻为准。
-    now = Math.max(now, this.#lastReceivedAt);
-    if (now - this.#lastReceivedAt >= windowMs) return null;
-    const elapsedMs = now - this.#startedAt;
-    const firstIndex = Math.floor(elapsedMs / bucketMs) - windowMs / bucketMs + 1;
-    let bytes = 0;
-    for (const bucket of this.#buckets) {
-      if (bucket.index >= firstIndex) bytes += bucket.bytes;
-    }
-    // 首批文本立即计入，分母至少为一秒，避免瞬间收到合并文本时放大速率。
-    // ACP 文本块缺少 Token 边界，统一按 UTF-8 字节数估算。
-    const seconds = Math.max(1_000, Math.min(elapsedMs, windowMs)) / 1_000;
-    return bytes === 0 ? null : bytes / 4 / seconds;
+  read(): number | null {
+    const sampledRate = this.#reported.rate ?? this.#estimated.rate;
+    if (sampledRate !== null || this.#estimatedBytes === 0) return sampledRate;
+    // 首批文本以一秒为估算窗口，短回复或合并推送也能在首个增长样本前显示速度。
+    return (this.#estimatedTokens * 1_000) / sampleIntervalMs;
   }
+
+  get #estimatedTokens(): number {
+    return Math.ceil(this.#estimatedBytes / bytesPerToken);
+  }
+}
+
+/** 同一回合只用服务端事件的相对时间，因此客户端时钟偏差和批量投递不会拉长分母。 */
+function sampleTimestamp(timestamp: string | undefined): number {
+  const milliseconds = timestamp === undefined ? Number.NaN : Date.parse(timestamp);
+  return Number.isFinite(milliseconds) ? milliseconds : Date.now();
 }
 
 export class TurnOutputRates {
@@ -66,33 +88,38 @@ export class TurnOutputRates {
     if (event.type === "usage.updated") {
       const { outputTokens } = event.payload;
       if (outputTokens !== undefined && turns[event.turnId]?.status === "running") {
-        this.#rateFor(event.turnId).report(outputTokens, Date.now());
+        this.#rateFor(event.turnId).report(outputTokens, sampleTimestamp(event.timestamp));
       }
       return;
     }
     if (event.type !== "message.delta" && event.type !== "reasoning.delta") return;
     const { turnId, itemId, payload } = event;
-    // 两条运行时链路的前台消息增量来自助手，主会话用户回显已在 ACP 投影前过滤。
-    // 子会话、会话间消息和缺少增量正文的旧事件不参与计量，也无需读取任何消息条目。
+    // 只计量前台模型输出，过滤用户回显、子会话和会话间消息。
     if (
       turns[turnId]?.status !== "running" ||
       typeof payload.delta !== "string" ||
       payload.delta.length === 0 ||
+      itemId.startsWith("acp:message:user:") ||
       itemId.startsWith("acp:child:") ||
       itemId.startsWith("acp:delegation:")
     )
       return;
 
-    // 用客户端接收时间计量，远程主机与浏览器无需同步时钟。
-    this.#rateFor(turnId).append(payload.delta, Date.now());
+    this.#rateFor(turnId).append(payload.delta, sampleTimestamp(event.timestamp));
   }
 
-  read(turnId: string, nowMs: number): number | null {
-    return this.#rates.get(turnId)?.read(nowMs) ?? null;
+  read(turnId: string): number | null {
+    return this.#rates.get(turnId)?.read() ?? null;
   }
 
   clear(): void {
     this.#rates.clear();
+  }
+
+  retainRunning(turns: Readonly<Record<string, TaskEventTurn>>): void {
+    for (const turnId of this.#rates.keys()) {
+      if (turns[turnId]?.status !== "running") this.#rates.delete(turnId);
+    }
   }
 
   #rateFor(turnId: string): TurnOutputRate {

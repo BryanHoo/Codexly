@@ -48,6 +48,9 @@ export const workbench = {
     showFileTree: "Switch to file tree",
   },
   composer: {
+    generating: "Generating",
+    generationToolCalls_one: "{{count}} tool call",
+    generationToolCalls_other: "{{count}} tool calls",
     addedAttachments: "Added attachments",
     applyDraft: "Apply todo",
     applyDraftDescription:

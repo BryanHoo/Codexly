@@ -1,14 +1,13 @@
 import type { AgentEvent, AgentItem, AgentTurn } from "@codexly/protocol";
 import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createTaskStore } from "./task-store.js";
 import { createResponse, eventEnvelope, timestamp } from "./task-store.test-support.js";
 
-it("estimates the output rate from accepted foreground text and expires idle samples", () => {
+it("首批前台输出即估算速度，再按实际间隔采样并保留暂停前的读数", () => {
   const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
   const now = Date.parse(timestamp);
-  const clock = vi.spyOn(Date, "now").mockReturnValue(now);
   const state = store.getState();
   const rates = new TurnOutputRates();
   state.turnOutputRates.current = rates;
@@ -18,51 +17,46 @@ it("estimates the output rate from accepted foreground text and expires idle sam
     turnId,
     itemId: "message-running",
     type: "message.delta",
-    payload: { delta: "text".repeat(40) },
+    payload: { delta: "思考中。".repeat(10) },
   } as const;
-  try {
-    expect(rates.read(turnId, now)).toBeNull();
-    state.applyEvents([reply]);
-    expect(rates.read(turnId, now)).toBe(40);
-    clock.mockReturnValue(now + 1_000);
-    state.applyEvents([
-      {
-        ...reply,
-        sequence: 12,
-        type: "reasoning.delta",
-        itemId: "reasoning",
-        payload: { ...reply.payload, field: "summary" },
-      },
-      { ...reply, sequence: 12 },
-      { ...reply, sequence: 13, type: "command.output_delta", itemId: "terminal" },
-      { ...reply, sequence: 14, turnId: "turn-completed", itemId: "message-completed" },
-      { ...reply, sequence: 15, itemId: "acp:child:other:acp:message:assistant:reply" },
-    ]);
-    expect(rates.read(turnId, now + 1_000)).toBe(80);
-    expect(rates.read(turnId, now + 4_000)).toBeNull();
-    state.reconcile(createResponse());
-    expect(rates.read(turnId, now + 1_000)).toBe(80);
-    clock.mockReturnValue(now + 4_000);
-    state.applyEvents([{ ...reply, sequence: 16 }]);
-    expect(rates.read(turnId, now + 4_000)).toBe(40);
-    state.hydrate(createResponse());
-    expect(rates.read(turnId, now + 4_000)).toBeNull();
-  } finally {
-    clock.mockRestore();
-  }
+  const at = (elapsed: number) => new Date(now + elapsed).toISOString();
+
+  expect(rates.read(turnId)).toBeNull();
+  // 同一客户端批次中，中文按 Codex 的字节计量，以服务端事件间隔重算。
+  state.applyEvents([
+    { ...reply, timestamp: at(0) },
+    { ...reply, sequence: 12, timestamp: at(20), payload: { delta: "首批缓存".repeat(25) } },
+    { ...reply, sequence: 13, timestamp: at(1_000) },
+    { ...reply, sequence: 13 },
+    { ...reply, sequence: 14, type: "command.output_delta", itemId: "terminal" },
+    { ...reply, sequence: 15, turnId: "turn-completed", itemId: "message-completed" },
+    { ...reply, sequence: 16, itemId: "acp:child:other:acp:message:assistant:reply" },
+    { ...reply, sequence: 17, itemId: "acp:message:user:echo" },
+  ]);
+  expect(rates.read(turnId)).toBe(30);
+
+  // 同一会话的快照和长时间的工具执行期间保留已有读数，继续输出时重新测量。
+  state.reconcile({ ...createResponse(), checkpoint: { sessionId: "session-1", sequence: 17 } });
+  expect(rates.read(turnId)).toBe(30);
+  state.applyEvents([{ ...reply, sequence: 18, timestamp: at(10_000) }]);
+  expect(rates.read(turnId)).toBe(30);
+  state.applyEvents([
+    { ...reply, sequence: 19, timestamp: at(11_000), payload: { delta: "🧠".repeat(40) } },
+  ]);
+  expect(rates.read(turnId)).toBe(40);
+  state.hydrate(createResponse());
+  expect(rates.read(turnId)).toBeNull();
 });
 
-it("优先显示 ACP 同一回合的上报差值，过期或计数重置时恢复估算", () => {
+it("速率优先使用 ACP 上报差值，计数重置时使用独立的文本估算", () => {
   const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
   const start = Date.parse(timestamp);
-  const clock = vi.spyOn(Date, "now").mockReturnValue(start);
   const state = store.getState();
   const rates = new TurnOutputRates();
   state.turnOutputRates.current = rates;
   const turnId = "turn-running";
   const send = (deltaMs: number, event: AgentEvent) => {
-    clock.mockReturnValue(start + deltaMs);
-    state.applyEvents([event]);
+    state.applyEvents([{ ...event, timestamp: new Date(start + deltaMs).toISOString() }]);
   };
   const usage = (sequence: number, outputTokens?: number): AgentEvent => ({
     ...eventEnvelope(sequence),
@@ -82,28 +76,25 @@ it("优先显示 ACP 同一回合的上报差值，过期或计数重置时恢�
     type: "message.delta",
     payload: { delta: "text".repeat(40) },
   });
-  const rate = (deltaMs: number) => rates.read(turnId, start + deltaMs);
-  try {
-    send(0, usage(11, 100));
-    expect(rate(0)).toBeNull();
-    send(1000, reply(12));
-    send(1000, usage(13));
-    expect(rate(1000)).toBe(40);
-    send(1000, usage(14, 300));
-    expect(rate(1000)).toBe(200);
-    send(2000, usage(15, 300));
-    expect(rate(2000)).toBe(200);
-    send(3500, reply(16));
-    expect(rate(4000)).toBeCloseTo(40 / 3);
-    send(4500, usage(17, 350));
-    expect(rate(4500)).toBeCloseTo(50 / 3.5);
-    send(4750, usage(18, 0));
-    expect(rate(4750)).toBeCloseTo(40 / 3);
-    send(5750, usage(19, 100));
-    expect(rate(5750)).toBe(100);
-  } finally {
-    clock.mockRestore();
-  }
+  const rate = () => rates.read(turnId);
+  send(0, usage(11, 100));
+  expect(rate()).toBeNull();
+  send(100, usage(12, 160));
+  expect(rate()).toBeNull();
+  send(100, reply(13));
+  send(1_100, reply(14));
+  send(1_100, usage(15));
+  expect(rate()).toBe(40);
+  send(2_000, usage(16, 300));
+  expect(rate()).toBe(100);
+  send(4_000, usage(17, 300));
+  expect(rate()).toBe(100);
+  send(5_000, usage(18, 450));
+  expect(rate()).toBe(50);
+  send(5_250, usage(19, 0));
+  expect(rate()).toBe(40);
+  send(6_250, usage(20, 120));
+  expect(rate()).toBe(120);
 });
 
 describe("streamed tool timing", () => {

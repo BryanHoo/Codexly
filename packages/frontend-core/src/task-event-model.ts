@@ -6,6 +6,7 @@ interface TurnOutputRateEvent {
   type: "message.delta" | "reasoning.delta";
   turnId: string;
   itemId: string;
+  timestamp?: string;
   payload: { delta: string };
 }
 

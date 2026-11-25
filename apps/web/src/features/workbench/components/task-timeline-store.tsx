@@ -1,5 +1,4 @@
 import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
-import { useTurnOutputRateSampling } from "@codexly/ui/agent/use-turn-processing-time";
 import {
   AcpSubagentTranscripts,
   splitAcpSubagentItems,
@@ -298,8 +297,7 @@ export function TaskStoreTimeline({
   pendingPrompt?: PendingPrompt;
   searchTarget?: HistoryAnchor;
 }>) {
-  const { projectId, taskId, turnOutputRates } = store.getState();
-  useTurnOutputRateSampling(turnOutputRates);
+  const { projectId, taskId } = store.getState();
   const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);

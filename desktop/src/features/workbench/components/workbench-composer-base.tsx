@@ -364,6 +364,7 @@ export function WorkbenchComposerBase({
       activeCommandItemId={activeCommandItemId}
       activeSettings={activeSettings}
       activeTurnId={activeTurnId}
+      generationRuntime={runtime}
       attachments={attachments}
       attachmentsDisabled={attachmentsDisabled}
       baseBranches={baseBranches}

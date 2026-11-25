@@ -141,7 +141,7 @@ export function createTaskStoreRuntime<
   if (initialResponse !== undefined) validateIdentity(initialResponse, "initial snapshot");
 
   const replyRecovery = createInterruptedReplyRecovery(identity, replyStorage);
-  // 计量器由会话视图注册，启动阶段只保留可选的引用。
+  // 活动会话在绑定事件流时注入计量器，历史预览共用 Store 但不需要计量。
   const turnOutputRates: { current?: TurnOutputRates } = {};
   const restoreReplies = (response: Response): Response => ({
     ...response,
@@ -151,7 +151,11 @@ export function createTaskStoreRuntime<
   function replaceSnapshot(state: State, response: Response, reconcile: boolean): Partial<State> {
     const restored = restoreReplies(response);
     const normalized = normalizeSnapshot(reconcile ? reconcileSnapshot(state, restored) : restored);
-    turnOutputRates.current?.clear();
+    if (reconcile && state.checkpoint?.sessionId === response.checkpoint.sessionId) {
+      turnOutputRates.current?.retainRunning(normalized.turnsById);
+    } else {
+      turnOutputRates.current?.clear();
+    }
     // 快照不携带通知。同一会话只继承平台认定需要持续展示的通知。
     const notices =
       state.checkpoint?.sessionId === response.checkpoint.sessionId
@@ -300,7 +304,6 @@ export function createTaskStoreRuntime<
     getItemByKey: (itemKey) => get().itemStoresByKey.get(itemKey)?.read(),
     reconstructSnapshot: () => reconstructSnapshot(get()),
     setConnectionState(connectionState) {
-      if (connectionState !== "connected") turnOutputRates.current?.clear();
       set(() => ({ connectionState }));
     },
     setError(error) {

@@ -1,5 +1,7 @@
+import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
 import { expect, it } from "vitest";
 import { render } from "vitest-browser-react";
+import { TurnGenerationStatus } from "@codexly/ui/agent/turn-generation-status";
 import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import { createTaskStore as createWebStore } from "../../../apps/web/src/features/conversation/runtime/task-store.js";
 import { TaskStoreTimeline as WebTimeline } from "../../../apps/web/src/features/workbench/components/task-timeline-store.js";
@@ -25,53 +27,73 @@ it.each(["web", "desktop"])("%s 在窄屏任务整个运行过程中显示速率
   const web = createWebStore(identity, response);
   const desktop = createDesktopStore(identity, response);
   const store = platform === "web" ? web : desktop;
+  store.getState().turnOutputRates.current = new TurnOutputRates();
   const screen = await render(<TooltipProvider><div style={{ width: 360, height: 450 }}>
     {platform === "web" ? <WebTimeline connected store={web} {...actions} /> : <DesktopTimeline connected store={desktop} {...actions} />}
+    <div data-test-queue>待发送的引导消息</div>
+    <section data-test-questions>待回答的问题</section>
+    <TurnGenerationStatus
+      store={store} turnId={turn.id} engine="codex" generatingLabel="生成中"
+      toolCallsLabel={(count) => `${count} 次工具调用`}
+    />
+    <textarea aria-label="任务输入" style={{ width: "100%" }} />
   </div></TooltipProvider>);
   const timer = () => screen.container.querySelector<HTMLElement>("[data-turn-processing-time]");
-  const speed = () => timer()?.querySelector("time")?.nextElementSibling?.textContent;
-  expect(speed()).toBe("· 0.0 t/s");
+  const status = () => screen.container.querySelector("[data-turn-generation-status]");
+  const speed = () => status()?.lastElementChild?.textContent;
+  expect(timer()?.textContent).not.toContain("t/s");
+  expect(status()?.textContent).toContain("生成中");
+  expect(status()?.textContent).toContain("0 次工具调用");
+  const statusRow = status()!;
+  const input = screen.container.querySelector("textarea")!;
+  const statusBounds = statusRow.getBoundingClientRect();
+  for (const selector of ["[data-test-queue]", "[data-test-questions]"]) {
+    expect(screen.container.querySelector(selector)!.getBoundingClientRect().bottom).toBeLessThanOrEqual(statusBounds.top);
+  }
+  expect(statusBounds.bottom).toBeLessThanOrEqual(input.getBoundingClientRect().top);
+  // 用实际内容的左右边缘计算中心，覆盖窄屏与宽屏的输入框。
+  const fixture = statusRow.parentElement!;
+  for (const width of [360, 1280]) {
+    fixture.style.width = `${width}px`;
+    const left = statusRow.firstElementChild!.getBoundingClientRect().left;
+    const right = statusRow.lastElementChild!.getBoundingClientRect().right;
+    const inputBounds = input.getBoundingClientRect();
+    expect(Math.abs((left + right) / 2 - (inputBounds.left + inputBounds.width / 2))).toBeLessThanOrEqual(1);
+  }
+  fixture.style.width = "360px";
+  expect(status()?.textContent).not.toContain("t/s");
+  expect(speed()).toBe("· 0 次工具调用");
   const event = { version: 2, provider: "claude", sessionId: "session", taskId: identity.taskId, turnId: turn.id, timestamp } as const;
   const reported = { ...event, sequence: 1, type: "usage.updated", payload: { usage: { usedTokens: 500, contextWindow: 10000 }, outputTokens: 0 } } as const;
   const message = { ...event, sequence: 2, type: "message.delta", itemId: "acp:message:assistant:reply", payload: { delta: "streaming output ".repeat(10) } } as const;
-  store.getState().applyEvents([reported, message]);
-  // ACP 可能把短答复合并为单个文本块，收到这一批就应显示非零速率。
-  await expect.poll(speed, { timeout: 2_000 }).toMatch(/^· [1-9]\d*\.\d t\/s$/);
-  // 流式估算只有几十 t/s。收到已上报的差值后，两端都应切换到 k t/s。
-  store.getState().applyEvents([{ ...reported, sequence: 3, payload: { ...reported.payload, outputTokens: 10000 } }]);
-  await expect.poll(speed, { timeout: 2_000 }).toMatch(/^· [1-9]\d*\.\dk t\/s$/);
-  await expect.poll(speed, { timeout: 5_000 }).toBe("· 0.0 t/s");
-  store.getState().applyEvents([{ ...message, sequence: 4 }]);
-  await expect.poll(speed, { timeout: 2_000 }).toMatch(/^· [1-9]\d*\.\d t\/s$/);
-  store.getState().applyEvents([{ ...event, sequence: 5, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
-  await expect.poll(() => timer()?.textContent ?? "").not.toContain("t/s");
+  const tool = { id: "tool", type: "tool", name: "read", status: "running" } as const;
+  const startedAt = Date.parse(timestamp);
+  const applyEvents = store.getState().applyEvents;
+  const receive = (elapsed: number, events: Parameters<typeof applyEvents>[0]) => {
+    const eventTimestamp = new Date(startedAt + elapsed).toISOString();
+    applyEvents(events.map((entry) => ({ ...entry, timestamp: eventTimestamp })));
+  };
+  receive(0, [reported, message, { ...event, sequence: 3, type: "item.started", itemId: tool.id, payload: { item: tool } }]);
+  await expect.poll(() => status()?.textContent).toContain("1 次工具调用");
+  // 单批输出也应立即显示估算。第二批到达后，推理和回答共用实际采样间隔。
+  await expect.poll(speed, { timeout: 500 }).toBe("· 43.0 t/s");
+  receive(1_000, [{ ...message, sequence: 4, type: "reasoning.delta", itemId: "reasoning" }]);
+  await expect.poll(speed, { timeout: 2_000 }).toBe("· 42.0 t/s");
+  receive(2_000, [{ ...reported, sequence: 5, payload: { ...reported.payload, outputTokens: 2_480 } }]);
+  await expect.poll(speed, { timeout: 2_000 }).toBe("· 1.2k t/s");
+  // 等待工具时重复的累计值只确认了原有计数，保留已测速度。
+  receive(10_000, [{ ...reported, sequence: 6, payload: { ...reported.payload, outputTokens: 2_480 } }]);
+  expect(speed()).toBe("· 1.2k t/s");
+  receive(11_000, [{ ...event, sequence: 7, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
+  await expect.poll(status).toBeNull();
   await screen.unmount();
 }, 10_000);
 
 for (const [platform, Timer] of [["web", WebTimer], ["desktop", DesktopTimer]] as const) {
-  it(`${platform} 速率跨位数变化时，窄屏计时栏的展开箭头不移动`, async () => {
-    const startedAt = new Date().toISOString();
-    const timer = (rate: number) => (
-      <div style={{ width: 360 }}>
-        <Timer status="running" startedAt={startedAt} completedAt={null} readOutputRate={() => rate} onToggle={() => undefined} />
-      </div>
-    );
-    const screen = await render(timer(0));
-    const header = screen.container.querySelector<HTMLElement>("[data-turn-processing-time]")!;
-    const speed = header.querySelector("time")!.nextElementSibling!;
-    const arrow = header.lastElementChild!;
-    const arrowLeft = arrow.getBoundingClientRect().left;
-    for (const [rate, expected] of [[86, "86.0 t/s"], [412, "412.0 t/s"], [999.9, "999.9 t/s"], [999.95, "1.0k t/s"], [1240, "1.2k t/s"]] as const) {
-      await screen.rerender(timer(rate));
-      expect(speed.textContent).toContain(expected);
-      expect(Math.abs(arrow.getBoundingClientRect().left - arrowLeft)).toBeLessThan(0.5);
-    }
-    await screen.unmount();
-  });
-  it(`${platform} 运行时间未知时仍显示速率`, async () => {
+  it(`${platform} 执行过程标题只显示耗时`, async () => {
     const screen = await render(<Timer status="running" startedAt={null} completedAt={null} />);
     const timer = screen.container.querySelector<HTMLElement>("[data-turn-processing-time]");
-    expect(timer?.textContent).toContain("0.0 t/s");
+    expect(timer?.textContent).not.toContain("t/s");
     expect(timer?.querySelector("time")).toBeNull();
     await screen.unmount();
   });

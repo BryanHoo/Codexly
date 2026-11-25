@@ -55,6 +55,9 @@ export const workbench = {
     showFileTree: "切换为文件树",
   },
   composer: {
+    generating: "生成中",
+    generationToolCalls_one: "{{count}} 次工具调用",
+    generationToolCalls_other: "{{count}} 次工具调用",
     threadBusy: "此任务正在其他应用中编辑，暂时无法发送消息。历史仅显示已同步内容。",
     addedAttachments: "已添加附件",
     applyTodo: "应用待办",

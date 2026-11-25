@@ -1,3 +1,4 @@
+import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
 import { useApplicationSettings } from "@codexly/ui/core/use-application-settings";
 import { useTaskVisibility } from "@codexly/ui/core/use-task-visibility";
 import { documentResourceId } from "@codexly/frontend-core/document-presentation";
@@ -85,7 +86,8 @@ export function useWorkbenchShellRuntime({
     retry,
     viewTask,
   } = useProjectActions();
-  const runtime = useTaskRuntime(projectId, workspaceOnly ? undefined : taskId, projectRuntime);
+  const runtimeTaskId = workspaceOnly ? undefined : taskId;
+  const runtime = useTaskRuntime(projectId, runtimeTaskId, projectRuntime, TurnOutputRates);
   const activeTask = tasks.find((task) => task.projectId === projectId && task.id === taskId);
   const reportedWorkspacePath =
     activeTask?.workspacePath ??
