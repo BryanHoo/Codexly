@@ -73,21 +73,27 @@ it.each(["web", "desktop"])("%s 在窄屏任务整个运行过程中显示速率
     const eventTimestamp = new Date(startedAt + elapsed).toISOString();
     applyEvents(events.map((entry) => ({ ...entry, timestamp: eventTimestamp })));
   };
-  receive(0, [reported, message, { ...event, sequence: 3, type: "item.started", itemId: tool.id, payload: { item: tool } }]);
+  receive(0, [reported, message]);
+  // 首批建立基线，后续正文在 300ms 的实际间隔后显示读数。
+  expect(status()?.textContent).not.toContain("t/s");
+  const reasoning = { ...message, type: "reasoning.delta", itemId: "reasoning", payload: { delta: "text".repeat(9) } } as const;
+  receive(300, [{ ...reasoning, sequence: 4 }]);
+  await expect.poll(speed, { timeout: 500 }).toBe("· 30.0 t/s");
+  receive(1_000, [{ ...reported, sequence: 5, payload: { ...reported.payload, outputTokens: 40 } }]);
+  expect(speed()).toBe("· 30.0 t/s");
+  await expect.poll(speed, { timeout: 2_000 }).toBe("· 40.0 t/s");
+  receive(2_000, [{ ...reported, sequence: 6, payload: { ...reported.payload, outputTokens: 100 } }]);
+  await expect.poll(speed, { timeout: 2_000 }).toBe("· 50.0 t/s");
+  receive(5_500, [{ ...reported, sequence: 7, payload: { ...reported.payload, outputTokens: 240 } }]);
+  await expect.poll(speed, { timeout: 2_000 }).toBe("· 44.0 t/s");
+  // 工具开始后保留读数，恢复输出时从独立基线重算。
+  receive(6_000, [{ ...event, sequence: 8, type: "item.started", itemId: tool.id, payload: { item: tool } }]);
   await expect.poll(() => status()?.textContent).toContain("1 次工具调用");
-  // 单批没有可测间隔。两段有效采样都到达后才显示前台文本估算。
-  expect(status()?.textContent).not.toContain("t/s");
-  const reasoning = { ...message, type: "reasoning.delta", itemId: "reasoning", payload: { delta: "甲".repeat(28) } } as const;
-  receive(500, [{ ...reasoning, sequence: 4 }]);
-  expect(status()?.textContent).not.toContain("t/s");
-  receive(1_000, [{ ...reasoning, sequence: 5 }]);
-  await expect.poll(speed, { timeout: 2_000 }).toBe("· 42.0 t/s");
-  receive(3_000, [{ ...reported, sequence: 6, payload: { ...reported.payload, outputTokens: 3_720 } }]);
-  await expect.poll(speed, { timeout: 2_000 }).toBe("· 1.2k t/s");
-  // 等待工具时重复的累计值只确认了原有计数，保留已测速度。
-  receive(10_000, [{ ...reported, sequence: 7, payload: { ...reported.payload, outputTokens: 3_720 } }]);
-  expect(speed()).toBe("· 1.2k t/s");
-  receive(11_000, [{ ...event, sequence: 8, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
+  expect(speed()).toBe("· 44.0 t/s");
+  receive(10_000, [{ ...reported, sequence: 9, payload: { ...reported.payload, outputTokens: 240 } }]);
+  receive(11_000, [{ ...reported, sequence: 10, payload: { ...reported.payload, outputTokens: 300 } }]);
+  await expect.poll(speed, { timeout: 2_000 }).toBe("· 60.0 t/s");
+  receive(12_000, [{ ...event, sequence: 11, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
   await expect.poll(status).toBeNull();
   await screen.unmount();
 }, 10_000);

@@ -111,6 +111,7 @@ test("shows persisted goal state and sends lifecycle controls", async ({ page })
   });
 
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const statusTag = page.locator('[data-goal-status="paused"]');
   await expect(statusTag).toContainText("目标已暂停");

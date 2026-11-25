@@ -1,3 +1,6 @@
+import { WorkbenchInspectorRail } from "@codexly/ui/core/workbench-inspector-rail";
+import { i18n } from "../../../i18n/i18n.js";
+import { getAvailableWorkbenchInspectorTabs } from "../workbench-inspector-activation.js";
 import { useContext, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
@@ -22,6 +25,7 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
     closeInspector,
     expandedFileTreePaths,
     gitStatusQuery,
+    inspectorOpen,
     inspectorTab,
     inspectorTask,
     loadProjectFileDiff,
@@ -43,6 +47,7 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
     selectedRootId,
     openInspectorDocument,
     setFileTreeExpansion,
+    setInspectorOpen,
     setInspectorTab,
     setSubagentDialogSelection,
     skillsQuery,
@@ -50,6 +55,25 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
   } = context;
   // 只挂载活动窗口的右栏；沿用该窗口的运行时，避免另读一次任务历史。
   if (pane !== null && (!pane.active || inspector?.target == null)) return null;
+  if (!inspectorOpen) {
+    const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatusQuery.data, {
+      contextOnly: temporary,
+    });
+    const rail = (
+      <WorkbenchInspectorRail
+        label={i18n.t("inspector.title", { ns: "conversation" })}
+        expandLabel={context.t("shell.expandInspector")}
+        tabs={availableTabs}
+        getTabLabel={(tab) => i18n.t(`inspector.${tab}`, { ns: "conversation" })}
+        onSelectTab={setInspectorTab}
+        onOpen={() => {
+          setInspectorOpen(true);
+        }}
+        shellRef={context.workbenchShellRef}
+      />
+    );
+    return pane !== null && inspector?.target != null ? createPortal(rail, inspector.target) : rail;
+  }
   const cancelBackground = taskId
     ? client.cancelAcpBackground?.bind(client, projectId, taskId)
     : undefined;

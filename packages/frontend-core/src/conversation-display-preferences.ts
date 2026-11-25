@@ -2,6 +2,7 @@ export type ConversationDisplayPreferences = Readonly<{
   stickyPrompt: boolean;
   navigation: boolean;
   independentFileDiffs: boolean;
+  inspectorInitiallyOpen: boolean;
 }>;
 export type ConversationDisplayPreference = keyof ConversationDisplayPreferences;
 type PreferenceStorage = Readonly<{
@@ -13,6 +14,7 @@ export const DEFAULT_CONVERSATION_DISPLAY: ConversationDisplayPreferences = {
   stickyPrompt: false,
   navigation: false,
   independentFileDiffs: true,
+  inspectorInitiallyOpen: false,
 };
 
 /** 两端共用偏好状态，存储由 Web 本地存储或桌面原生适配器注入。 */
@@ -27,10 +29,11 @@ export function createConversationDisplayPreferenceStore(storage: PreferenceStor
         typeof value === "object" && value !== null
           ? (value as Partial<ConversationDisplayPreferences>)
           : undefined;
-      // 吸顶与目录仅显式开启；文件差异默认启用，旧记录缺失字段时采用新默认值。
+      // 吸顶、目录和右栏仅显式开启，旧记录缺失字段时沿用各自默认值。
       snapshot = {
         stickyPrompt: record?.stickyPrompt === true,
         navigation: record?.navigation === true,
+        inspectorInitiallyOpen: record?.inspectorInitiallyOpen === true,
         // 保留用户明确保存的关闭选择，异常字段与未配置时保持默认开启。
         independentFileDiffs: record?.independentFileDiffs !== false,
       };

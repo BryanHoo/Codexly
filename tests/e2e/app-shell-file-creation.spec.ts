@@ -30,7 +30,7 @@ for (const mobile of [false, true]) {
         await route.fulfill({ json: { path, tree } });
       });
       await page.goto("/p/codexly/t/task-1");
-      if (mobile) await page.getByRole("button", { name: "展开上下文面板" }).tap();
+      await page.getByRole("button", { name: "展开上下文面板" })[mobile ? "tap" : "click"]();
       const inspector = page.getByRole("complementary", { name: "运行环境" });
       await inspector.getByRole("tab", { name: "项目", exact: true })[mobile ? "tap" : "click"]();
       const tree = inspector.getByRole("tree", { name: "项目文件" });

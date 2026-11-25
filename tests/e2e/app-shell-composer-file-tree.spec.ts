@@ -18,6 +18,7 @@ test("downloads a project file from its LAN context menu", async ({ page }) => {
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();
@@ -58,6 +59,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();
@@ -251,6 +253,7 @@ test("project file tree context and ellipsis menus rename and delete disk entrie
     await route.fulfill({ json: { path: "docs", status: "deleted", tree }, status: 200 });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();

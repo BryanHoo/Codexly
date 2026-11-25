@@ -17,6 +17,7 @@ test.describe.configure({ mode: "serial" });
 
 test("renders the AI workbench landmarks with an enabled composer", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const main = page.getByRole("main", { name: "任务时间线" });
   const inspector = page.getByRole("complementary", { name: "运行环境" });
@@ -156,6 +157,7 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "上下文" }).click();

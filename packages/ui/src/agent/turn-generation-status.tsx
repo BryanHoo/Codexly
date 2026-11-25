@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { AgentEngine } from "@codexly/protocol";
 import type { TaskViewStoreState } from "@codexly/frontend-core/task-view-selectors";
 import type { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
@@ -8,6 +8,7 @@ import {
 } from "@codexly/frontend-core/turn-processing-time";
 
 import { AgentEngineIcon } from "../core/agent-engine-icon.js";
+import { subscribeTurnProcessingClock } from "./turn-processing-clock.js";
 import { TurnOutputRateLabel, useTurnProcessingTime } from "./use-turn-processing-time.js";
 
 type GenerationStore = Readonly<{
@@ -25,6 +26,37 @@ const idleTiming: TurnProcessingTiming = {
   startedAt: null,
   completedAt: null,
 };
+
+function TurnGenerationRate({
+  store,
+  turnId,
+}: Readonly<{ store: GenerationStore; turnId: string }>) {
+  const [rate, setRate] = useState(
+    () => store.getState().turnOutputRates.current?.read(turnId) ?? null,
+  );
+  useEffect(() => {
+    const read = () => store.getState().turnOutputRates.current?.read(turnId) ?? null;
+    let displayed = read();
+    setRate(displayed);
+    // 首个有效读数立刻显示。之后复用秒级时钟刷新数值，正文更新仅检查显隐。
+    const unsubscribe = store.subscribe(() => {
+      const current = read();
+      if ((current === null) === (displayed === null)) return;
+      displayed = current;
+      setRate(current);
+    });
+    const stopClock = subscribeTurnProcessingClock(() => {
+      displayed = read();
+      setRate(displayed);
+    });
+    return () => {
+      unsubscribe();
+      stopClock();
+    };
+  }, [store, turnId]);
+
+  return <TurnOutputRateLabel rate={rate} />;
+}
 
 export function TurnGenerationStatus({
   store,
@@ -44,10 +76,6 @@ export function TurnGenerationStatus({
   const turn = useSyncExternalStore(store.subscribe, readTurn, readTurn);
   const readItemKeys = () => store.getState().itemKeysByTurnId[turnId];
   const itemKeys = useSyncExternalStore(store.subscribe, readItemKeys, readItemKeys);
-  // 一旦形成有效读数就立即显示，后续数值随共用时钟刷新。
-  const readOutputRate = () => store.getState().turnOutputRates.current?.read(turnId) ?? null;
-  const readHasOutputRate = () => readOutputRate() !== null;
-  const hasOutputRate = useSyncExternalStore(store.subscribe, readHasOutputRate, readHasOutputRate);
   const toolCalls = useMemo(() => {
     const { itemStoresByKey } = store.getState();
     // 工具、命令和文件修改共用回合条目身份，多次更新同一调用只计一次。
@@ -80,7 +108,7 @@ export function TurnGenerationStatus({
         <span aria-hidden="true">· </span>
         {toolCallsLabel(toolCalls)}
       </span>
-      <TurnOutputRateLabel rate={hasOutputRate ? readOutputRate() : null} />
+      <TurnGenerationRate key={turnId} store={store} turnId={turnId} />
     </div>
   );
 }

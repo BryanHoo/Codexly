@@ -1,7 +1,7 @@
 import { useLocation } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 
-import { sidebarOverlayQuery } from "../components/workbench-panel-layout.js";
+import { sidebarOverlayQuery } from "@codexly/frontend-core/workbench-panel-breakpoints";
 
 export function useCloseMobileSidebar(
   sidebarRef: RefObject<HTMLElement | null>,

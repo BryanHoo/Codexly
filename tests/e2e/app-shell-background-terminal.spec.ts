@@ -24,7 +24,7 @@ test("旧运行时保持后台终端查询与停止流程", async ({ page }) => 
     },
   );
   await page.goto("/p/codexly/t/task-1");
-  await page.getByRole("tab", { name: "上下文", exact: true }).click();
+  await page.getByRole("button", { name: "上下文", exact: true }).click();
   const stop = page.getByRole("button", { name: `停止终端 ${command}`, exact: true });
   await expect(stop).toBeVisible();
   await stop.click();

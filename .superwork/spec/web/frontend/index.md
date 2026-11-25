@@ -59,3 +59,9 @@ Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要�
 - 项目中栏顶部快捷打开、根目录右键和根目录三点菜单提供“打开远程仓库”；仅根目录自身为 Git 仓库时显示，普通文件、子目录和仅包含子仓库的目录不显示。未配置可浏览远端时禁用。
 - 菜单展开后才复用本地 Git inspect 与查询缓存，不触发 fetch/push 或额外轮询；优先当前远端、其次 origin、最后首个远端。两端共用地址转换和菜单组件，HTTP(S) 保留网页端口，SSH/SCP/git 地址转换为 HTTPS 并去除传输端口及认证信息；本地路径不可作为网页打开。
 - Web 使用新标签链接以保留浏览器用户激活，桌面通过原生 opener 打开系统浏览器。回归入口为 `packages/frontend-core/src/git-repository-url.test.ts` 与 `desktop/tests/browser/project-remote-repository.browser.test.tsx`（两端三类菜单、Chromium / WebKit、非 Git 隐藏及无远端禁用）。
+
+## 工作台右栏
+
+- Web 和桌面默认收起会话右栏。进入新会话按「设置 → 常规 → 编辑器 → 默认展开右栏」读取偏好，手动开关只影响当前会话。
+- 收起时在右上角绝对定位同尺寸、等间距的快捷按钮。按钮组透明，不占工作台网格列。标题栏与较窄的消息正文通过内边距避让，输入框继续使用中栏全宽。面板开关重开原标签，标签按钮可直接展开指定内容。移动浏览器展开为覆盖层，分屏由活动会话渲染外层工作台右栏。
+- 回归入口为 [Web 右栏用例](../../../../tests/e2e/app-shell-inspector-sidebar.spec.ts)、[移动布局用例](../../../../tests/e2e/app-shell-inspector-mobile.spec.ts) 与 [桌面偏好用例](../../../../desktop/src/features/workbench/components/workbench-panel-layout.browser.test.tsx)。

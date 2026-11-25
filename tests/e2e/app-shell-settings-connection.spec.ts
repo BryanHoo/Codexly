@@ -171,6 +171,7 @@ test("defaults appearance to automatic and follows the system color scheme", asy
 test("applies and restores a custom workbench background", async ({ page }) => {
   await useGroupedFileChanges(page);
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });
   await dialog.getByRole("button", { name: "自定义工作台背景" }).click();

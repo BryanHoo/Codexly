@@ -413,6 +413,7 @@ export function SplitWorkspaceGrid({
                 className="split-workspace-pane"
                 data-split-pane={key}
                 data-active={active}
+                data-right-edge={cell === undefined || cell.x + cell.width >= 8 - 1e-6}
                 tabIndex={-1}
                 style={cell === undefined ? undefined : splitPaneStyle(cell)}
                 onPointerDownCapture={() => {

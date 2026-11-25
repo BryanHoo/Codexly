@@ -108,6 +108,7 @@ export function useWorkbenchShellRuntime({
   });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
   const {
     inspectorMaximumWidth,
     inspectorOpen,
@@ -120,10 +121,9 @@ export function useWorkbenchShellRuntime({
     sidebarWidth,
     workbenchShellRef,
   } = useWorkbenchPanelLayout({
-    inspectorInitiallyOpen: !temporary,
+    scopeKey: inspectorScopeKey,
     sidebarInitiallyOpen: !paneOnly,
   });
-  const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
   const defaultInspectorTab: WorkbenchInspectorTab = "project";
   const [inspectorTabState, setInspectorTabState] = useState<{
     scopeKey: string;
@@ -161,9 +161,6 @@ export function useWorkbenchShellRuntime({
     requestedTab: inspectorTab,
     taskId,
   });
-  useLayoutEffect(() => {
-    if (temporary && !paneOnly) setInspectorOpen(false);
-  }, [setInspectorOpen, taskId, temporary, paneOnly]);
   const { appInfoQuery, appUpdateMutation, appUpdateProgressQuery } =
     useWorkbenchAppUpdates(client);
   // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。

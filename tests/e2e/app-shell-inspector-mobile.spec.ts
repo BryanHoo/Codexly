@@ -15,6 +15,17 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   );
 
   const composer = page.getByRole("region", { name: "消息编辑器" });
+  const messageContent = page.locator("[data-conversation-content]").first();
+  const rail = page.locator(".workbench-inspector-rail");
+  await expect(messageContent).toBeVisible();
+  const messageRight = await messageContent.evaluate((element) => {
+    // 窄屏用消息内边距避开悬浮入口，滚动容器宽度仍由中栏决定。
+    return (
+      element.getBoundingClientRect().right -
+      Number.parseFloat(getComputedStyle(element).paddingRight)
+    );
+  });
+  expect(messageRight).toBeLessThan((await rail.boundingBox())?.x ?? 0);
   // InputGroup 同时承载正文和工具栏；只测量需要保持单行的操作工具栏。
   const composerFooter = composer.locator(".composer-toolbar");
   const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
@@ -190,6 +201,7 @@ test("closes open workbench panels when the window becomes narrow", async ({ pag
   await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByRole("complementary", { name: "项目侧栏" })).toBeVisible();
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect(page.getByRole("complementary", { name: "运行环境" })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });

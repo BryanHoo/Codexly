@@ -1,8 +1,10 @@
-import { useSplitInspector } from "@codexly/ui/core/split-inspector";
-import { useCallback, useLayoutEffect, useRef, useState, type SetStateAction } from "react";
+import { sidebarOverlayQuery } from "@codexly/frontend-core/workbench-panel-breakpoints";
+import { useWorkbenchInspectorVisibility } from "@codexly/ui/core/split-inspector";
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
+import { useLayoutEffect, useRef, useState } from "react";
 
-export const sidebarOverlayQuery = "(max-width: 760px)";
-export const inspectorOverlayQuery = "(max-width: 1100px)";
+export { inspectorOverlayQuery, sidebarOverlayQuery } from "@codexly/frontend-core/workbench-panel-breakpoints";
 
 export const sidebarWidthLimits = { default: 288, maximum: 400, minimum: 220 } as const;
 export const inspectorWidthLimits = {
@@ -28,34 +30,19 @@ export function resolveQuickOpenVisibility(board: boolean): boolean {
   return !board;
 }
 
-export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "", inspectorInitiallyOpen = true, sidebarInitiallyOpen = true }: Readonly<{
-  inspectorInitiallyOpen?: boolean;
-  sidebarInitiallyOpen?: boolean;
-  temporary?: boolean;
-  scopeKey?: string;
-}> = {}) {
-  const sharedInspector = useSplitInspector();
-  const [sidebarOpen, setSidebarOpen] = useState(() => sidebarInitiallyOpen && shouldOpenDesktopPanel(sidebarOverlayQuery));
-  const [projectInspectorOpen, setProjectInspectorOpen] = useState(() =>
-    inspectorInitiallyOpen && shouldOpenDesktopPanel(inspectorOverlayQuery),
+export function useWorkbenchPanelLayout({
+  inspectorInitiallyOpen,
+  scopeKey = "",
+  sidebarInitiallyOpen = true,
+}: Readonly<{ inspectorInitiallyOpen?: boolean; scopeKey?: string; sidebarInitiallyOpen?: boolean }> = {}) {
+  const defaultOpen = useConversationDisplayPreference(conversationDisplayPreferences, "inspectorInitiallyOpen");
+  const { open: inspectorOpen, setOpen: setInspectorOpen } = useWorkbenchInspectorVisibility(
+    inspectorInitiallyOpen ?? defaultOpen,
+    scopeKey,
   );
-  const [chatInspector, setChatInspector] = useState({ scopeKey, open: false });
-  // 聊天的展开操作只属于当前任务，切换任务时同步回到默认收起，不影响项目偏好。
-  const inspectorOpen = temporary
-    ? chatInspector.scopeKey === scopeKey && chatInspector.open
-    : projectInspectorOpen;
-  const setInspectorOpen = useCallback((next: SetStateAction<boolean>) => {
-    if (!temporary) {
-      setProjectInspectorOpen(next);
-      return;
-    }
-    setChatInspector((previous) => ({
-      scopeKey,
-      open: typeof next === "function"
-        ? next(previous.scopeKey === scopeKey && previous.open)
-        : next,
-    }));
-  }, [scopeKey, temporary]);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => sidebarInitiallyOpen && shouldOpenDesktopPanel(sidebarOverlayQuery),
+  );
   const [sidebarWidth, setSidebarWidth] = useState<number>(sidebarWidthLimits.default);
   const [inspectorWidth, setInspectorWidth] = useState<number>(inspectorWidthLimits.default);
   const [shellWidth, setShellWidth] = useState(() =>
@@ -91,9 +78,9 @@ export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "", insp
 
   return {
     inspectorMaximumWidth,
-    inspectorOpen: sharedInspector?.open ?? inspectorOpen,
+    inspectorOpen,
     inspectorWidth,
-    setInspectorOpen: sharedInspector?.setOpen ?? setInspectorOpen,
+    setInspectorOpen,
     setInspectorWidth,
     setSidebarOpen,
     setSidebarWidth,

@@ -405,7 +405,7 @@ export function WorkbenchShellLayout({
             width={inspectorWidth}
           />
         ) : null}
-        {workspaceContent === undefined && !utilityView && inspectorOpen ? (
+        {workspaceContent === undefined && !utilityView ? (
           <WorkbenchShellInspector
             context={context}
             composerRef={composerRef}

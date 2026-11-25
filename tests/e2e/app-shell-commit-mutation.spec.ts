@@ -85,6 +85,7 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await page.getByRole("tab", { name: "项目" }).click();
   await page.getByRole("button", { name: "提交 17 个未提交变更" }).click();
   const inspector = page.locator(".workbench-inspector");

@@ -407,7 +407,8 @@ describe("WorkbenchInspector tabs", () => {
     expect(selectedTabClassName?.split(" ")).toContain("text-foreground");
     expect(markup).not.toContain("shadow-toolbar");
     expect(markup).toContain("lucide-braces");
-    expect(projectMarkup).toContain("lucide-folder-tree");
+    expect(projectMarkup).toMatch(/lucide-folder(?:\s|")/u);
+    expect(projectMarkup).toContain("lucide-git-branch");
     expect(markup).toContain(">项目</span></button>");
     expect(markup).toContain(">变更</span></button>");
     expect(markup).toContain(">历史</span></button>");

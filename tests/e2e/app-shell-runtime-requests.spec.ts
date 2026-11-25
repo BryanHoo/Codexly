@@ -270,7 +270,7 @@ test("shows MCP connection states and manually retries the current task", async 
   });
 
   await page.goto("/p/codexly/t/task-1");
-  await page.getByRole("tab", { name: "上下文" }).click();
+  await page.getByRole("button", { name: "上下文", exact: true }).click();
   const mcp = page.getByRole("region", { name: "MCP" });
   const reloadIcon = mcp.getByRole("button", { name: "刷新状态" }).locator("svg");
   await expect
@@ -298,7 +298,7 @@ test("hides the MCP module when the request fails before data is available", asy
     });
   });
   await page.goto("/p/codexly/t/task-1");
-  await page.getByRole("tab", { name: "上下文" }).click();
+  await page.getByRole("button", { name: "上下文", exact: true }).click();
   await expect(page.getByRole("region", { name: "MCP" })).toHaveCount(0);
   await expect(
     page.getByText("mcpServerStatus/list failed: MCP server `docs` executable was not found"),

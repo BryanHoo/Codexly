@@ -146,6 +146,16 @@ export function GeneralSettingsPanel({
         </SettingsGroup>
         <SettingsGroup title={t("general.editor")}>
           <SettingsField
+            label={t("general.inspectorInitiallyOpen")}
+            description={t("general.inspectorInitiallyOpenDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="inspectorInitiallyOpen"
+              label={t("general.inspectorInitiallyOpen")}
+            />
+          </SettingsField>
+          <SettingsField
             label={t("general.stickyPrompt")}
             description={t("general.stickyPromptDescription")}
           >

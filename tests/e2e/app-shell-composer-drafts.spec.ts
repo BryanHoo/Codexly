@@ -453,7 +453,7 @@ test("keeps generation status between a question card and the input at 390px @cr
   await expectAbove(status, prompt);
   await expectStatusCentered(status, prompt);
   await expect.poll(() => sockets.length).toBeGreaterThan(0);
-  // 先复现单包集中送达，再提供两个服务端采样间隔。
+  // 首包只有计数，下一包到达时才有实际生成间隔。
   const event = {
     version: 2,
     type: "message.delta",
@@ -470,7 +470,7 @@ test("keeps generation status between a question card and the input at 390px @cr
     const update = {
       ...event,
       sequence: event.sequence + index,
-      timestamp: new Date(Date.parse(startedAt) + index * 500).toISOString(),
+      timestamp: new Date(Date.parse(startedAt) + index * 300).toISOString(),
       payload: { delta },
     };
     for (const socket of sockets) {
@@ -480,10 +480,8 @@ test("keeps generation status between a question card and the input at 390px @cr
   sendDelta(0, event.payload.delta);
   await expect(page.getByText(/首批集中输出/u)).toBeVisible();
   await expect(status).not.toContainText("t/s");
-  sendDelta(1, "甲".repeat(20));
-  await expect(page.getByText(/甲{20}/u)).toBeVisible();
-  await expect(status).not.toContainText("t/s");
-  sendDelta(2, "乙".repeat(20));
+  sendDelta(1, "甲".repeat(12));
+  await expect(page.getByText(/甲{12}/u)).toBeVisible();
   await expect(status).toContainText("30.0 t/s");
   await expectAbove(question, status);
   await expectStatusCentered(status, prompt);

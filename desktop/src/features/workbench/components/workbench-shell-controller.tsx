@@ -95,6 +95,7 @@ export function useWorkbenchShellController(
     selectedRootPath,
     openInspectorDocument,
     setInspectorOpen,
+    workbenchShellRef,
     setPendingTaskSelection,
     setSidebarOpen,
     setTaskRenameOpen,
@@ -396,7 +397,9 @@ export function useWorkbenchShellController(
   const closeInspector = () => {
     setInspectorOpen(false);
     requestAnimationFrame(() => {
-      document.querySelector<HTMLButtonElement>("#workbench-inspector-toggle")?.focus();
+      workbenchShellRef.current?.closest('.workbench-shell[data-embedded="false"]')
+        ?.querySelector<HTMLButtonElement>("[data-workbench-inspector-expand]")
+        ?.focus({ preventScroll: true });
     });
   };
 

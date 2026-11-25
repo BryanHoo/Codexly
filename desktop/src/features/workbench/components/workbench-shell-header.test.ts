@@ -56,8 +56,6 @@ describe("任务标题栏的新建入口", () => {
     // 聊天与项目任务共用目录快捷入口，不能因临时作用域隐藏。
     expect(markup).toContain('data-slot="button-group"');
     expect(markup).toContain("Finder");
-    expect(markup.indexOf('aria-label="sidebar.newTask"')).toBeLessThan(
-      markup.indexOf('aria-label="shell.expandInspector"'),
-    );
+    expect(markup).not.toContain('aria-label="shell.expandInspector"');
   });
 });

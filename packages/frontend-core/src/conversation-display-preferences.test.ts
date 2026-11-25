@@ -21,6 +21,7 @@ describe("消息显示偏好", () => {
         stickyPrompt: false,
         navigation: false,
         independentFileDiffs: true,
+        inspectorInitiallyOpen: false,
       });
     },
   );
@@ -35,6 +36,7 @@ describe("消息显示偏好", () => {
       stickyPrompt: true,
       navigation: false,
       independentFileDiffs: true,
+      inspectorInitiallyOpen: false,
     });
     store.set("navigation", true);
     store.set("stickyPrompt", false);
@@ -43,6 +45,7 @@ describe("消息显示偏好", () => {
       stickyPrompt: false,
       navigation: true,
       independentFileDiffs: true,
+      inspectorInitiallyOpen: false,
     });
     store.set("navigation", true);
     expect(listener).toHaveBeenCalledTimes(3);
@@ -67,6 +70,7 @@ describe("消息显示偏好", () => {
       stickyPrompt: false,
       navigation: false,
       independentFileDiffs: true,
+      inspectorInitiallyOpen: false,
     });
     store.set("stickyPrompt", true);
     expect(store.getSnapshot().stickyPrompt).toBe(true);
@@ -88,4 +92,14 @@ it.each([null, "false", 0])("异常差异字段使用开启默认值：%s", (inv
     key,
   );
   expect(store.getSnapshot().independentFileDiffs).toBe(true);
+});
+
+it("只恢复明确保存的默认展开右栏偏好", () => {
+  const storage = memoryStorage('{"inspectorInitiallyOpen":"true"}');
+  const store = createConversationDisplayPreferenceStore(storage, key);
+  expect(store.getSnapshot().inspectorInitiallyOpen).toBe(false);
+  store.set("inspectorInitiallyOpen", true);
+  expect(
+    createConversationDisplayPreferenceStore(storage, key).getSnapshot().inspectorInitiallyOpen,
+  ).toBe(true);
 });

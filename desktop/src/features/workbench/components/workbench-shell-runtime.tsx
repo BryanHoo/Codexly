@@ -124,7 +124,7 @@ export function useWorkbenchShellRuntime({
     sidebarOpen,
     sidebarWidth,
     workbenchShellRef,
-  } = useWorkbenchPanelLayout({ temporary, scopeKey: inspectorScopeKey, inspectorInitiallyOpen: true, sidebarInitiallyOpen: !paneOnly });
+  } = useWorkbenchPanelLayout({ scopeKey: inspectorScopeKey, sidebarInitiallyOpen: !paneOnly });
   const defaultInspectorTab: WorkbenchInspectorTab = getDefaultWorkbenchInspectorTab(temporary);
   const [inspectorTabState, setInspectorTabState] = useState<{
     scopeKey: string;

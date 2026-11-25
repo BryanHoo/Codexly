@@ -14,7 +14,7 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 import { resolveQuickOpenVisibility } from "./workbench-panel-layout.js";
 import { ProjectQuickOpenMenu } from "./project-open-menu.js";
-import { WorkbenchInspectorToggle } from "./workbench-inspector-toggle.js";
+import { WorkbenchInspectorCollapse } from "@codexly/ui/core/workbench-inspector-rail";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
 
 export function WorkbenchShellHeader({
@@ -45,7 +45,7 @@ export function WorkbenchShellHeader({
     projectOpenCapabilitiesQuery,
     projectPathOpenLockRef,
     projectPathOpenMutation,
-    setInspectorOpen,
+    closeInspector,
     setSidebarOpen,
     setTaskRenameOpen,
     sidebarOpen: ownSidebarOpen,
@@ -151,13 +151,8 @@ export function WorkbenchShellHeader({
             }}
           />
         ) : null}
-        {utilityView ? null : (
-          <WorkbenchInspectorToggle
-            collapseLabel={t("shell.collapseInspector")}
-            expandLabel={t("shell.expandInspector")}
-            inspectorOpen={inspectorOpen}
-            onToggle={() => setInspectorOpen((open) => !open)}
-          />
+        {utilityView || !inspectorOpen ? null : (
+          <WorkbenchInspectorCollapse label={t("shell.collapseInspector")} onClose={closeInspector} />
         )}
         <SplitPaneControls
           closeLabel={t("split.close")}

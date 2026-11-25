@@ -1,4 +1,6 @@
 export const generalSettings = {
+  inspectorInitiallyOpen: "Open right sidebar by default",
+  inspectorInitiallyOpenDescription: "Open the right sidebar when entering a conversation or project workspace.",
   independentFileDiffs: "Show file diffs separately",
   independentFileDiffsDescription: "Show each file diff in streaming replies outside tool and command groups. After the turn completes, view diffs by expanding the execution process.",
   stickyPrompt: "Sticky messages",

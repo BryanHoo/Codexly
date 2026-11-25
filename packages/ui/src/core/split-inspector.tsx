@@ -31,6 +31,24 @@ type Inspector = Readonly<{
 const SplitInspectorContext = createContext<Inspector | null>(null);
 export const useSplitInspector = () => useContext(SplitInspectorContext);
 
+export function useWorkbenchInspectorVisibility(defaultOpen: boolean, scopeKey: string) {
+  const shared = useSplitInspector();
+  const [state, setState] = useState({ scopeKey, defaultOpen, open: defaultOpen });
+  // 会话切换或更新偏好时采用新默认值。临时展开和收起只保存在当前工作台。
+  const isCurrent = state.scopeKey === scopeKey && state.defaultOpen === defaultOpen;
+  if (!isCurrent) setState({ scopeKey, defaultOpen, open: defaultOpen });
+  const setOpen = useCallback((next: SetStateAction<boolean>) => {
+    setState((current) => ({
+      ...current,
+      open: typeof next === "function" ? next(current.open) : next,
+    }));
+  }, []);
+  return {
+    open: shared?.open ?? (isCurrent ? state.open : defaultOpen),
+    setOpen: shared?.setOpen ?? setOpen,
+  };
+}
+
 export function SplitInspectorProvider({
   children,
   open,

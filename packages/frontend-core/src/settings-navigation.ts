@@ -65,6 +65,7 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
     "fields.defaultOpenWith",
     "fields.followUpMessages",
     "general.editor",
+    "general.inspectorInitiallyOpen",
     "general.taskNotifications",
     "background.label",
     "background.bing",

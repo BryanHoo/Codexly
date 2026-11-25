@@ -371,7 +371,7 @@ export function WorkbenchShellLayout({
             width={inspectorWidth}
           />
         ) : null}
-        {workspaceContent === undefined && inspectorVisible ? (
+        {workspaceContent === undefined && !utilityView ? (
           <WorkbenchShellInspector context={context} composerRef={composerRef}
             projectId={projectId} temporary={temporary}
             {...(taskId === undefined ? {} : { taskId })} />
