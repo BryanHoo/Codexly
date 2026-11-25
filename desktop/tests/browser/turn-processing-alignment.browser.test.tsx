@@ -77,9 +77,10 @@ it.each(["web", "desktop"])("%s 在窄屏任务整个运行过程中显示速率
   await expect.poll(() => status()?.textContent).toContain("1 次工具调用");
   // 单批没有可测间隔。两段有效采样都到达后才显示前台文本估算。
   expect(status()?.textContent).not.toContain("t/s");
-  const reasoning = { ...message, type: "reasoning.delta", itemId: "reasoning" } as const;
-  receive(1_000, [{ ...reasoning, sequence: 4 }]);
-  receive(2_000, [{ ...reasoning, sequence: 5 }]);
+  const reasoning = { ...message, type: "reasoning.delta", itemId: "reasoning", payload: { delta: "甲".repeat(28) } } as const;
+  receive(500, [{ ...reasoning, sequence: 4 }]);
+  expect(status()?.textContent).not.toContain("t/s");
+  receive(1_000, [{ ...reasoning, sequence: 5 }]);
   await expect.poll(speed, { timeout: 2_000 }).toBe("· 42.0 t/s");
   receive(3_000, [{ ...reported, sequence: 6, payload: { ...reported.payload, outputTokens: 3_720 } }]);
   await expect.poll(speed, { timeout: 2_000 }).toBe("· 1.2k t/s");

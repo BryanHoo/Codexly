@@ -466,11 +466,11 @@ test("keeps generation status between a question card and the input at 390px @cr
     timestamp: startedAt,
     payload: { delta: "首批集中输出" + "x".repeat(1_400) },
   };
-  const sendDelta = (elapsed: number, delta: string) => {
+  const sendDelta = (index: number, delta: string) => {
     const update = {
       ...event,
-      sequence: event.sequence + elapsed / 1_000,
-      timestamp: new Date(Date.parse(startedAt) + elapsed).toISOString(),
+      sequence: event.sequence + index,
+      timestamp: new Date(Date.parse(startedAt) + index * 500).toISOString(),
       payload: { delta },
     };
     for (const socket of sockets) {
@@ -480,9 +480,10 @@ test("keeps generation status between a question card and the input at 390px @cr
   sendDelta(0, event.payload.delta);
   await expect(page.getByText(/首批集中输出/u)).toBeVisible();
   await expect(status).not.toContainText("t/s");
-  sendDelta(1_000, "甲".repeat(40));
-  await expect(page.getByText(/甲{40}/u)).toBeVisible();
-  sendDelta(2_000, "乙".repeat(40));
+  sendDelta(1, "甲".repeat(20));
+  await expect(page.getByText(/甲{20}/u)).toBeVisible();
+  await expect(status).not.toContainText("t/s");
+  sendDelta(2, "乙".repeat(20));
   await expect(status).toContainText("30.0 t/s");
   await expectAbove(question, status);
   await expectStatusCentered(status, prompt);

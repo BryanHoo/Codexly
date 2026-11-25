@@ -2,6 +2,7 @@ import { getUtf8ByteLength } from "./byte-lru.js";
 import type { TaskEventTurn, TaskStoreEvent } from "./task-event-model.js";
 
 const sampleIntervalMs = 1_000;
+const initialEstimateIntervalMs = 500;
 const outputPauseMs = 3_000;
 const startupBurstMs = 100;
 const bytesPerToken = 4;
@@ -10,7 +11,7 @@ class TokenRateSample {
   #baseline: { count: number; at: number } | undefined;
   #lastCount = 0;
   #lastGrowthAt: number | undefined;
-  #previousEstimate: number | undefined;
+  #previousEstimate: { rate: number; elapsedMs: number; hasMultipleArrivals: boolean } | undefined;
   rate: number | null = null;
 
   observe(count: number, timestamp: number, estimated = false): void {
@@ -35,21 +36,30 @@ class TokenRateSample {
       return;
     }
 
-    // 累计不足一秒的增长留给下一次采样，避免同一批到达的增量瞬间推高读数。
-    // 相同计数不推进采样时间，工具执行或等待期间继续显示最近一次有效读数。
     const elapsedMs = timestamp - baseline.at;
-    if (estimated && this.rate === null && elapsedMs < startupBurstMs) {
-      // 首批缓冲内容没有生成起点，合并进初始基线，避免把集中到达算成瞬时生成。
+    if (estimated && this.#previousEstimate === undefined && elapsedMs < startupBurstMs) {
+      // 每段输出的首批缓冲合并进基线，避免把集中到达算成瞬时生成。
       baseline.count = count;
     }
-    if (elapsedMs < sampleIntervalMs) return;
+    // 首次文本读数由两个半秒区间确认，避免短回复结束前仍无速度。已有读数按秒更新。
+    const intervalMs =
+      estimated && this.rate === null ? initialEstimateIntervalMs : sampleIntervalMs;
+    if (elapsedMs < intervalMs) return;
     const sample = ((count - baseline.count) * 1_000) / elapsedMs;
     if (estimated) {
-      // 单次合包可能跨过多个生成时段。估算上升需要相邻两段输出支持，避免单个窗口抬高读数。
-      if (this.#previousEstimate !== undefined) {
-        this.rate = Math.min(this.#previousEstimate, sample);
+      const previous = this.#previousEstimate;
+      const hasMultipleArrivals =
+        lastGrowthAt !== undefined && lastGrowthAt - baseline.at >= startupBurstMs;
+      if (previous !== undefined) {
+        // 两段都有连续增量时，首个读数按总时长加权，抵消一批正文恰好跨越窗口边界的偏差。
+        // 单次合包及后续更新采用相邻两段较小值，避免孤立尖峰抬高读数。
+        this.rate =
+          this.rate === null && previous.hasMultipleArrivals && hasMultipleArrivals
+            ? (previous.rate * previous.elapsedMs + sample * elapsedMs) /
+              (previous.elapsedMs + elapsedMs)
+            : Math.min(previous.rate, sample);
       }
-      this.#previousEstimate = sample;
+      this.#previousEstimate = { rate: sample, elapsedMs, hasMultipleArrivals };
     } else {
       this.rate = sample;
     }

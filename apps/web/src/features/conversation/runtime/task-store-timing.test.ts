@@ -27,7 +27,7 @@ it("单批和孤立尖峰不抬高文本估算，持续输出按事件间隔更�
   // 同一客户端批次中，中文按 Codex 的字节计量，以服务端事件间隔重算。
   state.applyEvents([
     { ...reply, sequence: 12, timestamp: at(20), payload: { delta: "首批缓存".repeat(25) } },
-    { ...reply, sequence: 13, timestamp: at(1_000) },
+    { ...reply, sequence: 13, timestamp: at(500), payload: { delta: "思考中。".repeat(5) } },
     { ...reply, sequence: 13 },
     { ...reply, sequence: 14, type: "command.output_delta", itemId: "terminal" },
     { ...reply, sequence: 15, turnId: "turn-completed", itemId: "message-completed" },
@@ -35,7 +35,9 @@ it("单批和孤立尖峰不抬高文本估算，持续输出按事件间隔更�
     { ...reply, sequence: 17, itemId: "acp:message:user:echo" },
   ]);
   expect(rates.read(turnId)).toBeNull();
-  state.applyEvents([{ ...reply, sequence: 18, timestamp: at(2_000) }]);
+  state.applyEvents([
+    { ...reply, sequence: 18, timestamp: at(1_000), payload: { delta: "思考中。".repeat(5) } },
+  ]);
   expect(rates.read(turnId)).toBe(30);
   state.applyEvents([
     { ...reply, sequence: 19, timestamp: at(3_000), payload: { delta: "x".repeat(1_400) } },
@@ -61,6 +63,38 @@ it("单批和孤立尖峰不抬高文本估算，持续输出按事件间隔更�
   expect(rates.read(turnId)).toBeNull();
 });
 
+it("首次连续输出跨两个采样区间时按总时长估算速度", () => {
+  const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
+  const start = Date.parse(timestamp);
+  const state = store.getState();
+  const rates = new TurnOutputRates();
+  state.turnOutputRates.current = rates;
+  const turnId = "turn-running";
+
+  for (const [index, [elapsed, tokens]] of (
+    [
+      [0, 1],
+      [200, 3],
+      [500, 2],
+      [700, 12],
+      [1_100, 16],
+    ] as const
+  ).entries()) {
+    state.applyEvents([
+      {
+        ...eventEnvelope(11 + index),
+        turnId,
+        itemId: "message-running",
+        timestamp: new Date(start + elapsed).toISOString(),
+        type: "message.delta",
+        payload: { delta: "text".repeat(tokens) },
+      },
+    ]);
+  }
+
+  expect(rates.read(turnId)).toBe(30);
+});
+
 it("速率优先使用 ACP 上报差值，计数重置时使用独立的文本估算", () => {
   const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
   const start = Date.parse(timestamp);
@@ -81,7 +115,7 @@ it("速率优先使用 ACP 上报差值，计数重置时使用独立的文本�
       ...(outputTokens === undefined ? {} : { outputTokens }),
     },
   });
-  const reply = (sequence: number): AgentEvent => ({
+  const reply = (sequence: number): Extract<AgentEvent, { type: "message.delta" }> => ({
     ...eventEnvelope(sequence),
     provider: "acp-any-agent",
     turnId,
@@ -95,12 +129,12 @@ it("速率优先使用 ACP 上报差值，计数重置时使用独立的文本�
   send(100, usage(12, 160));
   expect(rate()).toBeNull();
   send(100, reply(13));
-  send(1_100, reply(14));
-  send(1_100, usage(15));
+  send(600, { ...reply(14), payload: { delta: "text".repeat(20) } });
   expect(rate()).toBeNull();
+  send(1_100, { ...reply(15), payload: { delta: "text".repeat(20) } });
+  expect(rate()).toBe(40);
   send(2_000, usage(16, 300));
   expect(rate()).toBe(100);
-  send(2_100, reply(17));
   send(4_000, usage(18, 300));
   expect(rate()).toBe(100);
   send(5_000, usage(19, 450));

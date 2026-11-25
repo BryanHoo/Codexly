@@ -44,7 +44,7 @@ export function TurnGenerationStatus({
   const turn = useSyncExternalStore(store.subscribe, readTurn, readTurn);
   const readItemKeys = () => store.getState().itemKeysByTurnId[turnId];
   const itemKeys = useSyncExternalStore(store.subscribe, readItemKeys, readItemKeys);
-  // 首批输出到达时立即从占位切换到读数，后续增长随共用时钟刷新。
+  // 一旦形成有效读数就立即显示，后续数值随共用时钟刷新。
   const readOutputRate = () => store.getState().turnOutputRates.current?.read(turnId) ?? null;
   const readHasOutputRate = () => readOutputRate() !== null;
   const hasOutputRate = useSyncExternalStore(store.subscribe, readHasOutputRate, readHasOutputRate);
