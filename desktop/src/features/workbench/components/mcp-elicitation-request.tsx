@@ -40,6 +40,16 @@ export function McpElicitationRequestCard({ interactive, onResolve, request }: R
         next: qt("questionnaire.next"),
         progress: (current, total) => qt("questionnaire.progress", { current, total }),
       }}
+      asyncQuestionLabels={{
+        pending: qt("asyncQuestions.pending"),
+        title: qt("asyncQuestions.pendingCount", { count: 1 }),
+        send: qt("asyncQuestions.send"),
+        other: qt("asyncQuestions.other"),
+        answer: (question) => qt("asyncQuestions.answer", { question }),
+        collapse: qt("asyncQuestions.collapse"),
+        expand: qt("asyncQuestions.expand"),
+        close: qt("asyncQuestions.close"),
+      }}
       labels={{
         title,
         submit: t("pending.submitAnswers"), cancel: t("pending.cancel"), decline: t("pending.deny"),

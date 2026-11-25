@@ -229,6 +229,7 @@ const McpElicitationPendingRequestProperties = {
 const McpFormElicitationPendingRequestSchema = Type.Object(
   {
     ...McpElicitationPendingRequestProperties,
+    codexAsyncQuestion: Type.Optional(Type.Literal(true)),
     fields: Type.Array(McpElicitationFieldSchema),
     formTitle: Type.Optional(Type.String()),
     formDescription: Type.Optional(Type.String()),

@@ -159,7 +159,20 @@ export class AcpElicitations {
       try {
         const { patterns: parsedPatterns, ...form } = formSchema(input.requestedSchema);
         patterns = parsedPatterns;
-        request = { ...base, mode: "form", ...form };
+        const codex = input._meta?.["codex"];
+        // 会话中的 Codex 异步问答通过协议元数据识别，避免依赖 Agent 的展示文案。
+        const asyncQuestion =
+          "sessionId" in input &&
+          codex !== null &&
+          typeof codex === "object" &&
+          "delivery" in codex &&
+          codex.delivery === "async";
+        request = {
+          ...base,
+          mode: "form",
+          ...form,
+          ...(asyncQuestion ? { codexAsyncQuestion: true } : {}),
+        };
       } catch {
         throw RequestError.invalidParams(undefined, "Invalid elicitation form");
       }

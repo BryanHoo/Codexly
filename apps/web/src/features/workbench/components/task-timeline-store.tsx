@@ -1,4 +1,5 @@
 import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
+import { useTurnOutputRateSampling } from "@codexly/ui/agent/use-turn-processing-time";
 import {
   AcpSubagentTranscripts,
   splitAcpSubagentItems,
@@ -42,7 +43,6 @@ import {
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
 import { TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
-
 const getTurnIdKey = (turnId: string) => turnId;
 // 分组成员引用稳定后，父时间线的结构更新不会再触发未变化历史的正文与文件变更聚合。
 export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
@@ -298,8 +298,8 @@ export function TaskStoreTimeline({
   pendingPrompt?: PendingPrompt;
   searchTarget?: HistoryAnchor;
 }>) {
-  const projectId = store.getState().projectId;
-  const taskId = store.getState().taskId;
+  const { projectId, taskId, turnOutputRates } = store.getState();
+  useTurnOutputRateSampling(turnOutputRates);
   const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);

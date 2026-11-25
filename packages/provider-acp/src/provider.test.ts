@@ -567,6 +567,40 @@ it("ACP 原生问卷在会话快照中展示并校验回答", async () => {
   await expect(outcome.promise).resolves.toEqual({ action: "accept", content: { name: "OK" } });
 });
 
+it("保留 Codex 异步问答标记并通过 ACP 回传回答", async () => {
+  const outcome = Promise.withResolvers<acp.CreateElicitationResponse>();
+  const f = await fixture("codex", async ({ params, client }) => {
+    outcome.resolve(
+      await client.request(acp.methods.client.elicitation.create, {
+        sessionId: params.sessionId,
+        mode: "form",
+        message: "Codex 在等待回答时继续工作。",
+        _meta: { codex: { delivery: "async" } },
+        requestedSchema: {
+          type: "object",
+          properties: { question_0: { type: "string", title: "哪个任务失败了？" } },
+        },
+      }),
+    );
+    return { stopReason: "end_turn" };
+  });
+  const task = await f.provider.startTask();
+  await f.provider.startTurn(task.id, input, {} as AgentTurnOptions);
+  const request = await vi.waitFor(async () => {
+    const pending = (await f.provider.readTask(task.id)).pendingRequests[0];
+    expect(pending).toMatchObject({
+      type: "mcp_elicitation",
+      mode: "form",
+      codexAsyncQuestion: true,
+    });
+    if (!pending) throw new Error("问答尚未到达");
+    return pending;
+  });
+  const resolution = { action: "accept", content: { question_0: "昨晚的任务" } } as const;
+  await f.provider.resolvePendingRequest({ ...request, type: "mcp_elicitation", resolution });
+  await expect(outcome.promise).resolves.toEqual(resolution);
+});
+
 it("ACP URL 同意只回传 action，只有匹配的通知才确认外部完成", async () => {
   const answered = Promise.withResolvers<acp.CreateElicitationResponse>();
   const continueTurn = Promise.withResolvers<undefined>();

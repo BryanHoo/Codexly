@@ -1,8 +1,52 @@
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
-import { describe, expect, it } from "vitest";
+import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
+import { describe, expect, it, vi } from "vitest";
 
 import { createTaskStore } from "./task-store.js";
 import { createResponse, eventEnvelope, timestamp } from "./task-store.test-support.js";
+
+it("estimates the output rate from accepted foreground text and expires idle samples", () => {
+  const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
+  const now = Date.parse(timestamp);
+  const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+  const state = store.getState();
+  const rates = new TurnOutputRates();
+  state.turnOutputRates.current = rates;
+  const turnId = "turn-running";
+  const reply = {
+    ...eventEnvelope(11),
+    turnId,
+    itemId: "message-running",
+    type: "message.delta",
+    payload: { delta: "text".repeat(40) },
+  } as const;
+  try {
+    state.applyEvents([reply]);
+    expect(rates.read(turnId, now)).toBeNull();
+    clock.mockReturnValue(now + 1_000);
+    state.applyEvents([
+      {
+        ...reply,
+        sequence: 12,
+        type: "reasoning.delta",
+        itemId: "reasoning",
+        payload: { ...reply.payload, field: "summary" },
+      },
+      { ...reply, sequence: 12 },
+      { ...reply, sequence: 13, type: "command.output_delta", itemId: "terminal" },
+      { ...reply, sequence: 14, turnId: "turn-completed", itemId: "message-completed" },
+      { ...reply, sequence: 15, itemId: "acp:child:other:acp:message:assistant:reply" },
+    ]);
+    expect(rates.read(turnId, now + 1_000)).toBe(40);
+    expect(rates.read(turnId, now + 4_000)).toBeNull();
+    state.reconcile(createResponse());
+    expect(rates.read(turnId, now + 1_000)).toBe(40);
+    state.hydrate(createResponse());
+    expect(rates.read(turnId, now + 1_000)).toBeNull();
+  } finally {
+    clock.mockRestore();
+  }
+});
 
 describe("streamed tool timing", () => {
   it("records file changes but does not invent reasoning timing", () => {

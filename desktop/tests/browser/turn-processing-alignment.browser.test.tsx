@@ -1,10 +1,48 @@
 import { expect, it } from "vitest";
 import { render } from "vitest-browser-react";
+import { TooltipProvider } from "@codexly/ui/core/tooltip";
+import { createTaskStore as createWebStore } from "../../../apps/web/src/features/conversation/runtime/task-store.js";
+import { TaskStoreTimeline as WebTimeline } from "../../../apps/web/src/features/workbench/components/task-timeline-store.js";
 import { TurnProcessingTime as WebTimer } from "../../../apps/web/src/features/workbench/components/task-timeline-status.js";
+import { createTaskStore as createDesktopStore } from "../../src/features/conversation/runtime/task-store.js";
+import { TaskStoreTimeline as DesktopTimeline } from "../../src/features/workbench/components/task-timeline-store.js";
 import { TurnProcessingTime as DesktopTimer } from "../../src/features/workbench/components/task-timeline-status.js";
 import "../../src/shared/styles/globals.css";
 import { changeAppLanguage as webLanguage } from "../../../apps/web/src/i18n/i18n.js";
 import { changeAppLanguage as nativeLanguage } from "../../src/i18n/i18n.js";
+
+it.each(["web", "desktop"])("%s 在窄屏任务计时旁显示实时速率，完成后隐藏", async (platform) => {
+  const timestamp = new Date().toISOString();
+  const turn = { id: "turn", status: "running" as const, startedAt: timestamp, completedAt: null, error: null, items: [{ id: "user", type: "message" as const, role: "user" as const, text: "测试流式输出" }] };
+  const identity = { projectId: "project", taskId: "task" };
+  const response = { checkpoint: { sessionId: "session", sequence: 0 }, snapshot: {
+    id: "task", projectId: "project", title: "Task", pinned: false, status: "running" as const,
+    updatedAt: timestamp, pendingRequests: [], turnsNextCursor: null, contextUsage: null, goal: null, plan: null,
+    settings: { approvalPolicy: "on-request" as const, approvalsReviewer: "user" as const, model: "model", reasoningEffort: "high" as const, sandboxMode: "workspace-write" as const },
+    turns: [turn],
+  } };
+  const actions = { onOpenFileDiff: () => {}, onOpenSourceFile: () => {}, onReviewFileChanges: () => {}, onResolvePendingRequest: async () => {} };
+  const web = createWebStore(identity, response);
+  const desktop = createDesktopStore(identity, response);
+  const store = platform === "web" ? web : desktop;
+  const screen = await render(<TooltipProvider><div style={{ width: 360, height: 450 }}>
+    {platform === "web" ? <WebTimeline connected store={web} {...actions} /> : <DesktopTimeline connected store={desktop} {...actions} />}
+  </div></TooltipProvider>);
+  const timer = () => screen.container.querySelector<HTMLElement>("[data-turn-processing-time]");
+  const event = { version: 2, provider: "claude", sessionId: "session", taskId: identity.taskId, turnId: turn.id, timestamp } as const;
+  const message = { ...event, sequence: 1, type: "message.delta", itemId: "acp:message:assistant:reply", payload: { delta: "streaming output ".repeat(10) } } as const;
+  store.getState().applyEvents([message]);
+  await expect.poll(() => timer()?.querySelector("time")?.textContent).toBe("0s");
+  expect(timer()?.textContent).not.toContain("t/s");
+  // 等待现有秒级计时推进后，再交付一批文本以形成可观察的流式间隔。
+  await expect.poll(() => timer()?.querySelector("time")?.textContent).not.toBe("0s");
+  store.getState().applyEvents([{ ...message, sequence: 2 }]);
+  await expect.poll(() => timer()?.textContent).toMatch(/≈\d+\.\d t\/s/);
+  expect(timer()?.querySelector("time")?.nextElementSibling?.textContent).toContain("t/s");
+  store.getState().applyEvents([{ ...event, sequence: 3, type: "turn.completed", payload: { turn: { ...turn, status: "completed", completedAt: new Date().toISOString() } } }]);
+  await expect.poll(() => timer()?.textContent).not.toContain("t/s");
+  await screen.unmount();
+});
 
 for (const [platform, Timer] of [["web", WebTimer], ["desktop", DesktopTimer]] as const) {
   it(`${platform} 显示持续计时和完成耗时，不把折叠动作当作标题`, async () => {

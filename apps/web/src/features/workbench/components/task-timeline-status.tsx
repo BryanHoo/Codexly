@@ -5,7 +5,10 @@ import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
 import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
 import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
 import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
-import { useTurnProcessingTime } from "@codexly/ui/agent/use-turn-processing-time";
+import {
+  TurnOutputRateLabel,
+  useTurnProcessingTime,
+} from "@codexly/ui/agent/use-turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -243,10 +246,19 @@ export function TurnProcessingTime({
   completedAt,
   expanded,
   onToggle,
+  readOutputRate,
   startedAt,
   status,
-}: TurnProcessingTiming & Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
-  const { isRunning, totalSeconds } = useTurnProcessingTime({ status, startedAt, completedAt });
+}: TurnProcessingTiming &
+  Readonly<{
+    expanded?: boolean;
+    onToggle?: () => void;
+    readOutputRate?: (nowMs: number) => number | null;
+  }>) {
+  const { isRunning, totalSeconds, outputRate } = useTurnProcessingTime(
+    { status, startedAt, completedAt },
+    readOutputRate,
+  );
 
   if (totalSeconds === null && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
@@ -264,6 +276,7 @@ export function TurnProcessingTime({
       ) : (
         <time dateTime={duration.dateTime}>{duration.label}</time>
       )}
+      <TurnOutputRateLabel rate={outputRate} />
     </>
   );
   const className = "agent-process-header";

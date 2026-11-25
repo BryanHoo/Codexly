@@ -2,6 +2,41 @@ import type { AgentEvent, AgentTaskSnapshot, AgentTurn, TaskEventModel } from "@
 
 export type TaskEventTurn = Omit<AgentTurn, "items">;
 export type TaskEventNotice = Extract<AgentEvent, { type: "task.notice" }>;
+interface TurnOutputRateEvent {
+  type: "message.delta" | "reasoning.delta";
+  turnId: string;
+  itemId: string;
+  payload: { delta: string };
+}
+
+type StoreEventType = AgentEvent["type"] | "message.skills_updated";
+type StoreEventWithPayload<Item> =
+  | {
+      type: "item.started" | "item.completed";
+      turnId: string;
+      itemId: string;
+      payload: { item: Item };
+    }
+  | {
+      type: "turn.completed";
+      turnId: string;
+      provider: string;
+      payload: { turn: TaskEventTurn & { items: Item[] } };
+    }
+  | { type: "turn.started" | "provider.error"; turnId: string }
+  | TurnOutputRateEvent;
+
+export type TaskStoreEvent<Item> = {
+  taskId: string;
+  sessionId: string;
+  sequence: number;
+  turnId?: string;
+  itemId?: string;
+} & (
+  | StoreEventWithPayload<Item>
+  | { type: Exclude<StoreEventType, StoreEventWithPayload<Item>["type"]> }
+);
+
 export interface TaskReasoningPayload {
   delta: string;
   field?: "content" | "summary";

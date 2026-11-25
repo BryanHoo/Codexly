@@ -22,6 +22,7 @@
 
 - 活动聊天连接单独声明 form 和 url，基于已绑定的 ACP 会话路由，工具范围保留原始工具归属。独立认证和配置连接目前采用已有交互流程。
 - 待办请求保留 `acp` 标记以分流回传，问卷答案只出现在原生 RPC 响应中。回合取消或连接中断时释放待办。URL 回应只携带动作，外部完成由同一连接的 `elicitation/complete` 更新。
+- 会话表单通过 `_meta.codex.delivery === "async"` 标识 Codex 异步问答，Web 和桌面用共用的逐题卡片展示可识别的问答字段。自由回答仍按 ACP 字段回传，回合结束后的投递时限由 Codex ACP 决定。
 - 两端共用问卷和 URL 卡片。打开前展示目标域名及完整地址，经用户点击后在独立浏览器上下文打开。匹配完成通知只改变该会话的交互状态。[ACP v1 Elicitation](https://agentclientprotocol.com/protocol/v1/elicitation)
 - 回归入口为 [ACP Provider 测试](../../../../packages/provider-acp/src/provider.test.ts) 和 [桌面 URL 交互浏览器测试](../../../../desktop/src/features/workbench/components/mcp-elicitation-request.browser.test.tsx)。
 

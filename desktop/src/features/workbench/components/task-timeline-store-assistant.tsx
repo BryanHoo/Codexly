@@ -78,6 +78,7 @@ export function StoredAssistantGroup({
           status={turn.status}
           completedAt={turn.completedAt}
           startedAt={turn.startedAt}
+          readOutputRate={(nowMs) => store.getState().turnOutputRates.current?.read(turn.id, nowMs) ?? null}
           {...(processToggleAvailable
             ? { expanded: processExpanded, onToggle: onToggleProcess }
             : {})}

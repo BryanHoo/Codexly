@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentTurn, EventCheckpoint } from "@codexly/protocol";
+import type { EventCheckpoint } from "@codexly/protocol";
 
 import { estimateRetainedBytes } from "./byte-lru.js";
 import {
@@ -11,6 +11,8 @@ import type {
   TaskEventNotice,
   TaskEventRequest,
   TaskEventState,
+  TaskEventTurn,
+  TaskStoreEvent,
 } from "./task-event-model.js";
 import { prependTaskHistoryPage } from "./task-history-page.js";
 import { reconcileSnapshot, reconstructSnapshot } from "./task-snapshot.js";
@@ -20,6 +22,7 @@ import {
   touchedCommandOutputItemKeys,
   type TaskStoreIdentity,
 } from "./task-state.js";
+import type { TurnOutputRates } from "./turn-output-rate.js";
 
 type ConnectionState = "closed" | "connected" | "connecting" | "reconnecting";
 type StoreItem = TaskEventItem & { text?: string; phase?: string };
@@ -28,7 +31,6 @@ interface StoreMetadata {
   projectId: string;
   runtime?: string;
 }
-type StoreEventType = AgentEvent["type"] | "message.skills_updated";
 
 interface StoreItemHandle<Item> {
   read(): Item;
@@ -37,39 +39,9 @@ interface StoreItemHandle<Item> {
   getRetainedBytes(): number;
 }
 
-type StoreEvent<Item> = {
-  taskId: string;
-  sessionId: string;
-  sequence: number;
-  turnId?: string;
-  itemId?: string;
-} & (
-  | {
-      type: "item.started" | "item.completed";
-      turnId: string;
-      itemId: string;
-      payload: { item: Item };
-    }
-  | {
-      type: "turn.completed";
-      turnId: string;
-      provider: string;
-      payload: { turn: AgentTurnWithoutItems & { items: Item[] } };
-    }
-  | { type: "turn.started" | "provider.error"; turnId: string }
-  | {
-      type: Exclude<
-        StoreEventType,
-        "item.started" | "item.completed" | "turn.completed" | "turn.started" | "provider.error"
-      >;
-    }
-);
-
-type AgentTurnWithoutItems = Omit<AgentTurn, "items">;
-
 type StoreSnapshot<Item, Request, Metadata> = Metadata & {
   pendingRequests: readonly Request[];
-  turns: (AgentTurnWithoutItems & { items: Item[] })[];
+  turns: (TaskEventTurn & { items: Item[] })[];
   turnsNextCursor: string | null;
 };
 
@@ -99,6 +71,7 @@ export interface TaskStoreRuntimeState<Item, ItemStore, Request, Metadata, Setti
   error: Error | null;
   getItem: (itemId: string, turnId: string) => Item | undefined;
   getItemByKey: (itemKey: string) => Item | undefined;
+  turnOutputRates: { current?: TurnOutputRates };
   hydrate: (response: HydrationResponse<Item, Request, Metadata>) => void;
   prependHistory: (response: HydrationResponse<Item, Request, Metadata>) => void;
   reconcile: (response: HydrationResponse<Item, Request, Metadata>) => void;
@@ -123,7 +96,7 @@ export function createTaskStoreRuntime<
   Request extends TaskEventRequest,
   Metadata extends StoreMetadata,
   Settings,
-  Event extends StoreEvent<Item>,
+  Event extends TaskStoreEvent<Item>,
 >(
   options: {
     identity: TaskStoreIdentity;
@@ -168,6 +141,8 @@ export function createTaskStoreRuntime<
   if (initialResponse !== undefined) validateIdentity(initialResponse, "initial snapshot");
 
   const replyRecovery = createInterruptedReplyRecovery(identity, replyStorage);
+  // 计量器由会话视图注册，启动阶段只保留可选的引用。
+  const turnOutputRates: { current?: TurnOutputRates } = {};
   const restoreReplies = (response: Response): Response => ({
     ...response,
     snapshot: { ...response.snapshot, turns: replyRecovery.restore(response.snapshot.turns) },
@@ -176,6 +151,7 @@ export function createTaskStoreRuntime<
   function replaceSnapshot(state: State, response: Response, reconcile: boolean): Partial<State> {
     const restored = restoreReplies(response);
     const normalized = normalizeSnapshot(reconcile ? reconcileSnapshot(state, restored) : restored);
+    turnOutputRates.current?.clear();
     // 快照不携带通知。同一会话只继承平台认定需要持续展示的通知。
     const notices =
       state.checkpoint?.sessionId === response.checkpoint.sessionId
@@ -215,6 +191,7 @@ export function createTaskStoreRuntime<
 
   return {
     ...initialData,
+    turnOutputRates,
     applyEvents(events) {
       if (events.length === 0) {
         return;
@@ -250,6 +227,7 @@ export function createTaskStoreRuntime<
             ...previousState,
             ...applyAcceptedEvent(previousState, event, changedItemStores),
           };
+          turnOutputRates.current?.record(event, nextState.turnsById);
           for (const itemKey of getEventItemKeys(nextState, event)) trackedItemKeys.add(itemKey);
           // 每个事件只统计受影响的实体，预算淘汰的其他条目通过单独的差额计入。
           const touchedCommandOutputs = touchedCommandOutputItemKeys(
@@ -322,6 +300,7 @@ export function createTaskStoreRuntime<
     getItemByKey: (itemKey) => get().itemStoresByKey.get(itemKey)?.read(),
     reconstructSnapshot: () => reconstructSnapshot(get()),
     setConnectionState(connectionState) {
+      if (connectionState !== "connected") turnOutputRates.current?.clear();
       set(() => ({ connectionState }));
     },
     setError(error) {
@@ -412,7 +391,7 @@ function estimateNoticeBytes(notices: readonly TaskEventNotice[]): number {
 
 function measureEventEntityBytes(
   state: TaskStoreData<unknown, TaskEventRequest, unknown>,
-  event: StoreEvent<StoreItem>,
+  event: TaskStoreEvent<StoreItem>,
 ): number {
   let retainedBytes = 0;
   if (
@@ -455,7 +434,7 @@ function getEventItemKeys(
     TaskStoreData<StoreItemHandle<StoreItem>, unknown, unknown>,
     "itemKeysByTurnId" | "itemStoresByKey"
   >,
-  event: StoreEvent<StoreItem>,
+  event: TaskStoreEvent<StoreItem>,
 ): readonly string[] {
   if (event.type === "turn.started" || event.type === "turn.completed") {
     return state.itemKeysByTurnId[event.turnId] ?? [];

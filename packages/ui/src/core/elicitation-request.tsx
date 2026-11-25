@@ -16,6 +16,11 @@ import {
 } from "../agent/confirmation.js";
 import { Questionnaire, type QuestionnaireLabels } from "./questionnaire.js";
 import { McpQuestionnaireField, type McpQuestionnaireContent } from "./mcp-questionnaire-field.js";
+import {
+  CodexAsyncQuestionnaire,
+  readCodexAsyncQuestions,
+  type CodexAsyncQuestionLabels,
+} from "./codex-async-questionnaire.js";
 
 type Request = Extract<PendingRequest, { type: "mcp_elicitation" }>;
 type FormRequest = Extract<Request, { mode: "form" }>;
@@ -30,6 +35,7 @@ type Props = Readonly<{
   openUrl: (url: string) => void | Promise<void>;
   request: Request;
   questionnaireLabels: QuestionnaireLabels;
+  asyncQuestionLabels?: CodexAsyncQuestionLabels;
   labels: Readonly<{
     title: string;
     submit: string;
@@ -273,10 +279,49 @@ function ConfirmationCard(props: Props) {
 
 /** 两端共享问卷与同意界面，由宿主处理打开方式及回传格式。 */
 export function ElicitationRequestCard(props: Props) {
+  const { request, asyncQuestionLabels } = props;
+  if (request.mode === "form" && request.acp && request.codexAsyncQuestion && asyncQuestionLabels) {
+    const questions = readCodexAsyncQuestions(request.fields);
+    if (questions)
+      return (
+        <AsyncQuestionCard
+          {...props}
+          questions={questions}
+          asyncQuestionLabels={asyncQuestionLabels}
+        />
+      );
+  }
   return props.request.mode === "form" ? (
     <FormCard {...props} request={props.request} />
   ) : (
     <ConfirmationCard {...props} />
+  );
+}
+
+function AsyncQuestionCard(
+  props: Props & {
+    questions: NonNullable<ReturnType<typeof readCodexAsyncQuestions>>;
+    asyncQuestionLabels: CodexAsyncQuestionLabels;
+  },
+) {
+  const { canSubmit, resolve, submitting } = useResolution(props);
+  const feedback =
+    props.request.status === "expired"
+      ? props.labels.expired
+      : props.interactive
+        ? undefined
+        : props.labels.inactive;
+  return (
+    <CodexAsyncQuestionnaire
+      questions={props.questions}
+      labels={props.asyncQuestionLabels}
+      navigation={props.questionnaireLabels}
+      disabled={!canSubmit}
+      submitting={submitting}
+      feedback={feedback}
+      onSubmit={(content) => void resolve({ action: "accept", content })}
+      onClose={() => void resolve({ action: "cancel" })}
+    />
   );
 }
 
