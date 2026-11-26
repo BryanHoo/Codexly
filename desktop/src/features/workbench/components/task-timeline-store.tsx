@@ -141,7 +141,6 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
         group.type === "user" ? (
           <StoredUserMessage
             itemKey={group.itemKey}
-            {...(onForkTask === undefined ? {} : { onForkTask })}
             // 首条输入从本地占位切换为权威 ID 时保留气泡节点，避免重新挂载 Markdown。
             key={groupIndex === 0 ? turnId : group.itemKey}
             onOpenFileDiff={onOpenFileDiff}

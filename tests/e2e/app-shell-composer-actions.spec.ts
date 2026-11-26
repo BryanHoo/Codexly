@@ -350,6 +350,10 @@ test("从 AI 回复复制任务并定位到所选消息 @cross-browser", async (
   });
   await page.goto("/p/codexly/t/task-1");
 
+  const userMessage = page.locator('[data-slot="message"][data-role="user"]').first();
+  await expect(userMessage.getByRole("button", { name: "复制消息" })).toBeVisible();
+  await expect(userMessage.getByRole("button", { name: "复制任务" })).toHaveCount(0);
+
   const latestReply = page
     .locator('[data-slot="message"][data-role="assistant"]')
     .filter({ hasText: "工作台界面已按统一的 项目 Agent 组件 结构重新组织。" });

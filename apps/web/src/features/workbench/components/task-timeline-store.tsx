@@ -146,7 +146,6 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
         group.type === "user" ? (
           <StoredUserMessage
             itemKey={group.itemKey}
-            {...(onForkTask === undefined ? {} : { onForkTask })}
             key={group.itemKey}
             onOpenFileDiff={onOpenFileDiff}
             onOpenSourceFile={onOpenSourceFile}

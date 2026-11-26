@@ -2,10 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { RequestError } from "@agentclientprotocol/sdk";
 import { localTaskMetadata, type LocalCatalogStore, type LocalTask } from "@codexly/core";
 import type { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
-import type { AgentTurn } from "@codexly/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
 import type { AcpHistory } from "./history.js";
-import type { AcpHistoryEntry } from "./replay-anchor.js";
+import { isReplaySubagentItem, type AcpHistoryEntry } from "./replay-anchor.js";
 
 export interface ForkPoint {
   lastTurnId?: string | undefined;
@@ -17,7 +17,7 @@ export interface ForkDependencies {
   store: LocalCatalogStore;
   history: AcpHistory;
   attachments: HistoricalTaskAttachments;
-  active(): AgentTurn | undefined;
+  activeTurnId(): string | undefined;
   recover(): Promise<AcpConnection>;
   connect(): Promise<AcpConnection>;
   bind(task: LocalTask, connection: AcpConnection): void;
@@ -45,19 +45,27 @@ function forkId(source: string, point: ForkPoint) {
   ].join("-");
 }
 
-function cutTurn(turn: AgentTurn, itemId: string): AgentTurn {
-  const index = turn.items.findIndex((item) => item.id === itemId && item.type === "message");
-  if (index < 0) throw new Error("找不到要分支的聊天消息");
-  if (index === turn.items.length - 1 && turn.status !== "running") return turn;
+const completedReplyRequired = "仅可从已完成的 Agent 回复创建任务分支";
+
+function isAgentReply(item: AgentItem): boolean {
+  return item.type === "message" && item.role === "assistant" && !isReplaySubagentItem(item);
+}
+
+function cutTurn(turn: AgentTurn, itemId: string | undefined): AgentTurn {
+  // 旧调用方只传回合时，以该回合最后一条主会话回复作为分支点。
+  const index =
+    itemId === undefined
+      ? turn.items.findLastIndex(isAgentReply)
+      : turn.items.findIndex((item) => item.id === itemId && isAgentReply(item));
+  if (turn.status !== "completed" || turn.acpBackground || index < 0)
+    throw new Error(completedReplyRequired);
+  if (index === turn.items.length - 1) return turn;
   // 回合的后续工具和消息不属于分支。只保留选定边界以前的条目与时间信息。
   const { stopReason: _stop, itemTimings, ...rest } = turn;
   const items = turn.items.slice(0, index + 1);
   return {
     ...rest,
     items,
-    status: "completed",
-    error: null,
-    completedAt: turn.completedAt ?? new Date().toISOString(),
     ...(itemTimings && {
       itemTimings: Object.fromEntries(
         items.flatMap(({ id }) => {
@@ -71,19 +79,9 @@ function cutTurn(turn: AgentTurn, itemId: string): AgentTurn {
 
 function cursorAfter(connection: AcpConnection, session: string, selected: AcpHistoryEntry) {
   const last = selected.turn.items.at(-1);
-  if (last?.type !== "message") return undefined;
-  const prefix = `acp:message:${last.role === "user" ? "user" : "assistant"}:`;
-  const projectedId = last.id.startsWith(prefix) ? last.id.slice(prefix.length) : undefined;
-  const firstUser = selected.turn.items.find(
-    (item) => item.type === "message" && item.role === "user",
-  );
-  const id = last === firstUser && selected.acpMessageId ? selected.acpMessageId : projectedId;
-  return id
-    ? connection.forkCursors.after(
-        session,
-        last.role === "user" ? "user_message" : "agent_message",
-        id,
-      )
+  const prefix = "acp:message:assistant:";
+  return last?.id.startsWith(prefix)
+    ? connection.forkCursors.after(session, "agent_message", last.id.slice(prefix.length))
     : undefined;
 }
 
@@ -123,14 +121,18 @@ export async function forkAcpTask(source: LocalTask, point: ForkPoint, deps: For
     }
     const releaseSource = await history.cache.acquire(source.id);
     try {
-      const active = deps.active();
+      const activeTurnId = deps.activeTurnId();
+      if (activeTurnId !== undefined && activeTurnId === point.lastTurnId)
+        throw new Error(completedReplyRequired);
       if (
         source.sessionId &&
-        !active &&
+        activeTurnId === undefined &&
         (!(await history.hasTurns(source.id)) || (await history.needsReplay(source.id)))
       ) {
         await deps.recover();
       }
+      const lastTurnId = point.lastTurnId ?? (await history.read(source.id)).turns.at(-1)?.id;
+      if (lastTurnId === undefined) throw new Error(completedReplyRequired);
       const parentTitle = localTaskMetadata(source).title;
       const suffix = " 的复制";
       const title =
@@ -149,32 +151,20 @@ export async function forkAcpTask(source: LocalTask, point: ForkPoint, deps: For
       };
       let count = 0;
       let boundary: AcpHistoryEntry | undefined;
-      let whole = !active && source.status === "idle";
+      let whole = activeTurnId === undefined && source.status === "idle";
       async function* prefix() {
         for await (const entry of history.entries(source.id)) {
-          if (boundary && point.lastTurnId) {
+          if (boundary) {
             whole = false;
             break;
           }
-          const matches = !point.lastTurnId || point.lastTurnId === entry.turn.id;
-          const turn =
-            matches && point.lastItemId ? cutTurn(entry.turn, point.lastItemId) : entry.turn;
+          const matches = lastTurnId === entry.turn.id;
+          const turn = matches ? cutTurn(entry.turn, point.lastItemId) : entry.turn;
           if (turn !== entry.turn) whole = false;
           if (matches) boundary = { ...entry, turn };
           await copyAttachments(source.id, id, turn, deps);
           count++;
           yield turn === entry.turn ? entry : turn;
-        }
-        if (!boundary && active && active.id === point.lastTurnId && point.lastItemId) {
-          const selected = active.items.find(({ id }) => id === point.lastItemId);
-          if (selected?.type !== "message" || selected.role !== "user")
-            throw new Error("请等待该回复完成后再分支");
-          // 正在执行的回合可以从已发送的用户消息分支，仅使用点击时的稳定输入。
-          const turn = cutTurn(active, point.lastItemId);
-          boundary = { turn };
-          await copyAttachments(source.id, id, turn, deps);
-          count++;
-          yield turn;
         }
         if (!boundary) throw new Error("找不到要分支的历史回合");
       }
@@ -183,7 +173,12 @@ export async function forkAcpTask(source: LocalTask, point: ForkPoint, deps: For
       let publishAttempted = false;
       try {
         await history.replace(id, prefix());
-        if (source.sessionId && boundary && !active && !(await history.forkPrefix(source.id))) {
+        if (
+          source.sessionId &&
+          boundary &&
+          activeTurnId === undefined &&
+          !(await history.forkPrefix(source.id))
+        ) {
           connection = await deps.connect().catch(() => undefined);
           if (connection?.canForkSessions && !connection.atSessionCapacity) {
             const cursorId = cursorAfter(connection, source.sessionId, boundary);

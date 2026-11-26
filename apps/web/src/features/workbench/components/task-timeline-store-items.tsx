@@ -14,7 +14,7 @@ import type {
 import type { AgentFileChange } from "../../diff/file-change.js";
 
 import { TimelineItemContent } from "./task-timeline-items.js";
-import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
+import type { BuildPlanAction } from "./task-timeline-contracts.js";
 import { RunningReplyStatus, getReviewMessageText } from "./task-timeline-running.js";
 import { MessageMetadata } from "./task-timeline-status.js";
 
@@ -153,7 +153,6 @@ export function StoredTimelineItemContent({
 export function StoredUserMessageValue({
   anchorId,
   itemStore,
-  onForkTask,
   onOpenFileDiff,
   onOpenSourceFile,
   projectId,
@@ -162,7 +161,6 @@ export function StoredUserMessageValue({
 }: Readonly<{
   anchorId: string;
   itemStore: TaskItemStore;
-  onForkTask?: ForkTaskAction;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onOpenSourceFile: (reference: MessageFileReference) => void;
   projectId: string;
@@ -188,15 +186,6 @@ export function StoredUserMessageValue({
         turnStatus={turn.status}
       />
       <MessageMetadata
-        {...(item.type === "message" &&
-        !item.id.startsWith("submitted-user-") &&
-        onForkTask !== undefined
-          ? {
-              onForkTask,
-              lastTurnId: (JSON.parse(anchorId) as [string, string])[0],
-              lastItemId: item.id,
-            }
-          : {})}
         {...(item.type === "review"
           ? { modeLabel: i18n.t("timeline.reviewMode", { ns: "conversation" }) }
           : {})}
@@ -216,7 +205,6 @@ export function StoredUserMessageValue({
 
 export function StoredUserMessage({
   itemKey,
-  onForkTask,
   onOpenFileDiff,
   onOpenSourceFile,
   projectId,
@@ -225,7 +213,6 @@ export function StoredUserMessage({
   turn,
 }: Readonly<{
   itemKey: string;
-  onForkTask?: ForkTaskAction;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onOpenSourceFile: (reference: MessageFileReference) => void;
   projectId: string;
@@ -238,7 +225,6 @@ export function StoredUserMessage({
     <StoredUserMessageValue
       anchorId={itemKey}
       itemStore={itemStore}
-      {...(onForkTask === undefined ? {} : { onForkTask })}
       onOpenFileDiff={onOpenFileDiff}
       onOpenSourceFile={onOpenSourceFile}
       projectId={projectId}

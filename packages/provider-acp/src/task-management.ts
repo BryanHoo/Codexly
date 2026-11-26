@@ -120,7 +120,7 @@ export function createAcpTaskManagement(
       store: provider.store,
       history: provider.history,
       attachments: provider.attachments,
-      active: () => active.get(source.id)?.visibleSnapshot(),
+      activeTurnId: () => active.get(source.id)?.turnId,
       recover: () => recover(source),
       connect: () => link.get(),
       bind: (task, connection) => {

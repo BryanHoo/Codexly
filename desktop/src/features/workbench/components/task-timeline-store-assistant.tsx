@@ -76,7 +76,7 @@ export function StoredAssistantGroup({
   const [replyTurnId, replyId] = replyKey === undefined ? [] : JSON.parse(replyKey) as [string, string];
   // 组合展示可能跨多个 ACP 回合，分支必须使用末条可见回答所属的原始回合。
   const replyTurn = replyTurnId === undefined ? undefined : store.getState().turnsById[replyTurnId];
-  const canFork = replyTurn !== undefined && !replyTurn.acpBackground &&
+  const canFork = replyTurn?.status === "completed" && !replyTurn.acpBackground &&
     (replyTurn.forkable !== false || store.getState().snapshotMetadata?.runtime === "acp");
   return (
     <Message from="assistant">

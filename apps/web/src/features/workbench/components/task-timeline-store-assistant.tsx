@@ -81,7 +81,7 @@ export function StoredAssistantGroup({
   // 组合展示可能跨多个 ACP 回合，分支必须使用末条可见回答所属的原始回合。
   const replyTurn = replyTurnId === undefined ? undefined : store.getState().turnsById[replyTurnId];
   const canFork =
-    replyTurn !== undefined &&
+    replyTurn?.status === "completed" &&
     !replyTurn.acpBackground &&
     (replyTurn.forkable !== false || store.getState().snapshotMetadata?.runtime === "acp");
   return (

@@ -224,30 +224,36 @@ describe("task timeline messages", () => {
     expect(markup.indexOf('aria-label="复制任务"')).toBeGreaterThan(markup.indexOf("最新的回复。"));
   });
 
-  it("places an ACP task fork immediately after copy for both chat roles", () => {
-    const markup = renderToStaticMarkup(
-      <TaskSnapshotTimeline
-        onForkTask={() => Promise.resolve()}
-        snapshot={{
-          ...snapshot,
-          runtime: "acp",
-          turns: [
-            {
-              ...completedTurn,
-              forkable: false,
-              items: [
-                { id: "user", type: "message", role: "user", text: "历史问题" },
-                { id: "assistant", type: "message", role: "assistant", text: "历史回复" },
-              ],
-            },
-          ],
-        }}
-      />,
-    );
-    expect(
-      Array.from(markup.matchAll(/aria-label="(复制消息|复制任务)"/g), (match) => match[1]),
-    ).toEqual(["复制消息", "复制任务", "复制消息", "复制任务"]);
-  });
+  it.each(["completed", "interrupted", "failed"] as const)(
+    "shows a fork beside the ACP reply copy button only for completed turns (%s)",
+    (status) => {
+      const markup = renderToStaticMarkup(
+        <TaskSnapshotTimeline
+          onForkTask={() => Promise.resolve()}
+          snapshot={{
+            ...snapshot,
+            runtime: "acp",
+            turns: [
+              {
+                ...completedTurn,
+                forkable: false,
+                status,
+                items: [
+                  { id: "user", type: "message", role: "user", text: "历史问题" },
+                  { id: "assistant", type: "message", role: "assistant", text: "历史回复" },
+                ],
+              },
+            ],
+          }}
+        />,
+      );
+      expect(
+        Array.from(markup.matchAll(/aria-label="(复制消息|复制任务)"/g), (match) => match[1]),
+      ).toEqual(
+        status === "completed" ? ["复制消息", "复制消息", "复制任务"] : ["复制消息", "复制消息"],
+      );
+    },
+  );
 
   it("renders one fixed review request instead of native review prompts", () => {
     const reviewSnapshot: RuntimeTaskSnapshot = {
