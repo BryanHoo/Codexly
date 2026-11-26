@@ -1,6 +1,5 @@
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import LegacyPatchDiffViewer from "../../compat/macos-legacy/patch-diff-viewer.js";
 import PatchDiffViewer from "./patch-diff-viewer.js";
 import { i18n } from "../../i18n/i18n.js";
 
@@ -20,17 +19,8 @@ it("Modern 解析原生补丁后保留正文尾部空格和换行", async () => 
   await expect.poll(() => document.querySelector('[data-testid="native-patch"]')?.textContent).toBe("last  \n");
 });
 
-it("Legacy 直接渲染原生新增补丁，不把补丁头再次变成新增正文", async () => {
-  await render(<LegacyPatchDiffViewer change={{
-    path: "sample.txt", kind: "create", stats: { additions: 2, removals: 0 },
-    diff: "--- /dev/null\n+++ b/sample.txt\n@@ -0,0 +1,2 @@\n+first\n+last  \n",
-  }} />);
-  await expect.poll(() => document.querySelectorAll('.legacy-diff-line[data-kind="+"]').length).toBe(2);
-  expect(document.querySelector('.legacy-diff-line[data-kind="+"]')?.textContent).toContain("first");
-});
-
-it.each(["", "--- a/acp-routes.ts\n+++ b/acp-routes.ts\n"])("Legacy 空补丁不会显示空白页面：%s", async (diff) => {
+it.each(["", "--- a/acp-routes.ts\n+++ b/acp-routes.ts\n"])("空补丁显示无文本差异提示：%s", async (diff) => {
   await i18n.changeLanguage("zh-CN");
-  const screen = await render(<LegacyPatchDiffViewer change={{ path: "acp-routes.ts", kind: "update", diff, stats: { additions: 0, removals: 0 } }} />);
+  const screen = await render(<PatchDiffViewer change={{ path: "acp-routes.ts", kind: "update", diff, stats: { additions: 0, removals: 0 } }} />);
   await expect.element(screen.getByRole("status")).toHaveTextContent("本次操作没有文本差异");
 });

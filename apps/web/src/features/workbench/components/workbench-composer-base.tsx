@@ -2,8 +2,7 @@ import * as draft from "./workbench-composer-followup.js";
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useAccess } from "../../access/access-context.js";
 import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
-import { AsyncQuestionComposer } from "./async-question-composer.js";
-import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handler.js";
+import { createComposerQuestions } from "./composer-async-questions.js";
 import { ProjectTodoComposerGate } from "./project-todo-composer-gate.js";
 import { useComposerSettingsUpdate } from "./workbench-composer-settings.js";
 import { useComposerMenuDismissal } from "./workbench-composer-menus.js";
@@ -26,6 +25,7 @@ import { createComposerSubmission } from "./workbench-composer-submission.js";
 import { WorkbenchComposerAttachmentPicker } from "./workbench-composer-attachment-picker.js";
 import { WorkbenchComposerView } from "./workbench-composer-view.js";
 export function WorkbenchComposerBase({
+  acp,
   engineControls,
   engineCommands,
   composerRef,
@@ -35,7 +35,7 @@ export function WorkbenchComposerBase({
   composerDraftId,
   fastModeAvailable,
   fastModeDefault,
-  followUpBehavior,
+  followUpBehavior: preferredFollowUpBehavior,
   footerVisible = true,
   initialDraft,
   initialTodoId,
@@ -151,6 +151,9 @@ export function WorkbenchComposerBase({
     state,
     turnControlsDisabled,
   } = session;
+  // 偏好设为引导时，尚未公布该能力的 ACP 会话仍可接收排队消息。
+  const followUpBehavior =
+    capabilities?.runtime === "acp" && !canSteer ? "queue" : preferredFollowUpBehavior;
   const [fastModeSelection, setFastModeSelection] = useState<{ enabled: boolean; scope: string }>();
   const fastModeSelected =
     fastModeSelection?.scope === composerScope ? fastModeSelection.enabled : fastModeDefault;
@@ -203,6 +206,7 @@ export function WorkbenchComposerBase({
     }
   }, [composerQueue.queueError, setMutationError]);
   const submitPrompt = createComposerSubmission({
+    ...(acp ? { acp } : {}),
     activeUserMessageIds:
       runtime?.store === undefined
         ? []
@@ -334,29 +338,22 @@ export function WorkbenchComposerBase({
       : "queue";
   const composerView = (
     <WorkbenchComposerView
+      {...(acp ? { acp } : {})}
       promptOptimization={draft.optimizeButton(session, client, projectId, skills, i18n.language)}
       engineControls={engineControls}
-      asyncQuestions={
-        <AsyncQuestionComposer
-          key={composerScope}
-          projectId={projectId}
-          taskId={taskId}
-          enabled={!turnControlsDisabled}
-          isTaskRunning={state === "running" || state === "reconnecting"}
-          onAnswered={createAsyncQuestionAnswerHandler({
-            controller: composerController,
-            requestScope: routeScope,
-            store: runtime?.store,
-            onDirectSubmission,
-            onTurnStarted,
-            onSteerAccepted: composerQueue.onSteerAccepted,
-          })}
-        />
-      }
+      asyncQuestions={createComposerQuestions(session, {
+        projectId,
+        taskId,
+        store: runtime?.store,
+        onDirectSubmission,
+        onTurnStarted,
+        onSteerAccepted: composerQueue.onSteerAccepted,
+      })}
       activeCommandIndex={activeCommandIndex}
       activeCommandItemId={activeCommandItemId}
       activeSettings={activeSettings}
       activeTurnId={activeTurnId}
+      generationRuntime={runtime}
       attachments={attachments}
       attachmentsDisabled={attachmentsDisabled}
       baseBranches={baseBranches}
@@ -424,6 +421,7 @@ export function WorkbenchComposerBase({
       }}
       onFastModeChange={(enabled) => {
         setFastModeSelection({ enabled, scope: composerScope });
+        if (activeSettings === undefined) return;
         void Promise.resolve(onFastModeChange(enabled, activeSettings)).catch(() => undefined);
       }}
       onInterrupt={() => void interruptTurn()}
@@ -468,6 +466,7 @@ export function WorkbenchComposerBase({
       setActiveCommandIndex={setActiveCommandIndex}
       skills={skills}
       skillEditorRef={skillEditorRef}
+      writeAccess={runtime?.writeAccess}
       state={state}
       steerQueuedPrompt={(queuedPrompt) => {
         void composerQueue.sendQueuedPrompt(queuedPrompt).catch(setMutationError);
@@ -490,9 +489,7 @@ export function WorkbenchComposerBase({
         onAdd={(attachment) => {
           handleAttachmentsChange([...attachments, attachment]);
         }}
-        onClose={() => {
-          setAttachmentPickerKind(undefined);
-        }}
+        onClose={setAttachmentPickerKind.bind(null, undefined)}
         projectId={projectId}
       />
     </>

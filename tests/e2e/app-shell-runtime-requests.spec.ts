@@ -132,39 +132,110 @@ test("keeps user input above the composer and locks answers during submission at
   await expect(stopAnswer).toBeDisabled();
 });
 
-test("streams Fake App Server notifications into the Timeline @smoke", async ({ page }) => {
+test("sends a Codex ACP custom answer from the original question card @cross-browser", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const stringField = {
+    type: "string",
+    description: null,
+    defaultValue: null,
+    required: false,
+    format: null,
+    minLength: null,
+    maxLength: null,
+  };
+  const pendingRequest = {
+    acp: true,
+    codexAsyncQuestion: true,
+    createdAt: "2026-11-25T00:00:00.000Z",
+    expiresAt: null,
+    fields: [
+      {
+        id: "question_0",
+        type: "select",
+        title: "下一步做什么？",
+        description: null,
+        defaultValue: null,
+        required: false,
+        options: [
+          { label: "继续", value: "继续" },
+          { label: "None of the above", value: "None of the above" },
+        ],
+      },
+      { ...stringField, id: "question_0_note", title: "Additional answer or note" },
+      { ...stringField, id: "question_1", title: "哪个任务失败了？" },
+    ],
+    itemId: "acp:elicitation:question-1",
+    message: "Codex keeps working while you answer.",
+    mode: "form",
+    projectId: "codexly",
+    requestId: "question-1",
+    serverName: "Codex",
+    status: "pending",
+    taskId: "task-1",
+    turnId: "turn-1",
+    type: "mcp_elicitation",
+  };
+  await page.route(taskSnapshotRoute("task-1"), (route) =>
+    route.fulfill({
+      json: {
+        ...taskSnapshotResponse,
+        snapshot: { ...taskSnapshot, pendingRequests: [pendingRequest], status: "running" },
+      },
+    }),
+  );
+  const resolveRoute = "**/v1/projects/codexly/tasks/task-1/pending-requests/*/resolve";
+  await page.route(resolveRoute, (route) =>
+    route.fulfill({
+      json: { request: { ...pendingRequest, status: "resolved" } },
+    }),
+  );
+
+  await page.goto("/p/codexly/t/task-1");
+  const card = page.getByRole("region", { name: "待回答问题" });
+  await expect(card.getByRole("radio", { name: "继续" })).toBeChecked();
+  await expect(card.getByRole("button", { name: "拒绝" })).toHaveCount(0);
+  await card.getByRole("textbox", { name: "回答：下一步做什么？" }).fill("先查日志");
+  await card.getByRole("button", { name: "收起问题" }).click();
+  await card.getByRole("button", { name: "展开问题" }).click();
+  await expect(card.getByRole("textbox", { name: "回答：下一步做什么？" })).toHaveValue("先查日志");
+  await card.getByRole("button", { name: "下一题" }).click();
+  await card.getByRole("textbox", { name: "回答：哪个任务失败了？" }).fill("昨晚的任务");
+  const submitted = page.waitForRequest(
+    (request) =>
+      request.url().endsWith("/pending-requests/question-1/resolve") && request.method() === "POST",
+  );
+  await card.getByRole("button", { name: "发送回答" }).click();
+  expect((await submitted).postDataJSON()).toMatchObject({
+    resolution: {
+      action: "accept",
+      content: {
+        question_0: "None of the above",
+        question_0_note: "先查日志",
+        question_1: "昨晚的任务",
+      },
+    },
+  });
+  // 实际会话收到解析事件后移除卡片；这里拦截 HTTP，验证回传与提交锁。
+  await expect(card.getByRole("button", { name: "发送回答" })).toBeDisabled();
+});
+
+test("loads ACP session history in the Timeline @smoke", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/codexly/t/task-realtime");
+  const matchesSnapshot = taskSnapshotRoute("task-realtime");
+  // 首次读取由真实 ACP 进程恢复历史，先确认快照响应，再检查消息渲染。
+  const [snapshot] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" && matchesSnapshot(new URL(response.url())),
+    ),
+    page.goto("/p/codexly/t/task-realtime"),
+  ]);
+  expect(snapshot.ok()).toBe(true);
 
-  await expect(page.getByText("Realtime connected", { exact: true })).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("button", { name: "上下文已使用 13%" })).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("button", { name: /启动子代理 · 1 个子代理已完成/ })).toBeVisible();
-  const contextTab = page.getByRole("tab", { name: "上下文" });
-  await contextTab.click();
-  await expect(contextTab).toHaveAttribute("aria-selected", "true");
-  await expect(
-    page.getByRole("region", { name: "MCP" }).getByText("context7", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "查看子代理 frontend_analysis 的输出" }),
-  ).toBeVisible();
-  await expect(page.getByText("理解前端项目", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "查看子代理 frontend_analysis 的输出" }).click();
-  const subagentDialog = page.getByRole("dialog", { name: "子代理输出" });
-  await expect(subagentDialog).toBeVisible();
-  await expect(subagentDialog.getByText("正在分析前端", { exact: true })).toBeVisible();
-
-  // 关闭弹窗会卸载子线程 Runtime；再次打开时从最新 Snapshot 继续，而非重启子代理。
-  await page.getByRole("button", { name: "关闭子代理输出" }).click();
-  await expect(subagentDialog).toHaveCount(0);
-  await page.waitForTimeout(750);
-  await page.getByRole("button", { name: "查看子代理 frontend_analysis 的输出" }).click();
-  await expect(page.getByRole("dialog", { name: "子代理输出" })).toContainText("前端流式分析完成");
-  await expect(page.getByText("agent/spawn", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("ACP 历史输入", { exact: true })).toBeVisible();
+  await expect(page.getByText("ACP 历史回复", { exact: true })).toBeVisible();
 });
 
 test("shows MCP connection states and manually retries the current task", async ({ page }) => {
@@ -208,7 +279,7 @@ test("shows MCP connection states and manually retries the current task", async 
   });
 
   await page.goto("/p/codexly/t/task-1");
-  await page.getByRole("tab", { name: "上下文" }).click();
+  await page.getByRole("button", { name: "上下文", exact: true }).click();
   const mcp = page.getByRole("region", { name: "MCP" });
   const reloadIcon = mcp.getByRole("button", { name: "刷新状态" }).locator("svg");
   await expect
@@ -236,7 +307,7 @@ test("hides the MCP module when the request fails before data is available", asy
     });
   });
   await page.goto("/p/codexly/t/task-1");
-  await page.getByRole("tab", { name: "上下文" }).click();
+  await page.getByRole("button", { name: "上下文", exact: true }).click();
   await expect(page.getByRole("region", { name: "MCP" })).toHaveCount(0);
   await expect(
     page.getByText("mcpServerStatus/list failed: MCP server `docs` executable was not found"),

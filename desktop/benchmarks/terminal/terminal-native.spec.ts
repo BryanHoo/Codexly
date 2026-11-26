@@ -3,7 +3,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { cpus, platform, release, totalmem } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { resolve } from "node:path";
 import { connectMockProvider, installWebviewMocks, passthroughNativeCommands, releaseApplicationStartup } from "../../tests/webview/mock-runtime.js";
 import { sampleResources, summarizeResources, type ResourceSample } from "./resources.js";
 import type { TerminalMetadata } from "../../src/protocol/project-terminal.js";
@@ -68,8 +67,13 @@ describe("Release native terminal measurements", () => {
       // 资源采样仅要求窗口可见；已可见时不额外争抢系统前台输入焦点。
       if (await browser.execute(() => document.hidden)) await windowsTerminalNative("activate");
     } else {
-      const executable = resolve("src-tauri/target/aarch64-apple-darwin/release", "codexly");
-      await promisify(execFile)("swift", ["-e", "import AppKit; let path = CommandLine.arguments[1]; for app in NSWorkspace.shared.runningApplications where app.executableURL?.path == path { print(app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])) }", executable]);
+      // 原生 PID 来自当前测试会话，覆盖独立二进制和 .app，避免误激活已安装的同名应用。
+      const { appPid } = await nativeMetrics();
+      await promisify(execFile)("swift", [
+        "-e",
+        "import AppKit; if let pid = Int32(CommandLine.arguments[1]), let app = NSRunningApplication(processIdentifier: pid) { app.unhide(); _ = app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps]) }",
+        String(appPid),
+      ]);
     }
     await browser.waitUntil(async () => browser.execute(() => !document.hidden));
     if (process.platform === "win32") {

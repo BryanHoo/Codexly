@@ -1,3 +1,6 @@
+import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
+import { AcpSubagentTranscripts, splitAcpSubagentItems } from "@codexly/ui/agent/acp-subagent-transcript";
+import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
@@ -27,7 +30,6 @@ import type { AgentFileChange } from "../../diff/file-change.js";
 import { PendingRequestCard, type PendingRequestResolution } from "./pending-request.js";
 import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
-import { TaskTimelinePagination } from "./task-timeline-pagination.js";
 import {
   TaskTimelineNavigation,
   getTaskTimelineNavigationItems,
@@ -37,6 +39,7 @@ import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 import { getTimelineNotices, StoreTaskInfoNotices } from "./task-timeline-notices.js";
 export { getTimelineNotices } from "./task-timeline-notices.js";
 import {
+  StoredTimelineItemContent,
   StoredUserMessage,
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
@@ -53,7 +56,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnId,
   turnIndex,
   groupedTurnIds,
-  pendingSubmission,
+  suppressEmptyRunningStatus,
   pendingPrompt,
   hasNextSubmission = false,
 }: Readonly<{
@@ -68,7 +71,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnId: string;
   turnIndex: number;
   groupedTurnIds?: readonly string[] | undefined;
-  pendingSubmission: boolean;
+  suppressEmptyRunningStatus: boolean;
   pendingPrompt?: PendingPrompt;
   hasNextSubmission?: boolean;
 }>) {
@@ -78,23 +81,29 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   const sourceItemKeys = useStore(store, useShallow((state) =>
     sourceIds.map((id) => state.itemKeysByTurnId[id]),
   ));
-  const itemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
+  const allItemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
   const turn = useMemo(() => mergeTimelineTurns(sourceTurns), [sourceTurns]);
   const independentFileDiffs = useConversationDisplayPreference(conversationDisplayPreferences, "independentFileDiffs");
   const [processExpanded, setProcessExpanded] = useState(false);
-  if (turn === undefined) return null;
   const itemStoresByKey = store.getState().itemStoresByKey;
+  const { rootKeys: itemKeys, transcripts } = useMemo(
+    () => splitAcpSubagentItems(allItemKeys, (key) => itemStoresByKey.get(key)?.peek()),
+    [allItemKeys, itemStoresByKey],
+  );
+  if (turn === undefined) return null;
+  const rootKeys = new Set(itemKeys);
   const processTurns = sourceTurns.filter((source) => source.processCursor !== undefined && source.status !== "running");
   // 每个阶段独立分类执行记录，避免把较早阶段的最终答复误折叠进最后一段过程。
   const processItemKeys = new Set<string>();
   const paginatedProcessItemKeys = new Set<string>();
   sourceTurns.forEach((source, index) => {
-    const keys = store.getState().itemKeysByTurnId[source.id] ?? [];
+    const keys = (store.getState().itemKeysByTurnId[source.id] ?? []).filter((key) => rootKeys.has(key));
     const processIds = new Set(resolveCompletedTurnProcessItemIds(
       keys.flatMap((key) => itemStoresByKey.get(key)?.peek() ?? []),
       source.status,
       hasNextSubmission || index < sourceTurns.length - 1,
         independentFileDiffs,
+        store.getState().snapshotMetadata?.runtime === "acp",
     ));
     for (const key of keys) {
       if (!processIds.has(itemStoresByKey.get(key)?.peek().id ?? "")) continue;
@@ -168,8 +177,25 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           />
         ),
       )}
+      <AcpSubagentTranscripts
+        transcripts={transcripts}
+        label={(index) => i18n.t("subagent.defaultName", { ns: "conversation", index })}
+        renderItem={(itemKey) => (
+          <StoredTimelineItemContent
+            key={itemKey}
+            itemKey={itemKey}
+            isLastTurnItem={false}
+            onOpenFileDiff={onOpenFileDiff}
+            onOpenSourceFile={onOpenSourceFile}
+            projectId={projectId}
+            store={store}
+            taskId={taskId}
+            turnStatus={turn.status}
+          />
+        )}
+      />
       {/* 引导或问答答案会让用户消息成为尾组；运行提示应接在该消息后，不能依赖历史助手组是否存在。 */}
-      {turn.status === "running" && (itemKeys.length > 0 || pendingSubmission) &&
+      {turn.status === "running" && !suppressEmptyRunningStatus &&
       timelineGroups.at(-1)?.type !== "assistant" ? (
         <Message from="assistant">
           {/* 已有助手组承载回合计时，尾部补位只显示运行提示，避免重复计时。 */}
@@ -213,10 +239,12 @@ export function StorePendingRequestList({
 }>) {
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
+  const latestTurnId = useStore(store, (state) => state.turnIds.at(-1));
   const visiblePendingRequests = pendingRequestIds.flatMap((requestId) => {
     const request = pendingRequestsById[requestId];
     return request === undefined ||
-      (request.status === "resolved" && request.type !== "plugin_install_suggestion")
+      (request.status === "resolved" && request.type !== "plugin_install_suggestion" &&
+        !isVisibleElicitationStatus(request, latestTurnId))
       ? []
       : [request];
   });
@@ -275,8 +303,7 @@ export function TaskStoreTimeline({
   submissionTurnId?: string;
   pendingPrompt?: PendingPrompt;
 }>) {
-  const projectId = store.getState().projectId;
-  const taskId = store.getState().taskId;
+  const { projectId, taskId } = store.getState();
   const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
@@ -331,7 +358,8 @@ export function TaskStoreTimeline({
       turnGroups,
       submissionTurnId,
       showPendingSubmission,
-      showPendingSubmission && !showPendingFooter,
+      // 页脚接管提交占位时，仅抑制对应回合的空运行提示。
+      showPendingFooter,
       showPendingSubmission ? pendingPrompt : undefined,
     ),
     [turnGroups, submissionTurnId, showPendingSubmission, showPendingFooter, pendingPrompt],
@@ -351,7 +379,7 @@ export function TaskStoreTimeline({
         turnIndex={turnIndex}
         groupedTurnIds={row.turnIds}
         hasNextSubmission={row.hasNextSubmission}
-        pendingSubmission={row.pending}
+        suppressEmptyRunningStatus={row.pending}
         {...(row.prompt === undefined ? {} : { pendingPrompt: row.prompt })}
       />
     ),
@@ -413,6 +441,7 @@ export function TaskStoreTimeline({
                 error={olderHistoryError}
                 isLoading={isLoadingOlderHistory}
                 onLoad={onLoadOlderHistory}
+                t={(key) => i18n.t(key, { ns: "conversation" })}
               />
             ),
           }

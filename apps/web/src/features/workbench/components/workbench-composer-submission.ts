@@ -35,8 +35,9 @@ import {
 } from "./workbench-composer-contracts.js";
 
 type ComposerSubmissionOptions = Readonly<{
+  acp?: WorkbenchComposerProps["acp"];
   activeUserMessageIds: readonly string[];
-  activeSettings: AgentTaskSettings;
+  activeSettings: AgentTaskSettings | undefined;
   activeTaskId: string | undefined;
   activeTurnId: string | undefined;
   canSteer: boolean;
@@ -74,6 +75,7 @@ type ComposerSubmissionOptions = Readonly<{
 }>;
 
 export function createComposerSubmission({
+  acp,
   activeUserMessageIds,
   activeSettings,
   activeTaskId,
@@ -168,8 +170,7 @@ export function createComposerSubmission({
       action === "blocked" ||
       action === "interrupt" ||
       !hasInput ||
-      selectedModel === undefined ||
-      selectedReasoningEffort === undefined ||
+      (acp ? acp.isBusy : selectedModel === undefined || selectedReasoningEffort === undefined) ||
       turnControlsDisabled ||
       (onCaptureSubmission === undefined && action !== "steer" && !canSubmit) ||
       (action === "steer" &&
@@ -248,14 +249,19 @@ export function createComposerSubmission({
       return false;
     }
 
-    const turnOptions = createComposerTurnOptions(
-      activeSettings,
-      selectedModel.id,
-      selectedReasoningEffort,
-      requestedComposerMode,
-      fastMode,
-    );
+    // ACP 直接发送原生会话配置；旧路径等待完整设置，不能补造权限。
+    const turnOptions =
+      acp || activeSettings === undefined
+        ? undefined
+        : createComposerTurnOptions(
+            activeSettings,
+            selectedModel?.id ?? activeSettings.model,
+            selectedReasoningEffort,
+            requestedComposerMode,
+            fastMode,
+          );
     if (onCaptureSubmission !== undefined) {
+      if (turnOptions === undefined) return false;
       try {
         await onCaptureSubmission(input, turnOptions, messageAttachments);
         return true;
@@ -353,23 +359,29 @@ export function createComposerSubmission({
     );
     startTurnAttempt.current = turnAttempt;
     try {
-      const result = await startPromptTurn(client, {
-        idempotencyKey: turnAttempt.key,
-        input,
-        onTaskCreated(task) {
-          // 后端完成创建与启动后发布 Task，浏览器只更新当前页面。
-          if (isCurrentScope(requestScope)) {
-            setPendingTaskState({ scope: requestScope, task });
-            onTaskCreated?.(task);
-          }
-        },
-        projectId,
-        ...(activeTaskId === undefined ? {} : { taskId: activeTaskId }),
-        turnOptions,
-        ...(activeTaskId === undefined && workspacePath ? { workspacePath } : {}),
-      });
+      const result:
+        Awaited<ReturnType<NonNullable<WorkbenchComposerProps["acp"]>["submit"]>> | undefined = acp
+        ? await acp.submit(input, turnAttempt.key)
+        : turnOptions === undefined
+          ? undefined
+          : await startPromptTurn(client, {
+              idempotencyKey: turnAttempt.key,
+              input,
+              onTaskCreated(task) {
+                // 后端完成创建与启动后发布 Task，浏览器只更新当前页面。
+                if (isCurrentScope(requestScope)) {
+                  setPendingTaskState({ scope: requestScope, task });
+                  onTaskCreated?.(task);
+                }
+              },
+              projectId,
+              ...(activeTaskId === undefined ? {} : { taskId: activeTaskId }),
+              turnOptions,
+              ...(activeTaskId === undefined && workspacePath ? { workspacePath } : {}),
+            });
+      if (result === undefined) return false;
       if (isCurrentScope(requestScope)) {
-        if (turnOptions.goalMode === true) {
+        if (turnOptions?.goalMode === true) {
           // Goal 已写入 Codex Thread，后续消息必须恢复为普通提交，避免替换目标。
           onGoalStarted();
         }
@@ -392,6 +404,7 @@ export function createComposerSubmission({
             turnOptions,
             messageAttachments,
             result.checkpoint,
+            ...(result.acpSnapshot ? ([result.acpSnapshot] as const) : ([] as const)),
           );
         }
       }

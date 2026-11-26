@@ -47,7 +47,6 @@ export type CodeBlockProps = HTMLAttributes<HTMLDivElement> &
     code?: string;
     highlightedLine?: number | null;
     language: CodeBlockLanguage;
-    legacyTheme?: boolean;
     onHighlightedLineUnavailable?: () => void;
     pages?: readonly CodeBlockPage[];
     showLineNumbers?: boolean;
@@ -59,7 +58,6 @@ export function CodeBlock({
   code,
   highlightedLine = null,
   language,
-  legacyTheme = false,
   onHighlightedLineUnavailable,
   pages,
   showLineNumbers = false,
@@ -87,7 +85,6 @@ export function CodeBlock({
         <CodeBlockContent
           highlightedLine={highlightedLine}
           language={language}
-          legacyTheme={legacyTheme}
           {...(onHighlightedLineUnavailable === undefined ? {} : { onHighlightedLineUnavailable })}
           pages={resolvedPages}
           showLineNumbers={showLineNumbers}

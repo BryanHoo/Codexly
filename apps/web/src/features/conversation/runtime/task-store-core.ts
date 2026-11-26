@@ -1,4 +1,4 @@
-import type { AgentEventConnectionState } from "@codexly/client";
+import type { TaskStoreRuntimeState } from "@codexly/frontend-core/task-store-runtime";
 import { createTaskItemKey, retainPendingRequest } from "@codexly/frontend-core";
 import { AppendOnlyTextBuffer, type TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import type {
@@ -46,38 +46,14 @@ export type TaskStoreHydrationResponse = Readonly<{
 
 export type { TaskStoreIdentity } from "@codexly/frontend-core";
 
-export interface TaskStoreState {
-  applyEvents: (events: readonly AgentEvent[]) => void;
-  checkpoint: EventCheckpoint | null;
-  commandOutputAccessByItemKey: Map<string, number>;
-  commandOutputAccessSequence: number;
-  commandOutputBytesByItemKey: Map<string, number>;
-  commandOutputBytes: number;
-  connectionState: AgentEventConnectionState;
-  error: Error | null;
-  hydrate: (response: TaskStoreHydrationResponse) => void;
-  itemKeysByTurnId: Readonly<Record<string, readonly string[]>>;
-  itemStoresByKey: Map<string, TaskItemStore>;
-  itemStructureRevision: number;
-  getItem: (itemId: string, turnId: string) => AgentItem | undefined;
-  getItemByKey: (itemKey: string) => AgentItem | undefined;
-  notices: readonly TaskNotice[];
-  pendingRequestIds: readonly string[];
-  pendingRequestsById: Readonly<Record<string, PendingRequest>>;
-  prependHistory: (response: TaskStoreHydrationResponse) => void;
-  projectId: string;
-  reconcile: (response: TaskStoreHydrationResponse) => void;
-  reconstructSnapshot: () => ReconstructedTaskSnapshot | undefined;
-  retainedBytes: number;
-  setConnectionState: (connectionState: AgentEventConnectionState) => void;
-  setError: (error: Error | null) => void;
-  setTaskSettings: (settings: AgentTaskSettings) => void;
-  snapshotMetadata: TaskSnapshotMetadata | null;
-  taskId: string;
-  turnIds: readonly string[];
-  turnsNextCursor: string | null;
-  turnsById: Readonly<Record<string, NormalizedAgentTurn>>;
-}
+export type TaskStoreState = TaskStoreRuntimeState<
+  AgentItem,
+  TaskItemStore,
+  PendingRequest,
+  TaskSnapshotMetadata,
+  AgentTaskSettings,
+  AgentEvent
+>;
 
 export type TaskStore = StoreApi<TaskStoreState>;
 
@@ -87,7 +63,14 @@ export interface TaskItemStoreState {
 
 type DeltaEvent = Extract<
   AgentEvent,
-  { type: "command.output_delta" | "message.delta" | "plan.delta" | "reasoning.delta" }
+  {
+    type:
+      | "compaction.summary_delta"
+      | "command.output_delta"
+      | "message.delta"
+      | "plan.delta"
+      | "reasoning.delta";
+  }
 >;
 
 export interface TaskItemStore extends StoreApi<TaskItemStoreState> {
@@ -142,7 +125,9 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
           : baseItem.type === "message" || baseItem.type === "plan"
             ? baseItem.text
             : "";
-      buffer = new AppendOnlyTextBuffer(initialText);
+      buffer = new AppendOnlyTextBuffer(
+        baseItem.type === "compaction" ? (baseItem.summary ?? "") : initialText,
+      );
       chunksByField.set(field, buffer);
     }
     return buffer;
@@ -160,6 +145,11 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
   }
   return Object.assign(store, {
     appendDelta(event: DeltaEvent): boolean {
+      if (event.type === "compaction.summary_delta") {
+        if (baseItem.type !== "compaction") return false;
+        appendChunk("text", event.payload.delta);
+        return true;
+      }
       if (event.type === "message.delta") {
         if (baseItem.type !== "message" || baseItem.role !== "assistant") {
           return false;
@@ -225,6 +215,9 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
             summary: reasoningSummaryBuffer.read() ?? baseItem.summary,
           };
         }
+      } else if (baseItem.type === "compaction") {
+        const chunks = chunksByField.get("text");
+        if (chunks !== undefined) nextItem = { ...baseItem, summary: chunks.materialize() };
       } else if (baseItem.type === "command") {
         const commandOutput = commandOutputBuffer?.getView();
         if (commandOutput !== undefined) {
@@ -291,10 +284,6 @@ type NormalizedTaskData = Pick<
   | "turnsNextCursor"
   | "turnsById"
 >;
-
-export function readTaskItem(state: TaskStoreState, itemKey: string): AgentItem | undefined {
-  return state.itemStoresByKey.get(itemKey)?.read();
-}
 
 export function normalizeSnapshot(response: TaskStoreHydrationResponse): NormalizedTaskData {
   const { pendingRequests, turns, turnsNextCursor, ...snapshotMetadata } = response.snapshot;

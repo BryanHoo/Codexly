@@ -1,7 +1,8 @@
 import { cn } from "../lib/utils.js";
 import { Skeleton } from "./skeleton.js";
 
-type LoadingSkeletonVariant = "list" | "conversation" | "settings" | "cards" | "workspace" | "code";
+type LoadingSkeletonVariant =
+  "list" | "conversation" | "settings-fields" | "settings" | "cards" | "workspace" | "code";
 type LoadingSkeletonProps = Readonly<{
   label: string;
   variant?: LoadingSkeletonVariant;
@@ -69,6 +70,24 @@ function SettingsSkeleton() {
           <Skeleton
             className={
               row % 2 === 0 ? "h-5 w-9 shrink-0 rounded-full" : "h-8 w-20 shrink-0 rounded-control"
+            }
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 卡片内只占位设置行，不重复整页标题；尺寸与实际字段一致。 */
+function SettingsFieldsSkeleton() {
+  return (
+    <div className="divide-y divide-separator">
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex min-h-14 items-center justify-between gap-6 py-3">
+          <Skeleton className="h-3 w-24 max-w-[40%]" />
+          <Skeleton
+            className={
+              row === 1 ? "h-5 w-9 shrink-0 rounded-pill" : "h-8 w-40 max-w-[50%] rounded-control"
             }
           />
         </div>
@@ -146,6 +165,8 @@ export function LoadingSkeleton({ label, variant = "list", className }: LoadingS
           <WorkspaceSkeleton />
         ) : variant === "conversation" ? (
           <ConversationSkeleton />
+        ) : variant === "settings-fields" ? (
+          <SettingsFieldsSkeleton />
         ) : variant === "settings" ? (
           <SettingsSkeleton />
         ) : variant === "cards" ? (

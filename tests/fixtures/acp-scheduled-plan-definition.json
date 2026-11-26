@@ -1,0 +1,19 @@
+{
+  "name": "新 ACP 计划",
+  "projectId": "p",
+  "engine": "claude",
+  "values": {
+    "mode": false
+  },
+  "enabled": false,
+  "prompt": {
+    "type": "prompt",
+    "text": "review",
+    "attachments": [],
+    "skills": []
+  },
+  "schedule": {
+    "type": "once",
+    "atUnixMs": 2000000000000
+  }
+}

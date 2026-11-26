@@ -14,7 +14,7 @@ it("prepares a ZIP using the authenticated transport and builds only controlled 
     fileName: "codexly-diagnostics-web-1.zip",
   });
   expect(fetch.mock.calls[0]).toMatchObject([
-    "http://localhost:3210/v1/diagnostics/codex",
+    "http://localhost:3210/v1/diagnostics/archive",
     { method: "POST", credentials: "same-origin", body: '{"application":"{}"}' },
   ]);
   expect(client.diagnosticsDownloadUrl(downloadId)).toBe(

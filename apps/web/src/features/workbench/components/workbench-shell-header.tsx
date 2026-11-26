@@ -1,10 +1,11 @@
+import { WorkbenchInspectorCollapse } from "@codexly/ui/core/workbench-inspector-rail";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import { useContext, useId } from "react";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
 import { SplitLayoutMenu } from "@codexly/ui/core/split-layout-menu";
 import { SplitPaneControls } from "@codexly/ui/core/split-pane-controls";
 import { WorkbenchNewTaskButton } from "@codexly/ui/core/workbench-new-task-button";
-import { PanelLeft, PanelRight, Pencil } from "lucide-react";
+import { PanelLeft, Pencil } from "lucide-react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import {
@@ -43,7 +44,7 @@ export function WorkbenchShellHeader({
     projectOpenCapabilitiesQuery,
     projectPathOpenLockRef,
     projectPathOpenMutation,
-    setInspectorOpen,
+    closeInspector,
     setSidebarOpen,
     setTaskRenameOpen,
     sidebarOpen: ownSidebarOpen,
@@ -142,7 +143,12 @@ export function WorkbenchShellHeader({
             className="flex"
             {...(globalSettings === undefined
               ? {}
-              : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
+              : {
+                  defaultOpenAppId:
+                    projectOpenCapabilitiesQuery.data?.apps.find(
+                      (app) => app.id === globalSettings.defaultOpenAppId,
+                    )?.id ?? null,
+                })}
             hidden={false}
             isDetecting={projectOpenCapabilitiesQuery.isPending}
             isPending={projectPathOpenMutation.isPending}
@@ -153,27 +159,12 @@ export function WorkbenchShellHeader({
                 .catch(() => undefined);
             }}
           />
-          <Tooltip key={inspectorOpen ? "inspector-open" : "inspector-closed"}>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label={
-                  inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")
-                }
-                id={!pane?.multiple ? "workbench-inspector-toggle" : `${id}-inspector-toggle`}
-                onClick={() => {
-                  setInspectorOpen((open) => !open);
-                }}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <PanelRight aria-hidden="true" className="size-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")}
-            </TooltipContent>
-          </Tooltip>
+          {inspectorOpen ? (
+            <WorkbenchInspectorCollapse
+              label={t("shell.collapseInspector")}
+              onClose={closeInspector}
+            />
+          ) : null}
           <SplitPaneControls
             closeLabel={t("split.close")}
             soloLabel={t("split.solo")}

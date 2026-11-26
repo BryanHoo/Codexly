@@ -17,6 +17,23 @@ class GitCommandError extends Error {
 
 type GitCommandResult = Readonly<{ stderr: string; stdout: string }>;
 
+/** 按 UTF-8 字节分批，为 Windows 命令行和 Git 固定参数预留空间。 */
+export function* pathBatches(paths: readonly string[]): Generator<readonly string[]> {
+  let batch: string[] = [];
+  let bytes = 0;
+  for (const path of paths) {
+    const size = Buffer.byteLength(path) + 32;
+    if (batch.length > 0 && bytes + size > 8192) {
+      yield batch;
+      batch = [];
+      bytes = 0;
+    }
+    batch.push(path);
+    bytes += size;
+  }
+  if (batch.length > 0) yield batch;
+}
+
 export async function executeGit(
   repositoryRoot: string,
   arguments_: readonly string[],

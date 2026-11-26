@@ -136,7 +136,7 @@ for (const width of [390, 1280]) {
       await expect(trigger).toBeVisible();
       await expect(page.locator("[data-subagent-details]")).toHaveCount(0);
       await trigger.click();
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByRole("dialog", { name: /启动子代理/u });
       await expect(dialog.getByText("检查构建缓存键", { exact: true })).toHaveCount(1);
       await expect(dialog.getByText("检查构建缓存键", { exact: true })).toBeVisible();
       await expect(dialog.getByText("test-model", { exact: true })).toBeVisible();

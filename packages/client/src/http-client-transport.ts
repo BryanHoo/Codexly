@@ -418,6 +418,8 @@ export class CodexlyTransport {
       headers: { accept: "application/json", ...(init.headers as Record<string, string>) },
       signal,
     });
+    // 响应返回后仍使用信号，让组合信号在 fetch 等待期间保持存活，并拒绝迟到响应。
+    signal.throwIfAborted();
     if (!response.ok) {
       if (response.status === 401) {
         // 认证失效先通知运行时卸载敏感状态，同时保留原请求错误语义。
@@ -478,6 +480,8 @@ export class CodexlyTransport {
     } catch (error) {
       throw new CodexlyResponseError("Codexly response is not valid JSON", { cause: error });
     }
+    // 正文读取同样可能等待传输；整个读取期间保留组合信号，取消后不交付旧正文。
+    signal.throwIfAborted();
     // 只有通过 Protocol Schema 的 unknown 响应才能进入 React Query 与页面状态。
     if (!Value.Check(schema, body)) {
       throw new CodexlyResponseError("Codexly response does not match the protocol schema");

@@ -33,6 +33,7 @@ import { useGitCommitDraft } from "./use-git-commit-draft.js";
 
 // 丢弃弹窗只在用户打开时加载，避免增加工作台及编辑器常驻包体。
 const GitDiscardDialog = lazy(() => import("./git-discard-dialog.js"));
+const MAX_COMMIT_MESSAGE_FILES = 500;
 
 export function collectCommitFileEntries(
   status: Pick<ProjectGitStatus, "staged" | "unstaged">,
@@ -195,6 +196,12 @@ export function GitCommitWorkspace({
     if (generating || isGenerating) return;
     const requested = draft;
     const request = ++generation.current;
+    // 按草稿中的勾选顺序收集前 500 个路径，生成范围只在本次请求中生效。
+    const paths: string[] = [];
+    for (const path of requested.selectedPaths) {
+      paths.push(path);
+      if (paths.length === MAX_COMMIT_MESSAGE_FILES) break;
+    }
     setGenerating(true);
     setOperationError(null);
     try {
@@ -204,7 +211,7 @@ export function GitCommitWorkspace({
           ? { engine: "claude" as const }
           : {}),
         expectedSnapshot: requested.snapshot,
-        paths: [...requested.selectedPaths],
+        paths,
       });
       if (generation.current === request)
         update((current) => applyGeneratedCommitMessage(current, requested, message));

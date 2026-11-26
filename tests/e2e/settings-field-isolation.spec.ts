@@ -1,95 +1,83 @@
 import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 
-test("智能体选项独立更新，排队保存不会覆盖另一项", async ({ page }) => {
-  let settings = { webSearch: "cached", modelVerbosity: null as string | null };
+test("ACP 保存期间阻止并发覆盖，完整回执保留兄弟选项", async ({ page }) => {
   const writes: Record<string, unknown>[] = [];
-  let release!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route("**/v1/personalization/agent", async (route) => {
-    if (route.request().method() === "PUT") {
-      const input = parseRequestRecord(route.request().postData());
-      writes.push(input);
-      if (writes.length === 1) await pending;
-      settings = { ...settings, ...input };
+  const pending = Promise.withResolvers<undefined>();
+  await page.route("**/v1/acp/agents/codex/defaults", async (route) => {
+    if (route.request().method() === "PATCH") {
+      writes.push(parseRequestRecord(route.request().postData()));
+      if (writes.length === 1) await pending.promise;
     }
-    await route.fulfill({ json: settings });
+    await route.fallback();
   });
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const region = page.getByRole("region", { name: "全局设置" });
-  await region
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "智能体配置", exact: true })
-    .click();
+  await region.getByRole("button", { name: "ACP", exact: true }).click();
+  const heading = region.getByRole("heading", { name: "会话默认配置", exact: true });
   const search = region.getByRole("combobox", { name: "网页搜索", exact: true });
   const verbosity = region.getByRole("combobox", { name: "输出详细程度", exact: true });
   await expect(search).toBeEnabled();
   const sibling = await verbosity.elementHandle();
   try {
-    await search.selectOption("live");
+    await search.click();
+    await page.getByRole("option", { name: /^(live|实时)$/iu }).click();
+    await heading.click();
     await expect.poll(() => writes.length).toBe(1);
-    await expect(verbosity).toBeEnabled();
-    await expect(verbosity).toHaveValue("");
-    await expect(search).toHaveValue("live");
+    await expect(verbosity).toBeDisabled();
+    await expect(verbosity).toHaveText("默认");
     expect(await sibling.evaluate((element) => element.isConnected)).toBe(true);
-    await verbosity.selectOption("high");
-    await expect(verbosity).toHaveValue("high");
   } finally {
-    release();
+    pending.resolve(undefined);
   }
-  await expect.poll(() => writes.length).toBe(2);
   await expect(search).toBeEnabled();
-  await expect(verbosity).toBeEnabled();
-  expect(writes[1]).toEqual({ webSearch: "live", modelVerbosity: "high" });
-  await expect(search).toHaveValue("live");
-  await expect(verbosity).toHaveValue("high");
+  await expect(search).toHaveText(/live|实时/iu);
+  await verbosity.click();
+  await page.getByRole("option", { name: /^(high|高)$/iu }).click();
+  await heading.click();
+  await expect
+    .poll(() => writes)
+    .toEqual([
+      { configId: "webSearch", value: "live" },
+      { configId: "verbosity", value: "high" },
+    ]);
+  await expect(search).toHaveText(/live|实时/iu);
 });
 
-test("记忆开关保存期间不改变其他开关和删除按钮，失败仅回退当前项", async ({ page }) => {
-  let release!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
+test("ACP 保存失败保留当前草稿和其他配置，支持重试", async ({ page }) => {
+  const value = "live";
+  let writes = 0;
+  await page.route("**/v1/acp/agents/codex/defaults", async (route) => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    expect(parseRequestRecord(route.request().postData())).toEqual({
+      configId: "webSearch",
+      value,
+    });
+    if (++writes > 1) return route.fallback();
+    await route.fulfill({
+      status: 503,
+      json: { code: "PROVIDER_ERROR", message: "Save failed", retryable: true },
+    });
   });
-  let started = false;
-  await page.route("**/v1/personalization/memories", async (route) => {
-    if (route.request().method() === "PUT") {
-      started = true;
-      await pending;
-      await route.fulfill({
-        status: 503,
-        json: { code: "PROVIDER_ERROR", message: "Save failed", retryable: true },
-      });
-    } else await route.fulfill({ json: { enabled: false, allowExternalContext: true } });
-  });
-  await page.route("**/v1/personalization/instructions", (route) =>
-    route.fulfill({ json: { content: "", path: "/runtime/AGENTS.md", overrideActive: false } }),
-  );
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const region = page.getByRole("region", { name: "全局设置" });
-  await region
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "个性化", exact: true })
-    .click();
-  const enabled = region.getByRole("switch", { name: "启用本地记忆", exact: true });
-  const external = region.getByRole("switch").nth(1);
-  const remove = region.getByRole("button", { name: "删除本地记忆", exact: true });
-  await expect(enabled).toBeEnabled();
-  const sibling = await external.elementHandle();
-  try {
-    await enabled.click();
-    await expect.poll(() => started).toBe(true);
-    await expect(external).toBeEnabled();
-    await expect(remove).toBeEnabled();
-    await expect(enabled).toHaveAttribute("aria-checked", "true");
-    await expect(external).toHaveAttribute("aria-checked", "true");
-  } finally {
-    release();
-  }
-  await expect(enabled).toBeEnabled();
-  await expect(enabled).toHaveAttribute("aria-checked", "false");
-  await expect(external).toHaveAttribute("aria-checked", "true");
+  await region.getByRole("button", { name: "ACP", exact: true }).click();
+  const search = region.getByRole("combobox", { name: "网页搜索", exact: true });
+  const verbosity = region.getByRole("combobox", { name: "输出详细程度", exact: true });
+  await expect(search).toHaveText(/cached|缓存/iu);
+  const sibling = await verbosity.elementHandle();
+  await search.click();
+  await page.getByRole("option", { name: /^(live|实时)$/iu }).click();
+  await region.getByRole("heading", { name: "会话默认配置", exact: true }).click();
+  const error = region.getByRole("alert");
+  await expect(error).toHaveText(/设置保存失败/u);
+  await expect(search).toHaveText(/live|实时/iu);
+  await expect(verbosity).toBeEnabled();
+  await expect(verbosity).toHaveText("默认");
   expect(await sibling.evaluate((element) => element.isConnected)).toBe(true);
+  await error.getByRole("button", { name: "重试", exact: true }).click();
+  await expect(error).toHaveCount(0);
+  expect(writes).toBe(2);
+  await expect(search).toHaveText(/live|实时/iu);
 });

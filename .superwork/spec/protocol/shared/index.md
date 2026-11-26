@@ -13,6 +13,26 @@
 
 事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
 
+## ACP Agent 更新进度
+
+- Web 和桌面共用 `AcpAgentCatalogProgress`。手动更新从 `checking` 开始，宿主持安装锁比较官方目录和已安装版本，仅在发现更高版本时进入安装。更新操作返回保存后的目录快照，界面从其中读取已安装版本。
+- `downloading` 仅在知道真实字节总量时提供 `total`，界面据此计算百分比。npm 与 uv 的依赖安装使用 `installing` 并显示不定量进度。回归覆盖 `agent-catalog.test.ts` 和 `acp-catalog.browser.test.tsx`。
+
+## ACP 原生用户交互
+
+- 活动聊天连接单独声明 form 和 url，基于已绑定的 ACP 会话路由，工具范围保留原始工具归属。独立认证和配置连接目前采用已有交互流程。
+- 待办请求保留 `acp` 标记以分流回传，问卷答案只出现在原生 RPC 响应中。回合取消或连接中断时释放待办。URL 回应只携带动作，外部完成由同一连接的 `elicitation/complete` 更新。
+- 会话表单通过 `_meta.codex.delivery === "async"` 标识 Codex 异步问答，Web 和桌面用共用的逐题卡片展示可识别的问答字段。自由回答仍按 ACP 字段回传，回合结束后的投递时限由 Codex ACP 决定。
+- 两端共用问卷和 URL 卡片。打开前展示目标域名及完整地址，经用户点击后在独立浏览器上下文打开。匹配完成通知只改变该会话的交互状态。[ACP v1 Elicitation](https://agentclientprotocol.com/protocol/v1/elicitation)
+- 回归入口为 [ACP Provider 测试](../../../../packages/provider-acp/src/provider.test.ts) 和 [桌面 URL 交互浏览器测试](../../../../desktop/src/features/workbench/components/mcp-elicitation-request.browser.test.tsx)。
+
+## ACP 停止原因
+
+- Web 与桌面回合通过可选 `stopReason` 保留 ACP 原始停止原因，事件和历史读取不得丢弃；旧历史和其他 Provider 可省略。
+- 聊天展示将 `end_turn`、`refusal` 标为已完成，将 `cancelled`、`max_tokens`、`max_turn_requests` 标为中断并保留已有正文。展示完成不等于自动化成功。
+- ACP 辅助生成必须同时满足 `status === "completed"` 和 `stopReason === "end_turn"`；拒绝、截断和缺失原因均拒绝交付结果，错误保留具体原因，仍释放临时会话。
+- 回归入口：`packages/provider-acp/src/event-projection.test.ts`、`text-generation.test.ts`、`turn-persistence.test.ts`，以及 `desktop/src/protocol/acp-session.test.ts`。
+
 ## Web 诊断契约
 
 - `packages/protocol/src/diagnostics.ts` 定义 `DiagnosticsResponseSchema` 和 `DiagnosticsResponse`，由 Client `getDiagnostics()` 与 Server `GET /v1/diagnostics` 共用；版本固定为 1，包含导出时间、运行环境、脱敏 JSON 日志行和淘汰计数。该 HTTP 快照不替换桌面原生 ZIP 导出协议。
@@ -56,3 +76,11 @@
 - 回归入口：`packages/server/src/git-discard.test.ts`、`app-git-discard.test.ts`、客户端 `http-client-git.test.ts`、原生 `git_discard.rs` 与 `desktop/tests/browser/git-discard.browser.test.tsx`（两端、Chromium / WebKit）。用户说明见 [Git 工作流](../../../../docs/git-workflow.md)。
 
 - 丢弃入口遵循文件上下文层级：单文件在文件行尾显示恢复图标（悬停/键盘聚焦显示，触屏常显），批量操作收进列表更多菜单，显示所选数量，无选择时禁用。单文件丢弃仅移除该文件的勾选，不清空其他选择，不触发 diff 导航；两类入口共用固定快照确认。
+
+## ACP 子 Agent 会话
+
+- 聊天连接通过 ACP v1 的 `clientCapabilities.subagents` 声明支持。子会话由直接父会话登记，连接结束后销毁关联。原生会话 ID 用于条目、审批和问卷的归属，现有应用任务 ID 管理访问边界。
+- Web、移动浏览器和桌面共用子会话折叠入口。子会话独立订阅展开后的条目，后续正文仍走既有增量事件通道。后台段使用 `acp.background.updated` 登记时间信息，根回合状态和队列由原有回合事件管理。
+- 审批使用已登记的会话和原始工具 ID 定位，响应精确回传原始 `optionId`。父回合返回后仍能处理子会话请求，子会话结束或连接关闭时按实际归属清理。
+- 根会话发起 `session/load` 或 `session/resume` 时，子会话工作状态重新等待确认。`session/load` 成功响应前的公告保留在历史中。退订和空闲回收只依据当前连接已确认的实时工作状态，包含嵌套子会话。回归入口为 `packages/provider-acp/src/provider-subagents.test.ts`。
+- 回归覆盖同名工具并发、未知会话、父回合结束后的审批、嵌套子会话回放，以及 Chromium 和 WebKit 中双端展开。 [ACP v1 子会话](https://agentclientprotocol.com/protocol/v1/subagents) [Codex ACP 实现](https://github.com/agentclientprotocol/codex-acp/blob/main/docs/subagent-sessions.md)

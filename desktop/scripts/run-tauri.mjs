@@ -40,20 +40,9 @@ try {
 
 const environment = {
   ...process.env,
-  ...(findTarget(argumentsList) ? { CODEXLY_CLAUDE_TARGET: findTarget(argumentsList) } : {}),
+  ...(findTarget(argumentsList) ? { CODEXLY_ACP_TARGET: findTarget(argumentsList) } : {}),
   ...resolveTauriEnvironment(argumentsList, process.platform, profile),
-  ...(process.platform === "darwin" && argumentsList[0] === "build"
-    ? {
-        // 兼容构建独立缓存，防止不同最低系统版本的本地依赖与安装包互相覆盖。
-        ...(profile === "legacy"
-          ? {
-              CARGO_TARGET_DIR: fileURLToPath(
-                new URL("../src-tauri/target/legacy", import.meta.url),
-              ),
-            }
-          : {}),
-      }
-    : {}),
+
 };
 const result = spawnSync(process.execPath, [tauriCli, ...argumentsList], {
   stdio: "inherit",

@@ -1,3 +1,6 @@
+import {AcpPlanWorkspace} from "@codexly/ui/core/acp-plan-workspace";
+import {AcpPlanScheduleFieldAdapter} from "./acp-plan-schedule-field.js";
+import {useTranslation} from "../../i18n/i18n.js";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -21,7 +24,7 @@ import { ScheduledTaskList } from "./scheduled-task-list.js";
 const queryKey = ["scheduled-tasks"] as const;
 const emptyTasks: readonly ScheduledTask[] = [];
 
-export function ScheduledTasksContainer({
+function ExistingScheduledTasksContainer({
   context,
   projectId,
   temporary,
@@ -165,6 +168,8 @@ export function ScheduledTasksContainer({
   return (
     <div className="scheduled-tasks">
       <ScheduledTaskList
+        canCreate={context.capabilities?.runtime !== "acp"}
+        canToggle={context.capabilities?.runtime !== "acp"}
         {...(selectedTask === undefined ? {} : { activeId: selectedTask.id })}
         loading={tasksQuery.isPending}
         onCreate={() => {
@@ -183,6 +188,8 @@ export function ScheduledTasksContainer({
       {creating || selectedTask !== undefined ? (
         <ScheduledTaskEditor
           key={selectedTask?.id ?? `new:${projectId}`}
+          acpClient={context.client}
+          onEnabledChange={(taskId, enabled) => { enabledMutation.mutate({ enabled, taskId }); }}
           composerProps={composerProps}
           onPreview={previewSchedule}
           onOpenRun={(runProjectId, taskId) => {
@@ -226,4 +233,20 @@ export function ScheduledTasksContainer({
       )}
     </div>
   );
+}
+
+// ACP 使用共享私有计划工作区；旧计划保留原容器，非 ACP 不改变原入口。
+export function ScheduledTasksContainer(props:Parameters<typeof ExistingScheduledTasksContainer>[0]) {
+ const {i18n}=useTranslation("workbench");
+ const queryClient=useQueryClient();
+ if(props.context.capabilities?.runtime!=="acp")return <ExistingScheduledTasksContainer {...props}/>;
+ return <AcpPlanWorkspace client={props.context.client} projectId={props.projectId} projects={props.context.projects} language={i18n.resolvedLanguage??"zh-CN"} ScheduleField={AcpPlanScheduleFieldAdapter} onOpenTask={async(runProjectId,taskId,signal)=>{
+  const response=await readScheduledTaskRun(props.context.client,runProjectId,taskId);
+  if(signal.aborted)return;
+  if(response===null)throw new Error(props.context.t("scheduledTasks.runUnavailable"));
+  // 复用原生任务及归档校验；不把运行引用改成新任务身份。
+  queryClient.setQueryData(["projects",runProjectId,"tasks",taskId],response);
+  if(requestSplitTaskNavigation({projectId:runProjectId,taskId}))return;
+  await props.context.navigate(runProjectId===TEMPORARY_TASK_SCOPE_ID?{params:{taskId},to:"/temporary/t/$taskId"}:{params:{projectId:runProjectId,taskId},to:"/p/$projectId/t/$taskId"});
+ }}><ExistingScheduledTasksContainer {...props}/></AcpPlanWorkspace>;
 }

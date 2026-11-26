@@ -9,7 +9,7 @@ import "../../i18n/global-search.js";
 import { SearchResults, type SearchResult } from "./search-results.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, CircleX, LoaderCircle, Search, SearchX, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleX, LoaderCircle, Search, SearchX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AgentTask, Project } from "@/protocol/index.js";
 import type { SearchOccurrence } from "@/protocol/global-search.js";
@@ -185,13 +185,14 @@ function GlobalSearchDialogContent({
         }}
       >
         <DialogContent
+          closeLabel={t("globalSearch.close")}
           aria-describedby={undefined}
           className="top-[12%] max-w-[46rem] -translate-y-0 gap-0 overflow-hidden border border-separator-strong p-0 shadow-floating"
           onOpenAutoFocus={visibility.onOpenAutoFocus}
           onCloseAutoFocus={visibility.onCloseAutoFocus}
         >
           <DialogTitle className="sr-only">{t("globalSearch.title")}</DialogTitle>
-          <div className="flex items-center gap-2 border-b border-separator px-4 pb-3 pt-4">
+          <div className="flex items-center gap-2 border-b border-separator px-4 pb-3 pr-16 pt-4">
             <div className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-surface border border-separator-strong bg-control px-3 transition-[background-color,border-color,box-shadow] focus-within:border-brand focus-within:bg-panel focus-within:shadow-focus">
               <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
               <Input
@@ -258,15 +259,6 @@ function GlobalSearchDialogContent({
                 </Button>
               ) : null}
             </div>
-            <Button
-              aria-label={t("globalSearch.close")}
-              className="size-10"
-              size="icon-compact"
-              variant="ghost"
-              onClick={onClose}
-            >
-              <X className="size-4" />
-            </Button>
           </div>
           <div className="flex items-center gap-3 border-b border-separator px-4 py-2.5">
             <div
@@ -372,7 +364,9 @@ function GlobalSearchDialogContent({
               {results.files.data?.failedRoots.length ? (
                 <p
                   role="alert"
-                  title={results.files.data.failedRoots.map((path) => formatDisplayPath(path)).join("\n")}
+                  title={results.files.data.failedRoots
+                    .map((path) => formatDisplayPath(path))
+                    .join("\n")}
                   className="p-3 text-caption text-warning"
                 >
                   {t("globalSearch.partial")}

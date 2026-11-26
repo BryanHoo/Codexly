@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "../../../shared/components/core/dialog.js";
 import type { NativeProjectDirectoryClient } from "../project-queries.js";
-import { resolveProjectDirectoryAddPaths } from "../project-directory-add-target.js";
+import { resolveProjectDirectoryAddPaths } from "@codexly/frontend-core/project-directory-add-target";
 import { setProjectRootPathChecked } from "../project-root-selection.js";
 import { FilesystemPickerToolbar } from "./filesystem-picker-toolbar.js";
 

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import type { AnswerAsyncQuestionResponse } from "@codexly/protocol";
 import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handler.js";
 import { questionTask } from "./async-question-test-fixtures.js";
-import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 import { useWorkbenchComposerController } from "../hooks/use-workbench-composer-controller.js";
 import { createTaskStore } from "../../conversation/runtime/task-store.js";
 import { TaskTimeline } from "./task-timeline.js";

@@ -1,17 +1,12 @@
-# macOS 分档构建
+# macOS 构建支持范围
 
-同一业务代码生成两档独立产物。Modern 的优化不以 Legacy 的最低能力为上限，CPU 架构与系统能力分别处理。
+macOS 仅支持 Modern：最低 macOS 14.5 / Safari 17.5，提供 Apple Silicon 与 Intel 安装包。Legacy 已移除，不再支持 macOS 12.4，不再生成 Legacy 安装包或 `latest-legacy.json`。
 
-| 档位   | 最低系统 / WebKit        | 架构                 | 前端目录      | 更新清单             |
-| ------ | ------------------------ | -------------------- | ------------- | -------------------- |
-| Modern | macOS 14.5 / Safari 17.5 | Apple Silicon、Intel | `dist`        | `latest.json`        |
-| Legacy | macOS 12.4 / Safari 15.5 | Intel                | `dist-legacy` | `latest-legacy.json` |
-
-最低系统是构建目标，不代表已经完成该版本的真机验收。当前自动检查能证明编译目标、产物隔离、主题切换与 API 补丁加载，不能把当前 Playwright WebKit 当作 Safari 15.5。
+最低系统表示构建目标；对应版本的兼容性仍需真机验证，当前 Playwright WebKit 不能替代最低系统实测。Windows 和 Ubuntu 的支持范围不受这次调整影响。
 
 ## 构建
 
-使用支持项目 Node.js 24、Rust 工具链和最新 Xcode SDK 的 Mac 或 CI 交叉编译。先在仓库根目录安装依赖，再进入 `desktop/` 构建。用户运行安装包不需要 Node.js；不要求在 Monterey 本机编译。
+使用支持 Node.js 24、Rust 和最新 Xcode SDK 的 Mac 或 CI。先安装根目录依赖，然后选择目标架构：
 
 ```sh
 pnpm install --frozen-lockfile
@@ -19,53 +14,31 @@ cd desktop
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
 pnpm tauri build --target aarch64-apple-darwin
 pnpm tauri build --target x86_64-apple-darwin
-pnpm tauri:legacy --bundles app,dmg
 ```
 
-`pnpm tauri build` 默认匹配主机架构。`pnpm tauri:legacy` 固定 Intel，统一设置 `MACOSX_DEPLOYMENT_TARGET=12.4` 并合并兼容配置。Legacy 使用 `src-tauri/target/legacy`，避免覆盖 Modern 缓存和安装包。禁止绕过入口只修改 `minimumSystemVersion`；元数据不能自动兼容依赖或 WebKit。
+构建入口固定 `MACOSX_DEPLOYMENT_TARGET=14.5`，拒绝 Legacy profile。前端输出至 `dist`，使用现代 WebKit、Tailwind CSS 4、原生 `light-dark()`、Pierre Diff 和 Shiki；不再加载 Legacy polyfill、简化 Diff 或 CSS 转换。
 
-macOS release 入口设置 `CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_STRIP=false`，规避 macOS 27 对 Rust strip 后异常 proc-macro Mach-O 的拒绝。该覆盖只作用于宿主构建依赖，目标应用仍按 release profile strip，避免扩大安装包。
+共享 ACP 宿主编译为一个 Bun sidecar，由 Tauri `externalBin` 参与签名与公证。资源目录保存两种官方引擎程序、辅助资源和许可，保持原厂布局与签名；不重复保存宿主。用户无需另装 Node.js 或 Bun。Bun 要求 macOS 13+，低于本项目最低系统目标。
 
-## 兼容策略
-
-- Modern 保留 Tailwind CSS 4、原生 `light-dark()`、Pierre Diff 和现代 JS 目标。原先的 `14.0` / `safari17.4` 低于已使用的 `light-dark()` 要求，现按官方支持版本对齐为 `14.5` / `safari17.5`。
-- Legacy 通过 Vite 官方 `plugin-legacy` 为 Safari 15.5 生成按使用量收集的标准 API 补丁，只生成 ESM，不引入 SystemJS。构建后检查 Modern 不包含补丁和兼容渲染器。
-- DOM API 不属于标准语言 polyfill：Legacy 入口在加载应用前补齐 `HTMLFormElement.requestSubmit`，通过原生按钮提交保留校验和 React 事件，覆盖回车发送、输入法确认与换行回归。
-- 正则后行断言从 Safari 16.4 才受支持，API polyfill 与 JS target 不能消除该限制。共用的文件链接处理使用捕获组；Legacy 构建单独转换 `remend` 单波浪线规则和 GFM 邮箱边界，依赖规则变化时中止构建。`pnpm test:macos-build-output` 扫描产物正则字面量，并在拒绝后行断言构造器的 WebKit 中加载、渲染任务消息，覆盖懒加载和正文解析阶段的崩溃。
-- CSS 使用 PostCSS Preset Env 转换嵌套、颜色函数等可静态处理的语法。运行时变量混色不能靠设置 JS target 解决，Legacy 使用明确的实色表面；不使用持续计算颜色的 JS polyfill。Safari 15.5 原生支持 `:has()` 与 cascade layers，无需对应观察器。
-- Legacy Diff 使用 jsdiff 解析 unified patch，保留增删行、双行号与虚拟列表，省去语法/词级 Diff 高亮；避免替旧 WebKit 模拟 constructable stylesheets。代码块仍保留 Shiki 高亮，亮暗 token 由 CSS 切换。
-- 不支持 container queries 的旧系统保留表单默认单列布局。视觉特性可以降级，任务执行、审批和数据契约共用。
-- 原生新 API 应集中在平台模块，通过 availability / selector 能力检查调用，确保新符号不会在旧系统启动时被强链接。不能仅在 Rust 分支里判断版本后直接引用新符号。
-- Codex 0.163.0 已移除内置补丁版 zsh，桌面启动不再传递 `shell_zsh_fork` 开关。所有 macOS 构建均沿用官方标准 shell 执行器，不修改用户 Codex 配置；最低系统兼容性仍需对应系统验证。
+macOS release 设置 `CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_STRIP=false`，规避 macOS 27 拒绝加载 strip 后 proc-macro 的问题；该覆盖只作用于宿主构建依赖，目标应用仍按 release profile strip。
 
 ## 发布与更新
 
-Release matrix 构建两个 Modern 架构和一个 Intel Legacy。Legacy 的资源名带 `_legacy`，workflow artifact 名也独立。Legacy 不参与 `tauri-action` 的 `latest.json` 合并；在签名归档上传成功后，单独生成并发布 `latest-legacy.json`。签名仍使用同一套 Tauri updater 密钥。
-
-更新按已安装档位隔离，不会自动从 Legacy 升到 Modern。更新提示复用 GitHub 发布响应，只有当前渠道的清单上传后才提供更新。系统升级后可手动替换同名 `Codexly.app`；Modern 与 Legacy 共用 `com.codexly.desktop` 的本地数据。实际发布和更新签名需要 CI 中已有密钥，本地验证不代替发布签名验收。
+Release matrix 只构建两个 Modern 架构，统一使用 `latest.json`。不再发布 Legacy 更新清单。旧版 Legacy 用户需升级到受支持的系统后，手动替换同名 `Codexly.app`；应用标识和本地数据目录相同。实际签名、公证与更新验收使用 CI 密钥，本地构建不代替签名验收。
 
 ## 验证
 
 ```sh
 pnpm check
-pnpm exec playwright install webkit
 pnpm test:macos-build-output
-pnpm tauri:legacy --debug --no-bundle --no-sign --ci
-xcrun vtool -show-build src-tauri/target/legacy/x86_64-apple-darwin/debug/codexly
 ```
 
-发布前还需在 Intel macOS 12.4 真机验证：安装与首次启动、随包运行时解析及 Legacy 的 Codex 限制、真实任务和 shell 命令、终端输入/缩放、浅色/深色主题、文件 Diff、大文件滚动、辅助窗口和桌面宠物，以及连续两个已签名版本之间的 Legacy 更新。Modern 在 Intel 和 Apple Silicon 上验证相同核心流程。构建成功或改变 User-Agent 都不能替代真机验证。
+发布前需在最低 macOS 版本及两种架构验证安装、首次启动、ACP 双引擎、旧任务恢复、shell 命令、终端输入与缩放、主题、Diff、大文件滚动、辅助窗口、桌面宠物，以及连续两个已签名版本的更新。构建成功不等于真机通过。
 
 ## 依据
 
-- [Apple availability checks](https://developer.apple.com/documentation/xcode/running-code-on-a-specific-version)
-- [Apple weak linking](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/WeakLinking.html)
 - [Rust macOS deployment target](https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html)
-- [Rust #157750：macOS 27 无法加载 strip 后的动态库](https://github.com/rust-lang/rust/issues/157750)
 - [Safari 17.5：light-dark()](https://webkit.org/blog/15383/webkit-features-in-safari-17-5/)
-- [Safari 15.4：:has() 与 cascade layers](https://webkit.org/blog/12445/new-webkit-features-in-safari-15-4/)
-- [Vite 官方 Legacy 插件](https://github.com/vitejs/vite/tree/main/packages/plugin-legacy)
-- [Tailwind 浏览器支持范围](https://tailwindcss.com/docs/compatibility)：Tailwind 4 本身不承诺支持 Safari 15.5，Legacy 的转换和降级需要本项目维护与测试。
-- [PostCSS Preset Env](https://github.com/csstools/postcss-plugins/tree/main/plugin-packs/postcss-preset-env)
-- [jsdiff](https://github.com/kpdecker/jsdiff)
+- [Bun 安装要求](https://bun.com/docs/installation)
+- [Tauri sidecar](https://v2.tauri.app/develop/sidecar/)
 - [Tauri updater](https://v2.tauri.app/plugin/updater/)

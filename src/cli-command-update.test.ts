@@ -57,7 +57,6 @@ describe("runCli updates", () => {
       expect.any(Function),
     );
     expect(harness.dependencies.createStateRepository).not.toHaveBeenCalled();
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     expect(harness.stdout.join("")).toContain("Codexly 已更新到 1.3.0");
     expect(harness.stdout.join("")).toContain("[██████░░░░░░░░░░░░░░] 30% 正在下载更新包");
     expect(harness.stdout.join("")).toContain("[████████████████░░░░] 80% 正在安装新版本");

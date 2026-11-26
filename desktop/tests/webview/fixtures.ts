@@ -177,21 +177,23 @@ export const streamTaskResponse = {
 } as const;
 
 export const approvalRequest = {
-  additionalPermissions: null,
-  availableDecisions: ["deny", "allow_for_session", "allow"],
-  command: "pnpm test:webview",
+  availableDecisions: ["deny", "allow"],
+  acpOptions: [
+    { optionId: "allow-once", name: "允许", kind: "allow_once" },
+    { optionId: "deny-once", name: "拒绝", kind: "reject_once" },
+  ],
+  toolName: "pnpm test:webview",
+  input: null,
   createdAt: "2026-08-30T02:00:00.000Z",
-  cwd: "/workspace/CodeAgent",
   expiresAt: null,
   itemId: "command-approval-item",
-  networkAccess: null,
   projectId: "codeagent",
   reason: "运行原生 WebView 测试",
   requestId: "command-approval-1",
   status: "pending",
   taskId: "approval-task",
   turnId: "turn-approval",
-  type: "command_approval",
+  type: "tool_approval",
 } as const;
 
 export const approvalTaskResponse = {

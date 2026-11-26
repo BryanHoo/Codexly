@@ -32,6 +32,14 @@
     "./app-storage-paths": {
       "types": "./src/app-storage-paths.ts",
       "default": "./src/app-storage-paths.ts"
+    },
+    "./task-attachments": {
+      "types": "./src/task-attachments.ts",
+      "default": "./src/task-attachments.ts"
+    },
+    "./file-task-queue": {
+      "types": "./src/file-task-queue.ts",
+      "default": "./src/file-task-queue.ts"
     }
   },
   "dependencies": {

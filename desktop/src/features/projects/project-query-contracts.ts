@@ -2,7 +2,7 @@ import type { NativeClient } from "@/platform/native-client-contract.js";
 import type { AgentTaskPage, AgentTaskSnapshot } from "@/protocol/index.js";
 import type { InfiniteData } from "@tanstack/react-query";
 
-import { TauriSidebarClient } from "../../platform/tauri/sidebar-client.js";
+import { TauriApplicationClient } from "../../platform/tauri/application-client.js";
 
 export type NativeReadClient = Pick<
   NativeClient,
@@ -82,6 +82,8 @@ export type NativeSkillsClient = Pick<
 >;
 export type NativeSettingsClient = Pick<
   NativeClient,
+  | "getApplicationPreferences"
+  | "patchApplicationPreferences"
   | "getGlobalSettings"
   | "getProjectDefaults"
   | "updateGlobalSettings"
@@ -122,7 +124,7 @@ export type NativeMutationClient = Pick<
   | "updateTaskGoal"
 >;
 export type NativePendingRequestClient = Pick<NativeClient, "resolvePendingRequest">;
-export type NativeWorkbenchClient = Pick<NativeClient, "listClaudeExtensions" | "mutateClaudeExtension"> & NativeReadClient &
+export type NativeWorkbenchClient = Partial<Pick<NativeClient, "cancelAcpBackground">> & Pick<NativeClient, "subscribeAcpPlans" | "readAcpPlanHistory" | "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment" | "listClaudeExtensions" | "mutateClaudeExtension"> & NativeReadClient &
   NativeScheduledTaskClient &
   NativeBackgroundTerminalClient &
   NativeGitStatusClient &
@@ -148,6 +150,9 @@ export type NativeWorkbenchClient = Pick<NativeClient, "listClaudeExtensions" | 
 export type NativeSnapshotClient = Pick<NativeClient, "readTask">;
 export type NativeScheduledTaskClient = Pick<
   NativeClient,
+  | "getAcpScheduledConfig"
+  | "setAcpScheduledConfig"
+  | "previewAcpConfig"
   | "createScheduledTask"
   | "deleteScheduledTask"
   | "listScheduledTasks"
@@ -162,7 +167,7 @@ export const COMPLETED_TASK_PAGE_SIZE = 10;
 export const PROJECT_PINNED_TASK_PAGE_SIZE = 100;
 
 // 左栏运行时直接调用 Rust/Tauri，保留现有视图 Client 契约以避免组件交互漂移。
-export const nativeClient = new TauriSidebarClient();
+export const nativeClient = new TauriApplicationClient();
 
 export type ProjectTaskInfiniteData = InfiniteData<AgentTaskPage, string | undefined>;
 export type TaskTitleSnapshot = Pick<

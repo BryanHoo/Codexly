@@ -10,10 +10,8 @@ on:
       - ".github/workflows/desktop-quality.yml"
       - ".node-version"
       - "package.json"
-      - "schemas/codex-app-server/**"
-      - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
-      - "tools/*claude*"
+      - "tools/*acp*"
       - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -24,10 +22,8 @@ on:
       - ".github/workflows/desktop-quality.yml"
       - ".node-version"
       - "package.json"
-      - "schemas/codex-app-server/**"
-      - "tools/verify-codex-schema.mjs"
       - "tools/*runtime*"
-      - "tools/*claude*"
+      - "tools/*acp*"
       - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -36,8 +32,36 @@ permissions:
   contents: read
 
 jobs:
+  acp-registry:
+    name: ACP Registry (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # 直接安装目录快照的 npm / 二进制产物；Ubuntu 同时验证 GNU tar 和 Linux ZIP。
+      - name: Verify registry installations and ACP handshakes
+        env:
+          CODEXLY_REGISTRY_RELEASE_TEST: "1"
+        run: pnpm exec vitest run packages/provider-acp/src/agent-installer.test.ts packages/provider-acp/src/registry-release.test.ts
+
   protocol-contract:
-    name: Codex Protocol Contract
+    name: ACP Host Protocol Contract
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -59,9 +83,6 @@ jobs:
       - name: Install dependencies
         working-directory: .
         run: pnpm install --frozen-lockfile
-
-      - name: Check Codex protocol schema
-        run: pnpm codex:protocol:check
 
   supply-chain:
     name: Supply Chain
@@ -123,9 +144,9 @@ jobs:
         working-directory: .
         run: pnpm install --frozen-lockfile
 
-      - name: Check standalone Claude host and distribution contract
+      - name: Check standalone ACP host and distribution contract
         working-directory: .
-        run: pnpm test:claude-host
+        run: pnpm test:acp-host
 
       - name: Check web
         run: pnpm check:web
@@ -150,7 +171,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Check macOS build isolation and compiled Legacy theme
+      - name: Check supported macOS build output
         run: pnpm test:macos-build-output
 
       - name: Check source open performance

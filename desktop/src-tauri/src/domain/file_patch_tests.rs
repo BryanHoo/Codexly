@@ -82,6 +82,15 @@ fn file_patch_should_normalize_fragments_without_doubling_context_prefix() {
 }
 
 #[test]
+fn file_patch_should_keep_unnumbered_codex_hunk_markers_for_preview() {
+    let source = "@@\n-old\n+new\n*** End of File\n";
+    assert_eq!(
+        FilePatch::codex("a", "update", source, usize::MAX).diff,
+        format!("--- a/a\n+++ b/a\n{source}")
+    );
+}
+
+#[test]
 fn file_patch_should_bound_expansion_and_never_split_utf8() {
     let source = "🌍\n\n".repeat(1000);
     let full = FilePatch::codex("中文.txt", "create", &source, usize::MAX);

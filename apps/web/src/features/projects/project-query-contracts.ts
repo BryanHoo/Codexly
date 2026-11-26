@@ -92,6 +92,8 @@ export type CodexlySkillMarketClient = Pick<
 >;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
+  | "getAcpDefaults"
+  | "setAcpDefaultConfig"
   | "getDiagnostics"
   | "saveDiagnostics"
   | "diagnosticsDownloadUrl"
@@ -109,6 +111,8 @@ export type CodexlySettingsClient = Pick<
   | "compressHistory"
   | "getAgentPreferences"
   | "updateAgentPreferences"
+  | "getApplicationPreferences"
+  | "patchApplicationPreferences"
   | "getGlobalSettings"
   | "getProjectDefaults"
   | "updateGlobalSettings"
@@ -156,6 +160,9 @@ export type CodexlyMutationClient = Pick<
 export type CodexlyPendingRequestClient = Pick<CodexlyClient, "resolvePendingRequest">;
 export type CodexlyScheduledTaskClient = Pick<
   CodexlyClient,
+  | "getAcpScheduledConfig"
+  | "setAcpScheduledConfig"
+  | "previewAcpConfig"
   | "createScheduledTask"
   | "deleteScheduledTask"
   | "listScheduledTasks"
@@ -166,10 +173,20 @@ export type CodexlyScheduledTaskClient = Pick<
   | "setScheduledTaskEnabled"
   | "updateScheduledTask"
 >;
-export type CodexlyWorkbenchClient = Pick<
-  CodexlyClient,
-  "getTaskActivities" | "acknowledgeTaskActivity" | "subscribeWorkbenchChanges"
-> &
+export type CodexlyWorkbenchClient = Partial<Pick<CodexlyClient, "cancelAcpBackground">> &
+  Pick<
+    CodexlyClient,
+    | "subscribeAcpPlans"
+    | "readAcpPlanHistory"
+    | "listAcpPlans"
+    | "readAcpPlan"
+    | "saveAcpPlan"
+    | "deleteAcpPlan"
+    | "stageAcpPlanAttachment"
+    | "getTaskActivities"
+    | "acknowledgeTaskActivity"
+    | "subscribeWorkbenchChanges"
+  > &
   Pick<
     CodexlyClient,
     "listTaskCatalog" | "queryCompletedTasks" | "listClaudeExtensions" | "mutateClaudeExtension"

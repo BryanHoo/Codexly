@@ -23,11 +23,38 @@ export function createEngineActivation(
   };
   return {
     getSnapshot: () => snapshot,
+    /** 目录是宿主的持久事实；后台完成后只同步选择，不握手、不写浏览器旧偏好。 */
+    synchronize(engines: readonly AgentEngine[]) {
+      const next = [...new Set(engines)];
+      if (
+        next.length === snapshot.engines.length &&
+        next.every((engine, index) => engine === snapshot.engines[index])
+      )
+        return;
+      const states = { ...snapshot.states };
+      for (const engine of next) states[engine] ??= { phase: "idle", message: "" };
+      snapshot = { engines: next, states };
+      for (const listener of listeners) listener();
+    },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
       };
+    },
+    disable(engine: AgentEngine) {
+      if (!snapshot.engines.includes(engine)) return;
+      if (snapshot.engines.length <= 1) throw new Error("至少启用一个 Agent");
+      if (pending.has(engine)) throw new Error("Agent 正在准备");
+      const engines = snapshot.engines.filter((value) => value !== engine);
+      // 只更新启用选择，不删除账号、供应商、默认值或已有会话。
+      try {
+        persist(engines);
+        update(engine, { phase: "idle", message: "" }, engines);
+      } catch (error) {
+        update(engine, { phase: "failed", message: "" });
+        throw error;
+      }
     },
     enable(engine: AgentEngine, prepare: PrepareEngine): Promise<void> {
       if (snapshot.engines.includes(engine)) return Promise.resolve();

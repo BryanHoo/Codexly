@@ -1,0 +1,193 @@
+import { Type, type Static } from "@sinclair/typebox";
+import { McpElicitationPendingRequestSchema } from "./pending-request.js";
+import { McpElicitationResolutionSchema } from "./mcp-elicitation.js";
+import { AgentEngineSchema } from "./agent-engine.js";
+import { ProjectRootPathSchema } from "./project-root.js";
+export * from "./acp-providers.js";
+
+const Text = Type.String({ maxLength: 16384 });
+const NullableText = Type.Optional(Type.Union([Text, Type.Null()]));
+const Meta = Type.Optional(Type.Union([Type.Record(Type.String(), Type.Unknown()), Type.Null()]));
+const Choice = Type.Object({ value: Text, name: Text, description: NullableText, _meta: Meta });
+const Group = Type.Object({ group: Text, name: Text, options: Type.Array(Choice), _meta: Meta });
+const Common = {
+  id: Text,
+  name: Text,
+  description: NullableText,
+  category: NullableText,
+  _meta: Meta,
+};
+/** 保留 ACP 原始标识、分组和扩展元数据；界面不能根据 category 猜测权限语义。 */
+export const AcpConfigOptionSchema = Type.Union([
+  Type.Object({
+    ...Common,
+    type: Type.Literal("select"),
+    currentValue: Text,
+    options: Type.Union([Type.Array(Choice), Type.Array(Group)]),
+  }),
+  Type.Object({ ...Common, type: Type.Literal("boolean"), currentValue: Type.Boolean() }),
+]);
+export const AcpConfigValuesSchema = Type.Record(
+  Type.String({ minLength: 1, maxLength: 256 }),
+  Type.Union([Text, Type.Boolean()]),
+);
+
+const Revision = Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER });
+export const AcpScheduledConfigSchema = Type.Object(
+  { engine: AgentEngineSchema, values: AcpConfigValuesSchema, revision: Revision },
+  { additionalProperties: false },
+);
+export const AcpScheduledConfigViewSchema = Type.Object(
+  {
+    projectId: Type.String({ minLength: 1, maxLength: 128 }),
+    canEdit: Type.Boolean(),
+    config: Type.Union([AcpScheduledConfigSchema, Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+export const SetAcpScheduledConfigSchema = Type.Object(
+  {
+    projectId: Type.String({ minLength: 1, maxLength: 128 }),
+    engine: AgentEngineSchema,
+    values: AcpConfigValuesSchema,
+    expectedRevision: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
+    confirmMigration: Type.Optional(Type.Boolean()),
+  },
+  { additionalProperties: false },
+);
+export type AcpScheduledConfigView = Static<typeof AcpScheduledConfigViewSchema>;
+export type SetAcpScheduledConfig = Static<typeof SetAcpScheduledConfigSchema>;
+export const AcpDefaultsRequestSchema = Type.Object(
+  { values: AcpConfigValuesSchema },
+  { additionalProperties: false },
+);
+export const AcpDefaultsSchema = Type.Object(
+  {
+    configOptions: Type.Array(AcpConfigOptionSchema),
+    defaults: AcpConfigValuesSchema,
+    unmappedLegacy: Type.Array(Type.String()),
+    invalidDefaults: Type.Array(Type.String()),
+  },
+  { additionalProperties: false },
+);
+/** 原生 Agent 公布的认证身份摘要；禁止携带 token、请求头或厂商私有元数据。 */
+export const AcpAuthStatusSchema = Type.Object(
+  {
+    kind: Type.Union(
+      (["account", "api_key", "gateway", "external", "none"] as const).map((kind) =>
+        Type.Literal(kind),
+      ),
+    ),
+    label: Type.String({ maxLength: 512 }),
+    detail: Type.Optional(Type.String({ maxLength: 512 })),
+    account: Type.Optional(
+      Type.Object(
+        {
+          email: Type.Optional(Type.String({ maxLength: 512 })),
+          organization: Type.Optional(Type.String({ maxLength: 512 })),
+          plan: Type.Optional(Type.String({ maxLength: 512 })),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+  },
+  { additionalProperties: false },
+);
+export type AcpAuthStatus = Static<typeof AcpAuthStatusSchema>;
+
+export const AcpAgentProfileSchema = Type.Object(
+  {
+    engine: AgentEngineSchema,
+    protocolVersion: Type.Integer(),
+    providerConfiguration: Type.Optional(Type.Literal(true)),
+    authStatus: Type.Optional(AcpAuthStatusSchema),
+    connection: Type.Optional(
+      Type.Object(
+        {
+          source: Type.Union([Type.Literal("native"), Type.Literal("application")]),
+          baseUrl: Type.Optional(Type.String({ maxLength: 16384 })),
+          apiType: Type.String(),
+          hasCredentials: Type.Boolean(),
+          providerId: Type.Optional(Type.String()),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    agentInfo: Type.Optional(Type.Object({ name: Text, version: Text, title: NullableText })),
+    authMethods: Type.Array(
+      Type.Object({
+        id: Text,
+        name: Text,
+        description: NullableText,
+        type: Type.Optional(Type.Literal("terminal")),
+      }),
+    ),
+  },
+  { additionalProperties: false },
+);
+export const AcpAuthCredentialsSchema = Type.Object(
+  {
+    apiKey: Type.Optional(
+      Type.String({ minLength: 1, maxLength: 16384, pattern: "^[^\\r\\n\\u0000]+$" }),
+    ),
+  },
+  { additionalProperties: false },
+);
+export type AcpAuthCredentials = Static<typeof AcpAuthCredentialsSchema>;
+const AcpAuthAttemptId = Type.String({
+  pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+});
+export const AcpAuthenticateRequestSchema = Type.Object(
+  {
+    methodId: Type.String({ minLength: 1, maxLength: 256 }),
+    credentials: Type.Optional(AcpAuthCredentialsSchema),
+    attemptId: Type.Optional(AcpAuthAttemptId),
+  },
+  { additionalProperties: false },
+);
+export const AcpAuthenticateResponseSchema = Type.Object({}, { additionalProperties: false });
+export const AcpAuthElicitationRequestSchema = Type.Union([
+  Type.Object({ attemptId: AcpAuthAttemptId }, { additionalProperties: false }),
+  Type.Object(
+    {
+      attemptId: AcpAuthAttemptId,
+      requestId: Type.String({ minLength: 1, maxLength: 64 }),
+      resolution: McpElicitationResolutionSchema,
+    },
+    { additionalProperties: false },
+  ),
+]);
+export const AcpAuthElicitationResponseSchema = Type.Array(McpElicitationPendingRequestSchema, {
+  maxItems: 128,
+});
+export type AcpAuthElicitationRequest = Static<typeof AcpAuthElicitationRequestSchema>;
+export type AcpAuthElicitationResponse = Static<typeof AcpAuthElicitationResponseSchema>;
+export type AcpConfigOption = Static<typeof AcpConfigOptionSchema>;
+export type AcpConfigValues = Static<typeof AcpConfigValuesSchema>;
+export type AcpDefaults = Static<typeof AcpDefaultsSchema>;
+export type AcpAgentProfile = Static<typeof AcpAgentProfileSchema>;
+export const AcpSessionConfigSchema = Type.Array(AcpConfigOptionSchema);
+export const AcpSessionConfigRequestSchema = Type.Object(
+  {
+    configId: Type.String({ minLength: 1, maxLength: 256 }),
+    value: Type.Union([Text, Type.Boolean()]),
+  },
+  { additionalProperties: false },
+);
+
+/** 草稿值独立于全局默认设置；本次改动单独提交以处理模型依赖变化。 */
+export const AcpConfigPreviewRequestSchema = Type.Object(
+  {
+    values: AcpConfigValuesSchema,
+    workspacePath: Type.Optional(ProjectRootPathSchema),
+    change: Type.Optional(AcpSessionConfigRequestSchema),
+  },
+  { additionalProperties: false },
+);
+export const AcpConfigPreviewSchema = Type.Object(
+  { configOptions: AcpSessionConfigSchema, values: AcpConfigValuesSchema },
+  { additionalProperties: false },
+);
+export type AcpConfigPreviewRequest = Static<typeof AcpConfigPreviewRequestSchema>;
+export type AcpConfigPreview = Static<typeof AcpConfigPreviewSchema>;
+export * from "./acp-agent-catalog.js";

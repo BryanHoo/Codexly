@@ -5,9 +5,17 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./acp-config-validation": {
+      "types": "./src/acp-config-validation.ts",
+      "default": "./src/acp-config-validation.ts"
+    },
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./task-queue-storage": {
+      "types": "./src/task-queue-storage.ts",
+      "default": "./src/task-queue-storage.ts"
     },
     "./event-common": {
       "types": "./src/event-common.ts",
@@ -24,6 +32,26 @@
     "./task-common": {
       "types": "./src/task-common.ts",
       "default": "./src/task-common.ts"
+    },
+    "./acp-scheduled-plan": {
+      "types": "./src/acp-scheduled-plan.ts",
+      "default": "./src/acp-scheduled-plan.ts"
+    },
+    "./acp-plan-api": {
+      "types": "./src/acp-plan-api.ts",
+      "default": "./src/acp-plan-api.ts"
+    },
+    "./application-preferences": {
+      "types": "./src/application-preferences.ts",
+      "default": "./src/application-preferences.ts"
+    },
+    "./application-generation": {
+      "types": "./src/application-generation.ts",
+      "default": "./src/application-generation.ts"
+    },
+    "./acp-capabilities": {
+      "types": "./src/acp-capabilities.ts",
+      "default": "./src/acp-capabilities.ts"
     }
   },
   "dependencies": {

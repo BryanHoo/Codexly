@@ -1,4 +1,6 @@
 import type { Route } from "@playwright/test";
+import type { AcpAgentProfile } from "@codexly/protocol";
+import { installedAcpCodex } from "./acp-defaults.js";
 import {
   customModels,
   mcpServers,
@@ -102,6 +104,32 @@ export async function handleAppShellCoreRoute(
         steer: true,
       },
     };
+  } else if (url.pathname === "/v1/acp/registry") {
+    // 设置页从 ACP 目录列出已安装 Agent，即使原生运行时尚未连接也能进入连接设置。
+    body = { agents: [installedAcpCodex] };
+  } else if (url.pathname === "/v1/acp/registry/progress") {
+    body = { operations: [] };
+  } else if (url.pathname === "/v1/acp/agents/codex") {
+    const connected = state.providerStatus.state === "connected";
+    const baseUrl = state.providerStatus.customBaseUrl;
+    body = {
+      engine: "codex",
+      protocolVersion: 1,
+      authMethods: [],
+      authStatus: connected
+        ? { kind: "api_key", label: "API Key" }
+        : { kind: "none", label: "Not signed in" },
+      ...(connected && baseUrl
+        ? {
+            connection: {
+              source: "native",
+              baseUrl,
+              apiType: "openai",
+              hasCredentials: state.providerStatus.account !== null,
+            },
+          }
+        : {}),
+    } satisfies AcpAgentProfile;
   } else if (url.pathname === "/v1/provider-connection") {
     body = state.providerStatus;
   } else if (url.pathname === "/v1/engines/claude") {

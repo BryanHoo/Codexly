@@ -4,7 +4,7 @@ import type { MessageFileReference } from "../../../shared/components/agent/mess
 import { Subagent as SharedSubagent } from "@codexly/ui/agent/subagent";
 import { withAgentLocale } from "../../../shared/components/agent/with-agent-locale.js";
 import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
-import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import { formatTurnProcessingDuration, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { useTurnProcessingTime } from "@codexly/ui/agent/use-turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
@@ -232,24 +232,6 @@ export function SubagentToolItem({
   );
 }
 
-export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
-  dateTime: string;
-  label: string;
-}> {
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-  return {
-    dateTime: `PT${hours > 0 ? `${String(hours)}H` : ""}${minutes > 0 ? `${String(minutes)}M` : ""}${String(seconds)}S`,
-    label:
-      hours > 0
-        ? `${String(hours)}h ${String(minutes)}m ${String(seconds)}s`
-        : minutes > 0
-          ? `${String(minutes)}m ${String(seconds)}s`
-          : `${String(seconds)}s`,
-  };
-}
-
 export function TurnProcessingTime({
   completedAt,
   expanded,
@@ -260,11 +242,13 @@ export function TurnProcessingTime({
   Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
   const { isRunning, totalSeconds } = useTurnProcessingTime({ status, startedAt, completedAt });
 
-  if (totalSeconds === null && onToggle === undefined) return null;
+  if (totalSeconds === null && !isRunning && onToggle === undefined) return null;
   const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
-  const content = duration === null ? i18n.t(expanded ? "timeline.collapseProcess" : "timeline.expandProcess", { ns: "conversation" }) : (
-    <><span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span><time dateTime={duration.dateTime}>{duration.label}</time></>
-  );
+  // 标题始终表达执行状态；展开/收起只保留为按钮的可访问名称。
+  const content = <>
+    <span>{i18n.t(status === "completed" ? "timeline.processingCompleted" : "timeline.processing", { ns: "conversation" })}&nbsp;</span>
+    {duration === null ? <span>{i18n.t("timeline.durationUnknown", { ns: "conversation" })}</span> : <time dateTime={duration.dateTime}>{duration.label}</time>}
+  </>;
   const className =
     "agent-process-header";
 

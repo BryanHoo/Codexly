@@ -50,7 +50,10 @@ test("用户消息快捷导航保持显示并跳转到对应消息 @cross-browse
   await expect(stickySwitch).toHaveAttribute("aria-checked", "false");
   await navigationSwitch.click();
   await stickySwitch.click();
-  await page.getByRole("button", { name: "返回应用", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "全局设置", exact: true })
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
   await expect(navigation).toBeVisible();
   await expect(page.locator("[data-conversation-sticky-prompt]")).toHaveCount(1);
   await page.reload();

@@ -15,12 +15,14 @@ export function rewriteTemporaryTaskUrl(url: string): string {
     suffix === "/files/download" ||
     suffix === "/files/image" ||
     suffix === "/files/source";
+  const acpPreviewRoute = /^\/acp\/(codex|claude)\/preview$/u.test(suffix);
   const hostOpenRoute = suffix === "/open" || suffix === "/open-capabilities";
   if (
     !taskRoute &&
     !attachmentRoute &&
     !streamedFileRoute &&
     !hostOpenRoute &&
+    !acpPreviewRoute &&
     suffix !== "/submissions" &&
     suffix !== "/events" &&
     suffix !== "/skills"

@@ -54,7 +54,7 @@ describe("SidebarTaskLabel", () => {
     );
     expect(markup.indexOf("<svg")).toBeLessThan(markup.indexOf('title="项目名称"'));
     expect(markup.indexOf('title="项目名称"')).toBeLessThan(markup.indexOf('title="任务标题"'));
-    expect(markup).toContain("max-w-[40%]");
+    expect(markup).toContain("max-w-[min(72px,30%)]");
   });
 
   it("uses Codex for legacy tasks but does not guess unknown activity identity", () => {

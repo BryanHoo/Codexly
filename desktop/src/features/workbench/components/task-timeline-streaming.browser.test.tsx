@@ -95,7 +95,10 @@ it("分屏保持挂载时，新消息首字仍触发快照同步且迟到快照�
     emit({ ...base, sequence: 2, itemId: "reply", type: "message.delta", payload: { delta: "我" } });
     await expect.element(screen.getByText("我", { exact: true })).toBeVisible();
     expect(client.readTask).toHaveBeenCalledExactlyOnceWith("project", "left-task", { summary: true });
-    const captured: AgentTaskSnapshotResponse = { checkpoint: { sessionId: "session", sequence: 2 }, snapshot: { ...leftStore.getState().reconstructSnapshot()!, pendingRequests: [] } };
+    const current = leftStore.getState().reconstructSnapshot()!;
+    const { runtime, settings, ...legacy } = current;
+    if (runtime !== undefined || settings === undefined) throw new Error("应为旧运行时快照");
+    const captured: AgentTaskSnapshotResponse = { checkpoint: { sessionId: "session", sequence: 2 }, snapshot: { ...legacy, settings, pendingRequests: [] } };
     emit({ ...base, sequence: 3, itemId: "reply", type: "message.delta", payload: { delta: full.slice(1) } });
     emit({ ...base, sequence: 4, itemId: "reply", type: "item.completed", payload: { item: { id: "reply", type: "message", role: "assistant", text: full } } });
     emit({ ...base, sequence: 5, itemId: "command", type: "item.started", payload: { item: { id: "command", type: "command", command: "pwd", cwd: "/tmp", status: "running", outputOmitted: { bytes: 0, lines: 0 } } } });

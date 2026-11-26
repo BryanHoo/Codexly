@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import { stat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
+import { promisify } from "node:util";
 
 import type { AgentEvent, EventStreamMessage } from "@codexly/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +16,7 @@ import {
   sendEventStreamMessage,
   type EventStreamSocket,
 } from "./event-socket-sender.js";
+import { createGitEnvironment } from "./git-command.js";
 import { readGitWorkingTreeStatus } from "./git-working-tree.js";
 
 const fixedTimestamp = "2026-08-02T00:00:00.000Z";
@@ -213,7 +216,12 @@ describe("server performance acceptance", () => {
     const executeGit = (_root: string, arguments_: readonly string[]) => {
       if (arguments_[0] === "status") {
         return Promise.resolve(
-          paths.map((path, index) => (index % 2 === 0 ? `M  ${path}\0` : ` M ${path}\0`)).join(""),
+          paths
+            .map((path, index) => {
+              const xy = index % 2 === 0 ? "M." : ".M";
+              return `1 ${xy} N... 100644 100644 100644 0000000 0000000 ${path}\0`;
+            })
+            .join(""),
         );
       }
       if (arguments_[0] === "diff") {
@@ -222,9 +230,6 @@ describe("server performance acceptance", () => {
         return Promise.resolve(
           createGitDiffOutput(staged ? stagedPaths : unstagedPaths, staged ? "staged" : "unstaged"),
         );
-      }
-      if (arguments_[0] === "branch") {
-        return Promise.resolve("main\n");
       }
       return Promise.resolve("");
     };
@@ -262,7 +267,7 @@ describe("server performance acceptance", () => {
     }
     const executeUntrackedGit = (_root: string, arguments_: readonly string[]) =>
       Promise.resolve(
-        arguments_[0] === "status" ? untrackedPaths.map((path) => `?? ${path}\0`).join("") : "",
+        arguments_[0] === "status" ? untrackedPaths.map((path) => `? ${path}\0`).join("") : "",
       );
 
     const untrackedStartedAt = performance.now();
@@ -318,3 +323,58 @@ describe("server performance acceptance", () => {
     expect(collectHeap() - heapBefore).toBeLessThanOrEqual(maxGrowthBytes);
   });
 });
+
+const gitBenchRoot = process.env["CODEXLY_GIT_BENCH_ROOT"];
+it.skipIf(gitBenchRoot === undefined)(
+  "records Git status refresh P95 and Git output for three repository fixtures",
+  async () => {
+    if (gitBenchRoot === undefined) return;
+    const runGit = promisify(execFile);
+    const env = createGitEnvironment();
+    const results = [];
+    const scenarios = [
+      ["index", ["index"]],
+      ["untracked", ["untracked"]],
+      ["alternate", ["index", "linked"]],
+    ] as const;
+    const sampleCount = 25;
+    for (const [scenario, roots] of scenarios) {
+      const paths = roots.map((root) => join(gitBenchRoot, root));
+      const durations: number[] = [];
+      let commands = 0;
+      let stdoutBytes = 0;
+      let warmingUp = true;
+      const executeGit = async (cwd: string, args: readonly string[]) => {
+        // 直接记录子进程输出，外层状态读取仍负责 Git 并发限流。
+        const { stdout } = await runGit("git", [...args], {
+          cwd,
+          env,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        if (!warmingUp) {
+          commands += 1;
+          stdoutBytes += Buffer.byteLength(stdout);
+        }
+        return stdout;
+      };
+      for (const path of paths) await readGitWorkingTreeStatus(path, executeGit);
+      warmingUp = false;
+      for (let sample = 0; sample < sampleCount; sample += 1) {
+        const path = paths[sample % paths.length] ?? "";
+        const start = performance.now();
+        const status = await readGitWorkingTreeStatus(path, executeGit);
+        durations.push(performance.now() - start);
+        expect(status.unstaged).toHaveLength(1_000);
+      }
+      const p95 = durations.sort((a, b) => a - b)[Math.ceil(sampleCount * 0.95) - 1];
+      results.push({
+        scenario,
+        p95,
+        commands: commands / sampleCount,
+        stdoutBytes: stdoutBytes / sampleCount,
+      });
+    }
+    await writeFile(join(gitBenchRoot, "web-results.json"), JSON.stringify(results, null, 2));
+  },
+  120_000,
+);

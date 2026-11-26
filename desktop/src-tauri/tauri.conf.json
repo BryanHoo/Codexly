@@ -57,7 +57,7 @@
       "resources/runtime/": "runtime/"
     },
     "externalBin": [
-      "binaries/claude-host"
+      "binaries/acp-host"
     ]
   },
   "plugins": {

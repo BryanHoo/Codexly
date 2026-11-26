@@ -1,3 +1,4 @@
+import { agentEngineName } from "@codexly/protocol";
 /*!
  * 图标来源：https://github.com/lobehub/lobe-icons/tree/master/packages/static-svg/icons
  * 使用 codex.svg 与 claude.svg，路径经 SVGO 精简到适合 14px 图标的精度。
@@ -36,7 +37,17 @@ export function AgentEngineIcon({ engine }: Readonly<{ engine: AgentEngine | und
   // 活动事件可能先于任务快照到达；预留同宽空间，避免误标品牌或补齐时标题跳动。
   if (engine === undefined) return <span aria-hidden="true" className="size-3.5 shrink-0" />;
 
-  const label = engine === "claude" ? "Claude" : "Codex";
+  if (engine.startsWith("acp-"))
+    return (
+      <span
+        role="img"
+        aria-label={agentEngineName(engine)}
+        className="size-3.5 shrink-0 text-center text-xs"
+      >
+        ◇
+      </span>
+    );
+  const label = agentEngineName(engine);
   return (
     <svg
       aria-label={label}

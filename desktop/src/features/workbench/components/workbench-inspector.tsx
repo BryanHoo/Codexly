@@ -1,3 +1,5 @@
+import { AcpBackgroundSection } from "@codexly/ui/core/acp-activity";
+import type { AcpBackgroundTarget } from "@codexly/protocol";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
@@ -69,8 +71,10 @@ const LazyInspectorSources = lazy(async () => {
   return { default: module.InspectorSources };
 });
 type WorkbenchInspectorProps = Readonly<{
+  onCancelAcpBackground?: (target: AcpBackgroundTarget) => Promise<unknown>;
   backgroundTerminals?: readonly AgentBackgroundTerminal[];
   contextOnly?: boolean;
+  legacyContext?: boolean;
   expandedFileTreePaths?: Set<string>;
   documents?: readonly InspectorDocument[];
   loadProjectFileDiff?: (change: AgentFileChange) => Promise<AgentFileChange>;
@@ -129,8 +133,10 @@ type WorkbenchInspectorProps = Readonly<{
 export type { WorkbenchInspectorTab } from "./workbench-inspector-tabs.js";
 
 export function WorkbenchInspector({
+  onCancelAcpBackground,
   backgroundTerminals = [],
   contextOnly = false,
+  legacyContext = true,
   expandedFileTreePaths = emptyExpandedFileTreePaths,
   documents = [],
   loadProjectFileDiff,
@@ -214,7 +220,12 @@ export function WorkbenchInspector({
       className="h-full space-y-5 overflow-y-auto p-2.5"
       key={`${projectId ?? projectName}:${taskId ?? "draft"}:context`}
     >
-      {activeTab === "context" && projectId !== undefined && taskId !== undefined ? <ThreadMemorySection
+      {!legacyContext && taskStore && projectId && taskId ? (
+        <AcpBackgroundSection key={`${projectId}:${taskId}`}
+          source={taskStore} projectId={projectId} taskId={taskId} language={i18n.language}
+          {...(onCancelAcpBackground ? { onCancel: onCancelAcpBackground } : {})} />
+      ) : null}
+      {legacyContext && activeTab === "context" && projectId !== undefined && taskId !== undefined ? <ThreadMemorySection
         client={gitClient ?? nativeClient} projectId={projectId} taskId={taskId}
         revision={`${task?.turns.at(-1)?.id ?? ""}:${task?.turns.at(-1)?.status ?? ""}`}
         labels={threadMemoryLabels[i18n.language.startsWith("zh") ? "zh" : "en"]}
@@ -227,7 +238,7 @@ export function WorkbenchInspector({
           <LazyWarningNoticesSection store={taskStore} />
         </Suspense>
       )}
-      {backgroundTerminals.length > 0 ? (
+      {legacyContext && backgroundTerminals.length > 0 ? (
         <BackgroundTerminalSection
           onTerminate={onTerminateBackgroundTerminal}
           terminals={backgroundTerminals}
@@ -237,7 +248,7 @@ export function WorkbenchInspector({
       {subagents.length > 0 ? (
         <SubagentSection onOpenSubagent={onOpenSubagent} subagents={subagents} />
       ) : null}
-      <McpServerSection
+      {legacyContext ? <McpServerSection
         canRetry={mcpServersRetryAvailable}
         isRefreshing={mcpServersRefreshing}
         isRetrying={mcpServersRetrying}
@@ -245,7 +256,7 @@ export function WorkbenchInspector({
         servers={mcpServers}
         statusSource={mcpStatusSource}
         observedAt={mcpObservedAt}
-      />
+      /> : null}
       <Suspense fallback={null}>
         <LazyInspectorSources
           onOpenAttachment={onOpenTaskAttachment}

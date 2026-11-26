@@ -1,3 +1,12 @@
+import { SettingsActions } from "@codexly/ui/core/settings-group";
+import { openExternalUrl } from "../../../platform/tauri/external-url.js";
+import { AcpGlobalInstructionsSettings } from "@codexly/ui/core/personalization-instructions-editor";
+import type { AgentEngine } from "@codexly/protocol";
+import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
+import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
+import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
+import { v4 as createUuid } from "uuid";
+import { AcpGenerationSettings } from "@codexly/ui/core/acp-generation-settings";
 import { NetworkProxySettingsField } from "./settings-section-loaders.js";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
@@ -5,7 +14,10 @@ import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-s
 import { nativeClient } from "../../projects/project-queries.js";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
 import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
-import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
+import {
+  resolveSettingsSection,
+  settingsSectionEngine,
+} from "@codexly/frontend-core/settings-navigation";
 import type {
   AgentGlobalSettings,
   AgentModel,
@@ -14,27 +26,33 @@ import type {
   ExportDiagnosticsResponse,
   ProjectOpenApp,
 } from "@/protocol/index.js";
-import { Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { getNotificationPreference } from "../notification-preference.js";
 import type { ThemePreference } from "../theme-preference.js";
 import type { SettingsSectionId } from "./global-settings-fields.js";
-import {
-  createFallbackSettings,
-  readInitialTheme,
-} from "./global-settings-model.js";
+import { readInitialTheme } from "./global-settings-model.js";
 import {
   createGlobalSettingsSaveQueue,
   SETTINGS_INPUT_DEBOUNCE_MS,
 } from "./global-settings-save.js";
-import { SavedPromptsSettings, ClaudeSettingsPanel, GlobalSettingsAbout, ProviderConnectionPanel, GlobalSettingsPets, AgentSettingsPanel, GeneralSettingsPanel, PersonalizationSettingsPanel, CommitSettingsPanel } from "./settings-section-loaders.js";
+import {
+  SavedPromptsSettings,
+  GlobalSettingsAbout,
+  GlobalSettingsPets,
+  GeneralSettingsPanel,
+  CommitSettingsPanel,
+} from "./settings-section-loaders.js";
 import { applyBrowserSettingsChanges } from "./browser-settings-apply.js";
 import { SettingsPageFrame } from "./settings-page-frame.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
 
-type GlobalSettingsPageProps = Readonly<{
+type GlobalSettingsPageProps<
+  T extends AgentGlobalSettings | ApplicationPreferences = AgentGlobalSettings,
+> = Readonly<{
+  agentRuntime?: "pending" | "legacy" | "acp";
   appInfo?: AppInfoResponse;
   appInfoError?: Error | null;
   apps: readonly ProjectOpenApp[];
@@ -48,22 +66,28 @@ type GlobalSettingsPageProps = Readonly<{
   onRetry: () => unknown;
   onRetryAppInfo?: () => unknown;
   onExportDiagnostics?: () => Promise<ExportDiagnosticsResponse>;
-  onSave: (settings: AgentGlobalSettings) => Promise<void>;
+  onSave: (settings: T, baseline?: T, idempotencyKey?: string) => Promise<void>;
   onUpdate?: (
     version: string,
     onProgress: (progress: AppUpdateInstallProgress) => void,
   ) => Promise<void>;
-  settings?: AgentGlobalSettings;
+  settings?: T;
 }>;
 
+const AcpSettingsPanel = lazy(() =>
+  import("@codexly/ui/core/acp-settings-panel").then((module) => ({
+    default: module.AcpSettingsPanel,
+  })),
+);
 
-
-export function GlobalSettingsPage({
+export function GlobalSettingsPage<
+  T extends AgentGlobalSettings | ApplicationPreferences = AgentGlobalSettings,
+>({
+  agentRuntime = "legacy",
   appInfo,
   appInfoError = null,
   apps,
   error,
-  fastModeAvailable = false,
   initialSection = "appearance",
   isAppInfoPending = false,
   isPending,
@@ -75,15 +99,18 @@ export function GlobalSettingsPage({
   onSave,
   onUpdate = () => Promise.resolve(),
   settings,
-}: GlobalSettingsPageProps) {
+}: GlobalSettingsPageProps<T>) {
   const { t } = useTranslation("settings");
   const projectData = useContext(ProjectDataContext);
-  const getGenerationModels = useCallback(async (engine: "codex" | "claude") =>
-    engine === "codex" ? models : (await nativeClient.getEngineProfile(engine)).models.data, [models]);
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
-  const [draft, setDraft] = useState<AgentGlobalSettings>(
-    () => settings ?? createFallbackSettings(models),
+  const getGenerationModels = useCallback(
+    async (engine: AgentEngine) =>
+      engine === "codex" ? models : (await nativeClient.getEngineProfile(engine)).models.data,
+    [models],
   );
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>(
+    () => resolveSettingsSection(initialSection) as SettingsSectionId,
+  );
+  const [draft, setDraft] = useState<T | undefined>(() => settings);
   const [theme, setTheme] = useState<ThemePreference>(readInitialTheme);
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
@@ -103,14 +130,27 @@ export function GlobalSettingsPage({
   };
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const [persistence] = useState(() =>
+    createSettingsDraftPersistence<T>(
+      (next, baseline, key) =>
+        agentRuntime === "acp" ? onSaveRef.current(next, baseline, key) : onSaveRef.current(next),
+      createUuid,
+    ),
+  );
   const draftRef = useRef(draft);
   const hasLocalChangesRef = useRef(false);
-  const saveQueueRef = useRef<ReturnType<typeof createGlobalSettingsSaveQueue> | null>(null);
+  const saveQueueRef = useRef<ReturnType<typeof createGlobalSettingsSaveQueue<T>> | null>(null);
   if (saveQueueRef.current === null) {
-    saveQueueRef.current = createGlobalSettingsSaveQueue((next) => onSaveRef.current(next), (status) => {
-      if (mounted.current) setSaveStatus(status);
-    });
-    if (settings !== undefined) saveQueueRef.current.reset(settings);
+    saveQueueRef.current = createGlobalSettingsSaveQueue<T>(
+      (next) => persistence.save(next),
+      (status) => {
+        if (mounted.current) setSaveStatus(status);
+      },
+    );
+    if (settings !== undefined) {
+      saveQueueRef.current.reset(settings);
+      persistence.reset(settings);
+    }
   }
   const saveQueue = saveQueueRef.current;
   useEffect(() => {
@@ -118,13 +158,12 @@ export function GlobalSettingsPage({
       draftRef.current = settings;
       setDraft(settings);
       saveQueue.reset(settings);
+      persistence.reset(settings);
     }
-  }, [saveQueue, settings]);
+  }, [saveQueue, settings, persistence]);
 
-  const updateDraft = (
-    update: (current: AgentGlobalSettings) => AgentGlobalSettings,
-    debounce = false,
-  ) => {
+  const updateDraft = (update: (current: T) => T, debounce = false) => {
+    if (draftRef.current === undefined) return;
     const next = update(draftRef.current);
     draftRef.current = next;
     hasLocalChangesRef.current = true;
@@ -158,96 +197,192 @@ export function GlobalSettingsPage({
 
   return (
     <SettingsPageFrame
+      agentRuntime={agentRuntime}
       activeSection={activeSection}
       onBack={close}
       onSectionChange={setActiveSection}
     >
-      {activeSection === "appearance" || activeSection === "pets" || activeSection === "agent" || activeSection === "git" ? <SettingsSaveStatus status={saveStatus} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => saveQueue.save(draftRef.current)} /> : null}
-      {activeSection === "appearance" ? <SettingsSaveStatus status={browserSave.status} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { void browserSave.queue.retry(); }} /> : null}
-      <Suspense fallback={<LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />}>
-      {activeSection === "about" ? <GlobalSettingsAbout
-        activeSection={activeSection}
-        {...(appInfo === undefined ? {} : { appInfo })}
-        error={appInfoError}
-        isPending={isAppInfoPending}
-        onRetry={onRetryAppInfo}
-        onExportDiagnostics={onExportDiagnostics}
-        onUpdate={onUpdate}
-      /> : null}
-
-      {activeSection === "network" ? <NetworkProxySettingsField /> : activeSection === "prompts" ? <SavedPromptsSettings language={language} projects={projectData?.projects} projectsUnavailable={!projectData || projectData.isPending || !!projectData.error} /> : isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
-        <section id="settings-panel-provider">
-          <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
-          <ProviderConnectionPanel autoSave />
-        </section>
-      ) : activeSection === "personalization" ? (
-        <PersonalizationSettingsPanel />
-      ) : activeSection === "git" ? (
-        <section id="settings-panel-git" className="space-y-6">
-          <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
-          {
-          error !== null ? <div role="alert" className="text-body-small text-danger">
-            <p>{t("errors.load")}</p>
-            <Button variant="ghost" onClick={() => void onRetry()}>{t("common:actions.retry")}</Button>
-          </div> : isPending || settings === undefined ? <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} /> : (
-            <>
-<DefaultGenerationSettings settings={draft} language={language} getModels={getGenerationModels} onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))} />
-<CommitSettingsPanel settings={draft} onChange={updateDraft} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
-</>
-          )}
-        </section>
-      ) : activeSection === "about" ? null : error !== null ? (
-        <div
-          className="flex min-h-40 flex-col items-center justify-center gap-3"
-          role="alert"
-        >
-          <p className="text-body-small text-danger">{t("errors.load")}</p>
-          <Button
-            variant="ghost"
-            className="h-8 rounded-control bg-control px-3 text-body-small font-medium hover:bg-control-hover"
-            onClick={() => void onRetry()}
-            type="button"
-          >
-            {t("common:actions.retry")}
-          </Button>
-        </div>
-      ) : isPending || settings === undefined ? (
-        <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />
-      ) : (
-        <>
-          {activeSection === "appearance" ? <GeneralSettingsPanel
-
+      {activeSection === "appearance" ||
+      activeSection === "pets" ||
+      activeSection === "agent" ||
+      activeSection === "git" ? (
+        <SettingsSaveStatus
+          status={saveStatus}
+          labels={{
+            saving: t("actions.saving"),
+            saved: t("actions.saved"),
+            saveError: t("errors.save"),
+            retry: t("common:actions.retry"),
+          }}
+          onRetry={() => {
+            if (draftRef.current !== undefined) saveQueue.save(draftRef.current);
+          }}
+        />
+      ) : null}
+      {activeSection === "appearance" ? (
+        <SettingsSaveStatus
+          status={browserSave.status}
+          labels={{
+            saving: t("actions.saving"),
+            saved: t("actions.saved"),
+            saveError: t("errors.save"),
+            retry: t("common:actions.retry"),
+          }}
+          onRetry={() => {
+            void browserSave.queue.retry();
+          }}
+        />
+      ) : null}
+      <Suspense
+        fallback={<LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />}
+      >
+        {activeSection === "about" ? (
+          <GlobalSettingsAbout
             activeSection={activeSection}
-            apps={apps}
-            settings={draft}
-            onFollowUpChange={(followUpBehavior) => updateDraft((current) => ({ ...current, followUpBehavior }))}
-            language={language}
-            notificationsEnabled={notificationsEnabled}
-            onDefaultOpenAppChange={(defaultOpenAppId) => {
-              updateDraft((current) => ({ ...current, defaultOpenAppId }));
-            }}
-            onLanguageChange={(language) => updateBrowser({ language })}
-            onNotificationsChange={(notificationsEnabled) => updateBrowser({ notificationsEnabled })}
-            onThemeChange={(theme) => updateBrowser({ theme })}
-            theme={theme}
-          /> : null}
+            {...(appInfo === undefined ? {} : { appInfo })}
+            error={appInfoError}
+            isPending={isAppInfoPending}
+            onRetry={onRetryAppInfo}
+            onExportDiagnostics={onExportDiagnostics}
+            onUpdate={onUpdate}
+          />
+        ) : null}
 
-          {activeSection === "pets" ? (
-            <GlobalSettingsPets
-              onChange={(pet) => {
-                updateDraft((current) => ({ ...current, pet }));
-              }}
-              settings={draft.pet}
+        {activeSection === "acp" ? (
+          agentRuntime === "pending" ? (
+            <LoadingSkeleton variant="settings" label={t("loading")} className="p-0" />
+          ) : (
+            <AcpSettingsPanel
+              client={nativeClient}
+              openExternalUrl={openExternalUrl}
+              language={language === "zh-CN" ? "zh-CN" : "en"}
+              initialEngine={settingsSectionEngine(initialSection) ?? "codex"}
+              Field={SettingsField}
+              Select={SettingsSelect}
             />
-          ) : null}
+          )
+        ) : activeSection === "global-instructions" && agentRuntime === "acp" ? (
+          <AcpGlobalInstructionsSettings
+            language={language === "zh-CN" ? "zh-CN" : "en"}
+            label={t("sections.global-instructions")}
+            content={
+              settings === undefined
+                ? undefined
+                : (("globalInstructions" in settings ? settings.globalInstructions : undefined) ?? "")
+            }
+            failed={error !== null}
+            onRetry={() => {
+              void onRetry();
+            }}
+            client={nativeClient}
+          />
+        ) : activeSection === "network" ? (
+          <NetworkProxySettingsField />
+        ) : activeSection === "prompts" ? (
+          <SavedPromptsSettings
+            language={language}
+            projects={projectData?.projects}
+            projectsUnavailable={!projectData || projectData.isPending || !!projectData.error}
+          />
+        ) : activeSection === "git" ? (
+          <section id="settings-panel-git" className="space-y-6">
+            <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
+            {error !== null ? (
+              <div role="alert" className="text-body-small text-danger">
+                <p>{t("errors.load")}</p>
+                <SettingsActions>
+                  <Button variant="ghost" onClick={() => void onRetry()}>
+                    {t("common:actions.retry")}
+                  </Button>
+                </SettingsActions>
+              </div>
+            ) : isPending || settings === undefined || draft === undefined ? (
+              <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />
+            ) : (
+              <>
+                {agentRuntime === "acp" ? (
+                  <AcpGenerationSettings
+                    client={nativeClient}
+                    settings={draft}
+                    language={language}
+                    onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))}
+                  />
+                ) : typeof draft.defaultModel === "string" ? (
+                  <DefaultGenerationSettings
+                    settings={{
+                      defaultModel: draft.defaultModel,
+                      ...(draft.defaultAgent === undefined
+                        ? {}
+                        : { defaultAgent: draft.defaultAgent }),
+                    }}
+                    language={language}
+                    getModels={getGenerationModels}
+                    onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))}
+                  />
+                ) : null}
+                <CommitSettingsPanel
+                  settings={draft}
+                  onChange={(change, debounce) =>
+                    updateDraft((current) => ({ ...current, ...change(current) }), debounce)
+                  }
+                  onFlush={() => {
+                    // 失焦只提前提交正在防抖的草稿，失败后由重试按钮复用原请求。
+                    void saveQueue.flush();
+                  }}
+                />
+              </>
+            )}
+          </section>
+        ) : activeSection === "about" ? null : error !== null ? (
+          <div className="flex min-h-40 flex-col justify-center gap-3" role="alert">
+            <p className="text-body-small text-danger">{t("errors.load")}</p>
+            <SettingsActions>
+              <Button
+                variant="ghost"
+                className="h-8 rounded-control bg-control px-3 text-body-small font-medium hover:bg-control-hover"
+                onClick={() => void onRetry()}
+                type="button"
+              >
+                {t("common:actions.retry")}
+              </Button>
+            </SettingsActions>
+          </div>
+        ) : isPending || settings === undefined || draft === undefined ? (
+          <LoadingSkeleton variant="settings" className="p-0" label={t("loading")} />
+        ) : (
+          <>
+            {activeSection === "appearance" ? (
+              <GeneralSettingsPanel
+                activeSection={activeSection}
+                apps={apps}
+                settings={draft}
+                onFollowUpChange={(followUpBehavior) =>
+                  updateDraft((current) => ({ ...current, followUpBehavior }))
+                }
+                language={language}
+                notificationsEnabled={notificationsEnabled}
+                onDefaultOpenAppChange={(defaultOpenAppId) => {
+                  updateDraft((current) => ({ ...current, defaultOpenAppId }));
+                }}
+                onLanguageChange={(language) => updateBrowser({ language })}
+                onNotificationsChange={(notificationsEnabled) =>
+                  updateBrowser({ notificationsEnabled })
+                }
+                onThemeChange={(theme) => updateBrowser({ theme })}
+                theme={theme}
+              />
+            ) : null}
 
-          {activeSection === "agent" ? (
-            <AgentSettingsPanel settings={draft} models={models} fastModeAvailable={fastModeAvailable} onChange={(next) => updateDraft(() => next)} />
-          ) : null}
-
-
-        </>
-      )}
+            {activeSection === "pets" ? (
+              <GlobalSettingsPets
+                onChange={(pet) => {
+                  updateDraft((current) => ({ ...current, pet }));
+                }}
+                settings={draft.pet}
+              />
+            ) : null}
+          </>
+        )}
       </Suspense>
     </SettingsPageFrame>
   );

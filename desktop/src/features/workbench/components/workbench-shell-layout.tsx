@@ -1,3 +1,4 @@
+import { AcpComposerSettingsContext } from "@codexly/ui/core/acp-composer-settings";
 import { ComposerPromptProjectsContext } from "@codexly/ui/core/composer-submit-actions";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
@@ -134,7 +135,7 @@ export function WorkbenchShellLayout({
   const inspectorVisible = resolveInspectorVisibility(utilityView, inspectorOpen);
   const taskWriteBlocked =
     workspaceContent === undefined && taskId !== undefined && runtime.writeAccess !== undefined && runtime.writeAccess !== "writable";
-  return (
+  const content = (
     <ComposerPromptProjectsContext value={projects}>
     <TaskInteractionContext value={taskWriteBlocked ? JSON.stringify([projectId, taskId]) : null}>
       <div
@@ -236,9 +237,9 @@ export function WorkbenchShellLayout({
             </Suspense>
           ) : error !== null ||
             (projectTaskState?.error ?? null) !== null ||
-            modelsQuery.error !== null ||
+            (capabilities?.runtime !== "acp" && (modelsQuery.error !== null ||
+              (!temporary && projectDefaultsQuery.error !== null))) ||
             skillsQuery.error !== null ||
-            (!temporary && projectDefaultsQuery.error !== null) ||
             (taskId === undefined && globalSettingsQuery.error !== null) ? (
             <RuntimeUnavailable onRetry={() => void retry()} />
           ) : board ? (
@@ -370,7 +371,7 @@ export function WorkbenchShellLayout({
             width={inspectorWidth}
           />
         ) : null}
-        {workspaceContent === undefined && inspectorVisible ? (
+        {workspaceContent === undefined && !utilityView ? (
           <WorkbenchShellInspector context={context} composerRef={composerRef}
             projectId={projectId} temporary={temporary}
             {...(taskId === undefined ? {} : { taskId })} />
@@ -384,4 +385,5 @@ export function WorkbenchShellLayout({
     </TaskInteractionContext>
     </ComposerPromptProjectsContext>
   );
+  return <AcpComposerSettingsContext value={() => { setGlobalSettingsSection("acp"); }}>{content}</AcpComposerSettingsContext>;
 }

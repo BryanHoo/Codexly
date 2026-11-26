@@ -8,12 +8,9 @@ export const PROJECT_RUNTIME_IDLE_TIMEOUT_MS = 2 * 60_000;
 export const MAX_PROJECT_EVENT_HISTORY_BYTES = 4 * 1_048_576;
 export const MAX_PROJECT_EVENT_HISTORY_EVENTS = 2_048;
 export const MAX_TASK_TITLES = 2_048;
-export const SNAPSHOT_RECOVERY_RETRY_INITIAL_MS = 1_000;
-export const SNAPSHOT_RECOVERY_RETRY_MAX_MS = 30_000;
 
 export type ActivityListener = () => void;
 export type RecoverTaskSnapshot = () => Promise<AgentTaskSnapshotResponse | undefined>;
-export type TaskRecoveryState = "disposed" | "ready" | "recovering" | "waiting_to_retry";
 
 export type ProjectEventRuntimeOptions = Required<
   Pick<

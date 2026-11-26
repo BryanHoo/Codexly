@@ -83,6 +83,7 @@ test("previews generated chat PDFs, attachments and file-tree PDFs", async ({ pa
   await page.route("**/v1/projects/codexly/files/pdf?*", servePdf);
   await page.route("**/v1/projects/codexly/tasks/task-1/attachments/generated-pdf", servePdf);
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   expect(await page.evaluate(() => navigator.pdfViewerEnabled)).toBe(true);
   expect(pdfRequests).toBe(0);
   await page.getByRole("button", { name: "附件.pdf", exact: true }).click();

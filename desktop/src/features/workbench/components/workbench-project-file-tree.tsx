@@ -1,3 +1,4 @@
+import { focusMountedVirtualTreeRow } from "@codexly/frontend-core/virtual-tree-focus";
 import { ProjectFileTreeRow } from "./project-file-tree-row.js";
 import type { ProjectFileTree } from "@codexly/protocol";
 import {
@@ -62,6 +63,7 @@ export function WorkbenchProjectFileTree({
   useTranslation("conversation");
   const queryClient = useQueryClient();
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<string | null>(null);
   const scrollToItemRef = useRef<(itemId: string) => void>(() => undefined);
   const [rootExpanded, setRootExpanded] = useState(true);
   const [selectedItems, setSelectedItemsState] = useState<string[]>([]);
@@ -149,7 +151,11 @@ export function WorkbenchProjectFileTree({
   });
   scrollToItemRef.current = (itemId) => {
     const index = itemIndexById.get(itemId);
-    if (index !== undefined) virtualizer.scrollToIndex(index, { align: "auto" });
+    if (index !== undefined) {
+      // 已挂载的行交给树库；离屏目标在挂载回调内聚焦，不等待库内轮询超时后回到首行。
+      pendingFocus.current = tree.getItemInstance(itemId).getElement() ? null : itemId;
+      virtualizer.scrollToIndex(index, { align: "auto" });
+    }
   };
   const refreshDirectory = useCallback(
     async (directoryPath: string | null, optimistic = false, serverTree?: ProjectFileTree) => {
@@ -204,6 +210,7 @@ export function WorkbenchProjectFileTree({
             <div
               className="absolute left-0 top-0 w-full"
               data-index={virtualItem.index}
+              ref={(row) => { focusMountedVirtualTreeRow(row, item.getId(), pendingFocus); }}
               key={virtualItem.key}
               style={{
                 height: PROJECT_FILE_TREE_ROW_HEIGHT_PX,

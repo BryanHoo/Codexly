@@ -208,7 +208,7 @@ impl StreamState {
                 let reset = QueuedEvent {
                     json: serde_json::json!({"type":"resyncRequired","data":{
                         "latestSequence":0,"projectId":"*","reason":"event_retention_exceeded",
-                        "sessionId":crate::infrastructure::codex::runtime_session_id(),
+                        "sessionId":crate::application::state::runtime_session_id(),
                         "type":"resync.required","version":3
                     }})
                     .to_string(),

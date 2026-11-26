@@ -125,18 +125,6 @@ pub async fn validate_attachment(
     Ok(path)
 }
 
-pub async fn validate_generated_attachment(
-    app_data: &Path,
-    attachment_id: &str,
-) -> Result<PathBuf, WorkspaceError> {
-    let directory = tokio::fs::canonicalize(app_data.join("attachments/generated")).await?;
-    let path = tokio::fs::canonicalize(attachment_id).await?;
-    if !path.starts_with(directory) || !tokio::fs::metadata(&path).await?.is_file() {
-        return Err(WorkspaceError::InvalidPath);
-    }
-    Ok(path)
-}
-
 fn attachment_directory(app_data: &Path, project_id: &str) -> PathBuf {
     app_data.join("attachments").join(project_id)
 }

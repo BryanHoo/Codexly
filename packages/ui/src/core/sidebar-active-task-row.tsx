@@ -1,4 +1,4 @@
-import { CircleCheck, Clock3 } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import type { MouseEventHandler, ReactNode } from "react";
 import type { SidebarActiveTask } from "@codexly/frontend-core/sidebar-task-shortcuts";
 import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
@@ -15,7 +15,7 @@ export function SidebarActiveTaskRow({
   task: SidebarActiveTask;
   active: boolean;
   projectName: string;
-  labels: Readonly<{ approval: string; input?: string; running: string; completed: string }>;
+  labels: Readonly<{ approval: string; input?: string; running: string }>;
   renderLink: (props: {
     taskActive: boolean;
     className: string;
@@ -51,12 +51,10 @@ export function SidebarActiveTaskRow({
           aria-label={
             task.status === "input" ? (labels.input ?? labels.approval) : labels[task.status]
           }
-          className={`sidebar-shortcut-status ml-auto inline-grid size-3.5 shrink-0 place-items-center ${task.status === "approval" || task.status === "input" ? "text-task-waiting" : task.status === "completed" ? "text-task-completed" : "text-task-running"}`}
+          className={`sidebar-shortcut-status ml-auto inline-grid size-3.5 shrink-0 place-items-center ${task.status === "approval" || task.status === "input" ? "text-task-waiting" : "text-task-running"}`}
         >
           {task.status === "approval" || task.status === "input" ? (
             <Clock3 aria-hidden="true" className="size-3.5 stroke-[2.25]" />
-          ) : task.status === "completed" ? (
-            <CircleCheck aria-hidden="true" className="size-3.5 stroke-[2.25]" />
           ) : (
             <span
               aria-hidden="true"

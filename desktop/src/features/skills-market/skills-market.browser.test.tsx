@@ -32,6 +32,7 @@ vi.mock("@codexly/ui/core/notifications", () => ({
 vi.mock("../projects/project-context.js", () => ({
   useProjectData: () => ({
     client: mocks,
+    capabilities: {},
     projects: [
       { createdAt: "2026-01-01T00:00:00Z", id: "project-a", name: "Project A", roots: [{ id: "root-a", path: "/work" }] },
       { createdAt: "2026-01-01T00:00:00Z", id: "project-b", name: "Project B", roots: [{ id: "root-b", path: "/other" }] },
@@ -258,9 +259,11 @@ describe("SkillsMarketContainer", () => {
       expect(installButton.element().querySelector('[data-icon="loading"]')).not.toBeNull();
     });
     finishInstall?.();
-    await expect.element(
-      screen.getByText("配置已保存。请新建会话以完整加载扩展变更。"),
-    ).toBeVisible();
+    await expect.poll(() => mocks.toastSuccess.mock.calls).toEqual([
+      ["配置已保存。请新建会话以完整加载扩展变更。"],
+    ]);
+    await expect.element(screen.getByText("配置已保存。请新建会话以完整加载扩展变更。"))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "卸载插件" })).toBeVisible();
   });
 });

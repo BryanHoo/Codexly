@@ -6,7 +6,12 @@ import { getSerializedAgentEventByteLength } from "./event-socket-sender.js";
 import { MetricDistribution } from "./metric-distribution.js";
 
 type AgentEventListener = (event: AgentEvent) => void;
-type AppendEventType = "command.output_delta" | "message.delta" | "plan.delta" | "reasoning.delta";
+type AppendEventType =
+  | "compaction.summary_delta"
+  | "command.output_delta"
+  | "message.delta"
+  | "plan.delta"
+  | "reasoning.delta";
 type ReplaceEventType = "file_change.updated" | "tool.progress";
 type CoalescedEventType = AppendEventType | ReplaceEventType;
 type CoalescedProviderEvent = Extract<AgentProviderEvent, Readonly<{ type: CoalescedEventType }>>;
@@ -53,6 +58,7 @@ const DEFAULT_PRESSURE_COALESCING_WINDOW_MS = 32;
 
 function isCoalescedEvent(event: AgentProviderEvent): event is CoalescedProviderEvent {
   return (
+    event.type === "compaction.summary_delta" ||
     event.type === "command.output_delta" ||
     event.type === "file_change.updated" ||
     event.type === "message.delta" ||
@@ -75,6 +81,7 @@ function mergeCoalescedEvent(
   right: CoalescedProviderEvent,
 ): CoalescedProviderEvent {
   if (
+    (left.type === "compaction.summary_delta" && right.type === "compaction.summary_delta") ||
     (left.type === "command.output_delta" && right.type === "command.output_delta") ||
     (left.type === "message.delta" && right.type === "message.delta") ||
     (left.type === "plan.delta" && right.type === "plan.delta") ||

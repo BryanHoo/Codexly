@@ -1,5 +1,8 @@
 export const settings = {
   sectionKeywords: {
+    "global-instructions":
+      "application instructions custom prompt personalization AGENTS.md CLAUDE.md",
+    acp: "ACP Agent Codex Claude authentication provider model reasoning mode permissions defaults",
     network: "proxy gateway authentication HTTP HTTPS SOCKS5",
     prompts: "saved prompts titles slash hash commands local storage create edit delete",
     git: "AI generation default agent model Git commit message task title prompt rules",
@@ -23,6 +26,7 @@ export const settings = {
     empty: "No matching settings",
   },
   groups: {
+    agents: "Agents",
     personal: "Shared",
     codex: "Codex",
     claude: "Claude",
@@ -143,6 +147,7 @@ export const settings = {
     taskTitlePrompt: "Task title prompt",
     commitModel: "Commit model",
     defaultOpenWith: "Default open with",
+    productName: "Product name",
     fastMode: "Fast mode",
     followUpMessages: "Follow-up messages",
     model: "Model",
@@ -214,6 +219,8 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
+    acp: "ACP",
+    "global-instructions": "Global instructions",
     network: "Network",
     prompts: "Saved prompts",
     git: "AI generation",

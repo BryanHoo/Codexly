@@ -41,8 +41,7 @@ use std::{
 use serde_json::{Value, json};
 
 use super::{
-    CodexLogParseError, DiagnosticLevel, DiagnosticSession, DiagnosticSource,
-    FrontendDiagnosticInput, codex::MAX_CODEX_LOG_LINE_BYTES, parse_codex_event,
+    DiagnosticLevel, DiagnosticSession, DiagnosticSource, FrontendDiagnosticInput,
     sanitize_frontend_event, write_diagnostic_archive,
 };
 
@@ -107,48 +106,6 @@ fn frontend_event_bounds_untrusted_fields() {
             .as_str()
             .is_none_or(|value| value.chars().count() <= 512)
     }));
-}
-
-#[test]
-fn codex_json_log_is_sanitized_and_low_levels_are_discarded() {
-    let session = DiagnosticSession::fixed();
-    let event = parse_codex_event(
-        br#"{"timestamp":"2026-09-01T08:00:00Z","level":"WARN","target":"codex_app_server","fields":{"message":"failed /Users/alice/project","thread_id":"thread-secret","attempt":2}}"#,
-        &session,
-    )
-    .unwrap()
-    .unwrap();
-
-    assert_eq!(event.source, DiagnosticSource::Codex);
-    assert_eq!(event.level, DiagnosticLevel::Warn);
-    assert_eq!(event.event, "codex.codex_app_server");
-    assert_eq!(event.context["attempt"], json!(2));
-    assert_ne!(event.context["thread_id"], json!("thread-secret"));
-    assert!(
-        !serde_json::to_string(&event)
-            .unwrap()
-            .contains("/Users/alice")
-    );
-
-    let debug = parse_codex_event(
-        br#"{"timestamp":"2026-09-01T08:00:00Z","level":"DEBUG","target":"codex_app_server","fields":{"message":"command params"}}"#,
-        &session,
-    )
-    .unwrap();
-    assert!(debug.is_none());
-}
-
-#[test]
-fn codex_log_rejects_malformed_and_oversized_lines_without_echoing_content() {
-    let session = DiagnosticSession::fixed();
-    assert_eq!(
-        parse_codex_event(b"not-json-with-a-secret", &session),
-        Err(CodexLogParseError::InvalidJson)
-    );
-    assert_eq!(
-        parse_codex_event(&vec![b'x'; MAX_CODEX_LOG_LINE_BYTES + 1], &session),
-        Err(CodexLogParseError::TooLarge)
-    );
 }
 
 #[test]
@@ -249,65 +206,12 @@ fn diagnostic_archive_rejects_logs_over_the_export_limit() {
     fs::remove_dir_all(root).unwrap();
 }
 
-#[test]
-fn diagnostic_archive_includes_native_zip_and_records_collection_status() {
-    let root = tempfile::tempdir().unwrap();
-    let native = root.path().join("native.zip");
-    fs::write(&native, b"PK\x03\x04native-content").unwrap();
-    let destination = root.path().join("integrated.zip");
-    super::export::write_diagnostic_archive_with_codex(
-        &destination,
-        root.path(),
-        &json!({"codexDiagnostics":{"status":"included"}}),
-        &json!({}),
-        Some(&native),
-    )
-    .unwrap();
-    let mut archive = zip::ZipArchive::new(fs::File::open(destination).unwrap()).unwrap();
-    let mut contents = Vec::new();
-    archive
-        .by_name("codex/diagnostics.zip")
-        .unwrap()
-        .read_to_end(&mut contents)
-        .unwrap();
-    assert_eq!(contents, b"PK\x03\x04native-content");
-}
-
-#[test]
-fn native_diagnostic_archive_rejects_invalid_and_oversized_files() {
-    let root = tempfile::tempdir().unwrap();
-    let native = root.path().join("native.zip");
-    fs::write(&native, b"private text").unwrap();
-    assert!(super::validate_native_archive(&native).is_err());
-    let file = fs::File::create(&native).unwrap();
-    file.set_len(256 * 1024 * 1024 + 1).unwrap();
-    assert!(super::validate_native_archive(&native).is_err());
-}
-
 fn temporary_directory(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!("codeagent-diagnostics-{label}-{unique}"))
-}
-
-#[test]
-fn codex_info_noise_is_discarded_but_error_module_is_preserved() {
-    let session = DiagnosticSession::fixed();
-    for level in ["INFO", "DEBUG", "TRACE"] {
-        let line = json!({"timestamp":"2026-09-14T00:00:00Z", "level":level,
-            "target":"codex_app_server::transport", "fields":{"message":"request received"}});
-        assert!(
-            parse_codex_event(line.to_string().as_bytes(), &session)
-                .unwrap()
-                .is_none()
-        );
-    }
-    let line = br#"{"timestamp":"2026-09-14T00:00:00Z","level":"ERROR","target":"codex_core::stream","fields":{"message":"connection lost"}}"#;
-    let event = parse_codex_event(line, &session).unwrap().unwrap();
-    assert_eq!(event.event, "codex.codex_core.stream");
-    assert_eq!(event.message.as_deref(), Some("connection lost"));
 }
 
 #[test]

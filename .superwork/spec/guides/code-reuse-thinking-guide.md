@@ -11,7 +11,7 @@
 
 ## 可复用示例
 
-`apps/web/src/shared/components/agent/code-block.tsx` 与 `desktop/src/shared/components/agent/code-block.tsx` 都包装 `@codexly/ui/agent/code-block`，各自注入翻译，桌面再注入 Legacy 主题。跨端渲染优化应优先修改 `packages/ui/src/agent/code-block.tsx`。
+`apps/web/src/shared/components/agent/code-block.tsx` 与 `desktop/src/shared/components/agent/code-block.tsx` 都包装 `@codexly/ui/agent/code-block`，各自注入翻译。跨端渲染优化应优先修改 `packages/ui/src/agent/code-block.tsx`。
 
 ## 检查项
 
@@ -68,6 +68,7 @@
 
 ## 快捷键帮助与分屏
 
+- 全局快捷键通过共享的 `hasKeyboardBlockingDialog` 判断键盘边界。通知保留辅助技术所需的对话框语义，后台快捷键仍可使用。
 - 2026-11-05 按用户要求，分屏使用一次按下、最多两个修饰键的 `Cmd/Ctrl+Shift+7/8/9/0`，分别向左、上、下、右分屏；替代旧 UI 索引和使用文档中的 Alt+Shift+方向键约定。匹配和展示共用 `frontend-core/split-layout.ts`，以物理数字键码避免 Shift 符号差异，不抢占方向键编辑、标签移动及浏览器组合。
 - 两端共用快捷键弹窗，宽屏双栏分组、窄屏单栏；视口限制高度，正文独立滚动，标题和关闭入口固定可见。仅列出平台实际支持的命令，作用范围在分组说明中展示。
 - 验证入口为 `desktop/tests/browser/keyboard-shortcuts.browser.test.tsx`（Chromium / WebKit、中英文、明暗主题、360px / 1024px）和 Web `app-shell-keyboard-shortcuts.spec.ts`。

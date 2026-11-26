@@ -5,11 +5,52 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock, Weak},
 };
+mod acp_plan_commit;
+#[cfg(test)]
+mod acp_plan_commit_tests;
+mod acp_plan_completion;
+#[cfg(test)]
+mod acp_plan_completion_tests;
+#[cfg(test)]
+mod acp_plan_history_tests;
+mod acp_plan_index;
+#[cfg(test)]
+mod acp_plan_index_tests;
+#[cfg(test)]
+mod acp_plan_resource_tests;
+mod acp_plan_resources;
+#[cfg(test)]
+mod acp_plan_scan_tests;
+mod acp_plan_state;
+#[cfg(test)]
+mod acp_plan_state_tests;
+mod acp_plan_validation;
+#[cfg(test)]
+mod acp_task_titles_tests;
+pub(crate) mod application_preferences;
+#[cfg(test)]
+mod application_preferences_tests;
+pub(crate) use acp_plan_validation::valid as valid_plan_definition;
+mod acp_schedule_retirements;
+#[cfg(test)]
+mod acp_scheduled_config_tests;
+mod acp_scheduled_configs;
+#[cfg(test)]
+mod acp_scheduled_plan_tests;
+mod acp_scheduled_plans;
+mod acp_storage_locks;
+mod acp_submissions;
+mod acp_task_titles;
 mod operations;
 #[cfg(test)]
 mod preview_tests;
 mod previews;
+#[cfg(test)]
+mod rollback_tests;
 mod saved_prompts;
+
+#[cfg(test)]
+mod acp_submission_tests;
 
 #[derive(Clone)]
 pub struct LocalCatalog {
@@ -32,9 +73,6 @@ pub fn project_path(path: &Path) -> String {
 }
 
 impl LocalCatalog {
-    pub fn app_data(&self) -> Result<&Path, CatalogError> {
-        self.path.parent().ok_or(CatalogError::StateUnavailable)
-    }
     pub fn at(app_data: &Path) -> Result<Self, CatalogError> {
         let path = app_data.join("state.sqlite3");
         let mut stores = STORES
@@ -61,6 +99,13 @@ impl LocalCatalog {
             .map_err(|_| CatalogError::StateUnavailable)?
     }
     fn execute(&self, operation: &str, payload: &Value) -> Result<Value, CatalogError> {
+        self.with_database(|db| operations::execute(db, operation, payload))
+    }
+    // 类型化二进制端口共用连接初始化与互斥，避免把字节转成 JSON。
+    fn with_database<R>(
+        &self,
+        action: impl FnOnce(&mut Connection) -> Result<R, CatalogError>,
+    ) -> Result<R, CatalogError> {
         let mut guard = self
             .inner
             .database
@@ -98,19 +143,26 @@ impl LocalCatalog {
             ))
             .map_err(|_| CatalogError::InvalidMessage)?;
             saved_prompts::initialize(&db)?;
+            application_preferences::initialize(&db)?;
+            acp_task_titles::initialize(&db)?;
+            acp_storage_locks::initialize(&db)?;
+            acp_submissions::initialize(&mut db)?;
+            acp_scheduled_configs::initialize(&db)?;
+            acp_scheduled_plans::initialize(&db)?;
+            acp_plan_completion::initialize(&db)?;
+            acp_plan_resources::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
                 .map_err(db_error)?;
+            db.execute_batch(string(&schema, "acpBackgroundSchemaSql")?)
+                .map_err(db_error)?;
             if let Some(source) = previews::default_source() {
+                previews::recover_background_sessions(&mut db, &source, &schema)?;
                 previews::recover(&mut db, &source)?;
             }
             *guard = Some(db);
         }
-        operations::execute(
-            guard.as_mut().ok_or(CatalogError::StateUnavailable)?,
-            operation,
-            payload,
-        )
+        action(guard.as_mut().ok_or(CatalogError::StateUnavailable)?)
     }
 }
 fn db_error(error: rusqlite::Error) -> CatalogError {
@@ -214,6 +266,31 @@ mod tests {
             .unwrap();
         assert_eq!(actual["provider"], "claude");
         assert_eq!(actual["sessionId"], "native");
+    }
+
+    #[test]
+    fn acp_rebind_should_only_replace_the_expected_codex_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LocalCatalog::at(dir.path()).unwrap();
+        for (id, provider) in [("task", "codex"), ("other", "claude")] {
+            store.execute("task.put", &json!({"id":id,"projectId":null,"title":"手动名称","cwd":"/workspace","provider":provider,"sessionId":"old","updatedAt":100,"pinned":true,"archived":false,"status":"idle"})).unwrap();
+        }
+        let rebind = |id, expected| {
+            store
+                .execute(
+                    "acp.session.rebind",
+                    &json!({"id":id,"sessionId":"new","expectedSessionId":expected}),
+                )
+                .unwrap()
+        };
+        assert_eq!(rebind("task", "stale"), false);
+        assert_eq!(rebind("other", "old"), false);
+        assert_eq!(rebind("task", "old"), true);
+        assert_eq!(rebind("task", "old"), false);
+        let task = store.execute("task.read", &json!({"id":"task"})).unwrap();
+        assert_eq!(task["sessionId"], "new");
+        assert_eq!(task["title"], "手动名称");
+        assert_eq!(task["pinned"], true);
     }
 
     #[test]

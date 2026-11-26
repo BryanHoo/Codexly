@@ -50,6 +50,7 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
         {
           ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
           ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
+          checkWriteAccess: request.query.cursor === undefined,
           // Fastify 超时仅协作取消，必须传入读取与后续 RPC，避免响应结束后继续重读。
           signal: request.signal,
         },
@@ -78,6 +79,8 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
       // 后续持久化答案和设置读取不推进覆盖边界；期间事件仍由该 checkpoint 回放。
       request.signal.throwIfAborted();
       const checkpoint = read.checkpoint;
+      // 已捕获的 ACP 快照本身即权威配置来源；不额外启动旧模型发现或设置迁移。
+      if (task.runtime === "acp") return { checkpoint, snapshot: task };
       const settings = await readEffectiveTaskSettings(
         request.params.projectId,
         request.params.taskId,

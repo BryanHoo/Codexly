@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  globalSetup: "./tools/prepare-e2e.mjs",
   testDir: "./tests/performance",
   fullyParallel: false,
   forbidOnly: true,

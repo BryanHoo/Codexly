@@ -29,27 +29,37 @@ describe("Tauri runtime recovery", () => {
     invoke.mockResolvedValueOnce({ lastSeq: 8, provider: "codex", status: "ready" });
     const runtime = await import("./runtime.js");
 
-    expect(await runtime.ensureCodexRuntime()).toEqual({
+    expect(await runtime.connectAcpEvents()).toEqual({
       lastSeq: 8, provider: "codex", status: "ready",
     });
     expect(invoke.mock.calls.map(([command]) => command)).toEqual(["connect_runtime"]);
   });
 
-  it("starts a fresh runtime after the backend reports failure", async () => {
+  it("reconnects the event channel after the backend reports failure", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     channelHandler?.({
       data: { provider: "codex", seq: 3, status: "failed" },
       type: "runtimeStatus",
     });
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
 
-    expect(invoke.mock.calls.filter(([command]) => command === "start_runtime")).toHaveLength(2);
+    expect(invoke.mock.calls.filter(([command]) => command === "connect_runtime")).toHaveLength(2);
+  });
+
+  it("ACP 公共健康检查使用默认原生传输，idle 时也不启动 Codex", async () => {
+    // 保留真实客户端与连接函数，只替换 Tauri IPC，核对默认装配而非注入的握手替身。
+    const { TauriSidebarClient } = await import("./sidebar-client.js");
+    const client = new TauriSidebarClient();
+    const capabilities = await client.getCapabilities();
+    vi.spyOn(client, "getCapabilities").mockResolvedValue({ ...capabilities, runtime: "acp" });
+    await expect(client.getHealth()).resolves.toEqual({ status: "ok", version: 1 });
+    expect(invoke.mock.calls.map(([command]) => command)).toEqual(["connect_runtime"]);
   });
 
   it("replays only the latest buffered agent events in sequence order", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     for (let sequence = 1; sequence <= 1_025; sequence += 1) {
       channelHandler?.({
         data: { event: { sequence } },
@@ -70,7 +80,7 @@ describe("Tauri runtime recovery", () => {
 
   it("routes native retention overflow to resync subscribers", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     const onResyncRequired = vi.fn();
     runtime.subscribeAgentEvents({
       afterSequence: 17,
@@ -97,7 +107,7 @@ describe("Tauri runtime recovery", () => {
 
   it("acknowledges a packet only after synchronous subscribers consume it", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     invoke.mockClear();
     runtime.subscribeAgentEvents({ afterSequence: 0, onEvent: () => {
       expect(invoke).not.toHaveBeenCalled();
@@ -112,7 +122,7 @@ describe("Tauri runtime recovery", () => {
     vi.stubGlobal("window", { location: { search: "?performance-profile=1" } });
     const runtime = await import("./runtime.js");
     const { applicationPerformanceMetrics } = await import("@/shared/performance/performance-metrics.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     const now = vi.spyOn(Date, "now").mockReturnValue(2_000);
     channelHandler?.({
       type: "agentEvent", enqueuedAtUnixMs: 1_975,

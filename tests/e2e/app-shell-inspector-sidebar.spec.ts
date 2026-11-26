@@ -9,6 +9,74 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
+test("places collapsed inspector shortcuts along the right edge and saves the default @cross-browser", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/p/codexly/t/task-1");
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const rail = page.getByRole("group", { name: "运行环境" });
+  const expand = rail.getByRole("button", { name: "展开上下文面板" });
+  const project = rail.getByRole("button", { name: "项目", exact: true });
+  const changes = rail.getByRole("button", { name: "变更", exact: true });
+
+  await expect(inspector).toHaveCount(0);
+  await expect(rail.getByRole("button")).toHaveCount(5);
+  await expect(rail).toHaveCSS("position", "absolute");
+  await expect(rail).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(rail).toHaveCSS("border-right-width", "0px");
+  await expect(expand.locator(".lucide-panel-right")).toBeVisible();
+  await expect(project.locator(".lucide-folder")).toBeVisible();
+  await expect(changes.locator(".lucide-git-branch")).toBeVisible();
+  // 同一帧读取所有位置，验收按钮等距、图标同大和中栏占满可用宽度。
+  const buttons = await rail.getByRole("button").evaluateAll((elements) =>
+    elements.map((button) => {
+      const { x, y, width, height } = button.getBoundingClientRect();
+      const icon = button.querySelector("svg")?.getBoundingClientRect();
+      return { x, y, width, height, iconWidth: icon?.width, iconHeight: icon?.height };
+    }),
+  );
+  const [first, second] = buttons;
+  if (!first || !second) throw new Error("右栏快捷按钮缺少布局边界");
+  const header = page.locator(".workbench-pane-header");
+  const headerBox = await header.boundingBox();
+  if (!headerBox) throw new Error("标题栏缺少布局边界");
+  expect(first.x).toBeGreaterThan(1380);
+  expect(headerBox.x + headerBox.width).toBeCloseTo(1440, 0);
+  expect(first.y + first.height / 2).toBeCloseTo(headerBox.y + headerBox.height / 2, 0);
+  const step = second.y - first.y;
+  expect(step).toBeGreaterThan(first.height);
+  for (const [index, button] of buttons.entries()) {
+    expect(button.x).toBe(first.x);
+    expect(button.y).toBeCloseTo(first.y + index * step, 0);
+    expect([button.width, button.height, button.iconWidth, button.iconHeight]).toEqual([
+      first.width,
+      first.height,
+      first.iconWidth,
+      first.iconHeight,
+    ]);
+  }
+
+  await changes.press("Enter");
+  const changesTab = inspector.getByRole("tab", { name: "变更", exact: true });
+  await expect(changesTab).toHaveAttribute("aria-selected", "true");
+  await expect(changesTab).toBeFocused();
+  await page.getByRole("button", { name: "收起上下文面板" }).click();
+  await expect(expand).toBeFocused();
+  await expand.click();
+  await expect(changesTab).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  const preference = page.getByRole("switch", { name: "默认展开右栏" });
+  await expect(preference).toHaveAttribute("aria-checked", "false");
+  await preference.click();
+  await page.reload();
+  await expect(inspector.getByRole("tab", { name: "项目", exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});
+
 test("defaults historical tasks to project and keeps user-controlled tab selection", async ({
   page,
 }) => {
@@ -36,6 +104,7 @@ test("defaults historical tasks to project and keeps user-controlled tab selecti
   await page.goto("/p/codexly/t/task-1");
   await expect.poll(() => snapshotRequestCount).toBeGreaterThan(0);
 
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const projectTab = inspector.getByRole("tab", { name: "项目" });
   const contextTab = inspector.getByRole("tab", { name: "上下文" });
@@ -81,11 +150,13 @@ test("defaults historical tasks to project and keeps user-controlled tab selecti
 test("shows context only after a task has been created", async ({ page }) => {
   await page.goto("/p/codexly");
 
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await expect(inspector.getByRole("tab", { name: "项目" })).toBeVisible();
   await expect(inspector.getByRole("tab", { name: "上下文" })).toHaveCount(0);
 
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect(inspector.getByRole("tab", { name: "项目" })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -109,6 +180,7 @@ test("keeps Git tabs for clean repositories without loading detailed diffs", asy
   });
 
   await page.goto("/p/codexly");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const readTabs = () =>
     inspector.locator('[role="tablist"]').first().getByRole("tab").allTextContents();
@@ -116,6 +188,7 @@ test("keeps Git tabs for clean repositories without loading detailed diffs", asy
 
   gitStatus = { ...projectGitStatus, staged: [], unstaged: [] };
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect.poll(readTabs).toEqual(["项目", "上下文", "变更", "历史"]);
   await inspector.getByRole("tab", { name: "变更" }).click();
   const panel = inspector.locator('[data-slot="commit-changes-panel"]');
@@ -128,10 +201,12 @@ test("keeps Git tabs for clean repositories without loading detailed diffs", asy
 
   gitStatus = { ...projectGitStatus };
   await page.reload();
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect.poll(readTabs).toEqual(["项目", "上下文", "变更", "历史"]);
 
   detailedStatusRequestCount = 0;
   await page.goto("/p/codexly");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect.poll(() => detailedStatusRequestCount).toBeGreaterThan(0);
 });
 
@@ -192,22 +267,22 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
     throw new Error("项目侧栏导航项缺失");
   }
   expect(newAgentBox.height).toBe(32);
-  expect(extensionCenterBox.y + extensionCenterBox.height).toBeLessThanOrEqual(pinnedBox.y);
-  // 定时任务与扩展中心位于搜索左侧，任务看板保留在新建任务下方。
+  expect(newAgentBox.y + newAgentBox.height).toBeLessThanOrEqual(pinnedBox.y);
+  // 定时任务与扩展中心已移至共享底栏；搜索仍在顶部，任务看板紧随新建任务。
   expect(scheduledTasksBox.x + scheduledTasksBox.width).toBeLessThanOrEqual(extensionCenterBox.x);
-  expect(extensionCenterBox.x + extensionCenterBox.width).toBeLessThanOrEqual(searchButtonBox.x);
-  expect(scheduledTasksBox.y).toBe(searchButtonBox.y);
+  expect(extensionCenterBox.y).toBeGreaterThan(searchButtonBox.y);
+  expect(scheduledTasksBox.y).toBe(extensionCenterBox.y);
   expect(taskBoardBox.y).toBeGreaterThanOrEqual(newAgentBox.y + newAgentBox.height);
   expect(taskBoardBox.height).toBe(32);
-  expect(extensionCenterBox.y).toBe(searchButtonBox.y);
+  expect(extensionCenterBox.height).toBeLessThanOrEqual(32);
   await expect(taskBoard).toHaveAttribute("href", "/p/codexly/board");
   await expect(extensionCenter).toHaveAttribute("href", "/p/codexly/extensions/skills");
   await expect(scheduledTasks).toHaveAttribute("href", "/p/codexly/scheduled");
   await expect(scheduledTasks).toHaveText("");
   await expect(taskBoard).toHaveText("任务看板");
   await expect(extensionCenter).toHaveText("");
-  expect(extensionCenterBox.y).toBeLessThan(newAgentBox.y);
-  expect(extensionCenterBox.y).toBeLessThan(pinnedBox.y);
+  expect(extensionCenterBox.y).toBeGreaterThan(newAgentBox.y);
+  expect(extensionCenterBox.y).toBeGreaterThan(pinnedBox.y);
   expect(pinnedBox.y).toBeLessThan(projectsBox.y);
   expect(firstProjectBox.y - (temporaryGroupBox.y + temporaryGroupBox.height)).toBe(0);
   await expect(pinnedSection.getByRole("link", { name: /补充 Protocol 契约/u })).toBeVisible();
@@ -434,6 +509,7 @@ test("scopes every project view to its single folder", async ({ page }) => {
     }
   });
   await page.goto("/p/superwork");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const rootControls = page.locator("[data-composer-project-root-controls]");
   const rootSelector = rootControls.getByRole("combobox", { name: "选择项目目录" });

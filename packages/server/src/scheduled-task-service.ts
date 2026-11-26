@@ -105,6 +105,20 @@ export class ScheduledTaskService {
     };
   }
 
+  /** 持有短期计划互斥，回调只做归属检查和本地读写；不得在其中等待智能体预览。 */
+  public withTaskState<T>(
+    id: string,
+    read: (task: ScheduledTask, canEdit: boolean) => Promise<T>,
+  ): Promise<T> {
+    return this.#mutate(() => {
+      const task = this.#find(id);
+      const canEdit =
+        !this.#running.has(id) &&
+        !task.runs.some((run) => run.status === "running" || isUnresolvedScheduledRun(run));
+      return read(task, canEdit);
+    });
+  }
+
   public create(input: ScheduledTaskInput): Promise<ScheduledTask> {
     return this.#mutate(async () => {
       let task: ScheduledTask;

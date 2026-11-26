@@ -5,12 +5,10 @@ export default defineConfig({
     cli: "src/cli.ts",
     "scheduled-task-recurrence-worker": "packages/server/src/scheduled-task-recurrence-worker.js",
     "historical-attachment-worker": "packages/core/src/historical-attachment-worker.js",
-    "codex-jsonl-frame-worker": "packages/provider-codex/src/codex-jsonl-frame-worker.js",
     "client/index": "packages/client/src/index.ts",
     "core/index": "packages/core/src/index.ts",
     "protocol/index": "packages/protocol/src/index.ts",
-    "providers/claude/index": "packages/provider-claude/src/index.ts",
-    "providers/codex/index": "packages/provider-codex/src/index.ts",
+    "providers/acp/index": "packages/provider-acp/src/index.ts",
     "server/index": "packages/server/src/index.ts",
     "sqlite-state-worker": "packages/server/src/sqlite-state-worker.js",
   },
@@ -25,6 +23,16 @@ export default defineConfig({
     };
     options.alias = {
       ...options.alias,
+      "@codexly/protocol/acp-capabilities": "./packages/protocol/src/acp-capabilities.ts",
+      "@codexly/protocol/application-generation":
+        "./packages/protocol/src/application-generation.ts",
+      "@codexly/protocol/application-preferences":
+        "./packages/protocol/src/application-preferences.ts",
+      "@codexly/provider-acp/network-proxy": "./packages/provider-acp/src/network-proxy.ts",
+      "@codexly/provider-acp": "./packages/provider-acp/src/index.ts",
+      "@codexly/protocol/acp-plan-api": "./packages/protocol/src/acp-plan-api.ts",
+      "@codexly/protocol/acp-scheduled-plan": "./packages/protocol/src/acp-scheduled-plan.ts",
+      "@codexly/protocol/task-queue-storage": "./packages/protocol/src/task-queue-storage.ts",
       "@codexly/core/persistent-historical-attachment-store":
         "./packages/core/src/persistent-historical-attachment-store.ts",
       "@codexly/core/historical-attachment-worker-pool":
@@ -32,11 +40,11 @@ export default defineConfig({
       "@codexly/core/historical-attachment-files":
         "./packages/core/src/historical-attachment-files.ts",
       "@codexly/core/app-storage-paths": "./packages/core/src/app-storage-paths.ts",
+      "@codexly/core/file-task-queue": "./packages/core/src/file-task-queue.ts",
+      "@codexly/core/task-attachments": "./packages/core/src/task-attachments.ts",
       "@codexly/core/persistent-task-queue": "./packages/core/src/persistent-task-queue.ts",
       "@codexly/core": "./packages/core/src/index.ts",
       "@codexly/protocol": "./packages/protocol/src/index.ts",
-      "@codexly/provider-claude/network-proxy": "./packages/provider-claude/src/network-proxy.ts",
-      "@codexly/provider-claude": "./packages/provider-claude/src/index.ts",
       "@codexly/provider-codex": "./packages/provider-codex/src/index.ts",
       "@codexly/server": "./packages/server/src/index.ts",
     };

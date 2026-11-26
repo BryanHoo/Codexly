@@ -1,3 +1,4 @@
+import type { Locator, WebSocketRoute } from "@playwright/test";
 import {
   taskSnapshotRoute,
   chooseHostAttachment,
@@ -11,6 +12,27 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
+async function expectAbove(upper: Locator, lower: Locator) {
+  const [upperBounds, lowerBounds] = await Promise.all([upper.boundingBox(), lower.boundingBox()]);
+  if (upperBounds === null || lowerBounds === null) {
+    throw new Error("Missing layout bounds");
+  }
+  expect(upperBounds.y + upperBounds.height).toBeLessThanOrEqual(lowerBounds.y);
+}
+
+async function expectStatusCentered(status: Locator, prompt: Locator) {
+  const [first, last, input] = await Promise.all([
+    status.locator("> :first-child").boundingBox(),
+    status.locator("> :last-child").boundingBox(),
+    prompt.locator("xpath=ancestor::form").boundingBox(),
+  ]);
+  if (first === null || last === null || input === null) {
+    throw new Error("Missing generation status or composer bounds");
+  }
+  const statusCenter = (first.x + last.x + last.width) / 2;
+  expect(Math.abs(statusCenter - (input.x + input.width / 2))).toBeLessThanOrEqual(1);
+}
+
 test("disables composer mutations that the provider does not support", async ({ page }) => {
   await page.route("**/v1/capabilities", async (route) => {
     await route.fulfill({
@@ -18,7 +40,7 @@ test("disables composer mutations that the provider does not support", async ({ 
       json: {
         feedback: { upload: false },
         goals: { clear: true, read: true, update: true },
-        provider: "readonly",
+        provider: "codex",
         skills: { list: false, use: false },
         tasks: { fork: false, list: true, read: true, start: false },
         turns: {
@@ -26,6 +48,7 @@ test("disables composer mutations that the provider does not support", async ({ 
           interrupt: false,
           review: false,
           start: false,
+          steer: false,
         },
       },
     });
@@ -123,26 +146,19 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
   await snapshotRequested;
 
   const nextPrompt = page.getByRole("textbox", { name: "任务输入" });
-  const inputStateWhileSnapshotLoads = await nextPrompt.evaluate((editor) => {
-    if (!(editor instanceof HTMLTextAreaElement) || editor.disabled) {
-      throw new Error("任务输入不是 textarea");
-    }
-    const wasEmpty = editor.value === "";
-    editor.focus();
-    const acceptsFocus = document.activeElement === editor;
-    editor.dispatchEvent(new CompositionEvent("compositionstart"));
-    editor.value = "n";
-    editor.dispatchEvent(new CompositionEvent("compositionupdate", { data: "n" }));
-    return { acceptsFocus, wasEmpty };
-  });
+  // 等待目标快照时暂时禁止写入，避免把上一任务的草稿提交到新任务。
+  await expect(nextPrompt).toBeDisabled();
+  await expect(nextPrompt).toHaveValue("");
   releaseSnapshot();
-  expect(inputStateWhileSnapshotLoads).toEqual({ acceptsFocus: true, wasEmpty: true });
-  await expect(nextPrompt).toHaveValue("n");
+  await expect(nextPrompt).toBeEditable();
+  await expect(nextPrompt).toHaveValue("");
   await expect
     .poll(() =>
       nextPrompt.evaluate((editor) => Reflect.get(globalThis, "__testComposerEditor") === editor),
     )
     .toBe(true);
+  await nextPrompt.fill("只属于 Task B 的草稿");
+  await expect(nextPrompt).toHaveValue("只属于 Task B 的草稿");
 });
 
 test("keeps the workbench shell mounted between a task and a new task route", async ({ page }) => {
@@ -327,6 +343,14 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
   await expect(page.getByText("直接发送的新消息", { exact: true })).toBeVisible();
   await expect(page.getByLabel("AI 回复正在运行")).toBeVisible();
   await expect(conversation.locator("[data-turn-processing-time]").last()).toBeVisible();
+  await expect(conversation.locator("[data-turn-processing-time]").last()).not.toContainText("t/s");
+  const generationStatus = page.locator("[data-turn-generation-status]");
+  await expect(generationStatus).toContainText("生成中");
+  await expect(generationStatus).toContainText("0 次工具调用");
+  await expect(generationStatus).not.toContainText("t/s");
+  await expectAbove(generationStatus, prompt);
+  await expectStatusCentered(generationStatus, prompt);
+
   await expect
     .poll(() =>
       conversation.evaluate(
@@ -347,7 +371,10 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
     .toBeGreaterThan(100);
   await prompt.fill("运行中排队的消息");
   await page.getByRole("button", { exact: true, name: "排队消息" }).click();
-  await expect(page.getByRole("list", { name: "排队消息" })).toContainText("运行中排队的消息");
+  const queue = page.getByRole("list", { name: "排队消息" });
+  await expect(queue).toContainText("运行中排队的消息");
+  await expectAbove(generationStatus, queue);
+  await expectAbove(queue, prompt);
   await expect
     .poll(() =>
       conversation.evaluate(
@@ -355,4 +382,107 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
       ),
     )
     .toBeGreaterThan(100);
+});
+
+test("keeps generation status between a question card and the input at 390px @cross-browser", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const startedAt = new Date().toISOString();
+  const sockets: WebSocketRoute[] = [];
+  const { sessionId, sequence } = taskSnapshotResponse.checkpoint;
+  await page.routeWebSocket("**/v1/projects/codexly/events?*", (socket) => {
+    sockets.push(socket);
+    socket.send(
+      JSON.stringify({ type: "connection.ready", version: 3, sessionId, latestSequence: sequence }),
+    );
+  });
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
+    await route.fulfill({
+      json: {
+        ...taskSnapshotResponse,
+        snapshot: {
+          ...taskSnapshot,
+          status: "running",
+          turns: [
+            {
+              id: "turn-1",
+              status: "running",
+              startedAt,
+              completedAt: null,
+              error: null,
+              items: [],
+            },
+          ],
+          pendingRequests: [
+            {
+              createdAt: startedAt,
+              expiresAt: null,
+              itemId: "generation-question",
+              projectId: "codexly",
+              questions: [
+                {
+                  header: "执行模式",
+                  id: "mode",
+                  isOther: false,
+                  isSecret: false,
+                  options: [{ description: "继续实现", label: "继续" }],
+                  prompt: "下一步怎么处理？",
+                  type: "choice",
+                },
+              ],
+              requestId: "string:generation-question",
+              status: "pending",
+              taskId: "task-1",
+              turnId: "turn-1",
+              type: "user_input",
+            },
+          ],
+        },
+      },
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+  const status = page.locator("[data-turn-generation-status]");
+  const question = page.locator('[data-slot="pending-request-dock"]');
+  const prompt = page.getByRole("textbox", { name: "任务输入" });
+  await expect(status).toBeVisible();
+  await expect(status).not.toContainText("t/s");
+  await expect(question).toContainText("下一步怎么处理？");
+  await expectAbove(question, status);
+  await expectAbove(status, prompt);
+  await expectStatusCentered(status, prompt);
+  await expect.poll(() => sockets.length).toBeGreaterThan(0);
+  // 首包只有计数，下一包到达时才有实际生成间隔。
+  const event = {
+    version: 2,
+    type: "message.delta",
+    sequence: sequence + 1,
+    sessionId,
+    provider: "codex",
+    taskId: "task-1",
+    turnId: "turn-1",
+    itemId: "single-chunk",
+    timestamp: startedAt,
+    payload: { delta: "首批集中输出" + "x".repeat(1_400) },
+  };
+  const sendDelta = (index: number, delta: string) => {
+    const update = {
+      ...event,
+      sequence: event.sequence + index,
+      timestamp: new Date(Date.parse(startedAt) + index * 300).toISOString(),
+      payload: { delta },
+    };
+    for (const socket of sockets) {
+      socket.send(JSON.stringify({ type: "events.batch", version: 3, events: [update] }));
+    }
+  };
+  sendDelta(0, event.payload.delta);
+  await expect(page.getByText(/首批集中输出/u)).toBeVisible();
+  await expect(status).not.toContainText("t/s");
+  sendDelta(1, "甲".repeat(12));
+  await expect(page.getByText(/甲{12}/u)).toBeVisible();
+  await expect(status).toContainText("30.0 t/s");
+  await expectAbove(question, status);
+  await expectStatusCentered(status, prompt);
 });

@@ -1,3 +1,4 @@
+import { AcpComposerSettingsContext } from "@codexly/ui/core/acp-composer-settings";
 import { ComposerPromptProjectsContext } from "@codexly/ui/core/composer-submit-actions";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
@@ -121,7 +122,7 @@ export function WorkbenchShellLayout({
   );
   const extensions = extensionSection !== undefined;
   const utilityView = board || extensions || scheduled;
-  return (
+  const content = (
     <ComposerPromptProjectsContext value={projects}>
       <div
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -255,9 +256,10 @@ export function WorkbenchShellLayout({
               ) : error !== null ||
                 (projectTaskState?.error ?? null) !== null ||
                 (codexEnabled &&
-                  (modelsQuery.error !== null ||
+                  ((capabilities?.runtime !== "acp" &&
+                    (modelsQuery.error !== null ||
+                      (!temporary && projectDefaultsQuery.error !== null))) ||
                     skillsQuery.error !== null ||
-                    (!temporary && projectDefaultsQuery.error !== null) ||
                     (taskId === undefined && globalSettingsQuery.error !== null))) ? (
                 <RuntimeUnavailable onRetry={() => void retry()} />
               ) : taskId === undefined ? (
@@ -403,7 +405,7 @@ export function WorkbenchShellLayout({
             width={inspectorWidth}
           />
         ) : null}
-        {workspaceContent === undefined && !utilityView && inspectorOpen ? (
+        {workspaceContent === undefined && !utilityView ? (
           <WorkbenchShellInspector
             context={context}
             composerRef={composerRef}
@@ -420,5 +422,14 @@ export function WorkbenchShellLayout({
         />
       </div>
     </ComposerPromptProjectsContext>
+  );
+  return (
+    <AcpComposerSettingsContext
+      value={() => {
+        setGlobalSettingsSection("acp");
+      }}
+    >
+      {content}
+    </AcpComposerSettingsContext>
   );
 }

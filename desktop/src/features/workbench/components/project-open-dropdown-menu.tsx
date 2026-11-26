@@ -20,7 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
-import { ProjectFileMutationDropdownMenuItems } from "./project-file-mutation-menu-items.js";
+import { ProjectFileMutationDropdownMenuItems } from "@codexly/ui/core/project-file-mutation-menu-items";
 import {
   copyProjectTargetText,
   getProjectOpenAppsForTarget,
@@ -193,6 +193,8 @@ export function ProjectOpenDropdownMenuItems({
       )}
       {onDelete === undefined || onRename === undefined ? null : (
         <ProjectFileMutationDropdownMenuItems
+          deleteLabel={t("openMenu.delete")}
+          renameLabel={t("openMenu.rename")}
           disabled={isPending}
           onDelete={onDelete}
           onRename={onRename}

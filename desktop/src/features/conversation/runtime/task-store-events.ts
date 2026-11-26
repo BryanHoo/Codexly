@@ -1,16 +1,20 @@
 import type { AgentEvent, AgentItem, PendingRequest } from "@/protocol/index.js";
+import type { TaskEventState } from "@codexly/frontend-core/task-event-model";
 import { createTaskEventReducer } from "@codexly/frontend-core/task-event-reducer";
-import { touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
 import { createTaskItemKey } from "@codexly/frontend-core";
 import {
   MAX_RETAINED_TASK_NOTICES,
   PENDING_COMMAND_LABEL,
   createTaskItemStore,
+  type TaskNotice,
   type TaskItemStore,
   type TaskSnapshotMetadata,
-  type TaskStoreState,
 } from "./task-store-core.js";
-export { getTouchedCommandOutputItemKeys };
+
+type EventState = TaskEventState<PendingRequest, TaskSnapshotMetadata, TaskItemStore>;
+
+export const isPersistentNotice = (notice: TaskNotice): boolean =>
+  notice.payload.level === "warning" || notice.payload.code === "acp_notice";
 
 function createDeltaItem(
   event: Extract<
@@ -80,16 +84,16 @@ const reduceEvent = createTaskEventReducer<
     }
     return next;
   },
-  isPersistentNotice: (notice) => notice.payload.level === "warning",
+  isPersistentNotice,
   // Rust 已归并错误，null 也是权威结果，前端不得用旧错误覆盖。
   resolveCompletedTurn: (_current, incoming) => incoming,
 });
 
 export function applyAcceptedEvent(
-  state: TaskStoreState,
+  state: EventState,
   event: AgentEvent,
   changedItemStores: Set<TaskItemStore>,
-): Partial<TaskStoreState> {
+): Partial<EventState> {
   if (event.type === "message.skills_updated") {
     if (state.snapshotMetadata === null) return {};
     const itemStore = state.itemStoresByKey.get(createTaskItemKey(event.turnId, event.itemId));

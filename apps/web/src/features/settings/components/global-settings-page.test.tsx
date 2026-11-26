@@ -19,8 +19,24 @@ import { GlobalSettingsAbout } from "./global-settings-about.js";
 import { AppReleaseNotesDialog } from "./app-release-notes-dialog.js";
 
 async function renderSettingsDialog(children: ReactNode): Promise<string> {
+  const queryClient = new QueryClient();
+  for (const engine of ["codex", "claude"])
+    queryClient.setQueryData(["acp-defaults", engine], {
+      configOptions: [
+        {
+          id: "agent-model",
+          name: "ACP 模型",
+          type: "select",
+          currentValue: "native",
+          options: [{ value: "native", name: "原始模型" }],
+        },
+      ],
+      defaults: {},
+      unmappedLegacy: [],
+      invalidDefaults: [],
+    });
   const stream = await renderToReadableStream(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <TooltipProvider>{children}</TooltipProvider>
     </QueryClientProvider>,
   );
@@ -57,13 +73,9 @@ describe("GlobalSettingsPage", () => {
     await changeAppLanguage("zh-CN");
   });
 
-  it.each([
-    ["claude-provider", "API 地址", "默认模型"],
-    ["claude-agent", "模型", "全局指令"],
-    ["claude-personalization", "全局指令", "API 地址"],
-  ] as const)(
-    "Claude 子菜单 %s 在 Codex 设置加载失败时仍可独立打开",
-    async (initialSection, field, excluded) => {
+  it.each(["agent", "claude-provider", "claude-agent", "claude-personalization"] as const)(
+    "旧入口 %s 重定向 ACP，且不依赖旧全局设置加载",
+    async (initialSection) => {
       const markup = await renderSettingsDialog(
         <GlobalSettingsPage
           client={new CodexlyClient()}
@@ -77,9 +89,10 @@ describe("GlobalSettingsPage", () => {
           onSave={vi.fn()}
         />,
       );
-      expect(markup).toContain(`id="settings-panel-${initialSection}"`);
-      expect(markup).toContain(field);
-      expect(markup).not.toContain(`aria-label="${excluded}"`);
+      expect(markup).toContain('aria-label="ACP"');
+      expect(markup).toContain("选择 Agent");
+      expect(markup).not.toContain("会话默认配置");
+      expect(markup).toContain("添加 Agent");
       expect(markup).not.toContain("Codex unavailable");
     },
   );
@@ -113,28 +126,13 @@ describe("GlobalSettingsPage", () => {
     expect(memories).not.toHaveBeenCalled();
   });
 
-  it("上下文以带单位的数字框展示千 tokens，空值清楚提示自动", async () => {
-    const renderAgent = (modelContextWindow: number | null) =>
-      renderSettingsDialog(
-        <AgentSettingsPanel
-          client={new CodexlyClient()}
-          settings={{ ...createFallbackSettings(models), modelContextWindow }}
-          models={models}
-          fastModeAvailable={false}
-          onChange={vi.fn()}
-        />,
-      );
-    const markup = await renderAgent(400_000);
-    expect(markup).toContain('type="number"');
-    expect(markup).toContain('min="272"');
-    expect(markup).toContain('max="1000"');
-    expect(markup).toContain('step="1"');
-    expect(markup).toContain('value="400"');
-    expect(markup).toContain("k tokens");
-    expect(markup).toContain("填写 272–1000，留空自动。");
-    const automatic = await renderAgent(null);
-    expect(automatic).toContain('placeholder="自动"');
-    expect(automatic).toContain('value=""');
+  it("智能体设置只呈现 ACP 公布的原始控件，不添加厂商参数", async () => {
+    const markup = await renderSettingsDialog(<AgentSettingsPanel client={new CodexlyClient()} />);
+    expect(markup).toContain('aria-label="ACP 模型"');
+    expect(markup).toContain("原始模型");
+    expect(markup).not.toContain('type="number"');
+    expect(markup).not.toContain('aria-label="沙箱模式"');
+    expect(markup).not.toContain('aria-label="审批策略"');
   });
 
   it("将自动审核作为审批下拉框中的互斥选项", () => {
@@ -188,14 +186,16 @@ describe("GlobalSettingsPage", () => {
       />,
     );
 
-    expect(markup).not.toContain('role="dialog"');
+    expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-label="搜索设置"');
     expect(markup).toContain("常规");
-    expect(markup).toContain("个性化");
+    expect(markup).toContain("ACP");
     expect(markup).toContain('aria-label="默认打开方式"');
     for (const label of ["消息吸顶", "消息目录锚点"]) {
       expect(markup).toMatch(
-        new RegExp(`role="switch"[^>]*aria-label="${label}"[^>]*aria-checked="false"`),
+        new RegExp(
+          `<button(?=[^>]*role="switch")(?=[^>]*aria-label="${label}")(?=[^>]*aria-checked="false")[^>]*>`,
+        ),
       );
     }
     expect(markup).not.toContain("__SYSTEM_DEFAULT__");
@@ -490,7 +490,7 @@ describe("GlobalSettingsPage", () => {
 
       expect(markup).toContain("Global settings");
       expect(markup).toContain("General");
-      expect(markup).toContain("Personalization");
+      expect(markup).toContain("ACP");
       expect(markup).toContain("Follow-up messages");
       expect(markup).toContain('aria-label="Language"');
     } finally {

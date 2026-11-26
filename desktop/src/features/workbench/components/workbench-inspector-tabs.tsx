@@ -1,14 +1,12 @@
 import {
-  Braces,
   FileCode2,
   FileDiff,
   Files,
-  FolderTree,
   GitCommitHorizontal,
-  History,
   PanelRightClose,
   X,
 } from "lucide-react";
+import { workbenchInspectorTabIcons as tabIcons } from "@codexly/ui/core/workbench-inspector-rail";
 import { Tabs } from "radix-ui";
 import { useEffect, useRef } from "react";
 
@@ -23,13 +21,6 @@ import {
 
 export type WorkbenchInspectorTab =
   "project" | "changes" | "context" | "history" | `document:${string}`;
-
-const tabIcons = {
-  project: FolderTree,
-  changes: GitCommitHorizontal,
-  context: Braces,
-  history: History,
-} as const;
 
 export function WorkbenchInspectorTabs({
   activeTab,
@@ -150,7 +141,7 @@ function InspectorCloseButton({ onClose }: Readonly<{ onClose: (() => void) | un
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button aria-label={label} onClick={onClose} size="icon-sm" type="button" variant="ghost">
+        <Button aria-label={label} data-workbench-inspector-close="" onClick={onClose} size="icon-sm" type="button" variant="ghost">
           <PanelRightClose aria-hidden="true" />
         </Button>
       </TooltipTrigger>

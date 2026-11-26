@@ -102,6 +102,7 @@ test("preserves provisional IME text across composer rerenders @cross-browser", 
 
 test("uses material hierarchy instead of strong workbench borders", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect(page.locator('[data-conversation-row="turn"]')).toBeVisible();
 
   const presentation = await page.evaluate(() => {
@@ -185,9 +186,10 @@ test("uses material hierarchy instead of strong workbench borders", async ({ pag
 
 test("supports structured activity without Escape changing panel state", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   await expect(page.getByText("思考过程", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("分析工作台信息架构", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /分析工作台信息架构/u })).toBeVisible();
   await page.getByText("读取 Web 设计规范").click();
   await expect(page.getByText("docs/web-design.md")).toBeVisible();
 
@@ -199,6 +201,7 @@ test("supports structured activity without Escape changing panel state", async (
 test("resizes desktop workbench panels within bounds", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   await expect(page.getByRole("button", { name: "更多操作" })).toHaveCount(0);
 
@@ -256,6 +259,7 @@ test("resizes desktop workbench panels within bounds", async ({ page }) => {
 test("uses the 320px inspector default on laptop-sized screens", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   expect((await inspector.boundingBox())?.width).toBe(320);
@@ -280,7 +284,10 @@ test("keeps the narrow workbench layout stable", async ({ page }) => {
 
   expect(timelineBox).not.toBeNull();
   expect(timelineBox?.x).toBe(0);
+  const railBox = await page.locator(".workbench-inspector-rail").boundingBox();
   expect(timelineBox?.width).toBe(390);
+  expect(railBox?.x).toBeGreaterThan(350);
+  expect((railBox?.x ?? 0) + (railBox?.width ?? 0)).toBeLessThanOrEqual(390);
 
   const hasHorizontalOverflow = await page
     .locator("html")

@@ -2,6 +2,43 @@ import type { AgentEvent, AgentTaskSnapshot, AgentTurn, TaskEventModel } from "@
 
 export type TaskEventTurn = Omit<AgentTurn, "items">;
 export type TaskEventNotice = Extract<AgentEvent, { type: "task.notice" }>;
+interface TurnOutputRateEvent {
+  type: "message.delta" | "reasoning.delta";
+  turnId: string;
+  itemId: string;
+  timestamp?: string;
+  payload: { delta: string };
+}
+
+type StoreEventType = AgentEvent["type"] | "message.skills_updated";
+type StoreEventWithPayload<Item> =
+  | {
+      type: "item.started" | "item.completed";
+      turnId: string;
+      itemId: string;
+      payload: { item: Item };
+    }
+  | {
+      type: "turn.completed";
+      turnId: string;
+      provider: string;
+      payload: { turn: TaskEventTurn & { items: Item[] } };
+    }
+  | { type: "turn.started" | "provider.error"; turnId: string }
+  | Extract<AgentEvent, { type: "usage.updated" }>
+  | TurnOutputRateEvent;
+
+export type TaskStoreEvent<Item> = {
+  taskId: string;
+  sessionId: string;
+  sequence: number;
+  turnId?: string;
+  itemId?: string;
+} & (
+  | StoreEventWithPayload<Item>
+  | { type: Exclude<StoreEventType, StoreEventWithPayload<Item>["type"]> }
+);
+
 export interface TaskReasoningPayload {
   delta: string;
   field?: "content" | "summary";
@@ -10,7 +47,12 @@ export interface TaskReasoningPayload {
 export type TaskDeltaEvent<Reasoning> = Extract<
   TaskEventModel<never, never, never, Reasoning>,
   {
-    type: "message.delta" | "plan.delta" | "reasoning.delta" | "command.output_delta";
+    type:
+      | "compaction.summary_delta"
+      | "message.delta"
+      | "plan.delta"
+      | "reasoning.delta"
+      | "command.output_delta";
   }
 >;
 export interface TaskEventItem {
@@ -25,7 +67,14 @@ export interface TaskEventRequest {
 }
 export type TaskEventMetadata = Pick<
   AgentTaskSnapshot,
-  "status" | "title" | "updatedAt" | "goal" | "plan" | "contextUsage" | "threadConfiguration"
+  | "status"
+  | "title"
+  | "updatedAt"
+  | "goal"
+  | "plan"
+  | "contextUsage"
+  | "threadConfiguration"
+  | "acpSession"
 >;
 
 /** 只声明 reducer 实际读写的 Store 端口，Zustand、IPC 和网络由平台持有。 */

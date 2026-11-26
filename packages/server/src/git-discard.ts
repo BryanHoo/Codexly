@@ -1,6 +1,6 @@
 import type { DiscardProjectChangesRequest, ProjectGitStatus } from "@codexly/protocol";
 import { GitCommitError } from "./git-commit.js";
-import { executeGit } from "./git-mutation-command.js";
+import { executeGit, pathBatches } from "./git-mutation-command.js";
 import { readGitWorkingTreeStatus, resolveProjectGitRepositoryRoot } from "./git-working-tree.js";
 
 /** 仅丢弃明确选中的路径；不使用整仓 reset/clean，不跟随符号链接删除目录。 */
@@ -101,21 +101,4 @@ export async function discardSelectedProjectChanges(
   for (const batch of pathBatches(untracked))
     await executeGit(repo, ["clean", "-f", "-d", "--", ...batch]);
   return readGitWorkingTreeStatus(repo);
-}
-
-/** 按 UTF-8 字节分批，为 Windows 命令行和 Git 固定参数预留空间。 */
-function* pathBatches(paths: readonly string[]): Generator<readonly string[]> {
-  let batch: string[] = [];
-  let bytes = 0;
-  for (const path of paths) {
-    const size = Buffer.byteLength(path) + 32;
-    if (batch.length > 0 && bytes + size > 8192) {
-      yield batch;
-      batch = [];
-      bytes = 0;
-    }
-    batch.push(path);
-    bytes += size;
-  }
-  if (batch.length > 0) yield batch;
 }

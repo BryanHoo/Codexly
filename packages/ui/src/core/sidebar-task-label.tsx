@@ -15,10 +15,10 @@ export function SidebarTaskLabel({ engine, projectName, title }: SidebarTaskLabe
   return (
     <span className="flex min-w-0 flex-1 items-center gap-1.5">
       {showEngineIcon ? <AgentEngineIcon engine={engine} /> : null}
-      {/* 项目标签限宽并直接裁切溢出文字，悬停时仍可查看完整项目名。 */}
+      {/* 项目标签最多占 72px，窄栏按行宽收缩并直接裁切文字，悬停时可查看完整名称。 */}
       {projectName !== undefined && (
         <span
-          className="max-w-[40%] shrink-0 overflow-hidden text-clip whitespace-nowrap rounded border border-border px-1 text-caption font-normal text-subtle-foreground"
+          className="max-w-[min(72px,30%)] shrink-0 overflow-hidden text-clip whitespace-nowrap rounded border border-border px-1 text-caption font-normal text-subtle-foreground"
           title={projectName}
         >
           {projectName}

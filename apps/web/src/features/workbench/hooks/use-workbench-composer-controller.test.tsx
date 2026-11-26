@@ -5,7 +5,7 @@ import {
   isComposerControllerScopeCurrent,
   useWorkbenchComposerController,
 } from "./use-workbench-composer-controller.js";
-import { useSubmissionStartedAt } from "../components/use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 
 describe("Workbench composer controller", () => {
   it("clears the local submission timer even when submitting starts and ends before a render", () => {

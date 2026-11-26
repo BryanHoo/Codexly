@@ -1,4 +1,6 @@
 export const generalSettings = {
+  inspectorInitiallyOpen: "默认展开右栏",
+  inspectorInitiallyOpenDescription: "进入会话或项目工作区时自动展开右栏。",
   independentFileDiffs: "独立显示文件差异",
   independentFileDiffsDescription: "在流式回复中展开显示每个文件的具体修改，独立于工具和命令折叠；回合完成后收入执行过程。",
   stickyPrompt: "消息吸顶",

@@ -1,6 +1,6 @@
 import { Type, type Static, type TSchema } from "@sinclair/typebox";
 
-import { AgentThreadConfigurationSchema } from "@codexly/protocol";
+import { AgentThreadConfigurationSchema, AcpSessionStateSchema } from "@codexly/protocol";
 import { AgentTaskSchema, type AgentTask } from "./agent-attachments.js";
 import { DateTimeSchema, ProjectSchema, type Project } from "./project-files.js";
 import { ActivePendingRequestSchema } from "./pending-request.js";
@@ -43,8 +43,10 @@ export type AgentPlanStepStatus = Readonly<Static<typeof AgentPlanStepStatusSche
 export type AgentPlanStep = Readonly<Static<typeof AgentPlanStepSchema>>;
 export type AgentPlan = Readonly<Static<typeof AgentPlanSchema>>;
 
-export const AgentTaskSnapshotSchema = Type.Object(
+export const LegacyAgentTaskSnapshotSchema = Type.Object(
   {
+    runtime: Type.Optional(Type.Never()),
+    acpSession: Type.Optional(AcpSessionStateSchema),
     engine: AgentTaskSchema.properties.engine,
     contextUsage: Type.Union([AgentContextUsageSchema, Type.Null()]),
     goal: Type.Union([AgentGoalSchema, Type.Null()]),
@@ -54,6 +56,7 @@ export const AgentTaskSnapshotSchema = Type.Object(
     pinned: Type.Boolean(),
     projectId: Type.String({ minLength: 1 }),
     workspacePath: Type.Optional(Type.String({ minLength: 1 })),
+    writeAccess: Type.Optional(Type.Union([Type.Literal("writable"), Type.Literal("external")])),
     settings: AgentTaskSettingsSchema,
     // 仅原生读取快照携带；新建任务的乐观快照没有权威线程配置。
     threadConfiguration: Type.Optional(AgentThreadConfigurationSchema),
@@ -66,6 +69,20 @@ export const AgentTaskSnapshotSchema = Type.Object(
   { additionalProperties: false },
 );
 
+// 原生条目扩展沿用本端 Schema；ACP 不再依赖旧模型和权限设置。
+export const AcpTaskSnapshotSchema = Type.Object(
+  {
+    ...Type.Omit(LegacyAgentTaskSnapshotSchema, ["settings", "runtime"]).properties,
+    runtime: Type.Literal("acp"),
+    settings: Type.Optional(Type.Never()),
+  },
+  { additionalProperties: false },
+);
+export const AgentTaskSnapshotSchema = Type.Union([
+  LegacyAgentTaskSnapshotSchema,
+  AcpTaskSnapshotSchema,
+]);
+export type AcpTaskSnapshot = Readonly<Static<typeof AcpTaskSnapshotSchema>>;
 export type AgentTaskSnapshot = Readonly<Static<typeof AgentTaskSnapshotSchema>>;
 
 export type Page<T> = Readonly<{
@@ -110,6 +127,7 @@ export type HealthResponse = Readonly<Static<typeof HealthResponseSchema>>;
 
 export const AgentCapabilitiesSchema = Type.Object(
   {
+    runtime: Type.Optional(Type.Literal("acp")),
     feedback: Type.Object({ upload: Type.Boolean() }, { additionalProperties: false }),
     goals: Type.Object(
       { clear: Type.Boolean(), read: Type.Boolean(), update: Type.Boolean() },

@@ -1,6 +1,10 @@
+import { Switch } from "@codexly/ui/core/switch";
+import { ProductNameInput } from "@codexly/ui/core/product-name-input";
+import { productNamePreference } from "../product-name-preference.js";
+import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
 import { ConversationDisplaySwitch } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../conversation-display-preferences.js";
-import type { AgentGlobalSettings, ProjectOpenApp } from "@codexly/protocol";
+import type { ProjectOpenApp } from "@codexly/protocol";
 import "../../../i18n/settings-general.js";
 import { MonitorCog, Moon, Sun } from "lucide-react";
 
@@ -43,12 +47,12 @@ export function GeneralSettingsPanel({
 }: Readonly<{
   activeSection: SettingsSectionId;
   apps: readonly ProjectOpenApp[];
-  settings: AgentGlobalSettings;
+  settings: Pick<ApplicationPreferences, "followUpBehavior" | "defaultOpenAppId">;
   language: SupportedLanguage;
   notificationsEnabled: boolean;
   theme: ThemePreference;
-  onFollowUpChange: (behavior: AgentGlobalSettings["followUpBehavior"]) => void;
-  onDefaultOpenAppChange: (appId: AgentGlobalSettings["defaultOpenAppId"]) => void;
+  onFollowUpChange: (behavior: ApplicationPreferences["followUpBehavior"]) => void;
+  onDefaultOpenAppChange: (appId: ApplicationPreferences["defaultOpenAppId"]) => void;
   onLanguageChange: (language: SupportedLanguage) => void;
   onNotificationsChange: (enabled: boolean) => void;
   onThemeChange: (theme: ThemePreference) => void;
@@ -60,6 +64,9 @@ export function GeneralSettingsPanel({
       <h1 className="mb-6 text-xl font-semibold">{t("sections.appearance")}</h1>
       <div className="space-y-6">
         <SettingsGroup title={t("general.preferences")}>
+          <SettingsField label={t("fields.productName")}>
+            <ProductNameInput label={t("fields.productName")} preference={productNamePreference} />
+          </SettingsField>
           {apps.some((app) => app.kind !== "system-default") ? (
             <SettingsField
               label={t("fields.defaultOpenWith")}
@@ -70,11 +77,18 @@ export function GeneralSettingsPanel({
                 value={settings.defaultOpenAppId ?? ""}
                 onChange={(event) => {
                   onDefaultOpenAppChange(
-                    (event.currentTarget.value || null) as AgentGlobalSettings["defaultOpenAppId"],
+                    (event.currentTarget.value ||
+                      null) as ApplicationPreferences["defaultOpenAppId"],
                   );
                 }}
               >
                 <option value="">{t("integration.automatic")}</option>
+                {settings.defaultOpenAppId &&
+                !apps.some((app) => app.id === settings.defaultOpenAppId) ? (
+                  <option disabled value={settings.defaultOpenAppId}>
+                    {settings.defaultOpenAppId}
+                  </option>
+                ) : null}
                 {apps
                   .filter((app) => app.kind !== "system-default")
                   .map((app) => (
@@ -133,6 +147,16 @@ export function GeneralSettingsPanel({
           <BackgroundSettingsField />
         </SettingsGroup>
         <SettingsGroup title={t("general.editor")}>
+          <SettingsField
+            label={t("general.inspectorInitiallyOpen")}
+            description={t("general.inspectorInitiallyOpenDescription")}
+          >
+            <ConversationDisplaySwitch
+              store={conversationDisplayPreferences}
+              preference="inspectorInitiallyOpen"
+              label={t("general.inspectorInitiallyOpen")}
+            />
+          </SettingsField>
           <SettingsField
             label={t("general.stickyPrompt")}
             description={t("general.stickyPromptDescription")}
@@ -194,22 +218,11 @@ export function GeneralSettingsPanel({
             label={t("general.taskNotifications")}
             description={t("general.notificationsDescription")}
           >
-            <Button
-              role="switch"
+            <Switch
               aria-label={t("general.taskNotifications")}
-              aria-checked={notificationsEnabled}
-              className={`h-6 w-10 rounded-pill p-0.5 ${notificationsEnabled ? "bg-brand hover:bg-brand" : "bg-control-hover"}`}
-              variant="ghost"
-              type="button"
-              onClick={() => {
-                onNotificationsChange(!notificationsEnabled);
-              }}
-            >
-              <span
-                aria-hidden="true"
-                className={`block size-5 rounded-pill bg-brand-contrast shadow-control transition-transform motion-reduce:transition-none ${notificationsEnabled ? "translate-x-2" : "-translate-x-2"}`}
-              />
-            </Button>
+              checked={notificationsEnabled}
+              onCheckedChange={onNotificationsChange}
+            />
           </SettingsField>
         </SettingsGroup>
       </div>

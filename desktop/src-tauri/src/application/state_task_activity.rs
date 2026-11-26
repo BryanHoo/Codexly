@@ -1,8 +1,7 @@
 use super::AppState;
 use crate::application::task_activity::{
-    TaskActivitySnapshot, TaskActivityState, is_approval_request_type,
+    TaskActivitySnapshot, TaskActivityState, TaskActivityStatus,
 };
-use crate::domain::conversation::AgentTaskSnapshot;
 use crate::domain::sidebar::{Project, ProjectPage};
 
 impl AppState {
@@ -27,6 +26,19 @@ impl AppState {
             .acknowledge(project_id, task_id)
     }
 
+    pub(in crate::application) async fn acknowledge_task_activity_at(
+        &self,
+        project_id: &str,
+        task_id: &str,
+        sequence: Option<u64>,
+    ) -> bool {
+        self.runtime
+            .lock()
+            .await
+            .task_activity
+            .acknowledge_at(project_id, task_id, sequence)
+    }
+
     pub async fn remember_project_page(&self, page: &ProjectPage) {
         let mut runtime = self.runtime.lock().await;
         for project in &page.data {
@@ -40,9 +52,6 @@ impl AppState {
 
     pub async fn forget_project_activity(&self, project_id: &str) {
         let mut runtime = self.runtime.lock().await;
-        runtime.task_snapshot_metadata.forget_project(project_id);
-        runtime.task_failure_projection.forget_project(project_id);
-        runtime.task_skill_projection.forget_project(project_id);
         runtime.task_activity.forget_project(project_id);
     }
 
@@ -69,65 +78,21 @@ impl AppState {
     pub(crate) async fn task_activity_read_snapshot(&self) -> Vec<serde_json::Value> {
         let runtime = self.runtime.lock().await;
         runtime.task_activity.snapshot().into_iter().map(|snapshot| {
-            let sequence = runtime.project_sequences.get(&snapshot.project_id).copied().unwrap_or_default();
+            let terminal_sequence = match snapshot.status {
+                TaskActivityStatus::Completed | TaskActivityStatus::Failed => snapshot.terminal_sequence,
+                _ => None,
+            };
+            let sequence = terminal_sequence.unwrap_or_else(|| {
+                runtime.project_sequences.get(&snapshot.project_id).copied().unwrap_or_default()
+            });
             let mut value = serde_json::json!(&snapshot);
-            value["checkpoint"] = serde_json::json!({ "sequence": sequence, "sessionId": crate::infrastructure::codex::runtime_session_id() });
+            value["checkpoint"] = serde_json::json!({ "sequence": sequence, "sessionId": crate::application::state::runtime_session_id() });
             value
         }).collect()
     }
 
     pub(crate) async fn task_activity_snapshot(&self) -> Vec<TaskActivitySnapshot> {
         self.runtime.lock().await.task_activity.snapshot()
-    }
-
-    pub async fn remember_task_snapshot(&self, snapshot: &AgentTaskSnapshot) -> bool {
-        let mut runtime = self.runtime.lock().await;
-        runtime
-            .task_projects
-            .insert(snapshot.id.clone(), snapshot.project_id.clone());
-        runtime.task_activity.remember_task_snapshot(
-            &snapshot.project_id,
-            &snapshot.id,
-            &snapshot.title,
-            snapshot.status,
-            snapshot
-                .pending_requests
-                .iter()
-                .filter_map(|request| {
-                    let request_id = request.get("requestId")?.as_str()?.to_owned();
-                    let requires_approval = request
-                        .get("type")
-                        .and_then(serde_json::Value::as_str)
-                        .is_some_and(is_approval_request_type);
-                    Some((request_id, requires_approval))
-                })
-                .collect(),
-            snapshot
-                .turns
-                .iter()
-                .rev()
-                .find(|turn| turn.status == "running")
-                .and_then(|turn| turn.started_at.as_deref()),
-        );
-        // 详情恢复复用已有快照，不为待回答状态额外读取完整历史。
-        runtime
-            .task_activity
-            .remember_async_question_snapshot(snapshot)
-    }
-
-    pub async fn promote_task_title(
-        &self,
-        project_id: &str,
-        task_id: &str,
-        task_name: &str,
-    ) -> bool {
-        let mut runtime = self.runtime.lock().await;
-        runtime
-            .task_projects
-            .insert(task_id.to_owned(), project_id.to_owned());
-        runtime
-            .task_activity
-            .promote_placeholder_title(project_id, task_id, task_name)
     }
 }
 

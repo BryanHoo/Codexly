@@ -24,22 +24,19 @@ async function waitForText(text: string): Promise<void> {
   );
 }
 
-async function waitForCommand(command: string): Promise<void> {
-  await browser.waitUntil(
-    async () =>
-      browser.execute(
-        (name) =>
-          (window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls[name]?.length ?? 0) > 0,
-        command,
-      ),
-    { timeoutMsg: `未调用原生命令：${command}` },
-  );
+async function waitForCommand(command: string, method?: string): Promise<void> {
+  await browser.waitUntil(async () => (await commandCallCount(command, method)) > 0, {
+    timeoutMsg: `未调用原生命令：${method ?? command}`,
+  });
 }
 
-async function commandCallCount(command: string): Promise<number> {
+async function commandCallCount(command: string, method?: string): Promise<number> {
   return browser.execute(
-    (name) => window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls[name]?.length ?? 0,
-    command,
+    ({ command, method }) =>
+      (window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls[command] ?? []).filter(
+        (args) => method === undefined || (args as { method?: string }).method === method,
+      ).length,
+    { command, method },
   );
 }
 
@@ -58,7 +55,7 @@ describe("桌面原生 WebView 关键流程", () => {
     await releaseApplicationStartup();
   });
 
-  it("连接自定义 Provider 后进入工作台", async () => {
+  it("在 ACP 设置保存自定义 API 后返回工作台", async () => {
     await connectMockProvider("sk-webview-test");
 
     await expect($('[aria-label="切换项目 CodeAgent"]')).toBeDisplayed();
@@ -98,8 +95,9 @@ describe("桌面原生 WebView 关键流程", () => {
     await composer.click();
     await composer.setValue("排队补充测试");
     await $("aria/排队消息").click();
+    await waitForCommand("acp_task_request", "queue.add");
     await waitForText("排队补充测试");
-    expect(await commandCallCount("add_queued_submission")).toBeGreaterThan(0);
+    expect(await commandCallCount("acp_task_request", "queue.add")).toBeGreaterThan(0);
   });
 
   it("切换到巨型任务后保留已加载回合并保持置底", async () => {
@@ -144,19 +142,20 @@ describe("桌面原生 WebView 关键流程", () => {
     await expect($('[aria-label="切换项目 Codexly"]')).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("将键盘焦点交给审批主操作并完成审批", async () => {
+  it("完成 ACP 工具审批并传递原始选项", async () => {
     await openTask("处理命令审批", approvalTaskResponse);
     await waitForText("运行原生 WebView 测试");
-    const allow = await $("aria/允许");
-    await allow.waitForDisplayed();
-    await browser.waitUntil(
-      async () =>
-        browser.execute(() => document.activeElement?.textContent?.trim() === "允许"),
-      { timeoutMsg: "审批主操作未获得键盘焦点" },
-    );
+    const allow = await $("button=允许");
+    await allow.waitForClickable();
     await allow.click();
     await waitForCommand("resolve_pending_request");
-    expect(await commandCallCount("resolve_pending_request")).toBeGreaterThan(0);
+    const resolution = await browser.execute(() =>
+      window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls.resolve_pending_request?.[0],
+    );
+    expect(resolution).toEqual(expect.objectContaining({
+      acp: true,
+      resolution: { decision: "allow", optionId: "allow-once" },
+    }));
   });
 
   it("从检查器提交 Git 变更", async () => {
@@ -184,14 +183,14 @@ describe("桌面原生 WebView 关键流程", () => {
     await browser.waitUntil(
       async () =>
         browser.execute(() => {
-          const container = document.querySelector<HTMLElement>('[role="log"]');
+          const container = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]');
           if (container === null) return false;
           return container.scrollHeight - container.scrollTop - container.clientHeight < 24;
         }),
       { timeoutMsg: "后续重新打开巨型任务后未保持最新信息置底" },
     );
     const distanceFromBottom = await browser.execute(() => {
-      const container = document.querySelector<HTMLElement>('[role="log"]');
+      const container = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]');
       if (container === null) return Number.POSITIVE_INFINITY;
       return container.scrollHeight - container.scrollTop - container.clientHeight;
     });

@@ -122,7 +122,7 @@ describe("task timeline messages", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={messageSnapshot} />);
 
     expect(markup).toContain('data-turn-processing-time=""');
-    expect(markup).toContain("已处理");
+    expect(markup).toContain("已完成");
     expect(markup).toContain('dateTime="PT5M7S"');
     expect(markup).toContain(">5m 7s</time>");
   });

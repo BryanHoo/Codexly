@@ -102,19 +102,17 @@ export class TaskActivityIndex {
       snapshot.pendingRequests.map((request) => [request.requestId, isApproval(request.type)]),
     );
     const asyncPending = snapshot.status === "running" && previous?.asyncPending === true;
-    const status =
-      requests.size || asyncPending
-        ? "waiting"
-        : snapshot.status === "running"
-          ? "running"
-          : snapshot.status === "failed"
-            ? "failed"
-            : previous === undefined
-              ? undefined
-              : previous.snapshot.status === "running" || previous.snapshot.status === "waiting"
-                ? "completed"
-                : previous.snapshot.status;
-    if (status === undefined) return false;
+    let status: TaskActivitySnapshot["status"];
+    if (requests.size || asyncPending) status = "waiting";
+    else if (snapshot.status === "running") status = "running";
+    else if (previous?.snapshot.status === "running" || previous?.snapshot.status === "waiting")
+      status = snapshot.status === "failed" ? "failed" : "completed";
+    else {
+      // 终态保持原来的确认身份。详情刷新可更新标题，不能补发已经确认的历史结果。
+      if (previous === undefined || previous.snapshot.taskName === snapshot.title) return false;
+      previous.snapshot = { ...previous.snapshot, taskName: snapshot.title };
+      return true;
+    }
     const startedAt =
       snapshot.turns.findLast((turn) => turn.status === "running")?.startedAt ??
       previous?.snapshot.startedAt;

@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
+import { hasKeyboardBlockingDialog } from "@codexly/ui/core/keyboard-dialog-guard";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { terminalStore } from "../terminal-store.js";
 import { initializeTerminalLayout, terminalActionError } from "../terminal-layout.js";
@@ -56,8 +57,7 @@ export function TerminalWorkbench({ children, enabled, projectId, rootId, rootPa
     if (!enabled || !active) return;
     const handler = (event: KeyboardEvent) => {
       if (!isTerminalShortcut(event, /mac/i.test(navigator.platform), true)) return;
-      const modal = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')].some((element) => element.getClientRects().length > 0);
-      if (modal) return;
+      if (hasKeyboardBlockingDialog()) return;
       event.preventDefault(); event.stopPropagation(); if (!event.repeat) { captureFocus(); toggle(); }
     };
     document.addEventListener("keydown", handler, true);

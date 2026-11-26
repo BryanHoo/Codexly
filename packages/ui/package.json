@@ -38,6 +38,14 @@
       "types": "./src/agent/code-block-pages.ts",
       "default": "./src/agent/code-block-pages.ts"
     },
+    "./agent/shiki-bundle": {
+      "types": "./src/agent/shiki-bundle.ts",
+      "default": "./src/agent/shiki-bundle.ts"
+    },
+    "./agent/pierre-themes": {
+      "types": "./src/agent/pierre-themes.ts",
+      "default": "./src/agent/pierre-themes.ts"
+    },
     "./agent/code-languages": {
       "types": "./src/agent/code-languages.ts",
       "default": "./src/agent/code-languages.ts"
@@ -98,6 +106,7 @@
     "@pierre/diffs": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
+    "cmdk": "catalog:",
     "lucide-react": "catalog:",
     "marked": "catalog:",
     "radix-ui": "catalog:",

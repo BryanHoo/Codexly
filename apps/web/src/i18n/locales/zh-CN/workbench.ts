@@ -7,7 +7,7 @@ import { gitCommit } from "./git-commit.js";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
 import { skillsMarket } from "./skills-market.js";
-import { newProject } from "./new-project.js";
+import { newProject } from "@codexly/frontend-core/locales/zh-CN/new-project";
 import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
 
@@ -56,6 +56,10 @@ export const workbench = {
     showFileTree: "切换为文件树",
   },
   composer: {
+    generating: "生成中",
+    generationToolCalls_one: "{{count}} 次工具调用",
+    generationToolCalls_other: "{{count}} 次工具调用",
+    threadBusy: "此任务正在其他应用中编辑，暂时无法发送消息。历史仅显示已同步内容。",
     addedAttachments: "已添加附件",
     applyTodo: "应用待办",
     applyTodoDescription: "应用待办将覆盖输入框中的当前内容。是否继续？",
@@ -244,13 +248,20 @@ export const workbench = {
     fileChangeApproval: "文件变更审批",
     fileChangeFallback: "待确认文件变更",
     inputRequired: "需要你的输入",
+    acpElicitation: "{{server}} 请求用户交互",
+    suspiciousUrl: "此地址使用 HTTP 或国际化域名，请仔细核对目标地址。",
+    externalOpened: "已同意打开链接，等待 Agent 确认完成。",
+    externalCompleted: "Agent 已确认外部交互完成。",
+    targetDomain: "目标域名",
+    targetUrl: "完整 URL",
+    invalidUrl: "URL 无效，无法打开",
     mcpForm: "{{server}} 输入请求",
     mcpRequest: "{{server}} 确认请求",
     networkApproval: "网络访问审批",
     networkPermission: "网络访问",
     other: "其他",
     otherAnswer: "{{header}}其他回答",
-    openUrl: "打开链接",
+    openUrl: "同意并打开链接",
     previousPending: "等待处理前一项",
     processed: "请求已处理",
     permissionAccess: {

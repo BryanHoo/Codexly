@@ -102,9 +102,12 @@ describe("wallpaper settings", () => {
     await expect.element(screen.getByRole("button", { name: "选择图片", exact: true })).toBeVisible();
     await page.screenshot({ path: "../../../../test-results/background-custom-summary.png" });
     await screen.getByRole("button", { name: "选择图片", exact: true }).click();
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    const picker = screen.getByRole("dialog", { name: "选择图片", exact: true });
+    await expect.element(picker).toBeVisible();
     await userEvent.keyboard("{Escape}");
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    // 只关闭图片选择器；全局设置仍由父层保存屏障管理。
+    await expect.element(picker).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("dialog", { name: "全局设置", exact: true })).toBeVisible();
   });
 
   it("renders nonblank gallery images across desktop viewports and themes", async () => {

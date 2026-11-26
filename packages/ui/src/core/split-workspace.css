@@ -144,6 +144,52 @@
   grid-row: 1;
 }
 
+.workbench-inspector-rail {
+  position: absolute;
+  z-index: 9;
+  inset-inline-end: calc(var(--ui-space-unit) * 2);
+  /* icon-sm 高度为七个间距单位，让第一个按钮垂直居中对齐标题栏。 */
+  inset-block-start: calc(
+    (var(--ui-layout-workbench-header-height) - var(--ui-space-unit) * 7) / 2
+  );
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-unit);
+}
+
+/* 标题栏控件与消息正文避开浮动按钮，工作区网格和输入框保持全宽。 */
+.workbench-shell:has(> .workbench-inspector-rail) > main,
+.workbench-shell:has(> .workbench-inspector-rail)
+  > .split-workspace
+  > .split-workspace-pane[data-right-edge="true"] {
+  --workbench-inspector-clearance: calc(var(--ui-space-unit) * 11);
+}
+
+.workbench-pane-header {
+  padding-inline-end: var(--workbench-inspector-clearance, revert-layer);
+}
+
+.workbench-shell:has(> .workbench-inspector-rail) [data-conversation-content] {
+  /* 宽窗口已有内容限宽产生的留白，只补齐实际不足的距离。 */
+  padding-inline-end: max(
+    var(--workbench-conversation-padding),
+    calc(
+      var(--workbench-inspector-clearance, 0px) -
+        max(0px, (100% - var(--ui-layout-content-width)) / 2)
+    )
+  );
+}
+
+.workbench-shell:has(> .workbench-inspector-rail) {
+  --workbench-conversation-padding: calc(var(--ui-space-unit) * 4);
+}
+
+@media (min-width: 640px) {
+  .workbench-shell:has(> .workbench-inspector-rail) {
+    --workbench-conversation-padding: calc(var(--ui-space-unit) * 6);
+  }
+}
+
 /* 嵌入窗口只占中栏，左右面板由最外层工作区统一布局。 */
 .workbench-shell[data-embedded="true"] {
   grid-template-columns: minmax(0, 1fr);

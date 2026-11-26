@@ -2,26 +2,13 @@ use crate::infrastructure::local_catalog::{
     LocalCatalog,
     sidebar::{map_project, map_task},
 };
-use serde_json::{Value, json};
-use tauri::{AppHandle, Emitter, Manager, State};
+use serde_json::json;
+use tauri::{AppHandle, Manager, State};
 
-#[path = "sidebar_task_lifecycle.rs"]
-mod lifecycle;
-
-use super::{
-    error::AppError, scheduled_task_runner::start_turn_for_task,
-    sidebar_task_settings::effective_task_settings, state::AppState, task_workspace,
-};
-use crate::{
-    domain::conversation::{AgentPromptInput, AgentTurnActionResponse, AgentTurnOptions},
-    domain::sidebar::{
-        AgentTaskMutationResponse, AgentTaskPage, AgentTaskStatusResponse, ListTasksInput,
-        ProjectMutationResponse, ProjectPage, RemoveProjectResponse,
-    },
-    infrastructure::{
-        codex,
-        task_settings::{delete_project_task_settings, delete_task_settings},
-    },
+use super::{error::AppError, state::AppState, task_workspace};
+use crate::domain::sidebar::{
+    AgentTaskMutationResponse, AgentTaskPage, ListTasksInput, ProjectMutationResponse, ProjectPage,
+    RemoveProjectResponse,
 };
 
 #[tauri::command]
@@ -86,9 +73,6 @@ pub async fn remove_project(
         .await
         .map_err(|_| crate::domain::project_terminal::TerminalError::CleanupFailed)??;
     super::terminal_project::remove_preferences(&app, &project_id).await?;
-    delete_project_task_settings(&app_data_dir(&app)?, &project_id)
-        .await
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
     state.forget_project_activity(&project_id).await;
     Ok(response)
 }
@@ -134,70 +118,6 @@ pub async fn list_tasks(
 }
 
 #[tauri::command(rename_all = "camelCase")]
-pub async fn read_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    cursor: Option<String>,
-    summary: Option<bool>,
-    request_id: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    state
-        .run_cancellable(request_id.as_deref(), async {
-            let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
-            if task["provider"] == "claude" {
-                return super::claude_tasks::read(
-                    &app,
-                    &project_id,
-                    &task_id,
-                    &task,
-                    cursor,
-                    summary,
-                )
-                .await;
-            }
-            let connection = state.codex_connection().await?;
-            state.remember_tasks(&project_id, [task_id.as_str()]).await;
-            let settings = effective_task_settings(&app, &project_id, &task_id).await?;
-            task_workspace::allow_attachment_assets(&app, &project_id, &task_id).await?;
-            let mut response = state
-                .read_consistent_task_snapshot(&project_id, &task_id, || async {
-                    if summary.unwrap_or(false) {
-                        codex::read_task_summary_snapshot(
-                            &connection,
-                            project_id.clone(),
-                            task_id.clone(),
-                            cursor.as_deref(),
-                        )
-                        .await
-                    } else {
-                        codex::read_task_snapshot(
-                            &connection,
-                            project_id.clone(),
-                            task_id.clone(),
-                            cursor.as_deref(),
-                        )
-                        .await
-                    }
-                    .map_err(AppError::from)
-                })
-                .await?;
-            response.snapshot.settings = settings;
-            if state.remember_task_snapshot(&response.snapshot).await
-                && let Err(error) = app.emit("task-activity://changed", ())
-            {
-                crate::infrastructure::diagnostics::record_error(
-                    "task_activity_notify_failed",
-                    error,
-                );
-            }
-            serde_json::to_value(response).map_err(|_| AppError::CodexRequestFailed)
-        })
-        .await
-}
-
-#[tauri::command(rename_all = "camelCase")]
 pub async fn start_task(
     app: AppHandle,
     project_id: String,
@@ -232,96 +152,7 @@ pub async fn start_task(
         .await
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn start_turn(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    input: AgentPromptInput,
-    options: AgentTurnOptions,
-    idempotency_key: String,
-    state: State<'_, AppState>,
-) -> super::turn_start::TurnStartResult {
-    let identity = super::turn_start::fingerprint(&project_id, &task_id, &input, &options)?;
-    state
-        .turn_starts
-        .run(&idempotency_key, identity, async move {
-            let state = app.state::<AppState>();
-            start_turn_for_task(&app, &project_id, &task_id, input, options, &state).await
-        })
-        .await
-}
-
-pub use super::sidebar_task_settings::{get_task_settings, update_task_settings};
-
-/// 父回合结束后仍可停止后台工作；只通过任务绑定的 Claude 宿主操作原生任务 ID。
-#[tauri::command(rename_all = "camelCase")]
-pub async fn stop_task_session(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    background_task_id: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
-    if task["provider"] != "claude" {
-        return Err(AppError::Claude(
-            "Session control is unavailable for this engine".into(),
-        ));
-    }
-    state
-        .claude
-        .request(
-            &app,
-            "session.stop",
-            Some(super::claude_tasks::scope(&task)),
-            json!({"taskId":task_id,"backgroundTaskId":background_task_id}),
-        )
-        .await
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn interrupt_turn(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    turn_id: String,
-    state: State<'_, AppState>,
-) -> Result<AgentTurnActionResponse, AppError> {
-    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
-    if task["provider"] == "claude" {
-        state
-            .claude
-            .request(
-                &app,
-                "turn.interrupt",
-                Some(super::claude_tasks::scope(&task)),
-                json!({"taskId":task_id,"turnId":turn_id}),
-            )
-            .await?;
-        return Ok(AgentTurnActionResponse {
-            status: "accepted",
-            task_id,
-            turn_id,
-        });
-    }
-    let connection = state.codex_connection().await?;
-    codex::interrupt_turn(&connection, task_id, turn_id)
-        .await
-        .map_err(AppError::from)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn resolve_pending_request(
-    app: AppHandle,
-    request: super::pending_resolution::PendingResolutionReference,
-    resolution: Value,
-    idempotency_key: String,
-) -> Result<Value, Value> {
-    super::pending_resolution::resolve(app, request, resolution, idempotency_key).await
-}
-
-pub use super::task_compact_commands::compact_task;
+pub use super::pending_resolution::resolve_pending_request;
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn rename_task(
@@ -379,113 +210,6 @@ pub async fn pin_task(
         .publish_catalog_task_change(&app, &project_id, &response.task.id, None)
         .await;
     Ok(response)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn archive_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    state: State<'_, AppState>,
-) -> Result<AgentTaskStatusResponse, AppError> {
-    let catalog = local_catalog(&app)?;
-    let task = catalog.owned_task(&project_id, &task_id).await?;
-    if task["provider"] == "claude" {
-        // 共享适配器负责拒绝执行中的任务、关闭空闲会话并发布移除事件。
-        state.remember_tasks(&project_id, [task_id.as_str()]).await;
-        state
-            .claude
-            .request(
-                &app,
-                "task.archive",
-                Some(super::claude_tasks::scope(&task)),
-                json!({"taskId":task_id}),
-            )
-            .await?;
-        return Ok(AgentTaskStatusResponse {
-            status: "archived",
-            task_id,
-        });
-    }
-    lifecycle::mutate_codex(&state, &catalog, &task, "thread/archive").await?;
-    state
-        .publish_catalog_task_change(&app, &project_id, &task_id, Some("archived"))
-        .await;
-    Ok(AgentTaskStatusResponse {
-        status: "archived",
-        task_id,
-    })
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn unarchive_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    state: State<'_, AppState>,
-) -> Result<AgentTaskMutationResponse, AppError> {
-    let catalog = local_catalog(&app)?;
-    let task = catalog.owned_task(&project_id, &task_id).await?;
-    let response = AgentTaskMutationResponse {
-        task: map_task(&lifecycle::restore(&state, &catalog, &task).await?)?,
-    };
-    state
-        .remember_task_metadata(
-            &project_id,
-            [(response.task.id.as_str(), response.task.title.as_str())],
-        )
-        .await;
-    state
-        .publish_catalog_task_change(&app, &project_id, &response.task.id, None)
-        .await;
-    Ok(response)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn delete_task(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    state: State<'_, AppState>,
-) -> Result<AgentTaskStatusResponse, AppError> {
-    let catalog = local_catalog(&app)?;
-    let task = catalog.owned_task(&project_id, &task_id).await?;
-    let is_claude = task["provider"] == "claude";
-    if is_claude {
-        // 必须等待共享适配器确认会话已释放；失败时保留任务及临时工作目录。
-        state.remember_tasks(&project_id, [task_id.as_str()]).await;
-        state
-            .claude
-            .request(
-                &app,
-                "task.delete",
-                Some(super::claude_tasks::scope(&task)),
-                json!({"taskId":task_id}),
-            )
-            .await?;
-    } else {
-        lifecycle::mutate_codex(&state, &catalog, &task, "thread/delete").await?;
-    }
-    let working_directory = task["cwd"].as_str().map(std::path::PathBuf::from);
-    task_workspace::remove_deleted_workspace(
-        &app,
-        &project_id,
-        &task_id,
-        working_directory.as_deref(),
-    )
-    .await?;
-    delete_task_settings(&app_data_dir(&app)?, &project_id, &task_id)
-        .await
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    if !is_claude {
-        state
-            .publish_catalog_task_change(&app, &project_id, &task_id, Some("deleted"))
-            .await;
-    }
-    Ok(AgentTaskStatusResponse {
-        status: "deleted",
-        task_id,
-    })
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {

@@ -1,3 +1,6 @@
+import { WorkbenchInspectorRail } from "@codexly/ui/core/workbench-inspector-rail";
+import { i18n } from "../../../i18n/i18n.js";
+import { getAvailableWorkbenchInspectorTabs } from "../workbench-inspector-activation.js";
 import { useContext, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
@@ -27,6 +30,7 @@ export function WorkbenchShellInspector({
     closeInspector,
     expandedFileTreePaths,
     gitStatusQuery,
+    inspectorOpen,
     inspectorTab,
     inspectorTask,
     mcpServersQuery,
@@ -54,8 +58,31 @@ export function WorkbenchShellInspector({
   } = context;
   // 只挂载活动窗口的右栏；沿用该窗口的运行时，避免另读一次任务历史。
   if (pane !== null && (!pane.active || inspector?.target == null)) return null;
+  if (!inspectorOpen) {
+    const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatusQuery.data, {
+      contextOnly: temporary,
+    });
+    const rail = (
+      <WorkbenchInspectorRail
+        label={i18n.t("inspector.title", { ns: "conversation" })}
+        expandLabel={context.t("shell.expandInspector")}
+        tabs={availableTabs}
+        getTabLabel={(tab) => i18n.t(`inspector.${tab}`, { ns: "conversation" })}
+        onSelectTab={setInspectorTab}
+        onOpen={() => {
+          setInspectorOpen(true);
+        }}
+        shellRef={context.workbenchShellRef}
+      />
+    );
+    return pane !== null && inspector?.target != null ? createPortal(rail, inspector.target) : rail;
+  }
+  const cancelBackground = taskId
+    ? client.cancelAcpBackground?.bind(client, projectId, taskId)
+    : undefined;
   const content = (
     <WorkbenchInspector
+      {...(cancelBackground ? { onCancelAcpBackground: cancelBackground } : {})}
       backgroundTerminals={backgroundTerminals.terminals}
       backgroundTerminalsError={backgroundTerminals.error}
       backgroundTerminalsPending={backgroundTerminals.isPending}
@@ -68,10 +95,15 @@ export function WorkbenchShellInspector({
       gitStatusPending={gitStatusQuery.isPending}
       gitStatusRefreshing={gitStatusQuery.isFetching}
       gitClient={client}
+      legacyContext={context.capabilities !== undefined && context.capabilities.runtime !== "acp"}
       mcpServers={mcpServersQuery.data?.data ?? []}
       mcpStatusSource={mcpServersQuery.data?.statusSource}
       mcpObservedAt={mcpServersQuery.data?.observedAt}
-      mcpServersRetryAvailable={taskId !== undefined}
+      mcpServersRetryAvailable={
+        taskId !== undefined &&
+        context.capabilities !== undefined &&
+        context.capabilities.runtime !== "acp"
+      }
       mcpServersRefreshing={mcpServersQuery.isFetching && !mcpServersQuery.isPending}
       mcpServersRetrying={mcpServersReloadMutation.isPending}
       key={`${projectId}:${taskId ?? "draft"}`}

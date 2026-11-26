@@ -1,0 +1,140 @@
+use super::*;
+
+#[tokio::test]
+async fn acp_prepare_should_reject_missing_resources_and_retry_after_repair() {
+    let root = tempfile::tempdir().unwrap();
+    let manager = AcpRuntimeManager::default();
+    assert!(manager.prepare(root.path()).await.is_err());
+    let platform = if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(windows) {
+        "win32"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        "x64"
+    };
+    let manifest = serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,
+        "host":{"path":"host","protocolVersion":1}});
+    std::fs::write(root.path().join("manifest.json"), manifest.to_string()).unwrap();
+    std::fs::write(root.path().join("host"), "binary").unwrap();
+    let paths = manager.prepare(root.path()).await.unwrap();
+    assert_eq!(
+        paths.host,
+        std::fs::canonicalize(root.path().join("host")).unwrap()
+    );
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 2);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_prepare_should_reject_a_symlinked_executable() {
+    let root = tempfile::tempdir().unwrap();
+    assert!(
+        controlled_executable(root.path(), "../outside")
+            .await
+            .is_err()
+    );
+    let outside = tempfile::NamedTempFile::new().unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.path().join("host")).unwrap();
+    assert!(controlled_executable(root.path(), "host").await.is_err());
+}
+
+#[tokio::test]
+async fn acp_prepare_should_not_fall_back_to_an_unsigned_resource_host() {
+    let root = tempfile::tempdir().unwrap();
+    let platform = if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(windows) {
+        "win32"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        "x64"
+    };
+    for placement in ["sidecar", "unknown"] {
+        let manifest = serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,
+            "host":{"path":"acp-host","placement":placement,"protocolVersion":1}});
+        std::fs::write(root.path().join("manifest.json"), manifest.to_string()).unwrap();
+        std::fs::write(root.path().join("acp-host"), "binary").unwrap();
+        assert!(
+            AcpRuntimeManager::default()
+                .prepare(root.path())
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn acp_prepare_should_use_one_external_sidecar_and_cache_its_identity() {
+    let root = tempfile::tempdir().unwrap();
+    let resource = root.path().join("runtime");
+    std::fs::create_dir(&resource).unwrap();
+    let platform = if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(windows) {
+        "win32"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        "x64"
+    };
+    let manifest = serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,
+      "host":{"path":"acp-host","placement":"sidecar","protocolVersion":1}});
+    std::fs::write(resource.join("manifest.json"), manifest.to_string()).unwrap();
+    let host = root.path().join("acp-host");
+    std::fs::write(&host, "signed-sidecar").unwrap();
+    let manager = AcpRuntimeManager::default();
+    let prepared = manager.prepare_sidecar(&resource, &host).await.unwrap();
+    assert_eq!(prepared.host, std::fs::canonicalize(&host).unwrap());
+    assert!(!resource.join("acp-host").exists());
+    assert_eq!(
+        manager
+            .prepare_sidecar(&resource, &host)
+            .await
+            .unwrap()
+            .host,
+        prepared.host
+    );
+    assert!(
+        manager
+            .prepare_sidecar(&resource, &root.path().join("other-host"))
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn acp_host_only_bundle_should_not_require_any_agent() {
+    let root = tempfile::tempdir().unwrap();
+    let platform = if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(windows) {
+        "win32"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        "x64"
+    };
+    std::fs::write(root.path().join("host"), "binary").unwrap();
+    std::fs::write(root.path().join("manifest.json"), serde_json::json!({"schemaVersion":1,"platform":platform,"arch":arch,"host":{"path":"host","protocolVersion":1},"engines":{}}).to_string()).unwrap();
+    assert!(
+        AcpRuntimeManager::default()
+            .prepare(root.path())
+            .await
+            .is_ok()
+    );
+}

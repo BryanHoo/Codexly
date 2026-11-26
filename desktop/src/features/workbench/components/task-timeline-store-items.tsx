@@ -14,12 +14,7 @@ import type { AgentFileChange } from "../../diff/file-change.js";
 
 import { TimelineItemContent } from "./task-timeline-items.js";
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
-import {
-  RunningReplyStatus,
-  getReviewMessageText,
-  resolveRunningOperation,
-  type RunningOperation,
-} from "./task-timeline-running.js";
+import { RunningReplyStatus, getReviewMessageText } from "./task-timeline-running.js";
 import { MessageMetadata } from "./task-timeline-status.js";
 
 export type StoredTurnTimelineGroup =
@@ -232,25 +227,7 @@ export function StoredUserMessage({
   );
 }
 
-export function StoredRunningReplyStatus({
-  itemKeys,
-  store,
-}: Readonly<{ itemKeys: readonly string[]; store: TaskStore }>) {
-  const operationKey = useStore(store, (state) => {
-    const indexedItems = itemKeys.flatMap((itemKey, itemIndex) => {
-      const item = state.itemStoresByKey.get(itemKey)?.peek();
-      return item === undefined ? [] : [{ item, itemIndex }];
-    });
-    const operation = resolveRunningOperation(indexedItems);
-    return operation === undefined ? "" : `${operation.type}\u0000${operation.label}`;
-  });
-  const separatorIndex = operationKey.indexOf("\u0000");
-  const operation: RunningOperation | undefined =
-    separatorIndex < 0
-      ? undefined
-      : {
-          label: operationKey.slice(separatorIndex + 1),
-          type: operationKey.slice(0, separatorIndex) as RunningOperation["type"],
-        };
-  return <RunningReplyStatus operation={operation} />;
-}
+// 运行提示只反映回合状态，沿用时间线调用接口并跳过操作条目的订阅和遍历。
+export const StoredRunningReplyStatus: (
+  props: Readonly<{ itemKeys: readonly string[]; store: TaskStore }>,
+) => ReturnType<typeof RunningReplyStatus> = RunningReplyStatus;

@@ -6,7 +6,6 @@ import {
   type ListTasksOptions,
   type ListFilesystemEntriesOptions,
   type PendingRequestResolution,
-  type ReadTaskOptions,
   type ReadOptions,
   type MutationOptions,
   type SubscribeAgentEventsOptions,
@@ -17,27 +16,22 @@ import type {
   AgentBackgroundTerminalPage,
   AgentPromptInput,
   AgentQueuedSubmissionSnapshot,
-  AgentTaskSnapshotResponse,
   AgentTaskPage,
   AgentTaskSettings,
   AgentTaskSettingsResponse,
   AgentTurnOptions,
-  ArchiveAgentTaskResponse,
   CompactAgentTaskResponse,
   ClearAgentGoalResponse,
-  DeleteAgentTaskResponse,
   DeleteAgentQueuedSubmissionResponse,
   DeleteScheduledTaskResponse,
   ForkAgentTaskRequest,
   ForkAgentTaskResponse,
   InterruptAgentTurnResponse,
-  PinAgentTaskResponse,
   PendingRequest,
   ProjectDirectoryListing,
   ProjectPage,
   RemoveProjectResponse,
   ResolvePendingRequestResponse,
-  RenameAgentTaskResponse,
   RenameProjectResponse,
   ReorderProjectsResponse,
   MoveAgentQueuedSubmissionResponse,
@@ -51,21 +45,19 @@ import type {
   ScheduledTaskSchedule,
   ScheduledTaskPreview,
   TerminateAgentBackgroundTerminalResponse,
-  UnarchiveAgentTaskResponse,
   UpdateAgentGoalRequest,
   UpdateAgentGoalResponse,
 } from "@/protocol/index.js";
 
-import type { TauriClientOptions } from "./native-client.js";
 import type { PendingResolutionReference } from "@/protocol/pending-request.js";
 import { subscribeProjectEvents } from "./project-event-subscription.js";
-import { TauriRuntimeClient } from "./runtime-client.js";
+import { TauriTaskManagementClient } from "./task-management-client.js";
 import type { SubmitPromptOptions } from "./prompt-submission.js";
 import type { SubmitReviewOptions } from "./review-submission.js";
 
 export type { InvokeImplementation } from "./native-client.js";
 
-export class TauriSidebarClient extends TauriRuntimeClient {
+export class TauriSidebarClient extends TauriTaskManagementClient {
   public async submitPrompt(options: SubmitPromptOptions) {
     // 提交专用校验按需加载，避免增加工作台首次渲染的协议代码。
     const { submitPrompt } = await import("./prompt-submission.js");
@@ -75,18 +67,18 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     } });
   }
 
-  public constructor(options: TauriClientOptions = {}) {
-    super(options);
-  }
-
   public async searchTasks(input: TaskSearchInput, options: ReadOptions = {}) {
-    const response = await this.callCancellable<unknown>("search_tasks", { input }, options.signal);
+    options.signal?.throwIfAborted();
+    const runtime = await this.applicationRuntime();
+    const response = await this.callCancellable<unknown>("search_tasks", { input, ...(runtime === "acp" ? { agentRuntime: "acp" } : {}) }, options.signal);
     const { parseTaskSearchPage } = await import("./search-response.js");
     return parseTaskSearchPage(response);
   }
 
   public async searchTaskOccurrences(taskId: string, query: string, cursor?: string, options: ReadOptions = {}) {
-    const response = await this.callCancellable<unknown>("search_task_occurrences", { taskId, query, cursor }, options.signal);
+    options.signal?.throwIfAborted();
+    const runtime = await this.applicationRuntime();
+    const response = await this.callCancellable<unknown>("search_task_occurrences", { taskId, query, cursor, ...(runtime === "acp" ? { agentRuntime: "acp" } : {}) }, options.signal);
     const { parseSearchOccurrencesPage } = await import("./search-response.js");
     return parseSearchOccurrencesPage(response);
   }
@@ -212,62 +204,6 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     return this.call("reorder_projects", { projectIds: [...projectIds] });
   }
 
-  public async pinTask(
-    projectId: string,
-    taskId: string,
-    pinned: boolean,
-  ): Promise<PinAgentTaskResponse> {
-    return this.call("pin_task", { pinned, projectId, taskId });
-  }
-
-  public async renameTask(
-    projectId: string,
-    taskId: string,
-    title: string,
-  ): Promise<RenameAgentTaskResponse> {
-    return this.call("rename_task", { projectId, taskId, title });
-  }
-
-  public async archiveTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<ArchiveAgentTaskResponse> {
-    return this.call("archive_task", { projectId, taskId });
-  }
-
-  public async unarchiveTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<UnarchiveAgentTaskResponse> {
-    return this.call("unarchive_task", { projectId, taskId });
-  }
-
-  public async deleteTask(
-    projectId: string,
-    taskId: string,
-  ): Promise<DeleteAgentTaskResponse> {
-    return this.call("delete_task", { projectId, taskId });
-  }
-
-  public async readTask(
-    projectId: string,
-    taskId: string,
-    options: ReadTaskOptions = {},
-  ): Promise<AgentTaskSnapshotResponse> {
-    const response = await this.callCancellable<AgentTaskSnapshotResponse>(
-      "read_task",
-      {
-        projectId,
-        taskId,
-        cursor: options.cursor ?? null,
-        ...(options.summary === undefined ? {} : { summary: options.summary }),
-      },
-      options.signal,
-    );
-    this.taskProjects.set(response.snapshot.id, projectId);
-    return response;
-  }
-
   public async startTask(
     projectId: string,
     options: Readonly<{ idempotencyKey: string }>,
@@ -364,6 +300,8 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     input: AgentPromptInput,
     options: Readonly<{ idempotencyKey: string; queuedSubmissionId?: string }>,
   ): Promise<SteerAgentTurnResponse> {
+    if (await this.applicationRuntime() === "acp")
+      return this.steerAcpTurn(projectId, taskId, turnId, input, options);
     return this.call("steer_turn", { idempotencyKey: options.idempotencyKey, input, projectId, taskId, turnId,
       ...(options.queuedSubmissionId === undefined ? {} : { queuedSubmissionId: options.queuedSubmissionId }),
     });
@@ -377,8 +315,13 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     projectId: string,
     taskId: string,
     turnId: string,
-    _options: MutationOptions = {},
+    options: MutationOptions = {},
   ): Promise<InterruptAgentTurnResponse> {
+    if (await this.applicationRuntime() === "acp") {
+      // 只确认此任务/回合的中断请求；终态继续由共享 ACP 流事件接管。
+      await this.interruptAcpTurn(projectId, taskId, turnId, options);
+      return { status: "interrupting", taskId, turnId };
+    }
     return this.call("interrupt_turn", { projectId, taskId, turnId });
   }
 
@@ -387,7 +330,11 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     resolution: PendingRequestResolution<T>,
     options: Readonly<{ idempotencyKey: string }>,
   ): Promise<ResolvePendingRequestResponse> {
+    const acpElicitation = request.type === "mcp_elicitation" && request.acp === true;
     return this.call("resolve_pending_request", {
+      // 迁移期间按请求自身的 ACP 标记分流，不能根据当前选中的全局引擎猜测。
+      ...(request.type === "tool_approval" && request.acpOptions !== undefined ? { acp: true } : {}),
+      ...(acpElicitation ? { acp: true, acpRequestType: "mcp_elicitation" } : {}),
       request: {
         projectId: request.projectId, taskId: request.taskId, turnId: request.turnId,
         itemId: request.itemId, requestId: request.requestId, createdAt: request.createdAt,
@@ -479,17 +426,6 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     });
     this.taskProjects.set(response.task.id, projectId);
     return response;
-  }
-
-  public async releaseTaskSubscription(
-    projectId: string,
-    taskId: string,
-  ): Promise<void> {
-    await this.call("release_task_subscription", { projectId, taskId });
-  }
-
-  public async retainTaskSubscription(projectId: string, taskId: string): Promise<void> {
-    await this.call("retain_task_subscription", { projectId, taskId });
   }
 
   public subscribeEvents(options: SubscribeAgentEventsOptions): () => void {

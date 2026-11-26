@@ -1,0 +1,35 @@
+[
+  {
+    "id": "daily",
+    "now": 1767225600000,
+    "schedule": {
+      "type": "rrule",
+      "rrule": "FREQ=DAILY;COUNT=2",
+      "timezone": "UTC",
+      "startAtUnixMs": 1767225600000
+    },
+    "nextRunAt": 1767312000000
+  },
+  {
+    "id": "ended",
+    "now": 1767225600000,
+    "schedule": {
+      "type": "rrule",
+      "rrule": "FREQ=DAILY;COUNT=1",
+      "timezone": "UTC",
+      "startAtUnixMs": 1767225600000
+    },
+    "nextRunAt": null
+  },
+  {
+    "id": "dst",
+    "now": 1772892000000,
+    "schedule": {
+      "type": "rrule",
+      "rrule": "FREQ=DAILY;COUNT=2",
+      "timezone": "America/New_York",
+      "startAtUnixMs": 1772892000000
+    },
+    "nextRunAt": 1772974800000
+  }
+]

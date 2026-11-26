@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { parsePatchFiles } from "@pierre/diffs";
+import { normalizeFileChangePatch } from "@codexly/frontend-core/file-change-patch";
 
-import {
-  countFileChangeLines,
-  normalizeFileChangePatch,
-  summarizeFileChanges,
-} from "./file-change.js";
+import { countFileChangeLines, summarizeFileChanges } from "./file-change.js";
 
 describe("file change view model", () => {
+  it.each(["create", "update"] as const)(
+    "解析旧 ACP 空原文补丁（%s），并保留真正新增的空行",
+    (kind) => {
+      const path = "/repo/new file.ts";
+      const diff = `--- ${path}\n+++ ${path}\n@@ -1,0 +1,3 @@\n\n+first\n+\n+last`;
+      const patch = normalizeFileChangePatch({ diff, kind, path });
+      const file = parsePatchFiles(patch, undefined, true)[0]?.files[0];
+      expect(file?.additionLines).toEqual(["first\n", "\n", "last"]);
+    },
+  );
+
   it.each([false, true])("保留尾部空白上下文，确保补丁可解析（已有文件头：%s）", (headers) => {
     const body = "@@ -71,2 +71,3 @@\n \n+added\n /**\n@@ -75,2 +76,2 @@\n-old\n+new  \n \n";
     const diff = (headers ? "--- a/a.ts\n+++ b/a.ts\n" : "") + body;

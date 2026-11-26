@@ -1,11 +1,10 @@
+import { legacyMcpQuery, legacyMcpReload } from "@codexly/frontend-core/legacy-mcp-query";
 import { savedPromptsStore } from "@codexly/ui/core/saved-prompts-store";
 import { engineModelsQuery, engineSettingsQuery, engineSettingsMutation } from "@codexly/frontend-core/engine-settings-query";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { NativeClient } from "@/platform/native-client-contract.js";
 import type {
   AgentModelPage,
-  AgentMcpServerPage,
-  ReloadAgentMcpServersRequest,
   AgentProjectDefaults,
   AgentTaskSettings,
   CommitProjectChangesRequest,
@@ -161,43 +160,13 @@ export function skillsQueryOptions(
   });
 }
 
-export function mcpServersQueryOptions(
-  projectId: string,
-  taskId: string | undefined,
-  client: NativeMcpServersClient = nativeClient,
-  enabled = true,
-) {
-  return queryOptions<AgentMcpServerPage>({
-    enabled: enabled && taskId !== undefined,
-    queryFn: async ({ signal }): Promise<AgentMcpServerPage> => {
-      if (taskId === undefined) {
-        return { data: [] };
-      }
-      return client.listMcpServers(projectId, taskId, { signal });
-    },
-    queryKey: ["projects", projectId, "tasks", taskId ?? null, "mcp-servers"] as const,
-  });
+export function mcpServersQueryOptions(projectId: string, taskId: string | undefined,
+  client: NativeMcpServersClient = nativeClient, enabled = true, runtime: "pending" | "legacy" | "acp" = "legacy") {
+  return queryOptions(legacyMcpQuery(projectId, taskId, client, enabled, runtime));
 }
-
-export function mcpServersReloadMutationOptions(
-  projectId: string,
-  taskId: string | undefined,
-  client: NativeMcpServersMutationClient = nativeClient,
-) {
-  return mutationOptions({
-    mutationFn: async (
-      action?: ReloadAgentMcpServersRequest["action"],
-    ): Promise<AgentMcpServerPage> => {
-      if (taskId === undefined) {
-        throw new Error("Cannot reload MCP servers without a task");
-      }
-      return action
-        ? client.retryMcpServers(projectId, taskId, { action })
-        : client.retryMcpServers(projectId, taskId);
-    },
-    mutationKey: ["projects", projectId, "tasks", taskId ?? null, "mcp-servers", "reload"] as const,
-    scope: { id: `task-mcp:${projectId}:${taskId ?? "none"}` },
-  });
+export function mcpServersReloadMutationOptions(projectId: string, taskId: string | undefined,
+  client: NativeMcpServersMutationClient = nativeClient, runtime: "pending" | "legacy" | "acp" = "legacy") {
+  return mutationOptions(legacyMcpReload(projectId, taskId, client, runtime));
 }
 
 export function projectDefaultsQueryOptions(

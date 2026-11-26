@@ -192,3 +192,19 @@ it("offers managed Claude fork and compact actions alongside native commands wit
     commands.some((command) => command.action === "native" && command.command === "context"),
   ).toBe(true);
 });
+
+it("ACP 命令由原始列表完整驱动，保留同名命令且不走旧应用适配", () => {
+  const raw = ["fork", "compact", "plan", "vendor-command"].map((name) => ({
+    name,
+    description: `原始 ${name}`,
+    input: { hint: "原始参数" },
+  }));
+  const commands = getPromptCommandItems({
+    acpCommands: raw,
+    engineCommands: [{ name: "old", description: "旧命令", argumentHint: "" }],
+  });
+  expect(commands.map((item) => [item.action, item.command, item.label, item.description])).toEqual(
+    raw.map((item) => ["native", item.name, `/${item.name}`, item.description]),
+  );
+  expect(getPromptCommandItems({ acpCommands: [] })).toEqual([]);
+});

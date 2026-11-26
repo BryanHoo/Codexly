@@ -1,3 +1,5 @@
+import { BuildPlanButton } from "@codexly/ui/agent/task-timeline-build-plan-button";
+import { AcpCompactionRow } from "@codexly/ui/agent/acp-session-updates";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import { resolveTimelineActivityStatus } from "@codexly/frontend-core/turn-process";
@@ -58,7 +60,6 @@ import {
 } from "@codexly/frontend-core/reasoning-summary";
 
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
-import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
 import { TimelineFileChangePresentation, LegacyTimelineFileChange } from "./task-timeline-file-changes.js";
 import {
   ApprovalReviewItem,
@@ -319,6 +320,13 @@ export function TimelineItemContent({
             )}
             {item.input === undefined ? null : <ToolInput input={item.input} />}
             <ToolOutput errorText={errorText} output={hasErrorOutput ? undefined : item.output} />
+            {item.outputAttachments?.map((attachment) => (
+              <MessageFileAttachment
+                attachment={attachment}
+                key={attachment.id}
+                url={buildNativeTaskAttachmentUrl(projectId, taskId, attachment.id)}
+              />
+            ))}
           </ToolContent>
         </Tool>
       );
@@ -353,13 +361,27 @@ export function TimelineItemContent({
           {isStreamingPlan || onBuildPlan === undefined ? null : (
             <PlanFooter className="justify-end">
               <PlanAction>
-                <BuildPlanButton onBuildPlan={onBuildPlan} />
+                <BuildPlanButton
+                  label={i18n.t("timeline.buildPlan", { ns: "conversation" })}
+                  onBuildPlan={onBuildPlan}
+                />
               </PlanAction>
             </PlanFooter>
           )}
         </Plan>
       );
     }
+    case "compaction":
+      return (
+        <AcpCompactionRow
+          status={item.status}
+          turnRunning={turnStatus === "running"}
+          label={(status) => i18n.t(`timeline.compaction.${status}`, { ns: "conversation" })}
+          summary={item.summary ?? ""}
+          error={item.error ?? undefined}
+          Summary={LazyMessageResponse}
+        />
+      );
     case "activity": {
       // Codex 的 imageView 在两端均映射为固定标签，detail 保留原始图片路径。
       const imagePath = item.label === "查看图片" ? item.detail : undefined;

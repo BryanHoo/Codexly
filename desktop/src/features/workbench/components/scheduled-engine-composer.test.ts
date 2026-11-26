@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { WorkbenchComposer, type WorkbenchComposerProps } from "./workbench-composer.js";
+import { LegacyWorkbenchComposer as WorkbenchComposer, type WorkbenchComposerProps } from "./workbench-legacy-composer.js";
 
 const { useEngineComposerState, captured } = vi.hoisted(() => ({
   useEngineComposerState: vi.fn(() => ({

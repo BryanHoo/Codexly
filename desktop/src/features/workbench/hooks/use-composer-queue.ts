@@ -35,7 +35,9 @@ type SubmitPrompt = (
 
 type ComposerQueueOptions = Readonly<{
   activeTurnId: string | undefined;
-  client: NativeMutationClient;
+  client: Pick<NativeMutationClient, "listQueuedSubmissions" | "addQueuedSubmission" | "deleteQueuedSubmission" | "moveQueuedSubmission" | "startQueuedSubmission" | "getTaskAttachmentUrl"> & {
+    readQueuedAttachment?: (attachment: PromptInputAttachment) => Promise<File>;
+  };
   handleAttachmentsChange: (files: readonly PromptInputAttachment[]) => void;
   projectId: string;
   replacePromptContent: (content: PromptSkillContent, cursorOffset?: number) => void;
@@ -170,10 +172,20 @@ export function useComposerQueue({
       editablePrompt.text,
       editablePrompt.skills,
     );
-    // 先撤回服务端排队项，确保旧附件不再与编辑中的草稿共享生命周期。
+    // ACP 删除队列项会回收原附件。先取正文，读取失败时原消息仍留在队列。
+    const draftFiles = client.readQueuedAttachment
+      ? await Promise.all(editablePrompt.files.map(client.readQueuedAttachment))
+      : undefined;
     await removeQueuedPrompt(queuedPrompt.id);
     replacePromptContent(content, serializePromptSkillContent(content).length);
-    handleAttachmentsChange(editablePrompt.files);
+    handleAttachmentsChange(
+      draftFiles
+        ? editablePrompt.files.map((attachment, index) => {
+            const file = draftFiles[index]!;
+            return { ...attachment, file, previewUrl: URL.createObjectURL(file), source: "browser" };
+          })
+        : editablePrompt.files,
+    );
     skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
   };
 

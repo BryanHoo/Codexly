@@ -1,4 +1,5 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
+import { normalizeFileChangePatch } from "@codexly/frontend-core/file-change-patch";
 import {
   getFiletypeFromFileName,
   parsePatchFiles,
@@ -74,6 +75,7 @@ function handleDiffWheel(event: WheelEvent<HTMLDivElement>) {
 type PatchDiffViewerProps = Readonly<{
   path: string;
   patch: string;
+  kind?: "create" | "delete" | "update";
   preloadLanguage?: boolean;
   unavailableLabel?: string;
   emptyLabel?: string;
@@ -161,12 +163,16 @@ function PreloadedDiff({ path, fileDiff }: ParsedDiffProps & Readonly<{ path: st
 export function PatchDiffViewer({
   path,
   patch,
+  kind = "update",
   preloadLanguage = false,
   unavailableLabel = path,
   emptyLabel = unavailableLabel,
 }: PatchDiffViewerProps) {
   // 每次正文变化仅解析一次，直接传递解析结果，避免 PatchDiff 内部重复扫描全文。
-  const fileDiff = useMemo(() => parsePreviewPatch(patch), [patch]);
+  const fileDiff = useMemo(
+    () => parsePreviewPatch(normalizeFileChangePatch({ diff: patch, kind, path })),
+    [kind, patch, path],
+  );
   // Codex 的无内容修改返回空串；桌面规范化后只剩文件头，两者都不是解析失败。
   const empty =
     patch.trim().length === 0 || /^--- [^\r\n]+\r?\n\+\+\+ [^\r\n]+\r?\n?$/u.test(patch);

@@ -1,3 +1,5 @@
+import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
+import { useApplicationSettings } from "@codexly/ui/core/use-application-settings";
 import { useTaskVisibility } from "@codexly/ui/core/use-task-visibility";
 import { documentResourceId } from "@codexly/frontend-core/document-presentation";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
@@ -23,11 +25,6 @@ import {
 } from "../../projects/project-context.js";
 import { resolveProjectRootFromSelections } from "../../projects/project-root-selection.js";
 import {
-  appInfoQueryOptions,
-  appUpdateMutationOptions,
-  appUpdateProgressQueryOptions,
-  globalSettingsMutationOptions,
-  globalSettingsQueryOptions,
   mcpServersQueryOptions,
   mcpServersReloadMutationOptions,
   modelsQueryOptions,
@@ -40,6 +37,7 @@ import {
   taskRenameMutationOptions,
 } from "../../projects/project-queries.js";
 import { useBackgroundTerminals } from "../hooks/use-background-terminals.js";
+import { useWorkbenchAppUpdates } from "../hooks/use-workbench-app-updates.js";
 import { openProjectPath } from "../open-project-path.js";
 import { useProjectGitStatusRefresh } from "../hooks/use-project-git-status-refresh.js";
 import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
@@ -53,7 +51,7 @@ import {
   shouldEnableProjectGitDetails,
 } from "../workbench-inspector-activation.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
-import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 import { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";
 import type { WorkbenchShellProps } from "./workbench-shell-contracts.js";
 import {
@@ -62,7 +60,7 @@ import {
   type TaskLaunchState,
 } from "./workbench-task-launch.js";
 
-export { useSubmissionStartedAt } from "./use-submission-started-at.js";
+export { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 export type { WorkbenchShellProps, SubmittedPromptState } from "./workbench-shell-contracts.js";
 
 const emptyExpandedFileTreePaths = new Set<string>();
@@ -88,7 +86,8 @@ export function useWorkbenchShellRuntime({
     retry,
     viewTask,
   } = useProjectActions();
-  const runtime = useTaskRuntime(projectId, workspaceOnly ? undefined : taskId, projectRuntime);
+  const runtimeTaskId = workspaceOnly ? undefined : taskId;
+  const runtime = useTaskRuntime(projectId, runtimeTaskId, projectRuntime, TurnOutputRates);
   const activeTask = tasks.find((task) => task.projectId === projectId && task.id === taskId);
   const reportedWorkspacePath =
     activeTask?.workspacePath ??
@@ -109,6 +108,7 @@ export function useWorkbenchShellRuntime({
   });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
   const {
     inspectorMaximumWidth,
     inspectorOpen,
@@ -121,10 +121,9 @@ export function useWorkbenchShellRuntime({
     sidebarWidth,
     workbenchShellRef,
   } = useWorkbenchPanelLayout({
-    inspectorInitiallyOpen: !temporary,
+    scopeKey: inspectorScopeKey,
     sidebarInitiallyOpen: !paneOnly,
   });
-  const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
   const defaultInspectorTab: WorkbenchInspectorTab = "project";
   const [inspectorTabState, setInspectorTabState] = useState<{
     scopeKey: string;
@@ -162,40 +161,31 @@ export function useWorkbenchShellRuntime({
     requestedTab: inspectorTab,
     taskId,
   });
-  useLayoutEffect(() => {
-    if (temporary && !paneOnly) setInspectorOpen(false);
-  }, [setInspectorOpen, taskId, temporary, paneOnly]);
-  const appInfoQuery = useQuery(appInfoQueryOptions(client));
-  const appUpdateMutation = useMutation({
-    ...appUpdateMutationOptions(client),
-    onSuccess(response) {
-      queryClient.setQueryData(["app-info"], response);
-    },
-  });
-  const appUpdateProgressQuery = useQuery(
-    appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
-  );
+  const { appInfoQuery, appUpdateMutation, appUpdateProgressQuery } =
+    useWorkbenchAppUpdates(client);
   // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
+  const runtimeKind = capabilities === undefined ? "pending" : (capabilities.runtime ?? "legacy");
+  const legacyConfiguration = runtimeKind === "legacy";
+  const modelsQuery = useQuery({
+    ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"),
+    enabled: legacyConfiguration,
+  });
   const providerConnectionQuery = useQuery({
     ...providerConnectionQueryOptions(),
-    enabled: codexEnabled,
+    enabled: codexEnabled && legacyConfiguration,
   });
   const mcpServersQuery = useQuery(
-    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
+    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context, runtimeKind),
   );
   const mcpServersReloadMutation = useMutation({
-    ...mcpServersReloadMutationOptions(projectId, taskId, client),
+    ...mcpServersReloadMutationOptions(projectId, taskId, client, runtimeKind),
     onSuccess(response) {
       queryClient.setQueryData(
         ["projects", projectId, "tasks", taskId ?? null, "mcp-servers"],
         response,
       );
     },
-  });
-  const globalSettingsQuery = useQuery({
-    ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
   });
   const projectOpenCapabilitiesQuery = useQuery(
     // 聊天同样支持打开宿主工作目录，沿用按作用域缓存的应用探测。
@@ -242,7 +232,11 @@ export function useWorkbenchShellRuntime({
     enabled: codexEnabled && capabilities?.skills.list === true,
   });
   const projectDefaultsQuery = useQuery(
-    projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary),
+    projectDefaultsQueryOptions(
+      projectId,
+      client,
+      codexEnabled && !temporary && legacyConfiguration,
+    ),
   );
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
@@ -250,10 +244,11 @@ export function useWorkbenchShellRuntime({
       queryClient.setQueryData(["projects", projectId, "defaults"], response);
     },
   });
-  const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
-    async onSuccess(response) {
-      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
+  const { globalSettingsQuery, globalSettingsMutation } = useApplicationSettings(
+    client,
+    codexEnabled ? "codex" : "claude",
+    runtimeKind,
+    async () => {
       // 局部显式设置仍由 Server 保持优先；刷新只让未配置的当前上下文重新解析全局回退。
       await queryClient.invalidateQueries({
         exact: true,
@@ -263,7 +258,7 @@ export function useWorkbenchShellRuntime({
         await projectRuntime.refreshTaskSnapshot(projectId, taskId);
       }
     },
-  });
+  );
   const taskLaunchState =
     taskId === undefined
       ? undefined
@@ -287,6 +282,8 @@ export function useWorkbenchShellRuntime({
     taskId,
     isTaskRunning,
     inspectorActivation.context,
+
+    runtimeKind,
   );
   const fileTreeScope = `${projectId}:${selectedRootPath ?? "temporary"}`;
   const [fileTreeExpansion, setFileTreeExpansion] = useState(() => ({

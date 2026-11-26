@@ -125,7 +125,7 @@ describe("ProjectSidebarTaskList", () => {
     );
   }
 
-  it("shows unloaded active tasks above the project tree and counts unread completed tasks", () => {
+  it("shows unloaded active tasks above the project tree and excludes unread completions", () => {
     const markup = renderProjectTaskList(
       new Set(),
       activityFor(["running", "approval", "completed"]),
@@ -133,13 +133,11 @@ describe("ProjectSidebarTaskList", () => {
     );
     expect(markup).toContain("运行中");
     expect(markup).toContain("待确认 1");
-    expect(markup).toContain('href="/p/codexly/t/2"');
+    expect(markup).not.toContain('href="/p/codexly/t/2"');
     expect(markup).toContain('href="/p/codexly/t/1"');
-    expect(markup.indexOf('href="/p/codexly/t/2"')).toBeLessThan(
-      markup.indexOf('href="/p/codexly/t/1"'),
-    );
-    expect(markup).toContain("<span>3</span>");
-    expect(markup).toContain("查看全部 3 项");
+    expect(markup).toContain('href="/p/codexly/t/0"');
+    expect(markup).toContain("<span>2</span>");
+    expect(markup).toContain("查看全部 2 项");
     expect(markup.indexOf('data-sidebar-shortcut-group="active"')).toBeLessThan(
       markup.indexOf('data-testid="project-tree-scroll"'),
     );
@@ -159,15 +157,11 @@ describe("ProjectSidebarTaskList", () => {
     expect(markup).toContain('aria-label="任务等待审批"');
   });
 
-  it("keeps an unread completed task in the shortcut group with a completion indicator", () => {
-    const markup = renderProjectTaskList(new Set([project.id]), activityFor(["completed"]), true);
-    expect(markup).toContain('href="/p/codexly/t/0"');
+  it("keeps the project completion indicator when all tasks have finished", () => {
+    const markup = renderProjectTaskList(new Set(), activityFor(["completed"]), true);
     expect(markup).toContain('aria-label="AI 回复已完成"');
-    expect(markup).toContain("text-task-completed");
-    expect(markup).not.toContain('aria-label="任务运行中"');
-    expect(renderProjectTaskList(new Set([project.id]), activityFor([null]), true)).not.toContain(
-      'data-sidebar-shortcut-group="active"',
-    );
+    expect(markup).toContain("project-status");
+    expect(markup).not.toContain('data-sidebar-shortcut-group="active"');
   });
 
   it("shows unread completion ahead of approval and running even without loaded tasks", () => {

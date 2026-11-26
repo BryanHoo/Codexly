@@ -23,3 +23,8 @@ void test('worktree task creation uses the engine-independent task catalog', asy
   assert.doesNotMatch(source, /codex_connection\(|codex::/);
   assert.match(source, /task_workspace::start_task_for_engine/);
 });
+
+void test("scheduled tasks must not fall back to the retired vendor executor", async () => {
+  const source = await readFile(new URL("../src-tauri/src/application/scheduled_task_runner.rs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /start_legacy_scheduled_task_turn/);
+});

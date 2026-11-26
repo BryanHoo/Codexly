@@ -1,3 +1,4 @@
+import { ActiveTaskSnapshotRecoveryController } from "@codexly/frontend-core/task-snapshot-recovery";
 import type { AgentEventConnectionState } from "@/platform/native-client-types.js";
 import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@/protocol/index.js";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -16,10 +17,7 @@ import {
   type RecoverTaskSnapshot,
 } from "./project-runtime-history.js";
 
-import {
-  ActiveTaskSnapshotRecoveryController,
-  TaskEventTarget,
-} from "./project-runtime-recovery.js";
+import { TaskEventTarget } from "./project-runtime-recovery.js";
 
 type ProjectRuntimeCallbacks = Readonly<{
   getTaskActivity: () => TaskActivityMap;
@@ -66,6 +64,9 @@ export class ProjectEventRuntime {
       (_taskId, response) => {
         this.#callbacks.onSnapshot(response);
       },
+      (error) => {
+        recordInternalWarning("snapshot_recovery_failed", error);
+      },
     );
   }
 
@@ -93,6 +94,8 @@ export class ProjectEventRuntime {
       this.#disposed ||
       projectId !== this.#projectId ||
       snapshotMetadata === null ||
+      // ACP retain 仅登记视图；重新打开必须通过快照检查实际写入权。
+      snapshotMetadata.runtime === "acp" ||
       checkpoint === null ||
       this.#connectionState !== "connected" ||
       this.#snapshotRecoveryRequired ||
@@ -169,7 +172,7 @@ export class ProjectEventRuntime {
       .then(() => {
         const state = store.getState();
         if (this.#targets.get(store) !== target || state.writeAccess !== "checking") return;
-        state.setWriteAccess("writable");
+        state.setWriteAccess(state.snapshotMetadata?.writeAccess === "external" ? "external" : "writable");
       }).catch((reason: unknown) => {
         const state = store.getState();
         if (this.#targets.get(store) !== target || state.writeAccess === "external") return;

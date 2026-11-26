@@ -93,19 +93,8 @@ void test("macOS builds should preserve an explicit Intel target", () => {
   assert.deepEqual(resolveTauriArguments(args, "darwin", "arm64"), args);
 });
 
-void test("Legacy builds should select Intel and append the isolated configuration", () => {
-  assert.deepEqual(resolveTauriArguments(["build"], "darwin", "arm64", "legacy"), [
-    "build", "--target", "x86_64-apple-darwin",
-    "--config", "src-tauri/tauri.macos-legacy.conf.json",
-  ]);
-});
-
-void test("Legacy builds should reject unsupported platforms and targets", () => {
-  assert.throws(() => resolveTauriArguments(["build"], "linux", "x64", "legacy"), /Legacy/);
-  assert.throws(() => resolveTauriArguments(
-    ["build", "--target=aarch64-apple-darwin"], "darwin", "arm64", "legacy",
-  ), /Legacy/);
-  assert.throws(() => resolveTauriArguments(["build"], "darwin", "arm64", "typo"), /profile/);
+void test("removed macOS build profiles should be rejected", () => {
+  for (const profile of ["legacy", "typo"]) assert.throws(() => resolveTauriArguments(["build"], "darwin", "arm64", profile), /profile/);
 });
 
 void test("Intel hosts should build an Intel app by default", () => {
@@ -163,7 +152,7 @@ void test("platform and local bundle configurations should preserve bundled runt
   const base = JSON.parse(
     await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
   );
-  for (const name of ["windows", "macos", "linux", "macos-legacy", "local"]) {
+  for (const name of ["windows", "macos", "linux", "local"]) {
     const overlay = await readFile(
       new URL(`../src-tauri/tauri.${name}.conf.json`, import.meta.url),
       "utf8",
@@ -198,7 +187,7 @@ void test("Windows releases should publish portable and updater NSIS artifacts",
   )?.[0];
   assert.ok(portablePackage, "portable releases must package the application and its runtimes");
   assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/target/release/codexly.exe $portableRoot"));
-  assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/binaries/claude-host-x86_64-pc-windows-msvc.exe (Join-Path $portableRoot 'claude-host.exe')"));
+  assert.ok(!portablePackage.includes("claude-host"));
   assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/resources/runtime (Join-Path $portableRoot 'runtime') -Recurse"));
   assert.ok(portablePackage.includes('Compress-Archive -Path "$portableRoot/*"'));
   assert.match(workflow, /- name: Preserve Windows portable archive\s+if: matrix\.portable[\s\S]*?name: windows-x64-portable[\s\S]*?path: \$\{\{ runner\.temp \}\}\/Codexly_\*_x64_portable\.zip/);
@@ -233,41 +222,6 @@ void test("Tauri should use signed GitHub release metadata", async () => {
   assert.deepEqual(config.plugins.updater.endpoints, [
     "https://github.com/BryanHoo/Codexly/releases/latest/download/latest.json",
   ]);
-});
-
-void test("Windows should verify Codex through the app instead of the Tauri test harness", async () => {
-  const workflow = await readFile(
-    new URL("../../.github/workflows/desktop-webview.yml", import.meta.url),
-    "utf8",
-  );
-
-  // Tauri 的 Windows 测试进程存在装载器问题，产品应用链路仍必须保留真实运行时覆盖。
-  assert.match(
-    workflow,
-    /name: Run real Codex lifecycle test\n\s+if: matrix\.platform != 'windows-latest'/,
-  );
-  assert.match(
-    workflow,
-    /name: Run real Codex WebView chain\n\s+if: matrix\.platform != 'ubuntu-24\.04'/,
-  );
-});
-
-void test("native WebView CI should exercise private installation without global Codex", async () => {
-  const [workflow, processSource] = await Promise.all([
-    readFile(new URL("../../.github/workflows/desktop-webview.yml", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src-tauri/src/infrastructure/codex/process.rs", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  const supportedVersion = processSource.match(
-    /SUPPORTED_CODEX_VERSION: &str = "(\d+\.\d+\.\d+)"/,
-  )?.[1];
-
-  assert.ok(supportedVersion, "Rust must declare a supported Codex runtime version");
-  assert.doesNotMatch(workflow, /npm install --global @openai\/codex/);
-  assert.doesNotMatch(workflow, /run: codex --version/);
-  assert.match(workflow, /bundled_codex_should_complete_real_app_server_lifecycle/);
 });
 
 void test("non-macOS commands should remain unchanged", () => {

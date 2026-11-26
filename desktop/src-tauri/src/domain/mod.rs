@@ -1,6 +1,5 @@
 pub mod agent_configuration;
 pub mod conversation;
-pub(crate) mod conversation_skills;
 pub mod file_change;
 pub(crate) mod file_patch;
 pub mod goal_input;

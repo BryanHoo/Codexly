@@ -32,7 +32,7 @@ impl FilePatch {
         }
         if matches!(kind, "create" | "delete") {
             patch.content(kind, source);
-        } else if source.split('\n').any(|line| line.starts_with("@@ ")) {
+        } else if source.lines().any(is_hunk_marker) {
             patch.push(source);
         } else {
             patch.fragment(source);
@@ -214,10 +214,7 @@ fn has_file_headers(source: &str) -> bool {
     }
     let (mut old, mut new) = (false, false);
     // 只在首个 hunk 之前识别文件头，不能把补丁正文中的 ---/+++ 当作头部。
-    for line in source
-        .split('\n')
-        .take_while(|line| !line.starts_with("@@ "))
-    {
+    for line in source.lines().take_while(|line| !is_hunk_marker(line)) {
         old |= line.starts_with("--- ");
         new |= line.starts_with("+++ ");
         if old && new {
@@ -225,6 +222,11 @@ fn has_file_headers(source: &str) -> bool {
         }
     }
     false
+}
+
+fn is_hunk_marker(line: &str) -> bool {
+    // Codex 的流式预览可以只发送 @@，具体行号在应用后的补丁中提供。
+    line == "@@" || line.starts_with("@@ ")
 }
 
 #[cfg(test)]

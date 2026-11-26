@@ -1,3 +1,4 @@
+import { SettingsActions } from "./settings-group.js";
 import {
   useEffect,
   useRef,
@@ -16,6 +17,7 @@ import { Input } from "./input.js";
 import { Checkbox } from "./checkbox.js";
 import { LoadingSkeleton } from "./loading-skeleton.js";
 import { LoaderCircle } from "lucide-react";
+import { toast } from "./notifications.js";
 
 export const NETWORK_PROXY_LABELS = {
   "zh-CN": {
@@ -44,7 +46,8 @@ export const NETWORK_PROXY_LABELS = {
     success: "连接成功",
     error: "操作失败，请检查代理配置与网络后重试",
     loading: "正在读取代理设置…",
-    retry: "重新读取",
+    retry: "重试",
+    cancel: "取消",
   },
   en: {
     title: "Network",
@@ -72,7 +75,8 @@ export const NETWORK_PROXY_LABELS = {
     success: "Connection successful",
     error: "Operation failed. Check proxy settings and network, then retry",
     loading: "Loading proxy settings…",
-    retry: "Reload",
+    retry: "Retry",
+    cancel: "Cancel",
   },
 };
 type Labels = { [K in keyof typeof NETWORK_PROXY_LABELS.en]: string };
@@ -98,7 +102,7 @@ export function NetworkProxySettingsPanel({
     [failed, setFailed] = useState(false),
     [busy, setBusy] = useState(false),
     [hasPassword, setHasPassword] = useState(false),
-    [message, setMessage] = useState("");
+    [operationFailed, setOperationFailed] = useState(false);
   const [initial, setInitial] = useState<NetworkProxySettings>(DEFAULT_NETWORK_PROXY);
   const [operation, setOperation] = useState<"save" | "test">();
   const [reload, setReload] = useState(0);
@@ -136,7 +140,7 @@ export function NetworkProxySettingsPanel({
     lock.current = true;
     setBusy(true);
     setOperation(kind);
-    setMessage("");
+    setOperationFailed(false);
     try {
       if (kind === "save") {
         const { hasPassword, ...settings } = await save(draft);
@@ -144,14 +148,15 @@ export function NetworkProxySettingsPanel({
           setDraft(settings);
           setInitial(settings);
           setHasPassword(hasPassword);
-          setMessage(labels.saved);
+          // 代理设置重启后生效，让包含下一步的回执停留更久。
+          toast.success(labels.saved, { duration: 5000 });
         }
       } else {
         await test(draft);
-        if (mounted.current) setMessage(labels.success);
+        if (mounted.current) toast.success(labels.success);
       }
     } catch {
-      if (mounted.current) setMessage(labels.error);
+      if (mounted.current) setOperationFailed(true);
     } finally {
       lock.current = false;
       if (mounted.current) setBusy(false);
@@ -175,7 +180,7 @@ export function NetworkProxySettingsPanel({
           placeholder={key === "password" && hasPassword ? labels.savedPassword : undefined}
           onChange={(event) => {
             const value = event.currentTarget.value;
-            setMessage("");
+            setOperationFailed(false);
             setDraft((current) => ({
               ...current,
               [key]:
@@ -199,14 +204,16 @@ export function NetworkProxySettingsPanel({
         failed ? (
           <div role="alert" className="space-y-3 text-body-small text-danger">
             <p>{labels.error}</p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setReload((value) => value + 1);
-              }}
-            >
-              {labels.retry}
-            </Button>
+            <SettingsActions>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setReload((value) => value + 1);
+                }}
+              >
+                {labels.retry}
+              </Button>
+            </SettingsActions>
           </div>
         ) : (
           <LoadingSkeleton variant="settings" label={labels.loading} className="p-0" />
@@ -226,7 +233,7 @@ export function NetworkProxySettingsPanel({
                   value={draft.mode}
                   onChange={(event) => {
                     const mode = event.currentTarget.value as NetworkProxySettings["mode"];
-                    setMessage("");
+                    setOperationFailed(false);
                     setDraft((current) => ({ ...current, mode }));
                   }}
                 >
@@ -246,7 +253,7 @@ export function NetworkProxySettingsPanel({
                       onChange={(event) => {
                         const protocol = event.currentTarget
                           .value as NetworkProxySettings["protocol"];
-                        setMessage("");
+                        setOperationFailed(false);
                         setDraft((current) => ({ ...current, protocol }));
                       }}
                     >
@@ -270,7 +277,7 @@ export function NetworkProxySettingsPanel({
                       aria-label={labels.clear}
                       checked={draft.password === ""}
                       onCheckedChange={(checked) => {
-                        setMessage("");
+                        setOperationFailed(false);
                         setDraft((current) => ({
                           ...current,
                           password: checked === true ? "" : undefined,
@@ -283,7 +290,19 @@ export function NetworkProxySettingsPanel({
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-separator pt-4">
               <p className="text-label text-muted-foreground">{labels.restart}</p>
-              <div className="flex gap-2">
+              <SettingsActions className="ml-auto">
+                {dirty ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setDraft(initial);
+                      setOperationFailed(false);
+                    }}
+                  >
+                    {labels.cancel}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -296,18 +315,29 @@ export function NetworkProxySettingsPanel({
                   ) : null}
                   {busy && operation === "test" ? labels.testing : labels.test}
                 </Button>
+                {operationFailed && operation ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(event) => {
+                      if (event.currentTarget.form?.reportValidity()) void run(operation);
+                    }}
+                  >
+                    {labels.retry}
+                  </Button>
+                ) : null}
                 <Button type="submit" disabled={!dirty}>
                   {busy && operation === "save" ? (
                     <LoaderCircle aria-hidden="true" className="animate-spin" />
                   ) : null}
                   {busy && operation === "save" ? labels.saving : labels.save}
                 </Button>
-              </div>
+              </SettingsActions>
             </div>
           </fieldset>
-          {message ? (
-            <p role="status" className="mt-3 text-body-small text-muted-foreground">
-              {message}
+          {operationFailed ? (
+            <p role="alert" className="mt-3 text-body-small text-muted-foreground">
+              {labels.error}
             </p>
           ) : null}
         </form>

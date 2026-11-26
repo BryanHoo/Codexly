@@ -6,7 +6,7 @@ async fn only_unavailable_runtime_allows_retry() {
     let budget = SubmissionBudget::default();
     assert!(
         run(&registry, &budget, request(), |_| async {
-            Err(AppError::CodexRuntimeUnavailable)
+            Err(AppError::AcpHostUnavailable)
         })
         .await
         .is_err()

@@ -1,5 +1,4 @@
 import { PendingRequestResolutionError, type AgentProvider } from "@codexly/core";
-import { RpcResponseError } from "@codexly/provider-codex";
 import { describe, expect, it, vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
 import {
@@ -303,9 +302,7 @@ describe("server pending requests and idempotency", () => {
 
   it("preserves provider failures without caching them", async () => {
     const { app, startTask } = await createHarness();
-    startTask.mockRejectedValueOnce(
-      new RpcResponseError({ code: -32_000, data: null, message: "native RPC details" }),
-    );
+    startTask.mockRejectedValueOnce(new Error("private provider details"));
     const request = {
       headers: { "idempotency-key": "retry-task" },
       method: "POST" as const,
@@ -319,7 +316,7 @@ describe("server pending requests and idempotency", () => {
     expect(failed.statusCode).toBe(502);
     expect(failed.json()).toEqual({
       code: "PROVIDER_ERROR",
-      message: "native RPC details",
+      message: "Agent provider request failed",
       retryable: true,
     });
     expect(retried.statusCode).toBe(201);

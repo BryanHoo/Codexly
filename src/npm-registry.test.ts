@@ -148,16 +148,12 @@ describe("network-aware registry selection", () => {
     expect(request).toHaveBeenCalledOnce();
   });
 
-  it("passes the selected registry to npm and both scoped dependencies", async () => {
+  it("passes the selected registry to npm and the application scope", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
     const runNpm = vi.fn(() => Promise.resolve("installed"));
     await runNpmWithRegistryFallback(runNpm, ["install", "--global", "@bryanhu/codexly"]);
     expect(runNpm).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        `--registry=${official}`,
-        `--@openai:registry=${official}`,
-        `--@bryanhu:registry=${official}`,
-      ]),
+      expect.arrayContaining([`--registry=${official}`, `--@bryanhu:registry=${official}`]),
       {},
     );
   });

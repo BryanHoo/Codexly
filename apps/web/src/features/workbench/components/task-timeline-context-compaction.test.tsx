@@ -75,3 +75,24 @@ describe("completed context compaction", () => {
     },
   );
 });
+
+it("在 ACP 时间线原位显示压缩状态", () => {
+  const markup = renderToStaticMarkup(
+    <TaskSnapshotTimeline
+      snapshot={{
+        ...snapshot,
+        turns: [
+          {
+            ...completedTurn,
+            items: [
+              { id: "compaction", type: "compaction", status: "completed", summary: "保留摘要" },
+              answer,
+            ],
+          },
+        ],
+      }}
+    />,
+  );
+  expect(markup).toContain("上下文压缩完成");
+  expect(markup.indexOf("上下文压缩完成")).toBeLessThan(markup.indexOf("处理完成。"));
+});

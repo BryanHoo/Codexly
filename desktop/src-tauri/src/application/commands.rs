@@ -6,9 +6,7 @@ use super::app_update::{
 };
 use super::state::performance_metrics::RuntimePerformanceMetricsSnapshot;
 use super::{error::AppError, state::AppState};
-use crate::domain::runtime::{
-    CodexRuntimeAvailability, CodexRuntimeInstallProgress, RuntimeSnapshot,
-};
+use crate::domain::runtime::RuntimeSnapshot;
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn connect_runtime(
@@ -31,63 +29,14 @@ pub async fn acknowledge_runtime_events(
 }
 
 #[tauri::command]
-pub async fn start_runtime(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<RuntimeSnapshot, AppError> {
-    let app_data = crate::infrastructure::app_data::directory(&app)
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    state.start_codex(&app, &app_data).await
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn inspect_codex_runtime(
-    app: AppHandle,
-    on_progress: Channel<CodexRuntimeInstallProgress>,
-    state: State<'_, AppState>,
-) -> Result<CodexRuntimeAvailability, AppError> {
-    let resources = crate::infrastructure::bundled_runtime::root(&app)?;
-    Ok(state
-        .inspect_codex(&resources, move |progress| {
-            let _ = on_progress.send(progress);
-        })
-        .await)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn install_codex_runtime(
-    app: AppHandle,
-    on_progress: Channel<CodexRuntimeInstallProgress>,
-    state: State<'_, AppState>,
-) -> Result<CodexRuntimeAvailability, AppError> {
-    let resources = crate::infrastructure::bundled_runtime::root(&app)?;
-    state
-        .install_codex(&resources, move |progress| {
-            // 兼容旧调用方的 Channel；内置资源检查不会发送下载进度。
-            let _ = on_progress.send(progress);
-        })
-        .await
-}
-
-#[tauri::command]
-pub async fn get_app_info(app: AppHandle, state: State<'_, AppState>) -> Result<Value, AppError> {
+pub async fn get_app_info(app: AppHandle) -> Result<Value, AppError> {
     let app_version = env!("CARGO_PKG_VERSION");
-    // 远程检查与本地运行时读取彼此独立，并发执行可避免叠加关于页等待时间。
-    let claude_version = async {
-        // 清单读取是可选信息；资源路径不可用或旧包没有 Claude 时不影响关于页。
-        let resources = crate::infrastructure::bundled_runtime::root(&app).ok()?;
-        crate::infrastructure::claude_runtime::bundled_claude_version(&resources).await
-    };
-    let (update, codex_version, claude_version) = tokio::join!(
-        check_for_update(app_version, &app),
-        state.codex_version(),
-        claude_version,
-    );
+    let update = check_for_update(app_version, &app).await;
     Ok(json!({
         "appVersion": app_version,
         "changelogUrl": CHANGELOG_URL,
-        "claudeVersion": claude_version,
-        "codexVersion": codex_version.unwrap_or_else(|_| crate::infrastructure::codex::SUPPORTED_CODEX_VERSION.to_owned()),
+        "codexVersion": "0.0.0",
+        "claudeVersion": null,
         "latestVersion": update.latest_version,
         "releaseNotes": update.release_notes,
         "releaseNotesVersion": update.release_notes_version,
@@ -129,23 +78,6 @@ mod tests {
                 .contains("\"allow-preview-scheduled-task\"")
         );
     }
-    #[test]
-    fn main_window_should_allow_runtime_recovery_commands() {
-        let permissions = include_str!("../../permissions/window-command-sets.toml");
-
-        for permission in [
-            "allow-acknowledge-runtime-events",
-            "allow-inspect-codex-runtime",
-            "allow-install-codex-runtime",
-            "allow-install-app-update",
-        ] {
-            assert!(
-                permissions.contains(&format!("\"{permission}\"")),
-                "main-window-commands must include {permission}"
-            );
-        }
-    }
-
     #[test]
     fn runtime_ack_should_be_registered() {
         assert!(include_str!("../../build.rs").contains("\"acknowledge_runtime_events\""));

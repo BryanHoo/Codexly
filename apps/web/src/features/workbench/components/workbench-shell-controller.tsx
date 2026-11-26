@@ -92,6 +92,7 @@ export function useWorkbenchShellController(
     selectedRootPath,
     openInspectorDocument,
     setInspectorOpen,
+    workbenchShellRef,
     setPendingTaskSelection,
     setSidebarOpen,
     setTaskRenameOpen,
@@ -248,20 +249,25 @@ export function useWorkbenchShellController(
       settings?: AgentTaskSettings,
       messageAttachments: readonly AgentMessageAttachment[] = [],
       checkpoint?: EventCheckpoint,
+      acpSnapshot?: AgentTaskSnapshotResponse,
     ) => {
       cacheProjectTask(startedTask);
-      if (
-        startedTurn !== undefined &&
-        startedInput !== undefined &&
-        settings !== undefined &&
-        checkpoint !== undefined
-      ) {
+      const launchSource =
+        acpSnapshot?.snapshot.runtime === "acp"
+          ? {
+              runtime: "acp" as const,
+              snapshot: acpSnapshot.snapshot,
+              checkpoint: acpSnapshot.checkpoint,
+            }
+          : settings !== undefined && checkpoint !== undefined
+            ? { settings, checkpoint }
+            : undefined;
+      if (startedTurn !== undefined && startedInput !== undefined && launchSource !== undefined) {
         const confirmedStartedAt = getNewChatSubmissionStartedAt() ?? startedTurn.startedAt;
         const launchState: TaskLaunchState = {
-          checkpoint,
+          ...launchSource,
           input: startedInput,
           messageAttachments,
-          settings,
           ...(confirmedStartedAt === null ? {} : { submissionStartedAt: confirmedStartedAt }),
           task: startedTask,
           turn: startedTurn,
@@ -273,7 +279,7 @@ export function useWorkbenchShellController(
         );
         queryClient.setQueryData<AgentTaskSnapshotResponse>(
           taskSnapshotQueryOptions(startedTask.projectId, startedTask.id, client).queryKey,
-          { checkpoint, snapshot: createTaskLaunchSnapshot(launchState) },
+          { checkpoint: launchState.checkpoint, snapshot: createTaskLaunchSnapshot(launchState) },
         );
       }
       if (startedTurn !== undefined) {
@@ -310,12 +316,14 @@ export function useWorkbenchShellController(
   );
   const models = modelsQuery.data?.data ?? [];
   const globalSettings = globalSettingsQuery.data?.settings;
+  const legacyGlobalSettings =
+    globalSettings && "model" in globalSettings ? globalSettings : undefined;
   const projectDefaults = projectDefaultsQuery.data?.settings;
   const fastModeAvailable =
     providerConnectionQuery.data === undefined
       ? false
       : isAgentFastModeAvailable(providerConnectionQuery.data);
-  const draftDefaults = temporary ? globalSettings : projectDefaults;
+  const draftDefaults = temporary ? legacyGlobalSettings : projectDefaults;
   const defaultModel =
     models.find((model) => model.id === draftDefaults?.model) ??
     models.find((model) => model.isDefault) ??
@@ -324,14 +332,14 @@ export function useWorkbenchShellController(
   const inheritedDraftSettings = useMemo<AgentTaskSettings>(
     () => ({
       approvalPolicy:
-        draftDefaults?.approvalPolicy ?? globalSettings?.approvalPolicy ?? "on-request",
+        draftDefaults?.approvalPolicy ?? legacyGlobalSettings?.approvalPolicy ?? "on-request",
       approvalsReviewer:
-        draftDefaults?.approvalsReviewer ?? globalSettings?.approvalsReviewer ?? "user",
+        draftDefaults?.approvalsReviewer ?? legacyGlobalSettings?.approvalsReviewer ?? "user",
       model: defaultModel?.id ?? draftDefaults?.model ?? "",
       reasoningEffort: draftDefaults?.reasoningEffort ?? defaultModel?.defaultReasoningEffort ?? "",
       sandboxMode: draftDefaults?.sandboxMode ?? "workspace-write",
     }),
-    [defaultModel, draftDefaults, globalSettings],
+    [defaultModel, draftDefaults, legacyGlobalSettings],
   );
   const [temporaryDraftSettings, setTemporaryDraftSettings] = useState<AgentTaskSettings>();
   const draftSettings = temporary
@@ -340,7 +348,7 @@ export function useWorkbenchShellController(
   const fastModeDefault = resolveProjectFastModeDefault(
     temporary,
     projectDefaults?.fastMode,
-    globalSettings?.fastMode,
+    legacyGlobalSettings?.fastMode,
   );
   const updateProjectTaskDefaults = async (settings: AgentTaskSettings, fastMode: boolean) => {
     if (temporary) {
@@ -380,7 +388,10 @@ export function useWorkbenchShellController(
   const closeInspector = () => {
     setInspectorOpen(false);
     requestAnimationFrame(() => {
-      document.querySelector<HTMLButtonElement>("#workbench-inspector-toggle")?.focus();
+      workbenchShellRef.current
+        ?.closest('.workbench-shell[data-embedded="false"]')
+        ?.querySelector<HTMLButtonElement>("[data-workbench-inspector-expand]")
+        ?.focus({ preventScroll: true });
     });
   };
 

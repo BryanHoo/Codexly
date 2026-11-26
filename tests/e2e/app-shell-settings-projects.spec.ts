@@ -246,6 +246,7 @@ test("uses subtle hairline separation across registered routes", async ({ page }
 
 test("aligns the center toolbar with sidebar controls and inspector tabs", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const mainHeader = page.getByRole("main", { name: "任务时间线" }).locator(":scope > header");
   const leftTitle = page

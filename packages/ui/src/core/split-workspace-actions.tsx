@@ -28,6 +28,7 @@ import {
   type SplitDirection,
 } from "@codexly/frontend-core/split-layout";
 import { ContextMenu, ContextMenuTrigger } from "./context-menu.js";
+import { hasKeyboardBlockingDialog } from "./keyboard-dialog-guard.js";
 import { isSplitBlankPoint } from "./split-workspace-hit-test.js";
 import type SplitWorkspaceMenuContent from "./split-workspace-menu-content.js";
 
@@ -188,14 +189,7 @@ export function SplitWorkspaceShortcuts({ workspace }: Readonly<{ workspace: Spl
       const direction = getSplitShortcutDirection(event, /mac/i.test(navigator.platform));
       if (direction === undefined) return;
       // 模态对话框及已打开菜单拥有键盘焦点，不在其背后修改工作区布局。
-      if (
-        [
-          ...document.querySelectorAll(
-            '[role="dialog"], [role="alertdialog"], [role="menu"], dialog[open]',
-          ),
-        ].some((element) => element.getClientRects().length > 0)
-      )
-        return;
+      if (hasKeyboardBlockingDialog(true)) return;
       if (!invoke(direction)) return;
       event.preventDefault();
       event.stopPropagation();

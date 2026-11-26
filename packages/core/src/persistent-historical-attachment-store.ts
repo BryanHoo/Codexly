@@ -231,6 +231,21 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     );
   }
 
+  /** Agent 已内嵌的文件沿用 Worker 的 Base64 校验、哈希与原子落盘。 */
+  public async addBase64File(
+    taskId: string,
+    input: Readonly<{ encoded: string; mediaType: string; name: string }>,
+  ): Promise<AgentMessageAttachment | undefined> {
+    if (input.encoded.length > Math.ceil((MAX_AGENT_FILE_BYTES * 4) / 3) + 4) return undefined;
+    return this.#add(
+      taskId,
+      "file",
+      input.mediaType,
+      normalizeAttachmentName(input.name, "Attachment"),
+      { type: "base64", value: input.encoded },
+    );
+  }
+
   public async restoreTask(
     taskId: string,
     metadata: readonly HistoricalAttachmentMetadata[],

@@ -76,6 +76,98 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "acp.storage.read" | "acp.storage.claim" | "acp.storage.release" => {
+            super::acp_storage_locks::execute(db, op, p)
+        }
+        "acp.session.background" | "acp.session.background.list" => {
+            let engine = string(p, "engine")?;
+            if !crate::infrastructure::acp_runtime::valid_agent_engine(engine) {
+                return Err(CatalogError::InvalidMessage);
+            }
+            let schema: Value = serde_json::from_str(include_str!(
+                "../../../../../packages/protocol/src/local-catalog-schema.json"
+            ))
+            .map_err(|_| CatalogError::InvalidMessage)?;
+            if op == "acp.session.background.list" {
+                let mut list = db
+                    .prepare_cached(string(&schema, "acpListBackgroundSql")?)
+                    .map_err(db_error)?;
+                let ids = list
+                    .query_map([engine], |row| row.get::<_, String>(0))
+                    .map_err(db_error)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(db_error)?;
+                return Ok(json!(ids));
+            }
+            let session_id = string(p, "sessionId")?;
+            if session_id.is_empty() {
+                return Err(CatalogError::InvalidMessage);
+            }
+            db.execute(
+                string(&schema, "acpMarkBackgroundSql")?,
+                params![engine, session_id],
+            )
+            .map_err(db_error)?;
+            Ok(Value::Null)
+        }
+        "acp.session.rebind" => {
+            let id = string(p, "id")?;
+            let session_id = string(p, "sessionId")?;
+            let expected = string(p, "expectedSessionId")?;
+            if [id, session_id, expected]
+                .iter()
+                .any(|value| value.is_empty())
+            {
+                return Err(CatalogError::InvalidMessage);
+            }
+            if session_id == expected {
+                return Ok(json!(false));
+            }
+            let schema: Value = serde_json::from_str(include_str!(
+                "../../../../../packages/protocol/src/local-catalog-schema.json"
+            ))
+            .map_err(|_| CatalogError::InvalidMessage)?;
+            // 使用与 Web 相同的条件更新；普通 task.patch 仍禁止改绑。
+            db.execute(
+                string(&schema, "acpRebindSessionSql")?,
+                params![session_id, id, expected],
+            )
+            .map(|changed| json!(changed == 1))
+            .map_err(db_error)
+        }
+        "acp.title.claim" | "acp.title.finish" => super::acp_task_titles::execute(db, op, p),
+        "app.preferences.read" | "app.preferences.patch" | "app.preferences.importInstructions" => {
+            super::application_preferences::execute(db, op, p)
+        }
+        "acp.plan.view" | "acp.plan.commit" => super::acp_plan_commit::execute(db, op, p),
+        "acp.plan.completion.read" | "acp.plan.completion.put" => {
+            super::acp_plan_completion::execute(db, op, p)
+        }
+        "acp.resource.begin" | "acp.resource.seal" | "acp.resource.abort" | "acp.resource.list"
+        | "acp.plan.save" => super::acp_plan_resources::execute(db, op, p),
+        "acp.plan.list" | "acp.plan.due" | "acp.plan.active" | "acp.plan.nextDue" => {
+            super::acp_plan_index::execute(db, op, p)
+        }
+        "acp.plan.arm" | "acp.plan.readState" | "acp.plan.readRun" | "acp.plan.claim"
+        | "acp.plan.claimRef" | "acp.plan.finish" | "acp.plan.history" | "acp.plan.summary" => {
+            super::acp_plan_state::execute(db, op, p)
+        }
+        "acp.plan.read" | "acp.plan.set" | "acp.plan.delete" => {
+            super::acp_scheduled_plans::execute(db, op, p)
+        }
+        "acp.schedule.read"
+        | "acp.schedule.set"
+        | "acp.schedule.delete"
+        | "acp.schedule.retire"
+        | "acp.schedule.retirements"
+        | "acp.schedule.finalize" => super::acp_scheduled_configs::execute(db, op, p),
+        "acp.submission.inspect"
+        | "acp.submission.prepare"
+        | "acp.submission.read"
+        | "acp.submission.begin"
+        | "acp.submission.complete"
+        | "acp.submission.recover"
+        | "acp.submission.retry" => super::acp_submissions::execute(db, op, p),
         "prompts.sync" => super::saved_prompts::execute(db, p),
         "project.list" => projects(db),
         "project.read" => read(db, "managed_projects", string(p, "id")?),
@@ -95,7 +187,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         "project.remove" => {
             let active = db
                 .query_row(
-                    "SELECT 1 FROM managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
+                    "SELECT 1 FROM visible_managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
                     [string(p, "id")?],
                     |r| r.get::<_, i64>(0),
                 )
@@ -166,39 +258,13 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             ))
         }
         "task.patch" => {
-            let mut next = read(db, "managed_tasks", string(p, "id")?)?;
-            if next.is_null() {
-                return Err(CatalogError::InvalidMessage);
-            }
-            assert_immutable_binding(&next, p)?;
-            if next["provider"] == "claude" && next["status"] == "active" && p["archived"] == true {
-                return Err(CatalogError::TaskRunning);
-            }
-            for key in [
-                "title",
-                "cwd",
-                "sessionId",
-                "updatedAt",
-                "pinned",
-                "archived",
-                "status",
-            ] {
-                if let Some(value) = p.get(key)
-                    && (key != "sessionId" || next[key].is_null())
-                {
-                    next[key] = value.clone();
-                }
-            }
-            if p.get("title").is_some() {
-                let title = string(&next, "title")?.trim().to_owned();
-                if title.is_empty() {
-                    return Err(CatalogError::InvalidMessage);
-                }
-                next["title"] = json!(title);
-            }
-            db.execute("UPDATE managed_tasks SET title=?,cwd=?,session_id=?,updated_at=?,pinned=?,archived=?,status=? WHERE id=?",
-                params![string(&next,"title")?,string(&next,"cwd")?,next["sessionId"].as_str(),next["updatedAt"].as_f64(),next["pinned"]==true,next["archived"]==true,string(&next,"status")?,string(&next,"id")?]).map_err(db_error)?;
-            Ok(next)
+            // 先持写锁再读取整行，避免状态补丁覆盖另一连接刚提交的名称或管理字段。
+            let transaction = db
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .map_err(db_error)?;
+            let result = patch_task(&transaction, p)?;
+            transaction.commit().map_err(db_error)?;
+            Ok(result)
         }
         "task.remove" => {
             if read(db, "managed_tasks", string(p, "id")?)?["status"] == "active" {
@@ -259,9 +325,11 @@ fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     if let Some(providers) = p.get("providers") {
         let providers = providers.as_array().ok_or(CatalogError::InvalidMessage)?;
         if providers.len() > 2
-            || providers
-                .iter()
-                .any(|provider| !matches!(provider.as_str(), Some("codex" | "claude")))
+            || providers.iter().any(|provider| {
+                !provider
+                    .as_str()
+                    .is_some_and(crate::infrastructure::acp_runtime::valid_agent_engine)
+            })
         {
             return Err(CatalogError::InvalidMessage);
         }
@@ -324,4 +392,40 @@ fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
         None
     };
     Ok(json!({"data":data,"nextCursor":cursor}))
+}
+
+fn patch_task(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
+    let mut next = read(db, "managed_tasks", string(p, "id")?)?;
+    if next.is_null() {
+        return Err(CatalogError::InvalidMessage);
+    }
+    assert_immutable_binding(&next, p)?;
+    if next["provider"] == "claude" && next["status"] == "active" && p["archived"] == true {
+        return Err(CatalogError::TaskRunning);
+    }
+    for key in [
+        "title",
+        "cwd",
+        "sessionId",
+        "updatedAt",
+        "pinned",
+        "archived",
+        "status",
+    ] {
+        if let Some(value) = p.get(key)
+            && (key != "sessionId" || next[key].is_null())
+        {
+            next[key] = value.clone();
+        }
+    }
+    if p.get("title").is_some() {
+        let title = string(&next, "title")?.trim().to_owned();
+        if title.is_empty() {
+            return Err(CatalogError::InvalidMessage);
+        }
+        next["title"] = json!(title);
+    }
+    db.execute("UPDATE managed_tasks SET title=?,cwd=?,session_id=?,updated_at=?,pinned=?,archived=?,status=? WHERE id=?",
+        params![string(&next,"title")?,string(&next,"cwd")?,next["sessionId"].as_str(),next["updatedAt"].as_f64(),next["pinned"]==true,next["archived"]==true,string(&next,"status")?,string(&next,"id")?]).map_err(db_error)?;
+    Ok(next)
 }

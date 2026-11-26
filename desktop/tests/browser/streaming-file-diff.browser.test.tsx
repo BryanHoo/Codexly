@@ -16,7 +16,7 @@ import { FileDiffPanel as DesktopFileDiffPanel } from "../../src/features/diff/f
 import "../../src/shared/styles/globals.css";
 
 const time = "2026-11-05T00:00:00Z";
-const diff = "--- a/profile.js\n+++ b/profile.js\n@@ -19 +19 @@\n-oldValue\n+newValue\n@@ -91 +91 @@\n-oldTail\n+newTail";
+const diff = "diff --git /repo/profile.js /repo/profile.js\n--- /repo/profile.js\n+++ /repo/profile.js\n@@ -19 +19 @@\n-oldValue\n+newValue\n@@ -91 +91 @@\n-oldTail\n+newTail";
 const change = { path: "/Users/bryanhu/Develop/person/FeedFuse/src/features/reader/components/src/profile.js", kind: "update" as const, diff, stats: { additions: 1, removals: 1 } };
 const file = { id: "file", type: "file_change" as const, status: "running" as const, changes: [change] };
 function response(completed = false) {
@@ -25,7 +25,7 @@ function response(completed = false) {
     updatedAt: time, pendingRequests: [], turnsNextCursor: null, contextUsage: null, goal: null, plan: null,
     settings: { approvalPolicy: "on-request" as const, approvalsReviewer: "user" as const, model: "model", reasoningEffort: "high" as const, sandboxMode: "workspace-write" as const },
     turns: [{ id: "turn", status: completed ? "completed" as const : "running" as const, startedAt: time, completedAt: completed ? time : null, error: null,
-      items: [{ id: "user", type: "message" as const, role: "user" as const, text: "修改文件" }, { ...file, status: completed ? "completed" as const : "running" as const }] }],
+      items: [{ id: "user", type: "message" as const, role: "user" as const, text: "修改文件" }, { id: "acp:tool:edit", type: "tool" as const, name: "Editing files", status: "completed" as const }, { ...file, status: completed ? "completed" as const : "running" as const }] }],
   } };
 }
 const actions = { onOpenFileDiff: vi.fn(), onOpenSourceFile: vi.fn(), onReviewFileChanges: vi.fn(), onResolvePendingRequest: async () => undefined };
@@ -64,6 +64,39 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(document.querySelector('.file-diff-renderer')).toBeNull();
     await preview.unmount();
   });
+
+  it("向下滚动到尾部后，继续跟随批量到达的文件差异", async () => {
+    platform.preferences.set("independentFileDiffs", true);
+    const { store, element } = platform.create();
+    const screen = await render(<TooltipProvider><div style={{ height: 360 }}>{element}</div></TooltipProvider>);
+    const viewport = document.querySelector<HTMLElement>('[data-slot="message-scroller-viewport"]')!;
+    const bottomGap = () => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop;
+    const ready = () => document.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '';
+    await expect.poll(ready, { timeout: 10000 }).toContain('newValue');
+    await expect.poll(bottomGap).toBeLessThan(2);
+    // 已贴底时的向下惯性滚动没有 scroll 事件，下一批卡片仍应留在跟随状态。
+    viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: 150, bubbles: true }));
+    const changes = Array.from({ length: 12 }, (_, index) => ({
+      path: `/repo/created-${index}.js`,
+      kind: "create" as const,
+      stats: { additions: 1, removals: 0 },
+      diff: `--- /repo/created-${index}.js\n+++ /repo/created-${index}.js\n@@ -1,0 +1,1 @@\n\n+const preview${index} = true;`,
+    }));
+    store.getState().applyEvents([{
+      version: 2, provider: "codex", sessionId: "session", taskId: "task", turnId: "turn",
+      timestamp: time, sequence: 1, type: "file_change.updated", itemId: "file",
+      payload: { changes, originalByteLength: 2048, truncated: false },
+    }]);
+    await expect.poll(() => document.querySelectorAll("[data-file-diff-card]")).toHaveLength(12);
+    await expect.poll(bottomGap).toBeLessThan(2);
+    await expect.poll(
+      () => document.querySelector('[data-file-diff-card]:last-child .file-diff-renderer')?.shadowRoot?.textContent ?? '',
+      { timeout: 10000 },
+    ).toContain("preview11");
+    expect(bottomGap()).toBeLessThan(2);
+    await screen.unmount();
+  });
+
   it("历史完成回合默认收起，展开过程后恢复差异", async () => {
     await i18n.changeLanguage("zh-CN");
     platform.preferences.set("independentFileDiffs", true);
@@ -72,6 +105,8 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(document.querySelector('[data-file-diff-card]')).toBeNull();
     await screen.getByRole('button', { name: '展开执行过程', exact: true }).click();
     await expect.poll(() => document.querySelector('[data-file-diff-card]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("Editing files");
+    await expect.poll(() => document.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '', { timeout: 10000 }).toContain('newValue');
     await screen.getByRole('button', { name: '收起执行过程', exact: true }).click();
     await expect.poll(() => document.querySelector('[data-file-diff-card]')).toBeNull();
     expect(store.getState().turnIds).toHaveLength(1);
@@ -88,6 +123,7 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     await screen.getByRole("switch", { name: "独立显示文件差异" }).click();
     const card = () => document.querySelector<HTMLElement>('[data-file-diff-card]');
     await expect.poll(() => card()?.textContent).toContain("profile.js");
+    expect(document.body.textContent).not.toContain("Editing files");
     expect(card()?.closest('[data-operation-group]')).toBeNull();
     // 读取最终 CSS，防止使用未定义的语义类导致圆角和边框退化成浏览器默认值。
     const cardStyle = getComputedStyle(card()!);
@@ -107,9 +143,20 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(separators[0]!.getBoundingClientRect().top - card()!.querySelector('[data-file-diff-content]')!.getBoundingClientRect().top).toBeLessThanOrEqual(1);
 
     const base = { version: 2 as const, provider: "codex", sessionId: "session", taskId: "task", turnId: "turn", timestamp: time };
-    const largeDiff = "--- a/profile.js\n+++ b/profile.js\n@@ -1 +1,151 @@\n-oldValue\n+latestValue\n" + Array.from({ length: 150 }, (_, i) => `+const value${i} = ${i};`).join("\n");
+    const changes = [
+      { ...change, diff: "@@\n-oldValue\n+previewValue\n" },
+      { ...change, path: "second.js", diff: "@@ export function second()\n-before\n+secondPreview\n*** End of File\n" },
+    ];
+    // Codex 推送的是整条文件操作当前的预览，单个事件可以带来多个独立卡片。
+    store.getState().applyEvents([{ ...base, sequence: 1, type: "file_change.updated", itemId: "file", payload: { changes, originalByteLength: 100, truncated: false } }]);
+    await expect.poll(() => document.querySelectorAll('[data-file-diff-card]').length).toBe(2);
+    const previewContents = () => [...document.querySelectorAll('[data-file-diff-card] .file-diff-renderer')].map(renderer => renderer.shadowRoot?.textContent).join("\n");
+    await expect.poll(previewContents, { timeout: 10000 }).toContain("previewValue");
+    await expect.poll(previewContents, { timeout: 10000 }).toContain("secondPreview");
+
+    const largeDiff = "@@ -1 +1,151 @@\n-oldValue\n+latestValue\n" + Array.from({ length: 150 }, (_, i) => `+const value${i} = ${i};`).join("\n");
     // 真实单条文件事件只更新卡片正文；随后回合完成仍保留同一个文件模块。
-    store.getState().applyEvents([{ ...base, sequence: 1, type: "item.completed", itemId: "file", payload: { item: { ...file, status: "completed", changes: [{ ...change, diff: largeDiff, stats: { additions: 151, removals: 1 } }] } } }]);
+    store.getState().applyEvents([{ ...base, sequence: 2, type: "item.completed", itemId: "file", payload: { item: { ...file, status: "completed", changes: [{ ...change, diff: largeDiff, stats: { additions: 151, removals: 1 } }] } } }]);
     await expect.poll(() => card()?.querySelector('.file-diff-renderer')?.shadowRoot?.textContent ?? '', { timeout: 10000 }).toContain('latestValue');
     const content = () => card()?.querySelector<HTMLElement>('[data-file-diff-content]');
     await expect.poll(() => content()?.scrollHeight ?? 0).toBeGreaterThan(320);
@@ -117,7 +164,7 @@ for (const platform of platforms) describe(`${platform.name} 文件差异`, () =
     expect(card()!.getBoundingClientRect().height).toBeLessThan(230);
     content()!.scrollTop = 200;
     expect(content()!.scrollTop).toBeGreaterThan(0);
-    store.getState().applyEvents([{ ...base, sequence: 2, type: "turn.completed", payload: { turn: { id: "turn", status: "completed", startedAt: time, completedAt: time, error: null, items: [] } } }]);
+    store.getState().applyEvents([{ ...base, sequence: 3, type: "turn.completed", payload: { turn: { id: "turn", status: "completed", startedAt: time, completedAt: time, error: null, items: [] } } }]);
     await expect.poll(card).toBeNull();
     await screen.getByRole('button', { name: '展开执行过程', exact: true }).click();
     await expect.poll(() => card()?.textContent).toContain('已应用');

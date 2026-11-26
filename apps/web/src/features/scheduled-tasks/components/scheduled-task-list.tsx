@@ -20,6 +20,8 @@ function statusTone(task: ScheduledTask): "failed" | "paused" | "running" | "sch
 
 export function ScheduledTaskList({
   activeId,
+  canCreate = true,
+  canToggle = true,
   loading,
   onCreate,
   onDelete,
@@ -30,6 +32,8 @@ export function ScheduledTaskList({
   tasks,
 }: Readonly<{
   activeId?: string;
+  canCreate?: boolean;
+  canToggle?: boolean;
   loading: boolean;
   onCreate: () => void;
   onDelete: (id: string) => Promise<unknown>;
@@ -52,14 +56,16 @@ export function ScheduledTaskList({
           <h2>{t("scheduledTasks.title")}</h2>
           <span>{tasks.length}</span>
         </div>
-        <Button
-          aria-label={t("scheduledTasks.create")}
-          onClick={onCreate}
-          size="icon-toolbar"
-          type="button"
-        >
-          <Plus aria-hidden="true" />
-        </Button>
+        {canCreate ? (
+          <Button
+            aria-label={t("scheduledTasks.create")}
+            onClick={onCreate}
+            size="icon-toolbar"
+            type="button"
+          >
+            <Plus aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
       <div className="scheduled-task-filters" role="group" aria-label={t("scheduledTasks.filter")}>
         {(["all", "enabled", "disabled"] as const).map((value) => (
@@ -140,6 +146,7 @@ export function ScheduledTaskList({
                   </span>
                 </button>
                 <ScheduledTaskMenu
+                  canToggle={canToggle}
                   task={task}
                   onDelete={onDelete}
                   onEnabledChange={onEnabledChange}

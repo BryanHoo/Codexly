@@ -1,7 +1,61 @@
-import type { TaskActivitySnapshot } from "@codexly/protocol";
+import type { EventCheckpoint, TaskActivitySnapshot } from "@codexly/protocol";
 
 const keyFor = (task: Pick<TaskActivitySnapshot, "projectId" | "taskId">) =>
   `${task.projectId}\u0000${task.taskId}`;
+
+export function isTerminalTaskActivityEvent(
+  event: { type: string; payload?: unknown },
+  previous?: { isRunning: boolean; pendingApprovalRequestIds: ReadonlySet<string> },
+): boolean {
+  if (event.type === "turn.completed") return true;
+  if (event.type !== "provider.error" && event.type !== "task.status_updated") return false;
+  const payload = event.payload;
+  if (typeof payload !== "object" || payload === null) return false;
+  if (event.type === "provider.error") return "willRetry" in payload && payload.willRetry === false;
+  return (
+    "status" in payload &&
+    (payload.status === "failed" ||
+      (payload.status === "idle" &&
+        previous !== undefined &&
+        (previous.isRunning || previous.pendingApprovalRequestIds.size > 0)))
+  );
+}
+
+/** 记录任务终态对应的事件水位，避免切页后迟到的同一终态重新变成未读。 */
+export class TaskActivityReadState {
+  readonly #terminals = new Map<string, { checkpoint: EventCheckpoint; read: boolean }>();
+
+  public observe(key: string, checkpoint: EventCheckpoint | undefined, viewed: boolean): boolean {
+    if (checkpoint === undefined) return viewed;
+    const previous = this.#terminals.get(key);
+    if (
+      previous?.checkpoint.sessionId === checkpoint.sessionId &&
+      previous.checkpoint.sequence === checkpoint.sequence
+    ) {
+      previous.read ||= viewed;
+      return previous.read;
+    }
+    this.#terminals.set(key, { checkpoint, read: viewed });
+    return viewed;
+  }
+
+  public getSequence(key: string): number | undefined {
+    return this.#terminals.get(key)?.checkpoint.sequence;
+  }
+
+  public markRead(key: string): void {
+    const terminal = this.#terminals.get(key);
+    if (terminal !== undefined) terminal.read = true;
+  }
+
+  public delete(key: string): void {
+    this.#terminals.delete(key);
+  }
+
+  public clear(): void {
+    this.#terminals.clear();
+  }
+}
 
 /** 两端只投影轻量状态；引擎身份继续由已有任务元数据提供。 */
 export function projectTaskActivitySnapshot(snapshot: TaskActivitySnapshot) {

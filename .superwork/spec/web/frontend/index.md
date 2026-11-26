@@ -16,7 +16,7 @@
 - [ ] 共用状态推导与组件优先使用 Frontend Core / UI；平台回调与翻译由本端传入。参考 [复用边界](../../guides/code-reuse-thinking-guide.md)。
 - [ ] 移动浏览器保留窄屏导航、触控和中栏文档工作区；核对 [文档工作区](../../../../docs/document-workspace.md) 与 [会话性能](../../../../docs/conversation-performance.md)。
 - [ ] 历史和重型组件按需加载，流式消息使用共享增量渲染，避免逐 token 的全局状态重建。
-- [ ] 打开全局设置时，与桌面统一使用 React `Activity` 隐藏整个工作台（含分屏），暂停界面订阅、快捷键等副作用，保留组件状态、DOM 和滚动位置；运行时事件接收及设置页留在边界外，禁止只用 `hidden` / `inert` 隐藏。返回时恢复订阅并读取最新输出。浏览器回归复用桌面套件的 `web-workbench-settings-activity.browser.test.tsx`，覆盖 Chromium / WebKit、宽窄屏、连续切换与后台增量输出；桌面原有入口为 `workbench-settings-navigation.browser.test.tsx`。
+- [ ] 全局设置沿用两端共享的模态 `SettingsDialog`。背景工作台及分屏保留 DOM、草稿、滚动位置和实时订阅，设置打开时阻断背景焦点与快捷键。浏览器回归复用桌面套件的 `web-workbench-settings-activity.browser.test.tsx`，覆盖 Chromium / WebKit、宽窄屏、连续开关与后台增量输出。桌面入口为 `workbench-settings-navigation.browser.test.tsx`。
 - [ ] 执行根 `pnpm typecheck`、`pnpm test`、`pnpm lint:architecture`；工作流变化运行 `pnpm test:e2e`。构建后运行 `pnpm bundle:check`，性能变化补充 `pnpm test:performance` 或浏览器性能套件。
 
 Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要生成 `pnpm --filter @codexly/web test`。
@@ -37,7 +37,7 @@ Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要�
 
 ## 诊断导出
 
-- “设置 → 关于”的诊断导出不依赖版本检查成功；导出期间禁止重复执行，失败后允许重试。Web 与移动浏览器直接下载一个整合 ZIP，无需勾选；`application.json` 包含版本、浏览器异常和服务端快照，原生可用时纳入 `codex/diagnostics.zip`，收集状态写入 `manifest.json`。
+- “设置 → 关于”的诊断导出不依赖版本检查成功；导出期间禁止重复执行，失败后允许重试。Web 与移动浏览器直接下载一个整合 ZIP，无需勾选；`application.json` 包含版本、浏览器异常和服务端快照，`manifest.json` 标明 ACP 运行时。
 - 复用 Client 准备接口和受控下载地址，ZIP 正文由浏览器直接下载，不读入 Blob；不把宿主路径暴露给浏览器。旧运行时或原生故障保留应用诊断，并明确标注原生不可用。
 - 异常监听复用 `packages/frontend-core/src/application-diagnostics.ts`；Web 只保留当前页面最近 100 条脱敏异常，单条错误消息/堆栈分别限制为 512/2048 字符，不读取应用 context、页面 URL 或浏览器存储。桌面继续通过原生适配器录制与导出。
 - 验证入口：`pnpm exec playwright test tests/e2e/app-shell-diagnostics.spec.ts`，覆盖 Chromium / Firefox / WebKit 的宽窄屏下载，以及版本失败、导出失败重试和执行互斥。
@@ -59,3 +59,9 @@ Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要�
 - 项目中栏顶部快捷打开、根目录右键和根目录三点菜单提供“打开远程仓库”；仅根目录自身为 Git 仓库时显示，普通文件、子目录和仅包含子仓库的目录不显示。未配置可浏览远端时禁用。
 - 菜单展开后才复用本地 Git inspect 与查询缓存，不触发 fetch/push 或额外轮询；优先当前远端、其次 origin、最后首个远端。两端共用地址转换和菜单组件，HTTP(S) 保留网页端口，SSH/SCP/git 地址转换为 HTTPS 并去除传输端口及认证信息；本地路径不可作为网页打开。
 - Web 使用新标签链接以保留浏览器用户激活，桌面通过原生 opener 打开系统浏览器。回归入口为 `packages/frontend-core/src/git-repository-url.test.ts` 与 `desktop/tests/browser/project-remote-repository.browser.test.tsx`（两端三类菜单、Chromium / WebKit、非 Git 隐藏及无远端禁用）。
+
+## 工作台右栏
+
+- Web 和桌面默认收起会话右栏。进入新会话按「设置 → 常规 → 编辑器 → 默认展开右栏」读取偏好，手动开关只影响当前会话。
+- 收起时在右上角绝对定位同尺寸、等间距的快捷按钮。按钮组透明，不占工作台网格列。标题栏与较窄的消息正文通过内边距避让，输入框继续使用中栏全宽。面板开关重开原标签，标签按钮可直接展开指定内容。移动浏览器展开为覆盖层，分屏由活动会话渲染外层工作台右栏。
+- 回归入口为 [Web 右栏用例](../../../../tests/e2e/app-shell-inspector-sidebar.spec.ts)、[移动布局用例](../../../../tests/e2e/app-shell-inspector-mobile.spec.ts) 与 [桌面偏好用例](../../../../desktop/src/features/workbench/components/workbench-panel-layout.browser.test.tsx)。

@@ -2,7 +2,7 @@ import { OperationGroup } from "@codexly/ui/agent/operation-group";
 import type { AgentItem } from "@/protocol/index.js";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import { isInlineFileChangeVisible } from "@codexly/frontend-core/turn-process";
-import { isTimelineOperation } from "@codexly/frontend-core/timeline-operation";
+import { isHiddenFileEditingTool, isTimelineOperation } from "@codexly/frontend-core/timeline-operation";
 import { useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -21,6 +21,7 @@ export function filterRenderableTimelineItemKeys(
   return itemKeys.filter((itemKey) => {
     const itemStore = itemStoresByKey.get(itemKey);
     const baseItem = itemStore?.peek();
+    if (isHiddenFileEditingTool(baseItem)) return false;
     if (baseItem?.type === "file_change") return independentFileDiffs || isInlineFileChangeVisible(baseItem.status, turnStatus);
     if (itemStore?.peek().type !== "reasoning") return true;
     // 仅物化推理摘要以读取尚未写回基础 Item 的增量，不读取消息正文或命令输出。

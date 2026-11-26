@@ -10,11 +10,11 @@ async fn turn_start_should_retry_after_runtime_becomes_available() {
     let registry = TurnStartRegistry::default();
     let error = registry
         .run("key", identity(1), async {
-            Err(AppError::CodexRuntimeUnavailable)
+            Err(AppError::AcpHostUnavailable)
         })
         .await
         .unwrap_err();
-    assert_eq!(error, json!("Codex runtime is unavailable"));
+    assert_eq!(error, json!("ACP host is unavailable"));
     let result = registry
         .run("key", identity(1), async { Ok(json!({"turn": "new"})) })
         .await;
@@ -27,7 +27,7 @@ async fn turn_start_retry_should_preserve_identity_capacity_and_original_retenti
     for index in 0..CAPACITY {
         registry
             .run(&index.to_string(), identity(1), async {
-                Err(AppError::CodexRuntimeUnavailable)
+                Err(AppError::AcpHostUnavailable)
             })
             .await
             .unwrap_err();
@@ -61,10 +61,7 @@ async fn turn_start_retry_should_not_trust_rpc_error_text() {
     let registry = TurnStartRegistry::default();
     let error = registry
         .run("key", identity(1), async {
-            Err(AppError::CodexRpc {
-                rpc_code: -32603,
-                message: "Codex runtime is unavailable".into(),
-            })
+            Err(AppError::Acp("ACP host is unavailable".into()))
         })
         .await
         .unwrap_err();
@@ -84,7 +81,7 @@ async fn turn_start_retry_should_merge_concurrent_retries_and_preserve_old_waite
     let registry = TurnStartRegistry::default();
     let error = registry
         .run("key", identity(1), async {
-            Err(AppError::CodexRuntimeUnavailable)
+            Err(AppError::AcpHostUnavailable)
         })
         .await
         .unwrap_err();
@@ -173,16 +170,13 @@ async fn turn_start_should_replay_original_rpc_failure() {
     let registry = TurnStartRegistry::default();
     let error = registry
         .run("key", identity(1), async {
-            Err(AppError::CodexRpc {
-                rpc_code: -32602,
-                message: "invalid model".into(),
-            })
+            Err(AppError::Acp("invalid model".into()))
         })
         .await
         .unwrap_err();
     assert_eq!(
         error,
-        json!({"code": "CODEX_RPC_ERROR", "rpcCode": -32602, "message": "invalid model"})
+        json!({"code": "ACP_REQUEST_FAILED", "message": "invalid model"})
     );
     let replay = registry
         .run("key", identity(1), async {

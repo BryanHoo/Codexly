@@ -6,10 +6,12 @@ export function useExtensionOperation<Input extends { id: string }, Result>({
   mutationKey,
   mutationFn,
   onSuccess,
+  successMessage,
 }: {
   mutationKey: QueryKey;
   mutationFn: (input: Input) => Promise<Result>;
   onSuccess: (result: Result, input: Input) => void | Promise<void>;
+  successMessage: string;
 }) {
   const [error, setError] = useState<Error | null>(null);
   const inFlight = useRef(new Set<string>());
@@ -20,6 +22,8 @@ export function useExtensionOperation<Input extends { id: string }, Result>({
   const pendingIds = new Set(pending);
   const mutation = useMutation({
     mutationKey,
+    // 双端全局 mutation 通知直接使用业务回执，避免同一操作再弹出通用“操作成功”。
+    meta: { actionNotification: { successMessage } },
     mutationFn,
     onSuccess,
     onMutate: () => {

@@ -1,3 +1,4 @@
+import type { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
 import { bindTaskRuntime } from "@codexly/frontend-core/task-runtime-binding";
 import type { AgentTaskSnapshotResponse } from "@/protocol/index.js";
 import { loadTaskHistory } from "@codexly/frontend-core/task-history-page";
@@ -39,6 +40,7 @@ export function useTaskRuntime(
   projectId: string,
   taskId: string | undefined,
   projectRuntime: ProjectRuntimeManager,
+  RateSampler?: typeof TurnOutputRates,
 ): TaskRuntimeView {
   const queryClient = useQueryClient();
   const client = projectRuntime.client;
@@ -56,7 +58,7 @@ export function useTaskRuntime(
   );
   const connectionState = useStore(subscribedStore, (state) => state.connectionState);
   const runtimeError = useStore(subscribedStore, (state) => state.error);
-  const writeAccess = useStore(subscribedStore, (state) => state.writeAccess);
+  const storedWriteAccess = useStore(subscribedStore, (state) => state.writeAccess);
   const metadata = useStore(subscribedStore, useShallow(selectTaskRuntimeMetadata));
   const itemStructureRevision = useStore(subscribedStore, (state) => state.itemStructureRevision);
   const turnsNextCursor = useStore(subscribedStore, (state) => state.turnsNextCursor);
@@ -77,11 +79,15 @@ export function useTaskRuntime(
       return;
     }
     const acquiredStore = taskStoreRegistry.acquire(projectId, taskId);
+    // 在订阅事件流前开始采样，保留视图挂载前到达的首批正文。
+    if (RateSampler !== undefined) {
+      acquiredStore.getState().turnOutputRates.current ??= new RateSampler();
+    }
     setStore(acquiredStore);
     return () => {
       taskStoreRegistry.release(projectId, taskId);
     };
-  }, [projectId, taskId]);
+  }, [projectId, taskId, RateSampler]);
 
   useEffect(() => {
     if (store === undefined || taskId === undefined) {
@@ -165,6 +171,7 @@ export function useTaskRuntime(
   const taskQueryError = taskQueryState.scope === taskScope ? taskQueryState.error : null;
   const taskQueryPending =
     taskId !== undefined && (taskQueryState.scope !== taskScope || taskQueryState.isPending);
+  const writeAccess = taskQueryPending ? "checking" : storedWriteAccess;
   const error =
     activeRuntime === undefined || !hasHydratedSnapshot
       ? taskQueryError

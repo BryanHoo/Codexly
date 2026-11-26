@@ -13,7 +13,6 @@
   "dependencies": {
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
-    "@codexly/provider-codex": "workspace:*",
     "@fastify/cookie": "catalog:",
     "@fastify/multipart": "catalog:",
     "@fastify/static": "catalog:",
@@ -28,7 +27,7 @@
     "simple-git": "catalog:",
     "ws": "catalog:",
     "yazl": "catalog:",
-    "@codexly/provider-claude": "workspace:*"
+    "@codexly/provider-acp": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "catalog:",

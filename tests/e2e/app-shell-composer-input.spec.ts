@@ -51,9 +51,8 @@ test("keeps every mobile composer action accessible on one row", async ({ page }
   const boxes = await Promise.all(controls.map((control) => control.boundingBox()));
 
   expect(boxes.every((box) => box !== null)).toBe(true);
-  expect(new Set(boxes.map((box) => Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2))).size).toBe(
-    1,
-  );
+  const centers = boxes.map((box) => (box?.y ?? 0) + (box?.height ?? 0) / 2);
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1);
   expect(boxes[0]?.width).toBeGreaterThan(24);
   expect(boxes[1]?.width).toBeGreaterThan(24);
   await expect(modelSelector.locator("span").first()).toHaveCSS("text-overflow", "ellipsis");

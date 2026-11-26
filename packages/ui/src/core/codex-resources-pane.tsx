@@ -116,9 +116,9 @@ function CodexResourcePane<Source extends { enabled: boolean }>({
   });
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search.trim().toLowerCase());
-  const [notice, setNotice] = useState(false);
   const operations = useExtensionOperation({
     mutationKey: [...queryKey, "operations"],
+    successMessage: t("skillsMarket.center.sessionHint"),
     mutationFn: (item: Item<Source>) => toggle(item.source),
     onSuccess: async (enabled, item) => {
       await cache.cancelQueries({ queryKey, exact: true });
@@ -133,7 +133,6 @@ function CodexResourcePane<Source extends { enabled: boolean }>({
             }
           : previous,
       );
-      setNotice(true);
     },
   });
   const open = useMutation({
@@ -173,12 +172,6 @@ function CodexResourcePane<Source extends { enabled: boolean }>({
           <span>
             {cause instanceof Error ? cause.message : t("skillsMarket.center.operationError")}
           </span>
-        </div>
-      ) : null}
-      {notice ? (
-        <div className="extension-center__message" role="status">
-          <Info aria-hidden="true" />
-          {t("skillsMarket.center.sessionHint")}
         </div>
       ) : null}
       {result.isPending ? (

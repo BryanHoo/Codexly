@@ -65,13 +65,22 @@ it.each(
   const lines = document.createElement("span");
   lines.textContent = "补丁行";
   shadow.append(lines);
+  if (type === "touchmove") {
+    lines.dispatchEvent(
+      Object.assign(new Event("touchstart", { bubbles: true, composed: true }), {
+        touches: [{ clientY: 100 }],
+      }),
+    );
+  }
   // 不依赖浏览器是否实际滚动；内部阅读意图本身不能切换外层跟随状态。
   lines.dispatchEvent(
     type === "wheel"
       ? new WheelEvent(type, { deltaY: -100, bubbles: true, composed: true })
       : type === "keydown"
         ? new KeyboardEvent(type, { key: "ArrowUp", bubbles: true, composed: true })
-        : new Event(type, { bubbles: true, composed: true }),
+        : Object.assign(new Event(type, { bubbles: true, composed: true }), {
+            touches: [{ clientY: 150 }],
+          }),
   );
   // 同步追加复现原生 scroll 事件尚未送达前的布局竞争。
   flushSync(append);

@@ -1,3 +1,5 @@
+import { TurnGenerationStatus } from "@codexly/ui/agent/turn-generation-status";
+import { ComposerWriteAccessNotice } from "@codexly/ui/core/composer-interaction-boundary";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import {
   ComposerSubmitActions,
@@ -52,7 +54,7 @@ import { serializePromptSkillContent } from "./prompt-skill-content.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
 import { ProjectRootSelector } from "./project-root-selector.js";
 import { ComposerCommandMenu } from "./workbench-composer-command-menu.js";
-import { ComposerFileMenu } from "./workbench-composer-file-menu.js";
+import { ComposerFileMenu } from "@codexly/ui/core/workbench-composer-file-menu";
 import { ComposerAttachments, ComposerConfigurationToolbar } from "./workbench-composer-toolbar.js";
 import {
   resolveQueuedPromptSummary,
@@ -126,6 +128,18 @@ export function ComposerProjectRootControls({
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const terminal = useContext(TerminalContext);
   const { t, i18n } = useTranslation(["workbench", "settings"]);
+  const generationRuntime = props.generationRuntime;
+  // 生成状态先占位，让异步问答和引导队列仍紧邻输入框。
+  const generationStatus =
+    generationRuntime?.store !== undefined && generationRuntime.activeTurnId !== undefined ? (
+      <TurnGenerationStatus
+        store={generationRuntime.store}
+        turnId={generationRuntime.activeTurnId}
+        engine={generationRuntime.metadata?.engine}
+        generatingLabel={t("composer.generating")}
+        toolCallsLabel={(count) => t("composer.generationToolCalls", { count })}
+      />
+    ) : null;
   const sendLabel = i18n.language.startsWith("zh") ? "发送" : "Send";
   const submitButton = (
     <PromptInputSubmit
@@ -144,8 +158,8 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         props.submitAction === "blocked" ||
         (props.submitAction === "start" &&
           ((!props.captureMode && !props.canSubmit) ||
-            props.selectedModel === undefined ||
-            props.selectedReasoningEffort === undefined)) ||
+            (props.acp ? props.acp.isBusy : props.selectedModel === undefined ||
+            props.selectedReasoningEffort === undefined))) ||
         (props.submitAction === "interrupt" &&
           (!props.canInterrupt || props.activeTurnId === undefined))
       }
@@ -174,6 +188,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         collapseLabel={t("split.collapseComposer")}
         stopLabel={t("composer.stop")}
         onInterrupt={props.onInterrupt}
+        notice={generationStatus}
         footer={(controls, collapsed) => (
           <WorkbenchComposerFooter
             props={props}
@@ -201,7 +216,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           ref={props.commandSurfaceRef}
         >
           <ComposerCommandMenu props={props} />
-          <ComposerFileMenu props={props} />
+          <ComposerFileMenu props={props} t={t} />
           {props.queuedPrompts.length === 0 ? null : (
             <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
               {props.queuedPrompts.map((queuedPrompt, index) => {
@@ -334,7 +349,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           <PromptInput
             attachments={props.attachments}
             aria-busy={props.state === "submitting" || props.state === "reconnecting"}
-            className="w-full"
+            className="relative w-full"
             data-state={props.state}
             disabled={props.attachmentsDisabled}
             fileAccept={AGENT_FILE_ACCEPT}
@@ -455,6 +470,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 ) : null}
               </>
             </ComposerConfigurationToolbar>
+            <ComposerWriteAccessNotice access={props.writeAccess} message={t("composer.threadBusy")} />
           </PromptInput>
         </div>
         {props.modelsError === null ? null : (

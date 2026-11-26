@@ -58,7 +58,6 @@ export function ClaudeExtensionsPane({
   });
   const page = result.data;
   const loading = result.isFetching;
-  const [notice, setNotice] = useState(false);
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search.trim().toLowerCase());
   const [dialog, setDialog] = useState<ClaudeExtension | null>(null);
@@ -74,6 +73,8 @@ export function ClaudeExtensionsPane({
   const [operationError, setOperationError] = useState<Error | null>(null);
   const mutation = useMutation({
     mutationKey,
+    // 成功通知同时提醒用户新建会话以加载生效的配置。
+    meta: { actionNotification: { successMessage: t("skillsMarket.center.sessionHint") } },
     onMutate: () => {
       setOperationError(null);
       return queryClient.getQueryData<ClaudeExtensionPage>(queryKey);
@@ -96,7 +97,6 @@ export function ClaudeExtensionsPane({
       queryClient.setQueryData<ClaudeExtensionPage>(queryKey, (previous) =>
         reconcileClaudeExtensionMutation(previous, page, input, baseline),
       );
-      setNotice(true);
       setDialog((current) => (current?.id === input.id ? null : current));
     },
   });
@@ -162,12 +162,6 @@ export function ClaudeExtensionsPane({
           <Button size="sm" variant="ghost" disabled={loading} onClick={() => void refresh()}>
             {t("skillsMarket.center.retry")}
           </Button>
-        </div>
-      ) : null}
-      {notice ? (
-        <div className="extension-center__message" role="status">
-          <Info aria-hidden="true" />
-          {t("skillsMarket.center.sessionHint")}
         </div>
       ) : null}
       {loading && !page ? (

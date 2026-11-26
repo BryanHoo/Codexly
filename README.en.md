@@ -27,7 +27,7 @@ Projects and agent processes run on the computer hosting Codexly. Your phone nee
 | Web     | Working in a computer browser or hosting a workspace on your LAN                                 | Install Node.js 24+ and [start the Web server](#web)                                                                                     |
 | Mobile  | Following tasks, approving tools, and reviewing files and changes from a phone or tablet browser | Connect to a Web server with LAN access enabled; see [Mobile](#mobile)                                                                   |
 
-Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Silicon or Intel, and a separate macOS 12.4+ Intel Legacy build. Packages include agent runtimes, with no separate Node.js or Bun installation. Legacy supports Codex only. Mobile uses a touch-friendly Web interface and requires no separate app.
+Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Silicon or Intel. Packages include agent runtimes, with no separate Node.js or Bun installation. Mobile uses a touch-friendly Web interface and requires no separate app.
 
 ## What you can do
 
@@ -36,16 +36,16 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 - **Refine and reuse prompts**: optimize a nonempty text draft with AI, save project todos or prompts from the Send menu, and share prompts across desktop, Web, and mobile browsers on the same host.
 - **Reuse earlier questions**: edit a user message into the current composer and send it as a new message. View available Codex session memory summaries in the context panel.
 - **Read long conversations**: sending focuses the new question, scrolling preserves your reading position, and optional sticky messages and navigation anchors help you revisit content. Preview cited sources and open operation or subagent details on demand.
-- **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, clean up archived tasks by date, and export complete conversations as JSON. Handle alerts or clear read notifications in the notification center. Open the task board, extensions, and schedules from the sidebar.
+- **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, clean up archived tasks by date, and export complete conversations as JSON. Follow task activity and open tasks, the task board, and schedules from the sidebar.
 - **Work in parallel**: open up to four task panes in the desktop app or a computer browser, drag to swap their positions, and keep independent drafts and queues. Mobile uses a single-task view.
-- **Read and edit project files**: create files and folders in the project tree, browse code, Markdown, images, and PDFs, and edit supported text with manual saving, search and replace, and disk conflict comparison. Reorder, pin, or bulk-close document tabs and compare files with chat. Attach files and images or reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
+- **Read and edit project files**: create files and folders in the project tree, browse code, Markdown, images, and PDFs, and edit supported text with manual saving, search and replace, and disk conflict comparison. Reorder, pin, or bulk-close document tabs and compare files with chat. Attach files and images or reference project files. LAN devices can download files that cannot be previewed through an explicit prompt.
 - **Reuse saved instructions**: save global or project prompts and insert them by title with `/` or `#`.
 - **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits. Discard changes to one file or a selected batch after confirmation.
-- **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
+- **Configure agents**: use the model and permission options returned by the official ACP adapter. Defaults and current session settings are stored separately.
 
 Drop files and images onto a task pane to attach them to that pane independently. Switching between chat and document tabs preserves reading positions. Desktop also renders Mermaid diagrams on demand.
 
-Each engine retains its own models, permissions, and extension capabilities. Claude supports history recovery, live steering, forks, and compaction. Codex-specific sandbox and Review features do not map to Claude permission modes. Available actions follow the selected engine; see [agent setup](docs/getting-started.en.md).
+Web and desktop execute through official ACP adapters and restore the original sessions. Available actions follow the implemented ACP capabilities; extension management, forks, dedicated compaction, live steering, and other unsupported engine-specific interfaces have no entry points. See [capability boundaries](docs/agent-engines.md).
 
 File diffs expand as individual cards during streaming and move into execution history when the turn ends. Disable **Settings → General → Editor → Show file diffs separately** to restore the end-of-turn summary.
 

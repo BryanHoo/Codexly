@@ -53,7 +53,7 @@ it("默认关闭，独立切换后立即更新已挂载会话，并写入桌面�
   await stickySwitch.click();
   await expect.poll(sticky).toBeNull();
   expect(navigation()).not.toBeNull();
-  expect(JSON.parse(appPreferenceStorage.getItem("codeagent:conversation-display:v1")!)).toEqual({ stickyPrompt: false, navigation: true, independentFileDiffs: true });
+  expect(JSON.parse(appPreferenceStorage.getItem("codeagent:conversation-display:v1")!)).toEqual({ stickyPrompt: false, navigation: true, independentFileDiffs: true, inspectorInitiallyOpen: false });
   await navigationSwitch.click();
   await expect.poll(navigation).toBeNull();
 });

@@ -1,11 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { appStorageDirectory } from "@codexly/core/app-storage-paths";
-import type {
-  checkCodexVersion,
-  locateCodexBinary,
-  readCodexStartupConfig,
-} from "@codexly/provider-codex";
+import type { inspectOfficialAcpAgents } from "@codexly/provider-acp";
 import { parseCommandOptions } from "./cli-command-options.js";
 import {
   assertDatabaseDiagnostics,
@@ -18,9 +14,7 @@ export interface CliDoctorDependencies {
   appDataDirectory?: string;
   appVersion: string;
   nodeVersion: string;
-  checkCodexVersion: typeof checkCodexVersion;
-  locateCodexBinary: typeof locateCodexBinary;
-  readCodexStartupConfig: typeof readCodexStartupConfig;
+  inspectAcpAgents: typeof inspectOfficialAcpAgents;
   createStateRepository: (
     databasePath: string,
     codexHome?: string,
@@ -44,19 +38,14 @@ export async function runDoctor(
   assertSupportedNodeVersion(dependencies.nodeVersion);
   output.success(`Node.js ${dependencies.nodeVersion}`);
 
-  const binary = await dependencies.locateCodexBinary(
-    options.codexBin ? { explicitPath: options.codexBin } : {},
-  );
-  const version = await dependencies.checkCodexVersion(binary.path);
-  output.success(`Codex ${version.version} (${binary.path})`);
   const codexHome = options.codexHome ?? process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
-  // 仅显式 doctor 执行：先验证 TOML 和组织策略，失败时无需打开应用数据库或线程存储。
-  const startup = await dependencies.readCodexStartupConfig(binary.path, {
-    appVersion: dependencies.appVersion,
-    env: { ...process.env, CODEX_HOME: codexHome },
+  const agents = await dependencies.inspectAcpAgents({
+    ...process.env,
+    CODEX_HOME: codexHome,
+    ...(options.codexBin ? { CODEX_PATH: options.codexBin } : {}),
   });
-  output.success(`Codex 配置预检通过 (${startup.appServerVersion})`);
-  output.success(`Codex 配置要求 ${JSON.stringify(startup.configRequirements)}`);
+  for (const agent of agents)
+    output.success(`ACP ${agent.engine} 协议 v${String(agent.protocolVersion)} (${agent.name})`);
   const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
   const stateRepository = await dependencies.createStateRepository(
     join(applicationDirectory, "state.sqlite3"),

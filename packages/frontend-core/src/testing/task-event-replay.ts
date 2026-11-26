@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@codexly/protocol";
+import type { AgentEvent, AcpSessionState } from "@codexly/protocol";
 import { describe, expect, test, vi } from "vitest";
 
 const timestamp = "2026-10-29T00:00:00.000Z";
@@ -81,7 +81,9 @@ type ReplayEvent =
           | "pending_request.created"
           | "pending_request.resolved"
           | "pending_request.expired"
-          | "provider.error";
+          | "provider.error"
+          | "task.metadata_changed"
+          | "acp.session.updated";
       }
     >
   | (ReturnType<typeof envelope> &
@@ -103,6 +105,7 @@ interface ReplayItem {
 }
 interface ReplayStore {
   getState(): {
+    snapshotMetadata: { id: string; title: string; acpSession?: AcpSessionState } | null;
     applyEvents(events: readonly ReplayEvent[]): void;
     checkpoint: { sequence: number; sessionId: string } | null;
     itemStoresByKey: Map<string, { read(): unknown; subscribe(listener: () => void): () => void }>;
@@ -122,11 +125,84 @@ export function runTaskEventReplayContract<Store extends ReplayStore>(
 ): void {
   for (const provider of ["codex", "claude"]) {
     describe(`${provider} 共享事件回放`, () => {
+      test("ACP会话状态完整替换且隔离任务/连接，普通消息实体保持不变", () => {
+        const store = createStore(response([message("user", "user", "问题")]));
+        const [item] = store.getState().itemStoresByKey.values();
+        if (!item) throw new Error("缺少消息夹具");
+        const read = vi.spyOn(item, "read");
+        const state = {
+          configOptions: [
+            { id: "mode", name: "模式", type: "boolean" as const, currentValue: false },
+          ],
+          availableCommands: [{ name: "review", description: "检查" }],
+        };
+        store
+          .getState()
+          .applyEvents([
+            { ...envelope(1, provider), type: "acp.session.updated", payload: { state } },
+          ]);
+        expect(store.getState().snapshotMetadata?.acpSession).toEqual(state);
+        expect([...store.getState().itemStoresByKey.values()][0]).toBe(item);
+        expect(read).not.toHaveBeenCalled();
+        const replaced = { configOptions: [], availableCommands: [] };
+        store.getState().applyEvents([
+          {
+            ...envelope(2, provider),
+            type: "acp.session.updated",
+            taskId: "other",
+            payload: { state: replaced },
+          },
+          {
+            ...envelope(2, provider),
+            type: "acp.session.updated",
+            sessionId: "other",
+            payload: { state: replaced },
+          },
+        ]);
+        expect(store.getState().snapshotMetadata?.acpSession).toEqual(state);
+        store
+          .getState()
+          .applyEvents([
+            { ...envelope(2, provider), type: "acp.session.updated", payload: { state: replaced } },
+          ]);
+        expect(store.getState().snapshotMetadata?.acpSession).toEqual(replaced);
+        expect(store.getState().checkpoint?.sequence).toBe(2);
+      });
       const ids = (store: Store) =>
         store
           .getState()
           .reconstructSnapshot()
           ?.turns[0]?.items.map((item) => item.id);
+      test("ACP 标题展示沿用目录事件，不受原生元数据乱序覆盖", () => {
+        const initial = response();
+        initial.snapshot.title = "自动标题";
+        const store = createStore(initial);
+        const current = () => store.getState().snapshotMetadata?.title;
+        const publish = (sequence: number, title: string) => {
+          store.getState().applyEvents([
+            {
+              ...envelope(sequence, provider),
+              type: "task.metadata_changed",
+              payload: { title },
+            },
+          ]);
+        };
+        publish(1, "Agent 标题");
+        expect(current()).toBe("Agent 标题");
+        publish(2, "自动标题");
+        expect(current()).toBe("自动标题");
+        publish(3, "手动名称");
+        store.getState().applyEvents([
+          {
+            ...envelope(4, provider),
+            type: "acp.session.updated",
+            payload: {
+              state: { title: "Agent 的迟到标题", configOptions: [], availableCommands: [] },
+            },
+          },
+        ]);
+        expect(current()).toBe("手动名称");
+      });
       test("晚到的空启动事件保留已经显示的提交消息与 Store 身份", () => {
         const initial = response([message("submitted-user-turn", "user", "继续")]);
         const store = createStore(initial);

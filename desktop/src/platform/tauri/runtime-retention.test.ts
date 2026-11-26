@@ -24,7 +24,7 @@ describe("runtime event retention", () => {
 
   it("bounds replay payload bytes even below the event count limit", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     for (let sequence = 1; sequence <= 10; sequence += 1) deliver(sequence, 1_048_576);
     const onEvent = vi.fn();
     runtime.subscribeAgentEvents({ afterSequence: 0, onEvent });
@@ -33,7 +33,7 @@ describe("runtime event retention", () => {
 
   it("reports an oversized final event as a replay gap", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     deliver(1, 5 * 1_048_576);
     const subscription = { afterSequence: 0, onEvent: vi.fn(), onReplayGap: vi.fn() };
     runtime.subscribeAgentEvents(subscription);
@@ -46,7 +46,7 @@ describe("runtime event retention", () => {
 
   it("releases idle payloads while retaining recovery checkpoints", async () => {
     const runtime = await import("./runtime.js");
-    await runtime.ensureCodexRuntime();
+    await runtime.connectAcpEvents();
     deliver(1, 1_048_576);
     await vi.advanceTimersByTimeAsync(120_000);
     const subscription = { afterSequence: 0, onEvent: vi.fn(), onReplayGap: vi.fn() };

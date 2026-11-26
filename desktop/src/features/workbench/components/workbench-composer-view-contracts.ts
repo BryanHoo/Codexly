@@ -1,3 +1,4 @@
+import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type { ReactNode } from "react";
 import type {
@@ -28,13 +29,20 @@ import type { ComposerMode } from "./workbench-composer-contracts.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
+  acp?: Readonly<{
+    controls: ReactNode;
+    leadingControls?: ReactNode;
+    trailingControls?: ReactNode;
+    isBusy: boolean;
+  }>;
   nativeDrop?: import("@codexly/ui/agent/prompt-input").NativeAttachmentDrop;
   engineControls?: ReactNode;
+  generationRuntime?: TaskRuntimeView | undefined;
   promptOptimization?: ReactNode;
   writeAccess?: import("../../conversation/runtime/use-task-runtime.js").TaskRuntimeView["writeAccess"];
   activeCommandIndex: number;
   activeCommandItemId: string | undefined;
-  activeSettings: AgentTaskSettings;
+  activeSettings: AgentTaskSettings | undefined;
   activeTurnId: string | undefined;
   attachments: readonly PromptInputAttachment[];
   attachmentsDisabled: boolean;

@@ -143,7 +143,8 @@ function DialogContent({
   className,
   closeLabel,
   closeDisabled = false,
-  showCloseButton = closeLabel !== undefined,
+  // 关闭入口默认可用，避免业务漏传文案时出现无法直观关闭的弹窗。
+  showCloseButton = true,
   onOpenAutoFocus,
   onCloseAutoFocus,
   onEscapeKeyDown,

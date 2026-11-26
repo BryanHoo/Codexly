@@ -13,7 +13,11 @@
 
 ## 契约与检查项
 
-- Unified Diff 的尾部空格、空白上下文行与换行属于补丁内容，不得使用 `trimEnd()` 清理；文件头补齐后须保持 hunk 行数可解析。Web 回归入口为 `features/diff/file-change.test.ts`。
+- Web、移动浏览器和桌面在「设置 → 常规 → 通用」通过共享描边输入框编辑产品名称。失焦时自动保存并更新侧栏品牌与 Web 工作台标签页标题，独立文件窗口继续显示文件名。名称去除首尾空白，清空后失焦恢复 Codexly。两端通过现有平台存储保留名称，共用同一套偏好逻辑。[产品名称偏好](../../../../packages/frontend-core/src/product-name-preference.ts) [Web 回归](../../../../tests/e2e/app-shell-product-name.spec.ts) [桌面回归](../../../../desktop/src/features/settings/components/global-settings-page.browser.test.tsx)
+
+- Web 和桌面差异预览共用 `file-change-patch.ts`。已有标准补丁保留原文，缺少文件头的历史补丁补齐文件头，Codex 未编号的 `@@` 流式片段按已收到的正文生成预览范围。尾部空格、空白上下文行与换行属于补丁内容。回归入口为 Web `features/diff/file-change.test.ts` 和双端 `streaming-file-diff.browser.test.tsx`。
+- ACP 的 `diff --git` 头可能携带绝对路径。单文件补丁已有相邻 `---` / `+++` 文件头时，从 Unified Diff 头解析，兼容 macOS、Windows、空格路径和历史缓存。双端时间线隐藏重复的 `Editing files` 工具行，文件差异继续按回合状态呈现。浏览器回归须使用 ACP 原始绝对路径头并断言实际增删正文。
+- ACP 新生成的补丁用零行范围表示空原文，正文空行须保留增删前缀。读取旧版 ACP 新建文件或修改空文件的记录时，修复首个新增行前多出的无前缀空行，保留记录中的新增正文。
 - 流式 Markdown 的延迟预览只能独立保留已结束的段落，不能把“我”等未结束前缀渲染成额外段落。共享 `streaming-prefix.test.ts` 与跨端 `desktop/tests/browser/stream-prefix.browser.test.tsx` 覆盖长段落追加、最终解析和权威正文替换。
 
 - [ ] 不导入具体 Web / 桌面应用、Client、Core、Provider、Server 或根 CLI，传输与原生副作用由平台适配器承接。
@@ -60,6 +64,12 @@
 - 两端复用 `turn-process.ts` 的 `resolveTimelineActivityStatus`：运行中已结束的瞬时活动隐藏，结束回合展开过程时恢复条目，保留明确失败状态并消除残留运行图标，不修改原始记录。中断和失败回合继续遵循下一次提交后折叠的既有规则。
 - 回归入口为 Web 的 `task-timeline-context-compaction.test.tsx` 和桌面的 `task-timeline-context-compaction.browser.test.tsx`；桌面覆盖 Chromium / WebKit 的折叠、展开与再次收起。
 
+## ACP 会话通知与压缩
+
+- ACP v1 使用 `clientCapabilities.session.notices` 和 `clientCapabilities.session.compaction`。通知按会话路由，保留严重级别并允许本地关闭。通知仅保留在当前运行时的有界任务视图，不进入会话历史或任务状态判定。
+- 压缩条目保留在时间线首次出现的位置。后续状态更新和摘要分块按原 ID 原位应用，摘要显式清空和省略遵循 ACP 的补丁语义。完成后条目仍可见，摘要默认折叠。两端共用 [会话更新组件](../../../../packages/ui/src/agent/acp-session-updates.tsx)。
+- 摘要以文本增量传输，只唤醒所属条目。历史使用原有回合匹配锚点，重放可补回压缩条目而保留应用侧回合身份。回归覆盖 [ACP 回放](../../../../packages/provider-acp/src/replay.test.ts) 与 [桌面浏览器时间线](../../../../desktop/src/features/workbench/components/task-timeline-context-compaction.browser.test.tsx)。协议依据为 [Session Notices](https://agentclientprotocol.com/rfds/session-notices) 与 [Session Compaction](https://agentclientprotocol.com/rfds/session-compaction)。
+
 ## 对话 JSON 导出
 
 - 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。
@@ -102,8 +112,9 @@
 ## 任务事件消费与双端回放
 
 - Web 与桌面复用 [事件 reducer](../../../../packages/frontend-core/src/task-event-reducer.ts) 和 [计时规则](../../../../packages/frontend-core/src/task-event-timing.ts)。[TaskEventModel](../../../../packages/protocol/src/task-event-model.ts) 从公开 AgentEvent 派生判别联合，按平台绑定条目、回合、审批和推理载荷；默认模型与公开协议双向兼容，审批 created/resolved/expired 保持各自状态判别。
-- 此模型是消费契约，不新增线缆协议或逐事件转换。原有 HTTP/WebSocket、Tauri、checkpoint 校验、按目标条目的增量缓冲和字节预算继续由平台层负责。桌面公开摘要、文件修改 stats、终端审批及附件扩展不得因共享化丢失；message.skills_updated 仍由原生适配层原位应用。
-- 平台仅注入实体工厂、通知保留规则与终态错误权威策略。桌面以 Rust 归并的终态为准，null 错误也具有权威性；Web 保留原有不可重试错误回退。不能在共享逻辑中硬编码平台或 Provider 分支。
+- 此模型是消费契约，不新增线缆协议或逐事件转换。两端通过 [共享任务 Store 运行时](../../../../packages/frontend-core/src/task-store-runtime.ts) 校验身份与 checkpoint、恢复快照、拼接历史并提交事件批次。增量缓冲和命令输出预算由平台注入或装配，HTTP/WebSocket 与 Tauri 调用由平台入口执行。桌面公开摘要、文件修改 stats、终端审批及附件扩展不得因共享化丢失；message.skills_updated 仍由原生适配层原位应用。
+- 平台注入快照归一化、实体工厂、通知保留规则与终态错误权威策略。桌面以 Rust 归并的终态为准，null 错误也具有权威性；Web 保留原有不可重试错误回退。不能在共享逻辑中硬编码平台或 Provider 分支。
+- [共享快照恢复控制器](../../../../packages/frontend-core/src/task-snapshot-recovery.ts) 管理退避重试、并发上限和取消。任务取消后重新排队须重新确认请求身份，避免迟到响应覆盖新的会话基线。平台负责发起读取、诊断以及发布时机，桌面可见性控制继续在平台入口处理。
 - 提交响应先于空 turn.started 到达时，保留已显示条目及 Store 身份；权威用户消息必须原位接管提交占位，不能移动到已到达的助手回复之后。
 - 两端调用 [同一回放契约](../../../../packages/frontend-core/src/testing/task-event-replay.ts)，直接驱动真实 Store，覆盖 Codex/Claude、单条/批量、重复及身份过滤、审批终态、推理、命令输出、错误恢复和终态摘要接管。增量批次只发布目标条目一次，不读取无关历史全文。入口为各端 runtime/task-store-event-replay.test.ts；共享改动同时执行两端 runtime 测试、类型检查与根性能套件。
 
@@ -134,3 +145,8 @@
 - Codex 流式消息在收到 `item.completed` 前可能尚未进入原生历史；中断终态与历史快照中的空消息不能撤销此前已显示的正文。两端复用 `interrupted-replies.ts`，在中断终态按项目、任务、回合和消息 ID 保存非过程助手正文，正常流式输出不逐 Token 写盘。
 - 首屏创建、hydrate、reconcile 和历史续页均应用同一恢复规则，仅补充匹配的中断回合；正常完成回合以及已有非空权威消息保持原样。Web 使用当前浏览器存储，桌面注入原生 `appPreferenceStorage`；恢复记录不替代原生历史，不提供跨浏览器同步。
 - 验证入口为两端 `task-store-interrupted-replies.test.ts`（真实 Store 重建、新 session、空终态及重复恢复）、共享 `interrupted-replies.test.ts`，以及 Web `app-shell-interrupted-replies.spec.ts`（Chromium / Firefox / WebKit、390px / 1280px、停止后切换与页面重启）。
+
+## 虚拟列表焦点
+
+- 键盘请求的离屏目标应在虚拟行挂载后完成聚焦，不能依赖库内短时轮询或增加超时掩盖挂载竞态。初次渲染、普通滚动不得抢占输入焦点；等待期间用户移到其他输入区时取消焦点交接。
+- Web 与桌面复用 `virtual-tree-focus`；回归覆盖一万文件 End 键跳转和真实 Chromium / WebKit 渲染。

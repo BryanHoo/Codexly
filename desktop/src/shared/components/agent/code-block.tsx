@@ -21,16 +21,16 @@ export {
   type CodeBlockTitleProps,
 } from "@codexly/ui/agent/code-block";
 
-export type CodeBlockProps = Omit<SharedCodeBlockProps, "legacyTheme">;
-export type CodeBlockContentProps = Omit<SharedCodeBlockContentProps, "legacyTheme">;
+export type CodeBlockProps = SharedCodeBlockProps;
+export type CodeBlockContentProps = SharedCodeBlockContentProps;
 export type CodeBlockCopyButtonProps = Omit<SharedCodeBlockCopyButtonProps, "labels">;
 
 export function CodeBlock(props: CodeBlockProps) {
-  return <SharedCodeBlock {...props} legacyTheme={import.meta.env.VITE_MACOS_LEGACY === "true"} />;
+  return <SharedCodeBlock {...props} />;
 }
 
 export function CodeBlockContent(props: CodeBlockContentProps) {
-  return <SharedCodeBlockContent {...props} legacyTheme={import.meta.env.VITE_MACOS_LEGACY === "true"} />;
+  return <SharedCodeBlockContent {...props} />;
 }
 
 export function CodeBlockCopyButton(props: CodeBlockCopyButtonProps) {

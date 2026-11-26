@@ -1,93 +1,90 @@
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { mkdtemp, rm } from "node:fs/promises";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  CodexAppServerProcess,
-  createCodexRuntimeProvider,
-} from "../../dist/providers/codex/index.js";
-import { createCodexlyServer, SqliteStateRepository } from "../../dist/server/index.js";
+const runDirectory = process.env["CODEXLY_E2E_RUN_DIRECTORY"];
+if (!runDirectory) throw new Error("缺少 Playwright 构建目录，请通过测试配置启动夹具。");
+const [{ AcpApplicationRuntime, AcpProcess }, { createCodexlyServer, SqliteStateRepository }] =
+  await Promise.all([
+    import(pathToFileURL(join(runDirectory, "dist/providers/acp/index.js")).href),
+    import(pathToFileURL(join(runDirectory, "dist/server/index.js")).href),
+  ]);
 
-const projectRoot = "/workspace/Codexly";
-const fakeAppServerPath = fileURLToPath(
-  new URL("../../packages/provider-codex/test/fixtures/fake-app-server.mjs", import.meta.url),
-);
-const staticRoot = fileURLToPath(new URL("../../dist/web", import.meta.url));
-
-// Fake Server 由当前 Node.js 执行，确保 Windows 不会把测试脚本当成原生 .exe。
-const fakeAppServer = spawn(
-  process.execPath,
-  [
-    fakeAppServerPath,
-    "app-server",
-    "--enable",
-    "plugins",
-    // 与正式启动及 Fake App Server 的参数契约保持一致，不在测试启动时预取插件。
-    "-c",
-    "features.plugin_discovery_prefetch=false",
-    "--listen",
-    "stdio://",
-  ],
-  {
-    env: { ...process.env, FAKE_APP_SERVER_SCENARIO: "realtime-actions" },
-    shell: false,
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  },
-);
-const runtime = new CodexAppServerProcess(
-  fakeAppServer,
-  { path: process.execPath, source: "explicit" },
-  { raw: "codex-cli 0.163.0", version: "0.163.0" },
-  { rpcTimeoutMs: 1_000, shutdownTimeoutMs: 500 },
-);
-await runtime.waitForSpawn();
-await runtime.client.request("initialize", {
-  capabilities: { experimentalApi: true },
-  clientInfo: { name: "codexly", title: "Codexly", version: "0.0.0" },
-});
-runtime.client.notify("initialized", {});
+const persistenceRoot = await mkdtemp(join(tmpdir(), "codexly-e2e-acp-"));
+const runtimeRoot = join(persistenceRoot, "runtime");
+await mkdir(runtimeRoot);
+const persistence = await SqliteStateRepository.open(join(persistenceRoot, "state.sqlite"));
+const fakeAgent = fileURLToPath(new URL("./fake-acp-agent.mjs", import.meta.url));
+const staticRoot = join(runDirectory, "dist/web");
+const pairingCode = process.env["CODEXLY_E2E_PAIRING_CODE"];
 const project = {
   createdAt: "2026-07-23T00:00:00.000Z",
   id: "codexly",
   name: "Codexly",
-  roots: [{ id: "root-codexly", path: projectRoot }],
+  roots: [{ id: "root-codexly", path: persistenceRoot }],
 };
-const provider = createCodexRuntimeProvider({ client: runtime.client });
-let globalSettings;
-let providerConnection;
-const projectDefaults = new Map();
-const taskSettings = new Map();
-const pairingCode = process.env["CODEXLY_E2E_PAIRING_CODE"];
-const stateRepository = {
-  // E2E 只持久化进程内非敏感状态，凭证仍由 Fake App Server Account API 持有。
-  readGlobalSettings: () => Promise.resolve(globalSettings),
-  readProjectDefaults: (projectId) => Promise.resolve(projectDefaults.get(projectId)),
-  readProviderConnection: () => Promise.resolve(providerConnection),
-  readTaskSettings: (projectId, taskId) =>
-    Promise.resolve(taskSettings.get(`${projectId}:${taskId}`)),
-  writeProjectDefaults: (projectId, settings) => {
-    projectDefaults.set(projectId, settings);
-    return Promise.resolve(settings);
-  },
-  writeGlobalSettings: (settings) => {
-    globalSettings = settings;
-    return Promise.resolve(settings);
-  },
-  writeProviderConnection: (record) => {
-    providerConnection = record;
-    return Promise.resolve(record);
-  },
-  writeTaskSettings: (projectId, taskId, settings) => {
-    taskSettings.set(`${projectId}:${taskId}`, settings);
-    return Promise.resolve(settings);
+await persistence.catalog("project.put", {
+  id: project.id,
+  name: project.name,
+  path: persistenceRoot,
+  createdAt: project.createdAt,
+});
+await persistence.catalog("task.put", {
+  id: "task-realtime",
+  projectId: project.id,
+  title: "ACP 历史任务",
+  cwd: persistenceRoot,
+  provider: "codex",
+  sessionId: "fixture-existing",
+  updatedAt: Math.floor(Date.now() / 1_000),
+  pinned: false,
+  archived: false,
+  status: "idle",
+});
+const provider = new AcpApplicationRuntime(
+  runtimeRoot,
+  persistence,
+  () => persistence.readGlobalSettings(),
+  (_engine, scope, callbacks) =>
+    AcpProcess.start(
+      { command: process.execPath, args: [fakeAgent], cwd: scope.rootPath },
+      callbacks,
+    ),
+);
+const acpAgents = {
+  // Agent 服务按需创建，显式读取使夹具仍使用真实的预览和会话配置。
+  codex: provider.acpAgents.codex,
+  // 夹具进程由上面的 launch 端口启动，目录接口直接公布这一个可用 Agent。
+  catalog: {
+    list: () =>
+      Promise.resolve({
+        agents: [
+          {
+            engine: "codex",
+            name: "Codex",
+            description: "",
+            installed: true,
+            enabled: true,
+            detected: true,
+            environmentKeys: [],
+            command: process.execPath,
+          },
+        ],
+      }),
   },
 };
-const persistenceRoot = await mkdtemp(join(tmpdir(), "codexly-e2e-todos-"));
-const persistence = await SqliteStateRepository.open(join(persistenceRoot, "state.sqlite"));
 const server = await createCodexlyServer({
+  localCatalogStore: persistence,
+  readAppInfo: () =>
+    Promise.resolve({
+      appVersion: "1.3.0",
+      codexVersion: "0.166.0",
+      latestVersion: null,
+      releaseNotes: null,
+      status: "current",
+      updateAvailable: false,
+    }),
   projectTodoRepository: persistence,
   asyncQuestionRepository: persistence,
   submissionRepository: persistence,
@@ -103,15 +100,59 @@ const server = await createCodexlyServer({
     rename: () => Promise.resolve(undefined),
     reorder: () => Promise.resolve([project]),
   },
-  providerConnectionRepository: stateRepository,
+  providerConnectionRepository: persistence,
+  acpAgents,
   provider,
-  settingsRepository: stateRepository,
+  settingsRepository: persistence,
+  queueRepository: persistence,
   staticRoot,
 });
 
+// 仅供浏览器取消回归：在测试 HTTP 边界分流同源端点，已 ready 的产品路由不增加测试 API。
+const optimizationRequests = new Map();
+const productHttpListeners = server.server.listeners("request");
+server.server.removeAllListeners("request");
+server.server.on("request", (request, response) => {
+  const match = /^\/__test__\/prompt-optimization\/([a-f0-9-]+)$/u.exec(request.url ?? "");
+  if (!match) {
+    for (const listener of productHttpListeners) listener.call(server.server, request, response);
+    return;
+  }
+  const id = match[1];
+  const send = (value) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify(value));
+  };
+  if (request.method === "POST") {
+    const completion = Promise.withResolvers();
+    const state = { entered: false, disconnected: false, completion };
+    optimizationRequests.set(id, state);
+    request.resume();
+    request.once("end", () => {
+      state.entered = true;
+    });
+    response.once("close", () => {
+      state.disconnected = true;
+      completion.resolve();
+    });
+    void completion.promise.then(() => {
+      if (!response.destroyed) send({ text: "旧优化结果" });
+    });
+  } else if (request.method === "DELETE") {
+    optimizationRequests.get(id)?.completion.resolve();
+    optimizationRequests.delete(id);
+    send({});
+  } else {
+    const state = optimizationRequests.get(id);
+    send({ entered: state?.entered ?? false, disconnected: state?.disconnected ?? false });
+  }
+});
+
 const close = async () => {
+  for (const state of optimizationRequests.values()) state.completion.resolve();
+  optimizationRequests.clear();
   await server.close();
-  await runtime.close();
+  await provider.close();
   await persistence.close();
   await rm(persistenceRoot, { recursive: true, force: true });
 };

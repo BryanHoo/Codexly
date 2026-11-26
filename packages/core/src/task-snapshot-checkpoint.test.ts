@@ -135,6 +135,47 @@ it("accepts a provider's synchronous delta overlay without waiting for quiet out
   expect(h.provider.readTask).toHaveBeenCalledOnce();
 });
 
+it.each([true, false])(
+  "checks ACP session updates against the captured state (matches: %s)",
+  async (matches) => {
+    const h = harness();
+    const initial = { configOptions: [], availableCommands: [] };
+    const latest = {
+      ...initial,
+      availableCommands: [{ name: "review", description: "审阅" }],
+    };
+    let sequence = 0;
+    h.provider.readTask.mockImplementation((_id, input) => {
+      for (const state of [initial, latest]) {
+        sequence++;
+        for (const listener of h.listeners)
+          listener({ type: "acp.session.updated", taskId: "task", payload: { state } });
+      }
+      const snapshot = {
+        ...h.snapshot,
+        runtime: "acp" as const,
+        acpSession: structuredClone(matches ? latest : initial),
+      };
+      input?.snapshotRead?.capture(snapshot);
+      return Promise.resolve(snapshot);
+    });
+
+    const capture = vi.fn(() => sequence);
+    const read = readTaskWithCheckpoint(h.provider, "task", { summary: true }, capture);
+    if (matches) {
+      // 冷加载期间发布会话初始状态和命令目录，快照包含两次通知后的完整状态。
+      await expect(read).resolves.toMatchObject({
+        checkpoint: 2,
+        snapshot: { acpSession: latest },
+      });
+      expect(h.provider.readTask).toHaveBeenCalledOnce();
+    } else {
+      await expect(read).rejects.toMatchObject({ code: "TASK_SNAPSHOT_BUSY" });
+      expect(capture).not.toHaveBeenCalled();
+    }
+  },
+);
+
 it("shares stable preparation across conflicts but never accepts a stale structural capture", async () => {
   const h = harness();
   const prepare = vi.fn(() => Promise.resolve("prepared"));

@@ -36,12 +36,37 @@ export function isAsyncQuestionMessage(item: ProcessMessage): boolean {
 }
 
 /** 完成态折叠与历史过程分页共用分类，避免展开后遗漏异步问题。 */
-export function isAssistantProcessMessage(item: ProcessMessage): boolean {
+export function isAssistantProcessMessage(item: ProcessMessage, inferUnphased = false): boolean {
   return (
     item.type === "message" &&
     item.role === "assistant" &&
-    (item.phase === "commentary" || isAsyncQuestionMessage(item))
+    ((inferUnphased && item.phase === undefined) ||
+      item.phase === "commentary" ||
+      isAsyncQuestionMessage(item))
   );
+}
+
+/** 原生阶段优先；ACP 未提供阶段时，以最后一条普通助手消息作为答复边界。 */
+export function resolveFinalAnswerIndex(
+  items: readonly ProcessMessage[],
+  inferUnphased = false,
+): number {
+  const explicit = items.findLastIndex(
+    (item) =>
+      item.type === "message" &&
+      item.role === "assistant" &&
+      item.phase === "final_answer" &&
+      !isAsyncQuestionMessage(item),
+  );
+  return explicit >= 0 || !inferUnphased
+    ? explicit
+    : items.findLastIndex(
+        (item) =>
+          item.type === "message" &&
+          item.role === "assistant" &&
+          item.phase === undefined &&
+          !isAsyncQuestionMessage(item),
+      );
 }
 
 /** 中断来源统一按回合终态处理；下一次提交前保留输出，之后连同未完成答复一起折叠。 */
@@ -54,6 +79,10 @@ export function resolveInterruptedTurnProcessItemIds(
   if (!hasNextSubmission) return [];
   // 保留用户输入和审核入口，文件变更及所有阶段的 Assistant 输出均可展开查看。
   return items.flatMap((item) =>
-    item.type === "review" || (item.type === "message" && item.role === "user") ? [] : [item.id],
+    item.type === "compaction" ||
+    item.type === "review" ||
+    (item.type === "message" && item.role === "user")
+      ? []
+      : [item.id],
   );
 }

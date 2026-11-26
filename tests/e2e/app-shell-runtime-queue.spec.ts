@@ -8,305 +8,36 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-test("queues follow-up messages and can steer or cancel them during an active turn", async ({
-  page,
-}) => {
-  test.setTimeout(60_000);
-  await page.unroute("**/v1/**");
-  const queueReadQueries: string[] = [];
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (request.method() === "GET" && url.pathname.endsWith("/queue")) {
-      queueReadQueries.push(url.search);
-    }
-  });
-  await page.route("**/v1/settings", async (route) => {
-    const response = await route.fetch();
-    const body = (await response.json()) as { settings: Record<string, unknown> };
-    await route.fulfill({
-      response,
-      json: { settings: { ...body.settings, followUpBehavior: "queue" } },
-    });
-  });
-  await page.goto("/p/codexly");
-  const initialQueueRead = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === "GET" && url.pathname.endsWith("/queue");
-  });
-  const input = page.getByRole("textbox", { name: "任务输入" });
-  await input.fill("等待中断");
-  await page.getByRole("button", { exact: true, name: "提交" }).click();
-  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/u);
-  await expect(page.getByRole("button", { name: "停止" })).toBeVisible();
-  await expect(input).toHaveAttribute("placeholder", "输入后续要求");
-  await expect(page.getByRole("button", { name: /终端连接状态：在线/u })).toBeVisible();
-  await initialQueueRead;
-
-  const taskId = page.url().split("/").at(-1) ?? "";
-  const attachmentResponse = await page.request.post("/v1/projects/codexly/attachments/text", {
-    headers: { "idempotency-key": "external-queue-attachment" },
-    multipart: {
-      attachment: {
-        buffer: Buffer.from("队列附件内容", "utf8"),
-        mimeType: "text/plain",
-        name: "queue-note.txt",
-      },
-    },
-  });
-  expect(attachmentResponse.status()).toBe(201);
-  const attachment = (await attachmentResponse.json()) as { attachment: { id: string } };
-  const externalQueueResponse = await page.request.post(
-    `/v1/projects/codexly/tasks/${taskId}/queue`,
-    {
-      data: {
-        clientUserMessageId: "external-client-message",
-        input: {
-          attachments: [{ id: attachment.attachment.id }],
-          skills: [],
-          text: "来自其他客户端",
-          type: "prompt",
-        },
-      },
-      headers: { "idempotency-key": "external-queue-add" },
-    },
-  );
-  expect(externalQueueResponse.status()).toBe(201);
-  const externalQueue = (await externalQueueResponse.json()) as {
-    queuedSubmission: { id: string };
-  };
-  await expect(page.getByText("来自其他客户端", { exact: true })).toBeVisible();
-  await page.reload();
-  await expect(page.getByText("来自其他客户端", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "编辑排队消息：来自其他客户端" }).click();
-  await expect(page.getByText("queue-note.txt", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("list", { name: "已排队消息" }).getByText("来自其他客户端", { exact: true }),
-  ).toHaveCount(1);
-  await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
-  const externalDeleteResponse = await page.request.delete(
-    `/v1/projects/codexly/tasks/${taskId}/queue/${externalQueue.queuedSubmission.id}`,
-    { headers: { "idempotency-key": "external-queue-delete" } },
-  );
-  expect(externalDeleteResponse.status()).toBe(200);
-  await expect(page.getByRole("status", { name: "编辑中" })).toHaveCount(0);
-  await page.getByRole("button", { name: "移除 queue-note.txt" }).click();
-  await input.fill("外部删除后重新排队");
-  await page.getByRole("button", { exact: true, name: "排队消息" }).click();
-  await expect(
-    page.getByRole("list", { name: "已排队消息" }).getByText("外部删除后重新排队", {
-      exact: true,
-    }),
-  ).toHaveCount(1);
-  await page.getByRole("button", { name: "取消排队：外部删除后重新排队" }).click();
-
-  let dispatchPayload: unknown;
-  const dispatchWrites: string[] = [];
-  page.on("request", (request) => {
-    const path = new URL(request.url()).pathname;
-    // 只记录当前任务的调度写入，活动已读确认等全局请求不属于队列启动行为。
-    if (
-      path.startsWith(`/v1/projects/codexly/tasks/${taskId}/`) &&
-      (request.method() === "POST" || request.method() === "DELETE")
-    )
-      dispatchWrites.push(path);
-  });
-  await page.route("**/v1/projects/codexly/tasks/*/queue/start", async (route) => {
-    const request = route.request();
-    dispatchPayload = request.postDataJSON();
-    await route.fulfill({ response: await route.fetch() });
-  });
-  const queueMessage = page.getByRole("button", { exact: true, name: "排队消息" });
-  await input.fill("先补充失败测试");
-  await expect(queueMessage).toBeVisible();
-  await queueMessage.click();
-
-  await expect(input).toHaveAttribute("data-serialized-value", "");
-  await page.reload();
-  await expect(input).toHaveAttribute("data-serialized-value", "");
-  const queuedList = page.getByRole("list", { name: "已排队消息" });
-  await expect(queuedList.getByText("先补充失败测试", { exact: true })).toBeVisible();
-  expect(await queuedList.evaluate((element) => element.closest("form") === null)).toBe(true);
-  await page.getByRole("button", { name: "编辑排队消息：先补充失败测试" }).click();
-  await expect(input).toHaveAttribute("data-serialized-value", "先补充失败测试");
-  await input.fill("先补充失败测试（已编辑）");
-  await queueMessage.click();
-  const steerQueued = page.getByRole("button", { name: "立即引导：先补充失败测试（已编辑）" });
-  await expect(steerQueued).toBeEnabled();
-  await steerQueued.hover();
-  await expect(page.getByRole("tooltip")).toHaveText("立即作为引导发送");
-  dispatchWrites.length = 0;
-  await steerQueued.click();
-  await expect(page.getByRole("status", { name: "等待发送" })).toBeVisible();
-  await expect
-    .poll(() => dispatchPayload)
-    .toEqual({
-      queuedSubmissionId: expect.any(String),
-    });
-  expect(dispatchWrites).toEqual([`/v1/projects/codexly/tasks/${taskId}/queue/start`]);
-  await expect(
-    page.getByRole("button", { name: "编辑排队消息：先补充失败测试（已编辑）" }),
-  ).toHaveCount(0);
-  await expect(page.getByRole("status", { name: "等待发送" })).toHaveCount(0);
-  await expect(page.getByText("先补充失败测试（已编辑）", { exact: true })).toHaveCount(1);
-
-  await input.fill("无需继续的消息");
-  await queueMessage.click();
-  const cancelQueued = page.getByRole("button", { name: "取消排队：无需继续的消息" });
-  await cancelQueued.hover();
-  await expect(page.getByRole("tooltip")).toHaveText("取消排队");
-  await cancelQueued.click();
-  await expect(page.getByText("无需继续的消息", { exact: true })).toHaveCount(0);
-
-  await input.fill("顺序一");
-  await queueMessage.click();
-  await input.fill("顺序二");
-  await queueMessage.click();
-  await page.getByRole("button", { name: "上移排队消息：顺序二" }).click();
-  await expect
-    .poll(async () =>
-      queuedList
-        .getByRole("listitem")
-        .allTextContents()
-        .then((items) => items.map((item) => item.trim())),
-    )
-    .toEqual(["顺序二", "顺序一"]);
-  await page.getByRole("button", { name: "取消排队：顺序二" }).click();
-  await page.getByRole("button", { name: "取消排队：顺序一" }).click();
-
-  await input.fill("编辑前内容");
-  await queueMessage.click();
-  await input.fill("后续排队内容");
-  await queueMessage.click();
-  await page.getByRole("button", { name: "编辑排队消息：编辑前内容" }).click();
-  await input.fill("刷新后继续编辑");
-  await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
-  await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
-  await page.reload();
-  await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
-  await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
-
-  const runningTaskResponse = await page.request.get(`/v1/projects/codexly/tasks/${taskId}`);
-  const runningTask = (await runningTaskResponse.json()) as {
-    snapshot: { turns: readonly { id: string; status: string }[] };
-  };
-  const runningTurn = runningTask.snapshot.turns.find((turn) => turn.status === "running");
-  if (runningTurn === undefined) {
-    throw new Error("未找到运行中的 Turn");
-  }
-  const interruptResponse = await page.request.post(
-    `/v1/projects/codexly/tasks/${taskId}/turns/${runningTurn.id}/interrupt`,
-    {
-      data: { taskId },
-      headers: { "idempotency-key": "interrupt-during-queue-edit" },
-    },
-  );
-  expect(interruptResponse.status()).toBe(202);
-  await expect(page.getByLabel("Turn 1")).toHaveAttribute("data-status", "interrupted");
-  await expect(page.getByLabel("Turn 2")).toHaveCount(0);
-  await expect(page.getByText("后续排队内容", { exact: true })).toBeVisible();
-
-  dispatchWrites.length = 0;
-  await page.getByRole("button", { exact: true, name: "排队消息" }).click();
-  const editedTurn = page.getByLabel("Turn 2");
-  await expect(editedTurn.getByText("刷新后继续编辑", { exact: true })).toBeVisible();
-  await expect(editedTurn).toHaveAttribute("data-status", "completed");
-  const followingTurn = page.getByLabel("Turn 3");
-  await expect(followingTurn.getByText("后续排队内容", { exact: true })).toBeVisible();
-  await expect(followingTurn).toHaveAttribute("data-status", "completed");
-  // 保存编辑只发 PUT，恢复出队由 Node 完成，浏览器不能再追加启动请求。
-  expect(dispatchWrites).toEqual([]);
-  expect(queueReadQueries.length).toBeGreaterThan(0);
-  expect(queueReadQueries.every((query) => query === "")).toBe(true);
-});
-
-test("keeps a direct steer above the composer until its streamed message appears @cross-browser", async ({
-  page,
-}) => {
-  await page.unroute("**/v1/**");
-  await page.route("**/v1/settings", async (route) => {
-    const response = await route.fetch();
-    const body = (await response.json()) as { settings: Record<string, unknown> };
-    await route.fulfill({
-      response,
-      json: { settings: { ...body.settings, followUpBehavior: "steer" } },
-    });
-  });
-  await page.goto("/p/codexly");
-  const input = page.getByRole("textbox", { name: "任务输入" });
-  await input.fill("等待中断");
-  await page.getByRole("button", { exact: true, name: "提交" }).click();
-  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/u);
-
-  await input.fill("直接补充失败测试");
-  await page.getByRole("button", { name: "发送引导" }).click();
-
-  await expect(page.getByText("直接补充失败测试", { exact: true })).toBeVisible();
-  await expect(page.getByRole("status", { name: "等待发送" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "编辑排队消息：直接补充失败测试" })).toHaveCount(0);
-  await expect(page.getByRole("status", { name: "等待发送" })).toHaveCount(0);
-  await expect(page.getByText("直接补充失败测试", { exact: true })).toHaveCount(1);
-  // 引导消息进入时间线后仍属于当前运行回合，不能等下一段助手输出才恢复运行标识。
-  const running = page.getByLabel("AI 回复正在运行", { exact: true });
-  await expect(running).toHaveCount(1);
-  await expect(running).toBeVisible();
-});
-
 test("submits a prompt and streams the completed reply @cross-browser", async ({ page }) => {
   await page.unroute("**/v1/**");
   await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("完成流式回复");
-  await page.getByRole("button", { exact: true, name: "提交" }).click();
+  // 首次提交接收后还要读取新任务快照，等应用完成交接所需的两个请求。
+  const [submission, snapshot] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/v1/projects/codexly/submissions",
+    ),
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        /^\/v1\/projects\/codexly\/tasks\/[\da-f-]{36}$/u.test(new URL(response.url()).pathname),
+    ),
+    page.getByRole("button", { exact: true, name: "提交" }).click(),
+  ]);
+  expect(submission.status()).toBe(201);
+  expect(snapshot.ok()).toBe(true);
 
-  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/);
-  await expect(page.getByText("完成流式回复", { exact: true })).toHaveCount(1);
-  await expect(page.getByText("流式回复完成", { exact: true })).toHaveCount(1);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/[\da-f-]{36}$/);
+  const turn = page.getByLabel("Turn 1");
+  await expect(turn.getByText("完成流式回复", { exact: true })).toHaveCount(1);
+  await expect(turn.getByText("流式回复完成", { exact: true })).toHaveCount(1);
   await expect(page.getByLabel("Turn 1")).toHaveAttribute("data-status", "completed", {
     timeout: 10_000,
   });
   await expect(page.getByRole("button", { exact: true, name: "提交" })).toBeVisible();
-});
-
-test("shows the latest raw Codex operation throughout a running turn", async ({ page }) => {
-  await page.unroute("**/v1/**");
-  await page.goto("/p/codexly");
-
-  await page.getByRole("textbox", { name: "任务输入" }).fill("检查运行状态");
-  await page.getByRole("button", { exact: true, name: "提交" }).click();
-
-  await expect(page.getByText("正在运行 rg --files", { exact: true })).toBeVisible();
-  const runningShimmer = page.locator('[data-agent-shimmer][aria-label^="AI 回复正在运行"]');
-  const initialShimmer = await runningShimmer.elementHandle();
-  // 节点可见后 CSS 动画仍可能尚未启动，先等待时间轴完成初始化。
-  await expect
-    .poll(() =>
-      runningShimmer.evaluate((node) => {
-        const animation = node.getAnimations()[0];
-        return animation?.playState === "running" && animation.startTime !== null;
-      }),
-    )
-    .toBe(true);
-  const initialAnimation = await runningShimmer.evaluate((node) => ({
-    currentTime: Number(node.getAnimations()[0]?.currentTime ?? 0),
-    spread: node.style.getPropertyValue("--ui-shimmer-spread"),
-    startTime: Number(node.getAnimations()[0]?.startTime ?? 0),
-  }));
-
-  await expect(page.getByText(/^正在运行 context7\/query-docs/u)).toBeVisible();
-  const retainedShimmer = await runningShimmer.evaluate(
-    (node, initialNode) => node === initialNode,
-    initialShimmer,
-  );
-  const updatedAnimation = await runningShimmer.evaluate((node) => ({
-    currentTime: Number(node.getAnimations()[0]?.currentTime ?? 0),
-    spread: node.style.getPropertyValue("--ui-shimmer-spread"),
-    startTime: Number(node.getAnimations()[0]?.startTime ?? 0),
-  }));
-  expect(retainedShimmer).toBe(true);
-  expect(updatedAnimation.spread).toBe(initialAnimation.spread);
-  expect(updatedAnimation.startTime).toBe(initialAnimation.startTime);
-  expect(updatedAnimation.currentTime).toBeGreaterThan(initialAnimation.currentTime);
-  await expect(page.getByText("流式回复完成", { exact: true })).toBeVisible();
 });
 
 test("does not show a tooltip for a truncated command title", async ({ page }) => {

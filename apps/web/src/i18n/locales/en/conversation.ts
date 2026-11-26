@@ -234,6 +234,14 @@ export const conversation = {
     orchestrating: "Coordinating subagents",
   },
   timeline: {
+    dismissNotice: "Dismiss session notice",
+    compaction: {
+      in_progress: "Compacting context",
+      completed: "Context compacted",
+      failed: "Context compaction failed",
+      cancelled: "Context compaction cancelled",
+      unknown: "Context compaction",
+    },
     fileDiffStatus: {
       pending: "Pending",
       running: "Editing",
@@ -280,7 +288,6 @@ export const conversation = {
       title: "Automatic approval: {{status}}",
     },
     aiRunning: "AI response is running",
-    aiRunningOperation: "AI response is running: {{operation}}",
     attachments: "Message attachments",
     changedFiles: "This response changed {{count}} files",
     collapseFiles: "Collapse file list",
@@ -298,6 +305,9 @@ export const conversation = {
     fileChange:
       "{{operation}} {{name}}, {{additions}} additions, {{removals}} deletions, open Diff",
     fileOperation: {
+      move: "Renamed",
+      copy: "Copied",
+      binary: "Binary",
       create: "Created",
       delete: "Deleted",
       update: "Edited",
@@ -337,6 +347,8 @@ export const conversation = {
     planGenerating: "Generating plan",
     planReady: "Plan ready to build",
     processing: "Processed",
+    processingCompleted: "Completed",
+    durationUnknown: "Duration unavailable",
     quickNavigation: "User message quick navigation",
     reconnecting: "Restoring live connection",
     review: "Review",
@@ -349,7 +361,6 @@ export const conversation = {
       uncommitted: "Review my uncommitted changes",
     },
     running: "Running",
-    runningOperation: "Running {{operation}}",
     selectProject: "Select a project for the new chat",
     showImage: "View image {{name}}",
     skillsUsed: "Skills used",

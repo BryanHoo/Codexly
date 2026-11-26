@@ -16,6 +16,9 @@ impl ScheduledTaskRuntime {
             if !current.tasks.iter().any(|task| task.id == id) {
                 return Err(AppError::ScheduledTaskNotFound);
             }
+            if let Some(task) = current.tasks.iter().find(|task| task.id == id) {
+                super::super::scheduled_acp::assert_resolved(app_data, task).await?;
+            }
         }
         let due = manual_id.is_some()
             || current.tasks.iter().any(|task| {
@@ -90,7 +93,21 @@ impl ScheduledTaskRuntime {
             let result = start_scheduled_task_turn(&app, &claim.task).await;
             let mut state = runtime.inner.lock().await;
             let RuntimeState { tasks, running, .. } = &mut *state;
-            finish_claim(tasks, running, &claim, now_unix_ms(), result);
+            match result {
+                Ok(id) => finish_claim(tasks, running, &claim, now_unix_ms(), Ok(id)),
+                Err(failure) => {
+                    finish_claim(
+                        tasks,
+                        running,
+                        &claim,
+                        now_unix_ms(),
+                        Err(failure.message.clone()),
+                    );
+                    if let Some(task) = tasks.iter_mut().find(|task| task.id == claim.task.id) {
+                        super::super::scheduled_acp::project_failure(task, &claim.run_id, &failure);
+                    }
+                }
+            }
             // 启动结果已经发生，不能回滚后重复启动；保留脏标记交给调度循环重试落盘。
             state.dirty = true;
             match persist(&state).await {

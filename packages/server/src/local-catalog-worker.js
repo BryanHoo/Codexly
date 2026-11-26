@@ -1,3 +1,16 @@
+const validAgentEngine = (value) =>
+  value === "codex" ||
+  value === "claude" ||
+  (typeof value === "string" && /^acp-[a-z0-9][a-z0-9-]{0,95}$/.test(value));
+import { createAcpTaskTitleOperations } from "./acp-task-title-worker.js";
+import { createAcpStorageLockOperations } from "./acp-storage-lock-worker.js";
+import { createApplicationPreferencesOperations } from "./application-preferences-worker.js";
+import { createAcpPlanResourceOperations } from "./acp-plan-resource-worker.js";
+import { createAcpPlanCompletionOperations } from "./acp-plan-completion-worker.js";
+import { createAcpPlanIndexOperations } from "./acp-plan-index-worker.js";
+import { createAcpPlanStateOperations } from "./acp-plan-state-worker.js";
+import { createAcpScheduledPlanOperations } from "./acp-scheduled-plan-worker.js";
+import { createAcpScheduledConfigOperations } from "./acp-scheduled-config-worker.js";
 import { createSavedPromptOperations } from "./saved-prompts-worker.js";
 import { createHash } from "node:crypto";
 import schema from "../../protocol/src/local-catalog-schema.json" with { type: "json" };
@@ -5,6 +18,7 @@ import {
   TASK_PREVIEW_SELECT,
   writeTaskPreview,
   recoverTaskPreviews,
+  recoverBackgroundSessions,
   defaultCodexStateDatabase,
 } from "./local-catalog-previews.js";
 
@@ -43,7 +57,10 @@ export function createLocalCatalogOperations(db) {
   if (db.prepare("SELECT 1 FROM sqlite_master WHERE name='managed_tasks'").get()) {
     // 幂等增量建表兼容 Web 与桌面先后升级，不修改原领域表的列顺序或迁移版本。
     db.exec(schema.previewSql);
-    recoverTaskPreviews(db, defaultCodexStateDatabase());
+    db.exec(schema.acpBackgroundSchemaSql);
+    const source = defaultCodexStateDatabase();
+    recoverBackgroundSessions(db, source);
+    recoverTaskPreviews(db, source);
   }
   // 自定义迁移测试可能刻意只建部分表，此时不提前准备不存在的业务表。
   const readProject = (id) =>
@@ -90,7 +107,16 @@ export function createLocalCatalogOperations(db) {
     return readTask(t.id);
   };
   const operations = {
+    ...createAcpStorageLockOperations(db),
+    ...createAcpTaskTitleOperations(db),
+    ...createApplicationPreferencesOperations(db),
     ...createSavedPromptOperations(db),
+    ...createAcpScheduledConfigOperations(db),
+    ...createAcpScheduledPlanOperations(db),
+    ...createAcpPlanStateOperations(db),
+    ...createAcpPlanIndexOperations(db),
+    ...createAcpPlanResourceOperations(db),
+    ...createAcpPlanCompletionOperations(db),
     "project.list": listProjects,
     "project.read": ({ id }) => readProject(id),
     "project.put": putProject,
@@ -103,7 +129,9 @@ export function createLocalCatalogOperations(db) {
     }),
     "project.remove": db.transaction(({ id }) => {
       const active = db
-        .prepare("SELECT 1 FROM managed_tasks WHERE project_id=? AND status='active' LIMIT 1")
+        .prepare(
+          "SELECT 1 FROM visible_managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
+        )
         .get(id);
       if (active) throw new Error("Cannot remove a project with a running task");
       const removed = Boolean(
@@ -129,6 +157,23 @@ export function createLocalCatalogOperations(db) {
     }),
     "task.put": putTask,
     "task.read": ({ id }) => readTask(id),
+    "acp.session.background": ({ engine, sessionId }) => {
+      if (!validAgentEngine(engine) || typeof sessionId !== "string" || !sessionId)
+        throw new Error("Invalid ACP background session");
+      db.prepare(schema.acpMarkBackgroundSql).run(engine, sessionId);
+      return null;
+    },
+    "acp.session.background.list": ({ engine }) =>
+      db.prepare(schema.acpListBackgroundSql).pluck().all(engine),
+    "acp.session.rebind": ({ id, sessionId, expectedSessionId }) => {
+      if (![id, sessionId, expectedSessionId].every((value) => typeof value === "string" && value))
+        throw new Error("Invalid ACP session rebind");
+      if (sessionId === expectedSessionId) return false;
+      // 单条条件更新只替换已确认丢失的绑定，不覆盖并发更名、归档等任务元数据。
+      return Boolean(
+        db.prepare(schema.acpRebindSessionSql).run(sessionId, id, expectedSessionId).changes,
+      );
+    },
     "task.preview": ({ id, preview }) => {
       if (!readTask(id)) throw new Error("Task not found");
       writeTaskPreview(db, id, preview);
@@ -182,7 +227,7 @@ export function createLocalCatalogOperations(db) {
         if (
           !Array.isArray(input.providers) ||
           input.providers.length > 2 ||
-          input.providers.some((provider) => provider !== "codex" && provider !== "claude")
+          input.providers.some((provider) => !validAgentEngine(provider))
         )
           throw new Error("Invalid task providers");
         where.push(`provider IN (${input.providers.map(() => "?").join(",")})`);
@@ -257,6 +302,9 @@ export function createLocalCatalogOperations(db) {
       db.prepare("INSERT INTO managed_catalog_migration VALUES (1)").run();
     }),
   };
+  // 读改写必须持有同一个写锁，否则状态补丁可能回写另一连接已经更新的旧名称。
+  const patchTask = db.transaction(operations["task.patch"]);
+  operations["task.patch"] = (input) => patchTask.immediate(input);
   return {
     localCatalog: ({ operation, payload }) => {
       if (!Object.hasOwn(operations, operation)) throw new Error("Unknown catalog operation");

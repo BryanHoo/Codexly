@@ -14,9 +14,9 @@
 2. Configure Codex, Claude, or both in Settings. Supported existing local configurations can be reused.
 3. Add a project folder, create a task, and send your request.
 
-Runtimes are bundled, with no separate Node.js, Bun, or CLI installation. Supported platforms are Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Silicon / Intel, and a separate Codex-only macOS 12.4+ Intel Legacy build.
+Runtimes are bundled, with no separate Node.js, Bun, or CLI installation. Supported platforms are Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Silicon / Intel.
 
-For Windows portable builds, extract the entire ZIP and keep the executable, Claude host, and `runtime` directory together. Updates replace the complete directory.
+For Windows portable builds, extract the entire ZIP and keep the executable, ACP host, and `runtime` directory together. Updates replace the complete directory.
 
 ## Desktop workspace
 

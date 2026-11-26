@@ -9,6 +9,7 @@
       "@codexly/core/app-storage-paths": ["../packages/core/src/app-storage-paths.ts"],
       "@codexly/core": ["../packages/core/src/index.ts"],
       "@codexly/protocol": ["../packages/protocol/src/index.ts"],
+      "@codexly/provider-acp": ["../packages/provider-acp/src/index.ts"],
       "@codexly/provider-codex": ["../packages/provider-codex/src/index.ts"],
       "@codexly/server": ["../packages/server/src/index.ts"]
     },
@@ -24,6 +25,7 @@
   ],
   "references": [
     { "path": "../packages/protocol" },
+    { "path": "../packages/provider-acp" },
     { "path": "../packages/provider-codex" },
     { "path": "../packages/server" },
     { "path": "../packages/client" }

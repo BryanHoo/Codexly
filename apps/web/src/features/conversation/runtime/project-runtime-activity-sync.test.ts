@@ -134,3 +134,94 @@ test.each([false, true])(
     }
   },
 );
+
+test.each(["completed", "interrupted", "failed"] as const)(
+  "离开任务后迟到摘要不恢复已查看的 %s 提醒，新回合仍会提醒",
+  (status) => {
+    let emit: (event: AgentEvent) => void = () => undefined;
+    const runtime = createProjectRuntimeManager({
+      unsubscribeTask: () => Promise.resolve({ status: "unsubscribed" }),
+      subscribeEvents: (options: { onEvent: typeof emit }) => {
+        emit = options.onEvent;
+        return () => undefined;
+      },
+    } as unknown as CodexlyRuntimeClient);
+    const acknowledge = vi.fn();
+    runtime.onTaskActivityViewed = acknowledge;
+    const task = {
+      projectId: "project-1",
+      taskId: "task-1",
+      taskName: "任务",
+      status: status === "completed" ? ("completed" as const) : ("failed" as const),
+      requiresApproval: false,
+      version: 1,
+      checkpoint: { sessionId: "runtime-1", sequence: 1 },
+    };
+    const event: AgentEvent = {
+      type: "turn.completed",
+      version: 2,
+      provider: "codex",
+      sessionId: "runtime-1",
+      sequence: 1,
+      taskId: task.taskId,
+      turnId: "turn-1",
+      timestamp: "2026-10-30T00:00:01Z",
+      payload: {
+        turn: { id: "turn-1", status, startedAt: null, completedAt: null, items: [], error: null },
+      },
+    };
+    try {
+      const close = runtime.observeVisibleTask(task.projectId, task.taskId);
+      runtime.reconcileTaskActivities(
+        [{ ...task, status: "running", checkpoint: { ...task.checkpoint, sequence: 0 } }],
+        runtime.getTaskActivity(),
+      );
+      runtime.markTaskRunning(task.projectId, task.taskId);
+      // 通过普通会话快照建立项目事件订阅。
+      runtime.observeSnapshot({
+        checkpoint: { ...task.checkpoint, sequence: 0 },
+        snapshot: {
+          id: task.taskId,
+          projectId: task.projectId,
+          title: task.taskName,
+          status: "running",
+          contextUsage: null,
+          goal: null,
+          plan: null,
+          pendingRequests: [],
+          pinned: false,
+          settings: {
+            approvalPolicy: "on-request",
+            approvalsReviewer: "user",
+            model: "model",
+            reasoningEffort: "high",
+            sandboxMode: "workspace-write",
+          },
+          turns: [],
+          turnsNextCursor: null,
+          updatedAt: event.timestamp,
+        },
+      });
+      emit(event);
+      expect(getTaskActivity(runtime.getTaskActivity(), task.projectId, task.taskId)).toMatchObject(
+        { attention: null, isRunning: false },
+      );
+      close();
+      runtime.viewTask(task.projectId, "other");
+      runtime.reconcileTaskActivities([task], runtime.getTaskActivity());
+      expect(
+        getTaskActivity(runtime.getTaskActivity(), task.projectId, task.taskId).attention,
+      ).toBeNull();
+      expect(acknowledge).toHaveBeenCalledWith(task.projectId, task.taskId, task.version);
+      runtime.reconcileTaskActivities(
+        [{ ...task, version: 2, checkpoint: { ...task.checkpoint, sequence: 3 } }],
+        runtime.getTaskActivity(),
+      );
+      expect(
+        getTaskActivity(runtime.getTaskActivity(), task.projectId, task.taskId).attention,
+      ).toBe(task.status);
+    } finally {
+      runtime.dispose();
+    }
+  },
+);

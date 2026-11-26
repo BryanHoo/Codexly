@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentProviderEventListener } from "./agent-provider.js";
+import type {
+  AgentProviderEventListener,
+  AgentProviderEventSubscriptionOptions,
+} from "./agent-provider.js";
 import type { LocalCatalogStore, LocalTask } from "./local-catalog.js";
 import { EngineProjectRouter, type AgentExecutionAdapter } from "./engine-router.js";
 
@@ -27,10 +30,22 @@ describe("application task engine routing", () => {
       startTask: vi.fn(() => Promise.resolve({ id: `new-${engine}`, engine })),
       startTurn: vi.fn(() => Promise.resolve({ id: `${engine}-turn` })),
       readTask: vi.fn((id: string) => Promise.resolve({ id, engine })),
-      subscribeEvents: (listener: AgentProviderEventListener) => {
-        listeners.set(engine, listener);
+      readSessionConfiguration: vi.fn(() => Promise.resolve([])),
+      readSessionState: vi.fn(() =>
+        Promise.resolve({
+          configOptions: [],
+          availableCommands: [{ name: `${engine}-command`, description: "命令" }],
+        }),
+      ),
+      setSessionConfiguration: vi.fn(() => Promise.resolve([])),
+      subscribeEvents: (
+        listener: AgentProviderEventListener,
+        options?: AgentProviderEventSubscriptionOptions,
+      ) => {
+        const key = options?.includeEphemeral ? `${engine}:ephemeral` : engine;
+        listeners.set(key, listener);
         return () => {
-          listeners.delete(engine);
+          listeners.delete(key);
         };
       },
     });
@@ -54,6 +69,26 @@ describe("application task engine routing", () => {
     );
     return { router, codex, claude, tasks, listeners };
   }
+
+  it.each(["codex", "claude"])(
+    "routes configured %s prompts through its original engine without legacy options",
+    async (id) => {
+      const { router, codex, claude, tasks } = setup();
+      const selected = id === "codex" ? codex : claude;
+      const configured = vi.fn(() => Promise.resolve({ id: "configured-turn" }));
+      Object.assign(selected, { startConfiguredTurn: configured });
+      const input = { text: "继续", files: [], images: [], skills: [], textAttachments: [] };
+      expect(await router.startConfiguredTurn(id, input)).toEqual({ id: "configured-turn" });
+      expect(configured).toHaveBeenCalledExactlyOnceWith(id, input);
+      expect(codex.startTurn).not.toHaveBeenCalled();
+      expect(claude.startTurn).not.toHaveBeenCalled();
+      const task = tasks.get(id);
+      if (!task) throw new Error("Missing fixture task");
+      tasks.set(id, { ...task, projectId: "foreign" });
+      await expect(router.startConfiguredTurn(id, input)).rejects.toThrow();
+      expect(configured).toHaveBeenCalledOnce();
+    },
+  );
 
   it.each(["codex", "claude"])(
     "reads %s archive state by application identity without loading the engine",
@@ -84,6 +119,37 @@ describe("application task engine routing", () => {
     expect(claude.readTask).toHaveBeenCalledWith("claude", undefined);
   });
 
+  it("ACP 会话配置沿任务身份路由，拒绝跨项目访问", async () => {
+    const { router, codex, claude, tasks } = setup();
+    await router.readSessionConfiguration("claude");
+    await router.setSessionConfiguration("claude", "mode", "plan");
+    expect(claude.readSessionConfiguration).toHaveBeenCalledExactlyOnceWith("claude");
+    expect(claude.setSessionConfiguration).toHaveBeenCalledExactlyOnceWith(
+      "claude",
+      "mode",
+      "plan",
+    );
+    expect(codex.readSessionConfiguration).not.toHaveBeenCalled();
+    const task = tasks.get("claude");
+    if (!task) throw new Error("缺少测试任务");
+    tasks.set("claude", { ...task, projectId: "foreign" });
+    await expect(router.readSessionConfiguration("claude")).rejects.toThrow("project");
+    expect(claude.readSessionConfiguration).toHaveBeenCalledOnce();
+  });
+  it("ACP命令与配置状态只读取任务绑定的引擎，跨项目不调用agent", async () => {
+    const { router, codex, claude, tasks } = setup();
+    expect((await router.readSessionState("claude")).availableCommands[0]?.name).toBe(
+      "claude-command",
+    );
+    expect(claude.readSessionState).toHaveBeenCalledExactlyOnceWith("claude");
+    expect(codex.readSessionState).not.toHaveBeenCalled();
+    const task = tasks.get("claude");
+    if (!task) throw new Error("缺少测试任务");
+    tasks.set("claude", { ...task, projectId: "foreign" });
+    await expect(router.readSessionState("claude")).rejects.toThrow("project");
+    expect(claude.readSessionState).toHaveBeenCalledOnce();
+  });
+
   it("routes ephemeral generation without a catalog row and hides its events from normal listeners", async () => {
     const { router, codex, listeners, tasks } = setup();
     const visible = vi.fn(),
@@ -94,9 +160,42 @@ describe("application task engine routing", () => {
     expect(tasks.has(task.id)).toBe(false);
     await router.startTurn(task.id, {} as never, {} as never);
     expect(codex.startTurn).toHaveBeenCalledOnce();
-    listeners.get("codex")?.({ type: "task.metadata_changed", taskId: task.id, payload: {} });
+    listeners.get("codex:ephemeral")?.({
+      type: "task.metadata_changed",
+      taskId: task.id,
+      payload: {},
+    });
     expect(visible).not.toHaveBeenCalled();
     expect(helper).toHaveBeenCalledOnce();
+  });
+
+  it.each(["codex", "claude"])("隐藏 %s 底层直接创建的标题生成事件，内部订阅仍可接收", (engine) => {
+    const { router, listeners } = setup();
+    const visible = vi.fn(),
+      helper = vi.fn();
+    const stopVisible = router.subscribeEvents(visible);
+    const stopHelper = router.subscribeEvents(helper, { includeEphemeral: true });
+    // 标题生成绕过路由创建临时任务，只有底层 Provider 知道它属于内部会话。
+    const hidden = {
+      type: "task.status_updated",
+      taskId: "internal-title",
+      payload: { status: "running" },
+    } as const;
+    listeners.get(`${engine}:ephemeral`)?.(hidden);
+    expect(visible).not.toHaveBeenCalled();
+    expect(helper).toHaveBeenCalledExactlyOnceWith({ ...hidden, provider: engine });
+    visible.mockClear();
+    helper.mockClear();
+    const normal = { ...hidden, taskId: engine };
+    listeners.get(engine)?.(normal);
+    listeners.get(`${engine}:ephemeral`)?.(normal);
+    expect(visible).toHaveBeenCalledExactlyOnceWith({ ...normal, provider: engine });
+    expect(helper).toHaveBeenCalledExactlyOnceWith({ ...normal, provider: engine });
+    stopHelper();
+    expect(listeners.has(`${engine}:ephemeral`)).toBe(false);
+    expect(listeners.has(engine)).toBe(true);
+    stopVisible();
+    expect(listeners.size).toBe(0);
   });
 
   it("keeps offline mixed-engine lists and rejects cross-project task access", async () => {

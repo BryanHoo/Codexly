@@ -212,6 +212,7 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const branchTrigger = page.getByRole("button", { name: /切换分支，当前分支/u });
   const inspector = page.locator(".workbench-inspector");
@@ -321,6 +322,7 @@ test("paginates a single repository inside the history content", async ({ page }
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const inspector = page.locator(".workbench-inspector");
   await inspector.getByRole("tab", { name: "历史" }).click();
   const content = inspector.locator('[data-slot="git-history-content"]');

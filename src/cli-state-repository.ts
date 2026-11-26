@@ -1,5 +1,6 @@
 import type {
   AsyncQuestionRepository,
+  LocalCatalogStore,
   AgentSettingsRepository,
   AgentProviderConnectionRepository,
   AgentQueueRepository,
@@ -14,11 +15,13 @@ import type { SqliteDatabaseDiagnostics } from "@codexly/server";
 export interface CliManagedStateRepository
   extends
     ProjectProjectionStore,
+    LocalCatalogStore,
     AgentSettingsRepository,
     AgentProviderConnectionRepository,
     AgentQueueRepository,
     TaskSubmissionRepository,
     AsyncQuestionRepository,
+    LocalCatalogStore,
     ProjectTodoRepository,
     ScheduledTaskAttachmentRepository,
     ScheduledTaskRepository {

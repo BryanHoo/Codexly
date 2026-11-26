@@ -91,6 +91,7 @@ export function isDeltaEvent(event: Readonly<{ type: string }>): boolean {
     event.type === "message.delta" ||
     event.type === "plan.delta" ||
     event.type === "reasoning.delta" ||
+    event.type === "compaction.summary_delta" ||
     event.type === "command.output_delta"
   );
 }

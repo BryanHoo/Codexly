@@ -1,8 +1,16 @@
+import acpSql from "../../protocol/src/acp-scheduled-config-sql.json" with { type: "json" };
+
 export function createScheduledTaskOperations(database) {
   const available = database
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
     .get("scheduled_task_state");
   if (available === undefined) return {};
+  database.exec(acpSql.schema);
+  const removeConfig = database.prepare(`
+    DELETE FROM acp_scheduled_configs WHERE source='web'
+    AND schedule_id IN (SELECT json_extract(value,'$.id') FROM json_each(?))
+    AND schedule_id NOT IN (SELECT json_extract(value,'$.id') FROM json_each(?))
+  `);
   const read = database.prepare("SELECT tasks_json FROM scheduled_task_state WHERE id = 1");
   const write = database.prepare(`
     INSERT INTO scheduled_task_state (id, tasks_json) VALUES (1, ?)
@@ -45,6 +53,8 @@ export function createScheduledTaskOperations(database) {
   };
   // 同一个 Worker 请求和 SQLite 事务涵盖全部写入，异常由 SQLite 整体回滚。
   const writeTasks = database.transaction((payload) => {
+    // 只回收本次确实删除的旧计划；与快照、附件共用事务，异常时全部保留。
+    removeConfig.run(read.get()?.tasks_json ?? "[]", payload.tasksJson);
     write.run(payload.tasksJson);
     if (payload.attachments !== undefined) replaceAttachments(payload.attachments);
     removeOrphanAttachments.run(payload.tasksJson);

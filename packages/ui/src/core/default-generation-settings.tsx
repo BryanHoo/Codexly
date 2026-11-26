@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { AgentEngine, AgentGlobalSettings, AgentModel } from "@codexly/protocol";
+import type { AgentEngine, AgentModel } from "@codexly/protocol";
 import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
 import { useSelectedEngines } from "./engine-selection.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
+import { SettingsDropdown } from "./settings-dropdown.js";
 
 const defaults = { codex: "gpt-6-luna", claude: "haiku" } as const;
 const fallbackEngines: readonly AgentEngine[] = ["codex"];
@@ -14,7 +14,7 @@ export function DefaultGenerationSettings({
   getModels,
   onChange,
 }: Readonly<{
-  settings: Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel">;
+  settings: { defaultAgent?: AgentEngine; defaultModel: string };
   language: string;
   getModels: (engine: AgentEngine) => Promise<readonly AgentModel[]>;
   onChange: (patch: { defaultAgent: AgentEngine; defaultModel: string }) => void;
@@ -24,7 +24,11 @@ export function DefaultGenerationSettings({
     ? (settings.defaultAgent ?? "codex")
     : (engines[0] ?? "codex");
   const configuredModel =
-    (settings.defaultAgent ?? "codex") === engine ? settings.defaultModel : defaults[engine];
+    (settings.defaultAgent ?? "codex") === engine
+      ? settings.defaultModel
+      : engine === "claude"
+        ? defaults.claude
+        : defaults.codex;
   // Claude 的旧自定义值回落 Haiku，防止辅助生成的选择器重新补回已过滤的模型。
   const model =
     engine === "claude" && !CLAUDE_MODEL_OPTIONS.some((option) => option.id === configuredModel)
@@ -59,69 +63,50 @@ export function DefaultGenerationSettings({
       : models.some((item) => item.id === model)
         ? models
         : [{ id: model, displayName: model }, ...models];
-  // 两端复用项目 Select 的触发器、弹层和键盘交互，仅在此约束设置项的宽度。
-  const selectClass = "w-48 max-w-full text-body-small";
+  const selectClass = "w-48 max-w-full";
+  const agentLabel = zh ? "默认 Agent" : "Default agent";
+  const modelLabel = zh ? "默认模型" : "Default model";
   return (
     <div className="divide-y divide-separator rounded-surface border border-separator bg-panel px-4">
       {engines.length > 1 ? (
         <div className="flex items-center justify-between gap-4 py-3">
-          <span className="text-body-small font-medium">{zh ? "默认 Agent" : "Default agent"}</span>
-          <Select
+          <span className="text-body-small font-medium">{agentLabel}</span>
+          <SettingsDropdown
+            label={agentLabel}
+            className={selectClass}
             value={engine}
+            options={engines.map((value) => ({
+              value,
+              label: value === "codex" ? "Codex" : "Claude",
+            }))}
             onValueChange={(value) => {
               const defaultAgent = value as AgentEngine;
-              onChange({ defaultAgent, defaultModel: defaults[defaultAgent] });
+              onChange({
+                defaultAgent,
+                defaultModel: defaultAgent === "claude" ? defaults.claude : defaults.codex,
+              });
             }}
-          >
-            <SelectTrigger
-              className={selectClass}
-              size="sm"
-              aria-label={zh ? "默认 Agent" : "Default agent"}
-            >
-              <SelectValue>{engine === "codex" ? "Codex" : "Claude"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {engines.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {value === "codex" ? "Codex" : "Claude"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
       ) : null}
       <div className="flex items-center justify-between gap-4 py-3">
         <span>
-          <span className="text-body-small font-medium">{zh ? "默认模型" : "Default model"}</span>
+          <span className="text-body-small font-medium">{modelLabel}</span>
           <span className="mt-1 block text-label text-muted-foreground">
             {zh
               ? "供本应用生成任务标题、Git 提交信息和优化输入提示词。"
               : "Used by this app to generate task titles, Git commit messages, and optimize prompts."}
           </span>
         </span>
-        <Select
+        <SettingsDropdown
+          label={modelLabel}
+          className={selectClass}
           value={model}
+          options={choices.map((item) => ({ value: item.id, label: item.displayName }))}
           onValueChange={(value) => {
             onChange({ defaultAgent: engine, defaultModel: value });
           }}
-        >
-          <SelectTrigger
-            className={selectClass}
-            size="sm"
-            aria-label={zh ? "默认模型" : "Default model"}
-          >
-            <SelectValue>
-              {choices.find((item) => item.id === model)?.displayName ?? model}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {choices.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.displayName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
       </div>
     </div>
   );

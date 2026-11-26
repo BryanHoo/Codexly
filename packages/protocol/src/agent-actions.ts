@@ -271,7 +271,10 @@ export type ReorderAgentQueuedSubmissionsResponse = Readonly<
 >;
 
 export const StartAgentQueuedSubmissionRequestSchema = Type.Object(
-  { queuedSubmissionId: Type.Optional(Type.String({ minLength: 1 })) },
+  {
+    queuedSubmissionId: Type.Optional(Type.String({ minLength: 1 })),
+    expectedTurnId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+  },
   { additionalProperties: false },
 );
 export type StartAgentQueuedSubmissionRequest = Readonly<
@@ -329,6 +332,8 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("IDEMPOTENCY_KEY_REQUIRED"),
   Type.Literal("IDEMPOTENCY_CONFLICT"),
   Type.Literal("IDEMPOTENCY_CAPACITY_EXCEEDED"),
+  // 与服务端兜底错误保持一致，避免原始 HTTP 500 被二次误报为协议解析失败。
+  Type.Literal("INTERNAL_ERROR"),
   Type.Literal("INVALID_REQUEST"),
   Type.Literal("PROJECT_NOT_FOUND"),
   Type.Literal("PROJECT_FILE_NOT_FOUND"),

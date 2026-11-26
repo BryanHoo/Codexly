@@ -1,4 +1,4 @@
-import { ToolApprovalPendingRequestSchema } from "@codexly/protocol";
+import { AcpSubagentIdentitySchema, ToolApprovalPendingRequestSchema, ResolvePendingRequestRequestSchema as SharedResolvePendingRequestRequestSchema } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
 
 import { DateTimeSchema, NullableDateTimeSchema } from "./project-files.js";
@@ -235,6 +235,8 @@ export const UserInputPendingRequestSchema = Type.Object(
 );
 
 const McpElicitationPendingRequestProperties = {
+  acp: Type.Optional(Type.Literal(true)),
+  acpSubagent: Type.Optional(AcpSubagentIdentitySchema),
   ...PendingRequestIdentityProperties,
   message: Type.String({ minLength: 1 }),
   serverName: Type.String({ minLength: 1 }),
@@ -244,7 +246,10 @@ const McpElicitationPendingRequestProperties = {
 const McpFormElicitationPendingRequestSchema = Type.Object(
   {
     ...McpElicitationPendingRequestProperties,
+    codexAsyncQuestion: Type.Optional(Type.Literal(true)),
     fields: Type.Array(McpElicitationFieldSchema),
+    formTitle: Type.Optional(Type.String()),
+    formDescription: Type.Optional(Type.String()),
     mode: Type.Literal("form"),
   },
   { additionalProperties: false },
@@ -254,6 +259,7 @@ const McpUrlElicitationPendingRequestSchema = Type.Object(
   {
     ...McpElicitationPendingRequestProperties,
     mode: Type.Literal("url"),
+    externalStatus: Type.Optional(Type.Union([Type.Literal("opened"), Type.Literal("completed")])),
     url: Type.String({ minLength: 1 }),
   },
   { additionalProperties: false },
@@ -380,7 +386,8 @@ const PermissionApprovalResolutionSchema = Type.Object(
 );
 
 export const ResolvePendingRequestRequestSchema = Type.Union([
-  Type.Object({ ...PendingRequestResolutionIdentityProperties, resolution: ApprovalResolutionSchema, type: Type.Literal("tool_approval") }, { additionalProperties: false }),
+  // ACP 工具审批直接复用共享契约，精确 optionId 不得被桌面旧 Schema 丢弃。
+  Type.Extract(SharedResolvePendingRequestRequestSchema, Type.Object({ type: Type.Literal("tool_approval") })),
   Type.Object(
     {
       ...PendingRequestResolutionIdentityProperties,

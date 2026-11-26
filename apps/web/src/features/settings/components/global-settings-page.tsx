@@ -1,10 +1,21 @@
+import { SettingsActions } from "@codexly/ui/core/settings-group";
+import { AcpGlobalInstructionsSettings } from "@codexly/ui/core/personalization-instructions-editor";
+import type { AgentEngine } from "@codexly/protocol";
+import { SettingsField, SettingsSelect } from "./global-settings-fields.js";
+import type { ApplicationPreferences } from "@codexly/protocol/application-preferences";
+import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
+import { v4 as createUuid } from "uuid";
+import { AcpGenerationSettings } from "@codexly/ui/core/acp-generation-settings";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { exportDiagnostics } from "../../../diagnostics.js";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
 import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
-import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
+import {
+  resolveSettingsSection,
+  settingsSectionEngine,
+} from "@codexly/frontend-core/settings-navigation";
 import type { AgentGlobalSettings } from "@codexly/protocol";
 import { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
@@ -15,7 +26,7 @@ import {
   getNotificationPreference,
   setNotificationPreference,
 } from "../notification-preference.js";
-import { createFallbackSettings, readInitialTheme } from "./global-settings-model.js";
+import { readInitialTheme } from "./global-settings-model.js";
 import {
   createGlobalSettingsSaveQueue,
   SETTINGS_INPUT_DEBOUNCE_MS,
@@ -31,24 +42,8 @@ const SavedPromptsSettings = lazy(() =>
     default: module.SavedPromptsSettings,
   })),
 );
-const AgentSettingsPanel = lazy(() =>
-  import("./agent-settings-panel.js").then((module) => ({ default: module.AgentSettingsPanel })),
-);
-const ClaudeSettingsPanel = lazy(() =>
-  import("./claude-settings-panel.js").then((module) => ({ default: module.ClaudeSettingsPanel })),
-);
-const PersonalizationSettingsPanel = lazy(() =>
-  import("./personalization-settings-panel.js").then((module) => ({
-    default: module.PersonalizationSettingsPanel,
-  })),
-);
 const CommitSettingsPanel = lazy(() =>
   import("./commit-settings-panel.js").then((module) => ({ default: module.CommitSettingsPanel })),
-);
-const ProviderConnectionPanel = lazy(() =>
-  import("../../provider-connection/components/provider-connection-panel.js").then((module) => ({
-    default: module.ProviderConnectionPanel,
-  })),
 );
 const GlobalSettingsPets = lazy(() =>
   import("../../pets/components/global-settings-pets.js").then((module) => ({
@@ -59,7 +54,16 @@ const GlobalSettingsAbout = lazy(() =>
   import("./global-settings-about.js").then((module) => ({ default: module.GlobalSettingsAbout })),
 );
 
-export function GlobalSettingsPage({
+const AcpSettingsPanel = lazy(() =>
+  import("@codexly/ui/core/acp-settings-panel").then((module) => ({
+    default: module.AcpSettingsPanel,
+  })),
+);
+
+export function GlobalSettingsPage<
+  T extends AgentGlobalSettings | ApplicationPreferences = AgentGlobalSettings,
+>({
+  agentRuntime = "legacy",
   client,
   accessMode = "local",
   initialSection = "appearance",
@@ -70,19 +74,20 @@ export function GlobalSettingsPage({
   error,
   isPending,
   apps,
-  fastModeAvailable = false,
   onRetry,
   ...props
-}: GlobalSettingsPageProps & Readonly<{ client: SettingsClient }>) {
+}: GlobalSettingsPageProps<T> & Readonly<{ client: SettingsClient }>) {
   const { t } = useTranslation("settings");
   const projectData = useContext(ProjectDataContext);
   const getGenerationModels = useCallback(
-    async (engine: "codex" | "claude") =>
+    async (engine: AgentEngine) =>
       engine === "codex" ? models : (await client.getEngineProfile(engine)).models.data,
     [models, client],
   );
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
-  const [draft, setDraft] = useState(() => settings ?? createFallbackSettings(models));
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>(() =>
+    resolveSettingsSection(initialSection),
+  );
+  const [draft, setDraft] = useState<T | undefined>(() => settings);
   const [theme, setTheme] = useState(readInitialTheme);
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
@@ -107,9 +112,19 @@ export function GlobalSettingsPage({
   };
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const [persistence] = useState(() => {
+    const state = createSettingsDraftPersistence<T>(
+      (next, baseline, key) =>
+        agentRuntime === "acp" ? onSaveRef.current(next, baseline, key) : onSaveRef.current(next),
+      createUuid,
+    );
+    // 旧页面的子组件可能在父 effect 前归一化缺省引擎，基线必须与初始草稿同时建立。
+    if (settings !== undefined) state.reset(settings);
+    return state;
+  });
   const [queue] = useState(() =>
     createGlobalSettingsSaveQueue(
-      (next) => onSaveRef.current(next),
+      (next: T) => persistence.save(next),
       (status) => {
         if (mounted.current) setSaveStatus(status);
       },
@@ -120,8 +135,9 @@ export function GlobalSettingsPage({
       draftRef.current = settings;
       setDraft(settings);
       queue.reset(settings);
+      persistence.reset(settings);
     }
-  }, [settings, queue]);
+  }, [settings, queue, persistence]);
   useEffect(() => {
     mounted.current = true;
     // 页面卸载时提交最后的防抖草稿，网络请求继续由已有客户端完成。
@@ -130,7 +146,8 @@ export function GlobalSettingsPage({
       if (changed.current) void queue.flush(draftRef.current);
     };
   }, [queue]);
-  const update = (fn: (current: AgentGlobalSettings) => AgentGlobalSettings, debounce = false) => {
+  const update = (fn: (current: T) => T, debounce = false) => {
+    if (draftRef.current === undefined) return;
     const next = fn(draftRef.current);
     changed.current = true;
     draftRef.current = next;
@@ -154,14 +171,18 @@ export function GlobalSettingsPage({
   const failure = (
     <div role="alert">
       <p className="text-danger">{t("errors.load")}</p>
-      <Button variant="ghost" onClick={() => void onRetry()}>
-        {t("common:actions.retry")}
-      </Button>
+      <SettingsActions>
+        <Button variant="ghost" onClick={() => void onRetry()}>
+          {t("common:actions.retry")}
+        </Button>
+      </SettingsActions>
     </div>
   );
-  const ready = error === null && !isPending && settings !== undefined;
+  const ready = error === null && !isPending && settings !== undefined && draft !== undefined;
   return (
     <SettingsPageFrame
+      agentRuntime={agentRuntime}
+      acpClient={client}
       activeSection={activeSection}
       accessMode={accessMode}
       onBack={close}
@@ -180,7 +201,7 @@ export function GlobalSettingsPage({
             retry: t("common:actions.retry"),
           }}
           onRetry={() => {
-            queue.save(draftRef.current);
+            if (draftRef.current !== undefined) queue.save(draftRef.current);
           }}
         />
       ) : null}
@@ -199,14 +220,40 @@ export function GlobalSettingsPage({
         />
       ) : null}
       <Suspense fallback={status}>
-        {activeSection === "prompts" ? (
+        {activeSection === "acp" ? (
+          agentRuntime === "pending" ? (
+            <LoadingSkeleton variant="settings" label={t("loading")} className="p-0" />
+          ) : (
+            <AcpSettingsPanel
+              client={client}
+              language={language === "zh-CN" ? "zh-CN" : "en"}
+              initialEngine={settingsSectionEngine(initialSection) ?? "codex"}
+              Field={SettingsField}
+              Select={SettingsSelect}
+            />
+          )
+        ) : activeSection === "global-instructions" && agentRuntime === "acp" ? (
+          <AcpGlobalInstructionsSettings
+            language={language === "zh-CN" ? "zh-CN" : "en"}
+            label={t("sections.global-instructions")}
+            content={
+              settings === undefined
+                ? undefined
+                : (("globalInstructions" in settings ? settings.globalInstructions : undefined) ??
+                  "")
+            }
+            failed={error !== null}
+            onRetry={() => {
+              void onRetry();
+            }}
+            client={client}
+          />
+        ) : activeSection === "prompts" ? (
           <SavedPromptsSettings
             language={language}
             projects={projectData?.projects}
             projectsUnavailable={!projectData || projectData.isPending || !!projectData.error}
           />
-        ) : isClaudeSettingsSection(activeSection) ? (
-          <ClaudeSettingsPanel client={client} section={activeSection} />
         ) : activeSection === "about" ? (
           <GlobalSettingsAbout
             activeSection="about"
@@ -223,36 +270,48 @@ export function GlobalSettingsPage({
           />
         ) : activeSection === "network" ? (
           <NetworkProxySettingsField />
-        ) : activeSection === "provider" ? (
-          <section>
-            <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
-            <ProviderConnectionPanel autoSave />
-          </section>
         ) : activeSection === "access" && accessMode === "lan" ? (
           <GlobalSettingsAccess
             activeSection="access"
             {...(props.onLogoutAccess === undefined ? {} : { onLogout: props.onLogoutAccess })}
           />
-        ) : activeSection === "personalization" ? (
-          <PersonalizationSettingsPanel client={client} />
         ) : activeSection === "git" ? (
           <section id="settings-panel-git" className="space-y-6">
             <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
             {ready ? (
               <>
-                <DefaultGenerationSettings
-                  settings={draft}
-                  language={language}
-                  getModels={getGenerationModels}
-                  onChange={(patch) => {
-                    update((current) => ({ ...current, ...patch }));
-                  }}
-                />
+                {agentRuntime === "acp" ? (
+                  <AcpGenerationSettings
+                    client={client}
+                    settings={draft}
+                    language={language}
+                    onChange={(patch) => {
+                      update((current) => ({ ...current, ...patch }));
+                    }}
+                  />
+                ) : typeof draft.defaultModel === "string" ? (
+                  <DefaultGenerationSettings
+                    settings={{
+                      defaultModel: draft.defaultModel,
+                      ...(draft.defaultAgent === undefined
+                        ? {}
+                        : { defaultAgent: draft.defaultAgent }),
+                    }}
+                    language={language}
+                    getModels={getGenerationModels}
+                    onChange={(patch) => {
+                      update((current) => ({ ...current, ...patch }));
+                    }}
+                  />
+                ) : null}
                 <CommitSettingsPanel
                   settings={draft}
-                  onChange={update}
+                  onChange={(change, debounce) => {
+                    update((current) => ({ ...current, ...change(current) }), debounce);
+                  }}
                   onFlush={() => {
-                    queue.save(draftRef.current);
+                    // 失焦只提前提交正在防抖的草稿，失败后由重试按钮复用原请求。
+                    void queue.flush();
                   }}
                 />
               </>
@@ -297,16 +356,6 @@ export function GlobalSettingsPage({
             settings={draft.pet}
             onChange={(pet) => {
               update((current) => ({ ...current, pet }));
-            }}
-          />
-        ) : activeSection === "agent" ? (
-          <AgentSettingsPanel
-            client={client}
-            settings={draft}
-            models={models}
-            fastModeAvailable={fastModeAvailable}
-            onChange={(next) => {
-              update(() => next);
             }}
           />
         ) : null}

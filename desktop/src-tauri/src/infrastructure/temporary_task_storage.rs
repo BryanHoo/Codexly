@@ -16,16 +16,6 @@ pub async fn root(app_data: &Path, project_id: &str, task_id: &str) -> io::Resul
         .map(Some)
 }
 
-pub async fn validate_attachment(
-    app_data: &Path,
-    project_id: &str,
-    task_id: &str,
-    id: &str,
-) -> Result<PathBuf, workspace::WorkspaceError> {
-    let task_root = root(app_data, project_id, task_id).await?;
-    validate_attachment_in_root(app_data, project_id, task_id, task_root.as_deref(), id).await
-}
-
 pub async fn validate_attachment_in_root(
     app_data: &Path,
     project_id: &str,
@@ -71,6 +61,7 @@ pub async fn retain_attachment(
     Ok(PathBuf::from(stored.attachment.id))
 }
 
+#[cfg(test)]
 pub async fn copy_workspace(source: &Path, target: &Path) -> io::Result<()> {
     if target.starts_with(source) {
         return Err(io::Error::new(

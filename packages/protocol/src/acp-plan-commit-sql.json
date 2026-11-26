@@ -1,0 +1,3 @@
+{
+  "status": "SELECT json_object('state', CASE WHEN s.revision IS NULL THEN NULL ELSE json_object('revision',s.revision,'definitionRevision',s.definition_revision,'nextRunAt',s.next_run_at) END,'canEdit',json(CASE WHEN EXISTS(SELECT 1 FROM acp_plan_runs r WHERE r.source=p.source AND r.schedule_id=p.schedule_id AND r.status IN ('claimed','unknown')) THEN 'false' ELSE 'true' END)) AS result FROM acp_scheduled_plans p LEFT JOIN acp_plan_state s ON s.source=p.source AND s.schedule_id=p.schedule_id WHERE p.source=? AND p.schedule_id=?"
+}

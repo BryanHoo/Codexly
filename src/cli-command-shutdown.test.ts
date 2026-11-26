@@ -35,11 +35,12 @@ describe("runCli shutdown and help", () => {
     await expect(runCli(["start"], harness.options)).resolves.toBe(1);
 
     expect(harness.databaseClose).toHaveBeenCalledOnce();
-    expect(harness.close).not.toHaveBeenCalled();
+    expect(harness.close).toHaveBeenCalledOnce();
     expect(harness.lifecycle).toEqual([
       "projects.create",
       "projects.synchronize",
       "provider.create",
+      "runtime.close",
       "database.close",
     ]);
     expect(harness.stderr.join("")).toContain("server startup failed");
@@ -62,9 +63,6 @@ describe("runCli shutdown and help", () => {
     await vi.waitFor(() => {
       expect(harness.dependencies.openBrowser).toHaveBeenCalledOnce();
     });
-    await vi
-      .mocked(harness.dependencies.createRuntimeProvider)
-      .mock.calls[0]?.[0].client.request("config/read");
     controller.abort();
 
     await expect(run).resolves.toBe(1);
@@ -122,8 +120,6 @@ describe("runCli shutdown and help", () => {
       expect(harness.stdout.join("")).toContain(usage);
       expect(harness.stdout.join("")).toContain(option);
       expect(harness.stderr).toEqual([]);
-      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-      expect(harness.dependencies.checkCodexVersion).not.toHaveBeenCalled();
     }
   });
 
@@ -147,6 +143,5 @@ describe("runCli shutdown and help", () => {
       runCli(["start", "--project", "/workspace/project"], harness.options),
     ).resolves.toBe(1);
     expect(harness.stderr.join("")).toContain("未知选项: --project");
-    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
   });
 });

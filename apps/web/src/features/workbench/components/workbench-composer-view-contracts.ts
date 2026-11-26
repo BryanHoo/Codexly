@@ -1,3 +1,4 @@
+import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentContextUsage,
@@ -27,12 +28,20 @@ import type { ProjectTodoRecord } from "../project-todo-store.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
+  writeAccess?: "checking" | "writable" | "external" | undefined;
+  acp?: Readonly<{
+    controls: ReactNode;
+    leadingControls?: ReactNode;
+    trailingControls?: ReactNode;
+    isBusy: boolean;
+  }>;
   engineControls?: ReactNode;
+  generationRuntime?: TaskRuntimeView | undefined;
   promptOptimization?: ReactNode;
   asyncQuestions?: ReactNode;
   activeCommandIndex: number;
   activeCommandItemId: string | undefined;
-  activeSettings: AgentTaskSettings;
+  activeSettings: AgentTaskSettings | undefined;
   activeTurnId: string | undefined;
   attachments: readonly PromptInputAttachment[];
   attachmentsDisabled: boolean;

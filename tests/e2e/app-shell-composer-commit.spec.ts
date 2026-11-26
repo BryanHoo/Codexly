@@ -69,6 +69,7 @@ test("opens project review while showing Git stats in the Inspector project tree
     }
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const contextTab = inspector.getByRole("tab", { name: "上下文" });
@@ -215,6 +216,7 @@ test("opens project review while showing Git stats in the Inspector project tree
 
   // 刷新后右栏仍保持树，审核标签独立恢复列表偏好。
   await page.reload();
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await inspector.getByRole("tab", { name: "变更" }).click();
   await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
   await inspector.getByRole("tab", { name: "项目" }).click();
@@ -244,6 +246,7 @@ test("hides Git controls for a project containing only child repositories", asyn
     await route.fulfill({ contentType: "application/json", json: status });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await page.getByRole("tab", { name: "项目" }).click();
   const inspector = page.locator(".workbench-inspector");
   await expect(inspector.getByRole("tree", { name: "项目文件" })).toBeVisible();
@@ -322,6 +325,7 @@ for (const scenario of [
       });
     });
     await page.goto("/p/codexly/t/task-1");
+    await page.getByRole("button", { name: "展开上下文面板" }).click();
     await page.getByRole("tab", { name: "项目" }).click();
     await page.getByRole("button", { name: /提交 \d+ 个未提交变更/u }).click();
     const inspector = page.locator(".workbench-inspector");
@@ -358,7 +362,7 @@ for (const scenario of [
     if (!toastBounds || !viewport) throw new Error("Toast 缺少布局边界");
     expect(Math.abs(toastBounds.y + toastBounds.height - (viewport.height - 16))).toBeLessThan(1);
     expect(Math.abs(toastBounds.x + toastBounds.width - (viewport.width - 16))).toBeLessThan(1);
-    const successToast = page.locator('[data-toast][data-type="success"]');
+    const successToast = page.getByRole("dialog", { name: scenario.toastMessage, exact: true });
     await expect(successToast).toBeVisible();
     await expect(successToast).toHaveText(scenario.toastMessage);
     await successToast.hover();
@@ -374,7 +378,7 @@ for (const scenario of [
       await expect(pushButton).toBeEnabled();
       // 提交后使用新快照单独推送，不再要求提交信息或文件选择。
       await pushButton.click();
-      await expect(successToast).toHaveText("推送成功");
+      await expect(page.getByRole("dialog", { name: "推送成功", exact: true })).toBeVisible();
       expect(pushRequests).toEqual([
         {
           action: "push",

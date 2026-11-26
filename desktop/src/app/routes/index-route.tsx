@@ -1,15 +1,15 @@
+import { useApplicationSettings } from "@codexly/ui/core/use-application-settings";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { createRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Activity, lazy, Suspense, useEffect, useState } from "react";
 
 import { useProjectActions, useProjectData } from "../../features/projects/project-context.js";
 import {
   appInfoQueryOptions,
   appUpdateMutationOptions,
-  globalSettingsMutationOptions,
-  globalSettingsQueryOptions,
   modelsQueryOptions,
+  capabilitiesQueryOptions,
 } from "../../features/projects/project-queries.js";
 import { loadGlobalSettingsPage } from "../../features/settings/components/global-settings-lazy.js";
 import { useTranslation } from "../../i18n/i18n.js";
@@ -40,20 +40,15 @@ function IndexPage() {
   const { client, error, isPending, projects } = useProjectData();
   const { retry } = useProjectActions();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
   const engines = useSelectedEngines();
+  const capabilitiesQuery = useQuery(capabilitiesQueryOptions(client));
+  const agentRuntime = capabilitiesQuery.data === undefined ? "pending" : capabilitiesQuery.data.runtime ?? "legacy";
   const codexEnabled = engines?.includes("codex") ?? true;
   const engineEnabled = engines === undefined || engines.length > 0;
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled });
-  const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
-    onSuccess(response) {
-      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
-    },
-  });
+  const {globalSettingsQuery,globalSettingsMutation} = useApplicationSettings(client,codexEnabled ? "codex" : "claude",agentRuntime);
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled && agentRuntime === "legacy" });
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
     null,
   );
@@ -133,12 +128,13 @@ function IndexPage() {
           }
         >
           <LazyGlobalSettingsPage
+            key={agentRuntime} agentRuntime={agentRuntime}
             {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
             appInfoError={appInfoQuery.error}
             initialSection={globalSettingsSection}
             apps={[]}
-            error={globalSettingsQuery.error ?? modelsQuery.error}
-            isPending={globalSettingsQuery.isPending || modelsQuery.isLoading}
+            error={capabilitiesQuery.error ?? globalSettingsQuery.error ?? (agentRuntime === "legacy" ? modelsQuery.error : null)}
+            isPending={globalSettingsQuery.isPending || (agentRuntime === "legacy" && modelsQuery.isLoading)}
             isAppInfoPending={appInfoQuery.isPending}
             models={modelsQuery.data?.data ?? []}
             onClose={() => {
@@ -151,11 +147,11 @@ function IndexPage() {
                 document.querySelector<HTMLButtonElement>(triggerId)?.focus();
               });
             }}
-            onRetry={() => Promise.all([globalSettingsQuery.refetch(), modelsQuery.refetch()])}
+            onRetry={() => Promise.all([capabilitiesQuery.refetch(), ...(agentRuntime === "pending" ? [] : [globalSettingsQuery.refetch()]), ...(agentRuntime === "legacy" ? [modelsQuery.refetch()] : [])])}
             onRetryAppInfo={() => appInfoQuery.refetch()}
             onExportDiagnostics={() => client.exportDiagnostics()}
-            onSave={(settings) =>
-              globalSettingsMutation.mutateAsync(settings).then(() => undefined)
+            onSave={(settings, baseline = settings, idempotencyKey) =>
+              globalSettingsMutation.mutateAsync({settings,baseline,...(idempotencyKey === undefined ? {} : {idempotencyKey})}).then(() => undefined)
             }
             onUpdate={(version, onProgress) =>
               appUpdateMutation.mutateAsync({ onProgress, version })

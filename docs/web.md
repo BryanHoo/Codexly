@@ -112,7 +112,7 @@ npm uninstall --global @bryanhu/codexly
 
 ## 排查问题
 
-服务默认不向终端持续输出运行日志。在电脑或手机浏览器的「设置 → 关于」选择导出诊断日志，直接下载一个整合 ZIP。其中 `application.json` 包含应用和引擎版本、浏览器环境、最近浏览器异常及服务端日志；默认通过 `feedback/save` 将可用的 Codex 原生诊断纳入 `codex/diagnostics.zip`，不会自动上传。原生不可用时仍保留应用诊断，`manifest.json` 的 `codexDiagnostics.status` 会标明 `included` 或 `unavailable`。原生诊断不适用应用日志的字段脱敏规则，分享前请检查整个 ZIP。
+服务默认保持终端安静。电脑和手机浏览器在「设置 → 关于」可下载诊断 ZIP。`application.json` 包含应用和 Agent 版本、浏览器环境、近期异常及服务端诊断，清单标明 ACP 运行时。
 
 应用日志保存在内存中，服务端重启或浏览器刷新后分别清空，建议出现问题后尽快导出。服务端最多保留 2 MiB / 2,000 条日志，浏览器最多保留 100 条异常。下载标识绑定当前配对会话，仅可领取一次，5 分钟后失效；过期或失败时重新导出。内容与排查方法见[诊断指南](../desktop/docs/diagnostics.md)。
 

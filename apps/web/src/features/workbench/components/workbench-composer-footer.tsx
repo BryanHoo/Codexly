@@ -39,7 +39,7 @@ export function WorkbenchComposerFooter({
           {rootControls}
         </>
       ) : null}
-      {collapsed ? (
+      {collapsed && props.activeSettings ? (
         <ComposerModelStatus
           modelLabel={props.selectedModel?.displayName ?? props.activeSettings.model}
           effortLabel={t(

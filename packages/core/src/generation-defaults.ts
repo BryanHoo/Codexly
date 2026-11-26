@@ -1,4 +1,8 @@
-import type { AgentGlobalSettings, AgentProviderConnectionStatus } from "@codexly/protocol";
+import type {
+  AgentEngine,
+  AgentGlobalSettings,
+  AgentProviderConnectionStatus,
+} from "@codexly/protocol";
 import type { AgentRuntimeProvider } from "./agent-provider.js";
 
 type Preferences = Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel">;
@@ -12,7 +16,7 @@ export async function readGenerationDefaults(
     "readProviderConnection" | "engines" | "readGenerationDefaults"
   >,
   stored: Preferences | undefined,
-): Promise<Required<Preferences>> {
+): Promise<{ defaultAgent: AgentEngine; defaultModel: string }> {
   if (runtime.readGenerationDefaults) return runtime.readGenerationDefaults(stored);
   let defaultAgent = stored?.defaultAgent;
   if (defaultAgent !== "claude") {

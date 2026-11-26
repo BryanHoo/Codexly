@@ -17,7 +17,7 @@ export function MessageSourceAttachment(props: Props) {
   return (
     <SharedMessageSourceAttachment
       {...props}
-      legacyTheme={import.meta.env.VITE_MACOS_LEGACY === "true"}
+
       labels={{
         open: t("timeline.openAttachment", { name: props.name, ns: "conversation" }),
         close: t("projectDialog.closeSource", { ns: "workbench" }),

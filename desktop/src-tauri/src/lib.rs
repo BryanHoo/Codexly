@@ -23,16 +23,9 @@ use application::{
     background_commands::{
         download_workbench_background, get_workbench_background, list_workbench_backgrounds,
     },
-    catalog_commands::{
-        cancel_provider_login, configure_custom_provider, get_global_settings,
-        get_project_defaults, get_provider_connection, list_mcp_servers, list_models, list_skills,
-        logout_provider, retry_mcp_servers, start_official_provider_login, update_global_settings,
-        update_project_defaults,
-    },
     commands::{
         acknowledge_runtime_events, cancel_native_request, connect_runtime, get_app_info,
-        get_runtime_performance_metrics, inspect_codex_runtime, install_app_update,
-        install_codex_runtime, start_runtime,
+        get_runtime_performance_metrics, install_app_update,
     },
     conversation_export_commands::save_conversation_export,
     desktop_pet_commands::{
@@ -42,38 +35,26 @@ use application::{
         start_desktop_pet_native_drag,
     },
     diagnostic_commands::{export_diagnostics, record_frontend_diagnostic},
-    extension_commands::{
-        get_official_plugin, install_official_plugin, list_official_plugins,
-        reconcile_official_plugins, uninstall_official_plugin,
-    },
     notification_commands::NotificationRuntime,
     open_commands::{get_project_open_capabilities, open_project, open_task_attachment},
     pet_commands::{download_workbench_pet, list_workbench_pets},
     project_file_window_commands::open_project_file_window,
     project_pdf_commands::get_project_pdf_file,
-    prompt_submission::submit_prompt,
     scheduled_task_commands::{
         create_scheduled_task, delete_scheduled_task, list_scheduled_tasks, preview_scheduled_task,
-        run_scheduled_task_now, set_scheduled_task_enabled, update_scheduled_task,
+        read_acp_scheduled_config, run_scheduled_task_now, set_acp_scheduled_config,
+        set_scheduled_task_enabled, update_scheduled_task,
     },
     scheduled_task_runtime::ScheduledTaskRuntime,
     search_commands::{search_task_occurrences, search_tasks},
     sidebar_commands::{
-        add_project, archive_task, compact_task, delete_task, get_task_settings, interrupt_turn,
-        list_projects, list_tasks, pin_task, read_task, remove_project, rename_project,
-        rename_task, reorder_projects, resolve_pending_request, start_task, start_turn,
-        stop_task_session, unarchive_task, update_task_settings,
+        add_project, list_projects, list_tasks, pin_task, remove_project, rename_project,
+        rename_task, reorder_projects, resolve_pending_request, start_task,
     },
     sidebar_directory_commands::{create_project_directory, list_project_directories},
-    skills_market_commands::{
-        list_configured_mcp_servers, list_installed_skills, open_skill_directory,
-        set_mcp_server_enabled, set_skill_enabled,
-    },
     state::AppState,
     task_activity_commands::{acknowledge_task_activity, get_task_activities},
     task_board_commands::list_completed_tasks,
-    task_fork_commands::fork_task,
-    task_subscription_commands::{release_task_subscription, retain_task_subscription},
     temporary_workspace_commands::{
         choose_temporary_workspace_root, get_temporary_workspace_settings,
     },
@@ -82,11 +63,6 @@ use application::{
     },
     tray_commands::setup_tray,
     tray_visibility_commands::{get_tray_icon_visible, set_tray_icon_visible},
-    workflow_commands::{
-        add_queued_submission, clear_task_goal, delete_queued_submission,
-        list_background_terminals, list_queued_submissions, move_queued_submission,
-        read_thread_memory, terminate_background_terminal, update_task_goal, upload_feedback,
-    },
     workspace_commands::{
         commit_project_changes, create_project_branch, delete_project_file,
         generate_commit_message, get_project_git_commit_file_diff, get_project_git_commit_files,
@@ -145,6 +121,7 @@ pub fn run() {
         .manage(DesktopPetRuntime::default())
         .manage(NotificationRuntime::default())
         .manage(ScheduledTaskRuntime::default())
+        .manage(application::acp_plan_runtime::AcpPlanRuntime::default())
         .manage(MainWindowLifecycle::default())
         .manage(application::terminal_lifecycle::TerminalLifecycle::default())
         .setup(|app| {
@@ -154,6 +131,19 @@ pub fn run() {
             tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
                 infrastructure::app_data::initialize(&storage_app)
             }))??;
+            // 首个设置查询、聊天回合和计划任务都能读取已提交的应用指令。
+            if tauri::async_runtime::block_on(
+                application::application_preferences_commands::migrate_global_instructions(
+                    app.handle(),
+                ),
+            )
+            .is_err()
+            {
+                diagnostics::record_error(
+                    "global_instructions_migration_failed",
+                    "旧全局指令导入失败，原文件已保留",
+                );
+            }
             infrastructure::network_proxy::initialize(&infrastructure::app_data::directory(
                 app.handle(),
             )?)?;
@@ -164,6 +154,10 @@ pub fn run() {
             }
             app.state::<ScheduledTaskRuntime>()
                 .start(app.handle().clone());
+            tauri::async_runtime::block_on(
+                app.state::<application::acp_plan_runtime::AcpPlanRuntime>()
+                    .start(app.handle().clone()),
+            );
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -195,12 +189,17 @@ pub fn run() {
             |context, request, responder| {
                 let app = context.app_handle().clone();
                 tauri::async_runtime::spawn(async move {
-                    responder
-                        .respond(application::claude_attachments::respond(&app, request).await);
+                    responder.respond(application::acp_attachments::respond(&app, request).await);
                 });
             },
         )
         .invoke_handler(tauri::generate_handler![
+            application::acp_plan_commands::acp_plan_request,
+            application::application_preferences_commands::application_preferences_request,
+            application::acp_commands::read_acp_agent,
+            application::acp_commands::acp_agent_request,
+            application::acp_task_commands::acp_task_request,
+            application::acp_task_commands::create_acp_task,
             application::network_proxy_commands::read_network_proxy,
             application::network_proxy_commands::save_network_proxy,
             application::network_proxy_commands::test_network_proxy,
@@ -226,9 +225,6 @@ pub fn run() {
             update_custom_backgrounds,
             connect_runtime,
             acknowledge_runtime_events,
-            start_runtime,
-            inspect_codex_runtime,
-            install_codex_runtime,
             cancel_native_request,
             get_app_info,
             install_app_update,
@@ -240,8 +236,6 @@ pub fn run() {
             choose_temporary_workspace_root,
             get_task_activities,
             acknowledge_task_activity,
-            release_task_subscription,
-            retain_task_subscription,
             configure_desktop_pet,
             get_desktop_pet_state,
             get_desktop_pet_drag_strategy,
@@ -257,39 +251,9 @@ pub fn run() {
             download_workbench_background,
             list_workbench_pets,
             download_workbench_pet,
-            list_models,
-            get_provider_connection,
-            start_official_provider_login,
-            cancel_provider_login,
-            application::claude_commands::claude_engine_request,
-            application::claude_commands::prepare_claude_runtime,
-            application::engine_setup::get_configured_engines,
-            configure_custom_provider,
-            logout_provider,
-            get_global_settings,
             application::personalization_commands::get_global_instructions,
             application::saved_prompts_commands::sync_saved_prompts,
             application::personalization_commands::save_global_instructions,
-            application::personalization_commands::get_memory_settings,
-            application::personalization_commands::update_memory_settings,
-            application::personalization_commands::reset_memories,
-            application::history_storage_commands::compress_history,
-            update_global_settings,
-            get_project_defaults,
-            update_project_defaults,
-            list_skills,
-            list_installed_skills,
-            list_configured_mcp_servers,
-            open_skill_directory,
-            set_skill_enabled,
-            set_mcp_server_enabled,
-            list_official_plugins,
-            get_official_plugin,
-            install_official_plugin,
-            uninstall_official_plugin,
-            reconcile_official_plugins,
-            list_mcp_servers,
-            retry_mcp_servers,
             list_projects,
             add_project,
             rename_project,
@@ -299,6 +263,8 @@ pub fn run() {
             create_project_directory,
             list_completed_tasks,
             list_scheduled_tasks,
+            read_acp_scheduled_config,
+            set_acp_scheduled_config,
             preview_scheduled_task,
             create_scheduled_task,
             update_scheduled_task,
@@ -308,30 +274,8 @@ pub fn run() {
             list_tasks,
             search_tasks,
             search_task_occurrences,
-            read_task,
             start_task,
-            start_turn,
-            submit_prompt,
-            application::steer_submission::steer_turn,
-            interrupt_turn,
-            stop_task_session,
             resolve_pending_request,
-            application::review_submission::submit_review,
-            compact_task,
-            fork_task,
-            get_task_settings,
-            update_task_settings,
-            update_task_goal,
-            clear_task_goal,
-            upload_feedback,
-            read_thread_memory,
-            list_background_terminals,
-            terminate_background_terminal,
-            list_queued_submissions,
-            add_queued_submission,
-            delete_queued_submission,
-            move_queued_submission,
-            application::queue_start::start_queued_submission,
             list_project_files,
             search_project_files,
             stop_project_file_search,
@@ -367,9 +311,6 @@ pub fn run() {
             open_task_attachment,
             rename_task,
             pin_task,
-            archive_task,
-            unarchive_task,
-            delete_task
         ])
         .build(context);
 

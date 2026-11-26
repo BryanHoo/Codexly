@@ -141,7 +141,7 @@ async fn pending_resolution_should_retry_only_before_runtime_acquisition() {
             &reference(),
             &resolution,
             "key",
-            async { Err(AppError::CodexRuntimeUnavailable) }
+            async { Err(AppError::AcpHostUnavailable) }
         )
         .await
         .is_err()
@@ -164,12 +164,7 @@ async fn pending_resolution_should_retry_only_before_runtime_acquisition() {
         &reference(),
         &resolution,
         "rpc",
-        async {
-            Err(AppError::CodexRpc {
-                rpc_code: -32000,
-                message: "Codex runtime is unavailable".into(),
-            })
-        },
+        async { Err(AppError::Acp("ACP host is unavailable".into())) },
     )
     .await
     .unwrap_err();
@@ -228,63 +223,9 @@ async fn pending_resolution_should_validate_before_side_effects_and_bound_admiss
     );
 }
 
-#[tokio::test]
-async fn pending_resolution_should_write_one_json_rpc_answer() {
-    use tokio::io::{AsyncBufReadExt, BufReader};
-    let (client, server) = tokio::io::duplex(4096);
-    let (reader, writer) = tokio::io::split(client);
-    let connection = Arc::new(codex::AppServerConnection::new(reader, writer));
-    let server = tokio::spawn(async move {
-        let mut lines = BufReader::new(server).lines();
-        let line = lines.next_line().await.unwrap().unwrap();
-        assert_eq!(
-            serde_json::from_str::<Value>(&line).unwrap(),
-            json!({"id":9,"result":{"decision":"accept"}})
-        );
-        assert!(lines.next_line().await.unwrap().is_none());
-    });
-    let registry = TurnStartRegistry::default();
-    let budget = SubmissionBudget::default();
-    for _ in 0..2 {
-        let connection = Arc::clone(&connection);
-        run(
-            &registry,
-            &budget,
-            &reference(),
-            &json!({"decision":"allow"}),
-            "key",
-            async move {
-                connection
-                    .respond(9, &json!({"decision":"accept"}))
-                    .await
-                    .map_err(AppError::from)?;
-                Ok(json!({"request":{"status":"resolved"}}))
-            },
-        )
-        .await
-        .unwrap();
-    }
-    drop(connection);
-    server.await.unwrap();
-}
-
 #[test]
-fn pending_resolution_should_match_all_native_identity_fields() {
-    let reference = reference();
-    let mut pending = serde_json::to_value(&reference).unwrap();
-    pending["status"] = json!("pending");
-    assert!(reference.matches(&pending));
-    for field in [
-        "projectId",
-        "taskId",
-        "turnId",
-        "itemId",
-        "requestId",
-        "createdAt",
-        "status",
-    ] {
-        let mut changed = pending.clone();
-        changed[field] = json!("changed");
-        assert!(!reference.matches(&changed));
-    }
+fn pending_resolution_budget_is_independent_from_prompt_submission() {
+    let state = crate::application::state::AppState::default();
+    let _full = state.submission_budget.reserve(8 * 1024 * 1024).unwrap();
+    assert!(state.pending_resolution_budget.reserve(1024).is_ok());
 }

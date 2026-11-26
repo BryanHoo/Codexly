@@ -54,3 +54,29 @@ it("does not mark enabled when persistence fails", async () => {
   await expect(store.enable("claude", () => Promise.resolve())).rejects.toThrow("storage failed");
   expect(store.getSnapshot().engines).toEqual(["codex"]);
 });
+
+it("关闭 Agent 只更新选择，保留另一个引擎且禁止关闭最后一个", () => {
+  const persist = vi.fn();
+  const store = createEngineActivation(["codex", "claude"], persist);
+  store.disable("claude");
+  expect(store.getSnapshot().engines).toEqual(["codex"]);
+  expect(persist).toHaveBeenCalledExactlyOnceWith(["codex"]);
+  expect(() => {
+    store.disable("codex");
+  }).toThrow();
+  expect(store.getSnapshot().engines).toEqual(["codex"]);
+});
+it("后台目录同步可用 Agent 与空列表，不启动准备或改写用户存储", () => {
+  const persist = vi.fn();
+  const activation = createEngineActivation([], persist);
+  const changed = vi.fn();
+  activation.subscribe(changed);
+  activation.synchronize(["acp-gemini"]);
+  expect(activation.getSnapshot().engines).toEqual(["acp-gemini"]);
+  expect(activation.getSnapshot().states["acp-gemini"]?.phase).toBe("idle");
+  activation.synchronize(["acp-gemini"]);
+  expect(changed).toHaveBeenCalledOnce();
+  activation.synchronize([]);
+  expect(activation.getSnapshot().engines).toEqual([]);
+  expect(persist).not.toHaveBeenCalled();
+});

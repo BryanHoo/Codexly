@@ -124,8 +124,34 @@ export function createTaskEventReducer<
 
     const checkpoint = { sequence: event.sequence, sessionId: event.sessionId };
     switch (event.type) {
+      case "acp.session.updated":
+        // 设置与命令采用 agent 的完整权威状态，只更新元数据，不读取消息或重建历史。
+        return {
+          checkpoint,
+          snapshotMetadata: { ...snapshotMetadata, acpSession: event.payload.state },
+        };
       case "project.git_metadata_changed":
         return {};
+      case "acp.background.updated": {
+        const current = state.turnsById[event.turnId];
+        // 后台段只更新自己的时间线元数据，不能改变主回合的运行状态或触发队列。
+        return {
+          checkpoint,
+          turnIds: current ? state.turnIds : [...state.turnIds, event.turnId],
+          turnsById: {
+            ...state.turnsById,
+            [event.turnId]: {
+              ...current,
+              id: event.turnId,
+              status: "completed",
+              error: null,
+              forkable: false,
+              acpBackground: true,
+              ...event.payload,
+            },
+          },
+        };
+      }
       case "turn.started": {
         const { items, ...normalizedTurn } = event.payload.turn;
         return {
@@ -143,12 +169,17 @@ export function createTaskEventReducer<
           turnIds: [...state.turnIds.filter((turnId) => turnId !== event.turnId), event.turnId],
           turnsById: {
             ...state.turnsById,
-            [event.turnId]: retainTurnItemTimings(state.turnsById[event.turnId], normalizedTurn),
+            [event.turnId]: retainTurnItemTimings(
+              state.turnsById[event.turnId],
+              normalizedTurn,
+              event,
+            ),
           },
         };
       }
       case "message.delta":
       case "plan.delta":
+      case "compaction.summary_delta":
       case "reasoning.delta":
       case "command.output_delta": {
         const currentTurn = state.turnsById[event.turnId];
@@ -160,7 +191,9 @@ export function createTaskEventReducer<
         }
         // 新输出证明可重试故障已经恢复；已失败 Turn 的确认错误继续保留。
         const turnsById =
-          currentTurn.status === "running" && currentTurn.error !== null
+          event.type !== "compaction.summary_delta" &&
+          currentTurn.status === "running" &&
+          currentTurn.error !== null
             ? { ...state.turnsById, [event.turnId]: { ...currentTurn, error: null } }
             : state.turnsById;
         const itemKey = createTaskItemKey(event.turnId, event.itemId);
@@ -253,7 +286,10 @@ export function createTaskEventReducer<
         return {
           checkpoint,
           notices: options.retainNotice(state.notices, event),
-          snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
+          // ACP 通知只用于呈现，不改变会话的更新时间或运行状态。
+          ...(event.payload.code === "acp_notice"
+            ? {}
+            : { snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp } }),
         };
       }
       case "mcp_server.status_updated":
@@ -376,7 +412,7 @@ export function createTaskEventReducer<
           ...(currentTurn === undefined
             ? {}
             : replaceTurnItems(state, event.turnId, items, changedItemStores)),
-          // Turn 完成后只保留右栏中的运行时警告。
+          // 保留会话级即时通知及运行时警告，回收已经结束的回合提示。
           notices: state.notices.filter((notice) => options.isPersistentNotice(notice)),
           snapshotMetadata: {
             ...snapshotMetadata,
@@ -390,10 +426,14 @@ export function createTaskEventReducer<
               : {
                   ...state.turnsById,
                   // 终态通知不携带历史过程入口，保留恢复摘要时登记的独立游标。
-                  [event.turnId]: retainTurnItemTimings(currentTurn, {
-                    ...currentTurn,
-                    ...normalizedTurn,
-                  }),
+                  [event.turnId]: retainTurnItemTimings(
+                    currentTurn,
+                    {
+                      ...currentTurn,
+                      ...normalizedTurn,
+                    },
+                    event,
+                  ),
                 },
         };
       }

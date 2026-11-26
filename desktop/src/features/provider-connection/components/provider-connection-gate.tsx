@@ -32,7 +32,7 @@ export function ProviderConnectionGate({ children }: Readonly<{ children: ReactN
           <h1 className="text-xl font-semibold text-foreground">Codexly</h1>
           <p className="mt-1 text-body-small text-muted-foreground">{t("provider.title")}</p>
         </header>
-        {import.meta.env.VITE_MACOS_LEGACY !== "true" ? <Button className="mb-6" variant="outline" onClick={() => { setUseClaude(true); }}>{workbench("engine.continueClaude")}</Button> : null}
+        {<Button className="mb-6" variant="outline" onClick={() => { setUseClaude(true); }}>{workbench("engine.continueClaude")}</Button>}
         {connection.error === null ? (
           <Suspense fallback={<p role="status" className="text-body-small text-muted-foreground">{t("provider.loading")}</p>}>
             <ProviderConnectionPanel />

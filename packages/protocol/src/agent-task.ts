@@ -11,6 +11,7 @@ import {
   MAX_AGENT_ATTACHMENT_BYTES,
   MAX_AGENT_HISTORY_IMAGES,
 } from "./agent-attachments.js";
+import { AcpSubagentItemSchema } from "./acp-subagent.js";
 import { NullableDateTimeSchema } from "./project-files.js";
 import { AgentFileChangeSchema } from "./project-git.js";
 
@@ -30,6 +31,7 @@ export const AgentToolItemSchema = Type.Object(
     input: Type.Optional(Type.Unknown()),
     name: Type.String({ minLength: 1 }),
     output: Type.Optional(Type.Unknown()),
+    outputAttachments: Type.Optional(Type.Array(AgentMessageAttachmentSchema, { maxItems: 128 })),
     progress: Type.Optional(Type.String({ maxLength: 8_192 })),
     status: AgentItemStatusSchema,
     type: Type.Literal("tool"),
@@ -85,6 +87,18 @@ export const AgentPlanItemSchema = Type.Object(
     id: Type.String({ minLength: 1 }),
     text: Type.String(),
     type: Type.Literal("plan"),
+  },
+  { additionalProperties: false },
+);
+
+export const AgentCompactionItemSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("compaction"),
+    // ACP 状态为开放枚举，未来状态由界面以通用文案呈现。
+    status: Type.String(),
+    summary: Type.Optional(Type.String()),
+    error: Type.Optional(Type.Union([Type.String(), Type.Null()])),
   },
   { additionalProperties: false },
 );
@@ -192,6 +206,8 @@ export const AgentItemSchema = Type.Union([
   AgentToolItemSchema,
   AgentPlanItemSchema,
   AgentActivityItemSchema,
+  AgentCompactionItemSchema,
+  AcpSubagentItemSchema,
   AgentApprovalReviewItemSchema,
   AgentReviewItemSchema,
   AgentRuntimeStatusItemSchema,
@@ -208,6 +224,10 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    acpBackground: Type.Optional(Type.Literal(true)),
+    // ACP 原始停止原因独立于聊天展示状态；自动化成功必须明确检查 end_turn。
+    // 可选以兼容旧历史及其他 Provider，不为缺少原因的旧数据推断成功。
+    stopReason: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
     // 缺省沿用引擎能力；false 表示本回合没有可恢复的原生消息分叉点。
     forkable: Type.Optional(Type.Boolean()),
     // 执行终态与落盘状态独立；缺省表示没有待恢复写入，不能用写盘错误覆盖模型结果。

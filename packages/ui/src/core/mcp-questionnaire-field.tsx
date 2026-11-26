@@ -48,7 +48,12 @@ export function McpQuestionnaireField({
               );
             }}
           >
-            {option.label}
+            <span>
+              {option.label}
+              {option.description ? (
+                <span className="block text-meta text-muted-foreground">{option.description}</span>
+              ) : null}
+            </span>
           </QuestionnaireChoice>
         ))}
       </div>
@@ -77,7 +82,7 @@ export function McpQuestionnaireField({
         </option>
         {field.options.map((option, index) => (
           <option key={option.value} value={String(index)}>
-            {option.label}
+            {option.description ? `${option.label} · ${option.description}` : option.label}
           </option>
         ))}
       </select>

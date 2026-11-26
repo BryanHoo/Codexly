@@ -43,9 +43,9 @@ export { SkillMarketHttpClient } from "./http-client-skill-market.js";
 export { TaskHttpClient } from "./http-client-tasks.js";
 export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 
-import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
+import { ApplicationPreferencesHttpClient } from "./http-client-application-preferences.js";
 
-export class CodexlyClient extends AsyncQuestionHttpClient {
+export class CodexlyClient extends ApplicationPreferencesHttpClient {
   public readNetworkProxy(): Promise<NetworkProxyStatus> {
     return this.request("/v1/network-proxy", NetworkProxyStatusSchema);
   }
@@ -64,7 +64,12 @@ export class CodexlyClient extends AsyncQuestionHttpClient {
     });
   }
 
-  public optimizePrompt(projectId: string, text: string): Promise<{ text: string }> {
+  public optimizePrompt(
+    projectId: string,
+    text: string,
+    options: ReadOptions = {},
+  ): Promise<{ text: string }> {
+    options.signal?.throwIfAborted();
     return this.request(
       `/v1/projects/${encodeURIComponent(projectId)}/prompt-optimization`,
       OptimizePromptResponseSchema,
@@ -74,7 +79,7 @@ export class CodexlyClient extends AsyncQuestionHttpClient {
         body: JSON.stringify({ text }),
       },
       undefined,
-      { timeoutMs: 150_000 },
+      { timeoutMs: 150_000, ...options },
     );
   }
 
@@ -88,7 +93,7 @@ export class CodexlyClient extends AsyncQuestionHttpClient {
 
   public saveDiagnostics(input: SaveDiagnosticsRequest): Promise<SaveDiagnosticsResponse> {
     return this.request(
-      "/v1/diagnostics/codex",
+      "/v1/diagnostics/archive",
       SaveDiagnosticsResponseSchema,
       {
         method: "POST",

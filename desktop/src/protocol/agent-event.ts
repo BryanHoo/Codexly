@@ -1,5 +1,5 @@
 import { Type, type Static, type TObject, type TProperties, type TSchema } from "@sinclair/typebox";
-import { ClaudePermissionModeSchema } from "@codexly/protocol";
+import { ClaudePermissionModeSchema, AcpSessionUpdatedEventSchema, AcpBackgroundUpdatedEventSchema, CompactionSummaryDeltaEventSchema, UsageUpdatedEventSchema as SharedUsageUpdatedEventSchema } from "@codexly/protocol";
 import {
   AgentEventEnvelopeProperties,
   CommandOutputDeltaEventSchema as SharedCommandOutputDeltaEventSchema,
@@ -21,7 +21,6 @@ export { EventCheckpointSchema, type EventCheckpoint } from "./event-checkpoint.
 
 import {
   ActivePendingRequestSchema,
-  AgentContextUsageSchema,
   AgentGoalSchema,
   AgentFileChangeSchema,
   AgentItemSchema,
@@ -172,11 +171,7 @@ export const TurnCompletedEventSchema = createEventSchema({
 
 export const ProviderErrorEventSchema = extendSharedEventSchema(SharedProviderErrorEventSchema);
 
-export const UsageUpdatedEventSchema = createEventSchema({
-  payload: Type.Object({ usage: AgentContextUsageSchema }, { additionalProperties: false }),
-  turnId: Type.String({ minLength: 1 }),
-  type: Type.Literal("usage.updated"),
-});
+export const UsageUpdatedEventSchema = extendSharedEventSchema(SharedUsageUpdatedEventSchema);
 
 export const PlanUpdatedEventSchema = createEventSchema({
   payload: Type.Object({ plan: AgentPlanSchema }, { additionalProperties: false }),
@@ -217,6 +212,9 @@ export const PendingRequestExpiredEventSchema = createPendingRequestEventSchema(
 );
 
 export const AgentEventSchema = Type.Union([
+  extendSharedEventSchema(AcpSessionUpdatedEventSchema),
+  extendSharedEventSchema(AcpBackgroundUpdatedEventSchema),
+  extendSharedEventSchema(CompactionSummaryDeltaEventSchema),
   TurnStartedEventSchema,
   MessageDeltaEventSchema,
   ReasoningDeltaEventSchema,

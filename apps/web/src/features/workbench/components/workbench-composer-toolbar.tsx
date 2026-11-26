@@ -183,6 +183,33 @@ export function ComposerConfigurationToolbar({
   children: ReactNode;
 }>) {
   const { t } = useTranslation(["workbench", "settings"]);
+  if (props.acp)
+    return (
+      <ComposerToolbar
+        moreLabel={t("composer.moreSettings")}
+        title={t("composer.settingsTitle")}
+        leading={leading}
+        model={props.acp.controls}
+        items={[
+          ...(props.acp.leadingControls
+            ? [{ id: "acp-config", label: "", control: props.acp.leadingControls, priority: 10 }]
+            : []),
+          ...(props.acp.trailingControls
+            ? [
+                {
+                  id: "acp-reasoning",
+                  label: t("composer.reasonEffortSelect"),
+                  control: props.acp.trailingControls,
+                  pinned: true,
+                  trailing: true,
+                },
+              ]
+            : []),
+        ]}
+        actions={children}
+      />
+    );
+  if (props.activeSettings === undefined) return null;
   const modelProps = {
     activeSettings: props.activeSettings,
     disabled: props.turnControlsDisabled,
@@ -272,9 +299,9 @@ export function ComposerConfigurationToolbar({
           ? [
               {
                 id: "reasoning",
-                // 思考量与模型共同常驻右侧，不能因中栏变窄被收进配置面板。
-                pinned: true,
                 trailing: true,
+                // 思考量常驻发送按钮左侧，窄分栏下仍保留直接选择入口。
+                pinned: true,
                 label: t("composer.reasonEffortSelect"),
                 control: <ComposerModelSelector {...modelProps} control="reasoning" />,
               },

@@ -244,7 +244,7 @@ mod tests {
 }
 
 /// 宿主延迟启动也必须使用应用启动时的快照，避免保存设置后两种引擎使用不同出口。
-pub fn configure_claude_host(command: &mut tokio::process::Command) {
+pub fn configure_acp_host(command: &mut tokio::process::Command) {
     apply_command(command);
     if let Some(settings) = ACTIVE.get() {
         command.env(

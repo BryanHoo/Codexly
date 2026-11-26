@@ -3,17 +3,44 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export const vitestAliases = {
-  "@codexly/provider-claude/network-proxy": fileURLToPath(
-    new URL("./packages/provider-claude/src/network-proxy.ts", import.meta.url),
+  "@codexly/protocol/acp-capabilities": fileURLToPath(
+    new URL("./packages/protocol/src/acp-capabilities.ts", import.meta.url),
+  ),
+  "@codexly/protocol/application-generation": fileURLToPath(
+    new URL("./packages/protocol/src/application-generation.ts", import.meta.url),
+  ),
+  "@codexly/protocol/application-preferences": fileURLToPath(
+    new URL("./packages/protocol/src/application-preferences.ts", import.meta.url),
+  ),
+  "@codexly/protocol/acp-plan-api": fileURLToPath(
+    new URL("./packages/protocol/src/acp-plan-api.ts", import.meta.url),
+  ),
+  "@codexly/protocol/acp-scheduled-plan": fileURLToPath(
+    new URL("./packages/protocol/src/acp-scheduled-plan.ts", import.meta.url),
+  ),
+  "@codexly/protocol/acp-config-validation": fileURLToPath(
+    new URL("./packages/protocol/src/acp-config-validation.ts", import.meta.url),
+  ),
+  "@codexly/provider-acp/network-proxy": fileURLToPath(
+    new URL("./packages/provider-acp/src/network-proxy.ts", import.meta.url),
+  ),
+  "@codexly/provider-acp": fileURLToPath(
+    new URL("./packages/provider-acp/src/index.ts", import.meta.url),
+  ),
+  "@codexly/protocol/task-queue-storage": fileURLToPath(
+    new URL("./packages/protocol/src/task-queue-storage.ts", import.meta.url),
+  ),
+  "@codexly/core/file-task-queue": fileURLToPath(
+    new URL("./packages/core/src/file-task-queue.ts", import.meta.url),
+  ),
+  "@codexly/core/task-attachments": fileURLToPath(
+    new URL("./packages/core/src/task-attachments.ts", import.meta.url),
   ),
   "@codexly/core/app-storage-paths": fileURLToPath(
     new URL("./packages/core/src/app-storage-paths.ts", import.meta.url),
   ),
   "@codexly/core/persistent-task-queue": fileURLToPath(
     new URL("./packages/core/src/persistent-task-queue.ts", import.meta.url),
-  ),
-  "@codexly/provider-claude": fileURLToPath(
-    new URL("./packages/provider-claude/src/index.ts", import.meta.url),
   ),
   "@codexly/core/persistent-historical-attachment-store": fileURLToPath(
     new URL("./packages/core/src/persistent-historical-attachment-store.ts", import.meta.url),

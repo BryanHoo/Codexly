@@ -3,6 +3,7 @@ import { limitGitCommandExecutor, type GitCommandExecutor } from "./git-concurre
 export type { GitCommandExecutor } from "./git-concurrency.js";
 
 const MAX_GIT_OUTPUT_BYTES = 10 * 1024 * 1024;
+const MAX_PORCELAIN_V2_OUTPUT_BYTES = 32 * 1024 * 1024;
 const GIT_COMMAND_TIMEOUT_MS = 10_000;
 const UNSAFE_GIT_ENVIRONMENT_KEYS = new Set(["editor", "pager", "prefix", "ssh_askpass", "visual"]);
 
@@ -42,10 +43,15 @@ export function createGitEnvironment(): NodeJS.ProcessEnv {
 export function createGitCommandExecutor(
   options: GitCommandExecutorOptions = {},
 ): GitCommandExecutor {
-  const maxOutputBytes = options.maxOutputBytes ?? MAX_GIT_OUTPUT_BYTES;
   const timeoutMs = options.timeoutMs ?? GIT_COMMAND_TIMEOUT_MS;
 
   return limitGitCommandExecutor(async (repositoryRoot, arguments_) => {
+    // v2 状态同时输出对象 ID 和模式，大清单需要独立上限。Diff 和其他命令沿用原预算。
+    const maxOutputBytes =
+      options.maxOutputBytes ??
+      (arguments_[0] === "status" && arguments_.includes("--porcelain=v2")
+        ? MAX_PORCELAIN_V2_OUTPUT_BYTES
+        : MAX_GIT_OUTPUT_BYTES);
     const controller = new AbortController();
     const clientOptions: Partial<SimpleGitOptions> = {
       abort: controller.signal,

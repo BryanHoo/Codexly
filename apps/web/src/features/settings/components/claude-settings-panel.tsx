@@ -7,6 +7,12 @@ import {
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { SettingsGroup, SettingsField, SettingsSelect } from "./global-settings-fields.js";
 import type { SettingsClient } from "./global-settings-page-contracts.js";
+import { lazy } from "react";
+
+// 连接向导也使用此入口，默认配置控件仅在真正进入智能体设置时加载。
+const AgentSettingsPanel = lazy(() =>
+  import("./agent-settings-panel.js").then((module) => ({ default: module.AgentSettingsPanel })),
+);
 
 export function ClaudeSettingsPanel({
   client,
@@ -21,6 +27,7 @@ export function ClaudeSettingsPanel({
 }>) {
   const { t } = useTranslation("settings");
   const labels = getCurrentLanguage() === "zh-CN" ? engineChinese : engineEnglish;
+  if (section === "claude-agent") return <AgentSettingsPanel client={client} engine="claude" />;
   return (
     <SharedClaudeSettingsPanel
       onConnected={onConnected}

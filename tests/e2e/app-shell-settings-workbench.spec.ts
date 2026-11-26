@@ -17,6 +17,7 @@ test.describe.configure({ mode: "serial" });
 
 test("renders the AI workbench landmarks with an enabled composer", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const main = page.getByRole("main", { name: "任务时间线" });
   const inspector = page.getByRole("complementary", { name: "运行环境" });
@@ -156,6 +157,7 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "上下文" }).click();
@@ -407,15 +409,24 @@ test("permanently deletes the active task only after confirmation", async ({ pag
   expect(deleteRequests).toBe(1);
 });
 
-test("renames the active task from the center title", async ({ page }) => {
+test("renames the active task from the center title @cross-browser", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
   const main = page.getByRole("main", { name: "任务时间线" });
   await main.getByRole("button", { name: "重命名任务 构建 macOS 工作台" }).click();
 
   const dialog = page.getByRole("dialog", { name: "重命名任务" });
-  await dialog.getByRole("textbox", { name: "任务名称" }).fill("重命名中栏任务");
-  await dialog.getByRole("button", { name: "保存" }).click();
+  const name = dialog.getByRole("textbox", { name: "任务名称" });
+  await expect(name).toBeFocused();
+  await expect
+    .poll(() =>
+      name.evaluate((input: HTMLInputElement) =>
+        input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0),
+      ),
+    )
+    .toBe("构建 macOS 工作台");
+  await page.keyboard.insertText("  重命名中栏任务  ");
+  await name.press("Enter");
 
   await expect(main.getByRole("heading", { name: "重命名中栏任务" })).toBeVisible();
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });

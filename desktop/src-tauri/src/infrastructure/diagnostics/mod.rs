@@ -1,4 +1,3 @@
-mod codex;
 mod emergency;
 mod export;
 #[cfg(windows)]
@@ -25,10 +24,7 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::encoding::encode_lower_hex;
 
-pub use codex::{CodexLogParseError, MAX_CODEX_LOG_LINE_BYTES, parse_codex_event};
-#[cfg(test)]
 pub use export::write_diagnostic_archive;
-pub use export::{validate_native_archive, write_diagnostic_archive_with_codex};
 
 const LOG_TARGET: &str = "codeagent";
 const RUNNING_MARKER: &str = ".codeagent-running";
@@ -47,7 +43,6 @@ pub enum DiagnosticLevel {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DiagnosticSource {
-    Codex,
     Rust,
     Webview,
 }
@@ -201,10 +196,6 @@ pub fn record_frontend_event(input: FrontendDiagnosticInput) {
     emit(sanitize_frontend_event(input, session(), &timestamp()));
 }
 
-pub fn record_codex_event(event: DiagnosticEvent) {
-    emit(event);
-}
-
 #[track_caller]
 pub fn record_error(event: &str, error: impl Display) {
     record(
@@ -216,6 +207,7 @@ pub fn record_error(event: &str, error: impl Display) {
 }
 
 #[track_caller]
+#[cfg(test)]
 pub fn record_error_chain(event: &str, error: &dyn std::error::Error) {
     let mut context = BTreeMap::new();
     let mut cause = error.source();

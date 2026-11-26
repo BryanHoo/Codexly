@@ -14,9 +14,9 @@
 2. 在设置中配置 Codex、Claude 或两者；受支持的已有本机配置可直接复用。
 3. 添加项目文件夹，新建任务并发送需求。
 
-安装包已内置运行时，无需另装 Node.js、Bun 或 CLI。支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel），另有仅支持 Codex 的 macOS 12.4+ Intel Legacy 版。
+安装包已内置运行时，无需另装 Node.js、Bun 或 CLI。支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel）。
 
-Windows 便携版须完整解压 ZIP 并保留主程序、Claude 宿主和 `runtime` 目录；更新时替换完整目录。
+Windows 便携版须完整解压 ZIP 并保留主程序、ACP 宿主和 `runtime` 目录；更新时替换完整目录。
 
 ## 桌面工作台
 

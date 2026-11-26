@@ -1,11 +1,9 @@
-import { createRequire } from "node:module";
 import { browser } from "@wdio/globals";
 
 import { waitForWebviewBridge } from "./bridge-readiness.mjs";
 import {
   approvalRequest,
   connectedProvider,
-  disconnectedProvider,
   gitStatus,
   modelPage,
   projectDefaults,
@@ -14,10 +12,8 @@ import {
   tasks,
 } from "./fixtures.js";
 
-// 与打包脚本读取同一个官方依赖，真实链路和模拟链路不再维护独立版本常量。
-export const REQUIRED_CODEX_VERSION = createRequire(new URL("../../../package.json", import.meta.url))(
-  "@openai/codex/package.json",
-).version as string;
+// WebView 夹具只提供关于页使用的版本显示样本。
+const FIXTURE_AGENT_VERSION = "0.166.0";
 
 type CommandMock = Readonly<{
   mockResolvedValue: (value: unknown) => Promise<void>;
@@ -66,8 +62,9 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
     await browser.refresh();
     await waitForWebviewBridge(async () => {
       const ready = await browser.execute(
-        () => window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__ !== undefined
-          && window.__CODEAGENT_WEBVIEW_TEST_READY__ !== true,
+        () =>
+          window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__ !== undefined &&
+          window.__CODEAGENT_WEBVIEW_TEST_READY__ !== true,
       );
       if (!ready) throw new Error("Fresh WebView test bridge is unavailable");
     });
@@ -78,7 +75,73 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
       const bridge = window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__;
       if (bridge === undefined) throw new Error("WebView test bridge is unavailable");
       Object.assign(bridge.defaults, fixtures.defaults);
-      bridge.once.get_provider_connection = [fixtures.disconnectedProvider];
+      const session = { configOptions: [], availableCommands: [] };
+      bridge.handlers.acp_task_request = (args) => {
+        const { method } = args as { method: string };
+        // 软件走真实 ACP 请求路由，旧快照样本在夹具边界附上当前会话身份。
+        switch (method) {
+          case "task.read": {
+            const response = bridge.defaults.read_task as
+              | { checkpoint: unknown; snapshot: Record<string, unknown> }
+              | null;
+            return response === null
+              ? null
+              : { ...response, snapshot: { ...response.snapshot, acpSession: session,
+                  engine: "codex", runtime: "acp", writeAccess: "writable" } };
+          }
+          case "task.retain":
+          case "task.release":
+            return null;
+          case "queue.list":
+            return bridge.defaults.list_queued_submissions;
+          case "queue.add":
+            return bridge.defaults.add_queued_submission;
+          case "session.config.read":
+            return [];
+          case "session.state.read":
+            return session;
+          default:
+            throw new Error(`Missing ACP task fixture for ${method}`);
+        }
+      };
+      const model = {
+        category: "model", id: "model", name: "模型", type: "select",
+        currentValue: "gpt-5.6-sol", options: [{ value: "gpt-5.6-sol", name: "GPT-5.6 Sol" }],
+      };
+      let baseUrl = fixtures.connectedProvider.customBaseUrl as string;
+      const providers = () => ({
+        providers: [{
+          providerId: "openai", supported: ["openai"], required: false,
+          current: { apiType: "openai", baseUrl },
+        }],
+        restartRequired: false,
+      });
+      bridge.handlers.acp_agent_request = (args) => {
+        const { method, params } = args as { method: string; params: { config?: { baseUrl?: string } } };
+        switch (method) {
+          case "agents.list":
+            return { agents: [{
+              detected: true, enabled: true, engine: "codex", environmentKeys: [],
+              installed: true, name: "Codex", description: "",
+            }] };
+          case "agents.progress":
+            return { operations: [] };
+          case "agent.inspect":
+            return { engine: "codex", protocolVersion: 2, providerConfiguration: true, authMethods: [],
+              connection: { source: "native", baseUrl, apiType: "openai", hasCredentials: true } };
+          case "providers.set":
+            baseUrl = params.config?.baseUrl ?? baseUrl;
+            return providers();
+          case "providers.list":
+            return providers();
+          case "settings.read":
+            return { configOptions: [model], defaults: { model: model.currentValue }, unmappedLegacy: [], invalidDefaults: [] };
+          case "settings.preview":
+            return { configOptions: [model], values: { model: model.currentValue } };
+          default:
+            throw new Error(`Missing ACP agent fixture for ${method}`);
+        }
+      };
       bridge.handlers.list_tasks = (args) => {
         const input = args.input as { projectId?: string } | undefined;
         return {
@@ -88,10 +151,15 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
       };
     },
     {
-      disconnectedProvider,
+      connectedProvider,
       tasks,
       defaults: {
         add_queued_submission: { queuedSubmission },
+        application_preferences_request: {
+          defaultAgent: "codex", defaultModel: null, commitMessagePrompt: "", taskTitlePrompt: "",
+          promptOptimizationPrompt: "", defaultOpenAppId: null, followUpBehavior: "queue",
+          pet: { enabled: false, selectedPetId: null },
+        },
         cancel_native_request: null,
         commit_project_changes: {
           branch: "test/webview",
@@ -111,7 +179,7 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
         get_app_info: {
           appVersion: "0.1.0",
           changelogUrl: "https://github.com/BryanHoo/Codexly/blob/main/desktop/CHANGELOG.md",
-          codexVersion: REQUIRED_CODEX_VERSION,
+          codexVersion: FIXTURE_AGENT_VERSION,
           latestVersion: null,
           releaseNotes: "## [0.1.0] - 2026-08-31",
           releaseNotesVersion: "0.1.0",
@@ -120,7 +188,6 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           updateAvailable: false,
         },
         get_global_settings: { settings },
-        get_configured_engines: ["codex"],
         get_project_defaults: { settings: projectDefaults },
         get_project_git_status: gitStatus,
         get_project_open_capabilities: {
@@ -132,8 +199,8 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           "codeagent.language-preference": JSON.stringify({ language: "zh-CN", version: 1 }),
         },
         inspect_codex_runtime: {
-          detectedVersion: REQUIRED_CODEX_VERSION,
-          requiredVersion: REQUIRED_CODEX_VERSION,
+          detectedVersion: FIXTURE_AGENT_VERSION,
+          requiredVersion: FIXTURE_AGENT_VERSION,
           status: "compatible",
         },
         list_background_terminals: { data: [] },
@@ -173,13 +240,19 @@ export async function releaseApplicationStartup(): Promise<void> {
 export async function connectMockProvider(apiKey?: string): Promise<void> {
   const settings = await $("aria/设置");
   await settings.waitForClickable();
+  if (apiKey === undefined) return;
   await settings.click();
-  const codex = await $('[role="group"][aria-label="Codex"]');
-  await codex.$("aria/模型服务").click();
-  await $("aria/自定义 API").click();
-  await $("aria/API 地址").setValue("https://gateway.test/v1");
-  if (apiKey) await $("aria/API 密钥（可选）").setValue(apiKey);
-  await $("aria/返回应用").click();
+  await $('button=ACP').click();
+  const address = await $('[role="dialog"] input[type="url"]');
+  await address.waitForDisplayed();
+  await address.setValue("https://gateway-updated.test/v1");
+  await $('[role="dialog"] input[type="password"]').setValue(apiKey);
+  await $("aria/保存连接").click();
+  await browser.waitUntil(async () => browser.execute(() => {
+    const calls = window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls.acp_agent_request ?? [];
+    return calls.some((call) => (call as { method?: string }).method === "providers.set");
+  }));
+  await $('[role="dialog"][data-slot="dialog-content"]').$("aria/关闭").click();
   await settings.waitForClickable();
 }
 

@@ -1,0 +1,6 @@
+{
+  "schema": "CREATE TABLE IF NOT EXISTS acp_storage_locks(resource TEXT PRIMARY KEY,owner TEXT NOT NULL,pid INTEGER NOT NULL CHECK(pid BETWEEN 1 AND 2147483647));",
+  "read": "SELECT owner,pid FROM acp_storage_locks WHERE resource=?",
+  "claim": "INSERT INTO acp_storage_locks(resource,owner,pid) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM acp_storage_locks WHERE resource=?) OR (? IS NULL AND (SELECT COUNT(*) FROM acp_storage_locks)<4096) ON CONFLICT(resource) DO UPDATE SET owner=excluded.owner,pid=excluded.pid WHERE acp_storage_locks.owner=?",
+  "release": "DELETE FROM acp_storage_locks WHERE resource=? AND owner=?"
+}

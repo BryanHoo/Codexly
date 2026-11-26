@@ -1,8 +1,6 @@
 import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
-import { expect, mockAppShellApi, parseRequestRecord, test } from "./fixtures/app-shell.js";
+import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
-
-test.describe.configure({ mode: "serial" });
 
 function parseCssAlpha(color: string): number {
   const alpha =
@@ -11,47 +9,75 @@ function parseCssAlpha(color: string): number {
   return alpha === undefined ? 1 : Number(alpha);
 }
 
-test("connects a custom API from the provider gate and reuses it in settings", async ({ page }) => {
-  await mockAppShellApi(page, { providerConnected: false });
+test("saves a custom API and session defaults from ACP settings", async ({ page }) => {
+  let baseUrl = "https://native.example/v1";
+  let connectionWrite: Record<string, unknown> | undefined;
+  await page.route("**/v1/acp/agents/codex", (route) =>
+    route.fulfill({
+      json: {
+        engine: "codex",
+        protocolVersion: 2,
+        providerConfiguration: true,
+        connection: {
+          source: connectionWrite === undefined ? "native" : "application",
+          baseUrl,
+          apiType: "openai",
+          hasCredentials: true,
+        },
+        authMethods: [],
+      },
+    }),
+  );
+  await page.route("**/v1/acp/agents/codex/providers", (route) => {
+    if (route.request().method() === "PUT") {
+      connectionWrite = parseRequestRecord(route.request().postData());
+      baseUrl = String(connectionWrite["baseUrl"]);
+    }
+    return route.fulfill({
+      json: {
+        providers: [
+          {
+            providerId: "openai",
+            supported: ["openai"],
+            required: false,
+            current: { apiType: "openai", baseUrl },
+          },
+        ],
+        restartRequired: false,
+      },
+    });
+  });
   await page.goto("/");
-
-  await expect(page.getByRole("heading", { exact: true, name: "选择编程助手" })).toBeVisible();
-  await page.getByRole("button", { name: "Codex OpenAI", exact: true }).click();
-  await page.getByRole("button", { name: "继续", exact: true }).click();
-  await expect(page.getByRole("heading", { exact: true, name: "连接 Codex" })).toBeVisible();
-  const officialModeButton = page.getByRole("button", { name: "ChatGPT", exact: true });
-  const customModeButton = page.getByRole("button", { name: "自定义 API" });
-  await expect(officialModeButton).toHaveCSS("align-items", "center");
-  await expect(officialModeButton).toHaveCSS("justify-content", "center");
-  await expect(customModeButton).toHaveCSS("align-items", "center");
-  await expect(customModeButton).toHaveCSS("justify-content", "center");
-  await customModeButton.click();
-  await page.getByRole("textbox", { name: "API 地址" }).fill("https://api.example.com/v1/");
-  await page.getByLabel("API 密钥（可选）").fill("e2e-secret");
-  await page.getByRole("button", { exact: true, name: "连接并开始使用" }).click();
-
   await expect(page).toHaveURL(/\/p\/codexly$/u);
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });
-  await dialog
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "模型服务" })
-    .click();
-  await expect(dialog.getByRole("textbox", { name: "API 地址" })).toHaveValue(
-    "https://api.example.com/v1",
-  );
-  await expect(dialog.getByLabel("API 密钥（可选）")).toHaveValue("");
-  await expect(dialog.getByText("已连接", { exact: true })).toBeVisible();
-
-  await dialog
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "智能体配置" })
-    .click();
-  await dialog.getByRole("combobox", { name: "模型" }).selectOption("custom-coder");
-  const reasoningSelect = dialog.getByRole("combobox", { name: "思考强度" });
-  await expect(reasoningSelect.locator("option")).toHaveText(["最低", "低", "中", "高", "极高"]);
-  await reasoningSelect.selectOption("high");
-  await expect(reasoningSelect).toHaveValue("high");
+  await dialog.getByRole("button", { name: "ACP", exact: true }).click();
+  const address = dialog.getByRole("textbox", { name: "API 地址", exact: true });
+  await expect(address).toHaveValue(baseUrl);
+  const key = dialog.getByLabel("API Key", { exact: true });
+  await expect(key).toHaveValue("");
+  await address.fill("https://api.example.com/v1");
+  await key.fill("e2e-secret");
+  await dialog.getByRole("button", { name: "保存连接", exact: true }).click();
+  await expect
+    .poll(() => connectionWrite)
+    .toEqual({
+      providerId: "openai",
+      apiType: "openai",
+      baseUrl: "https://api.example.com/v1",
+      headers: { Authorization: "Bearer e2e-secret" },
+    });
+  await expect(key).toHaveValue("");
+  await expect(address).toHaveValue("https://api.example.com/v1");
+  await dialog.getByRole("combobox", { name: "模型", exact: true }).click();
+  await page.getByRole("option", { name: "custom-coder", exact: true }).click();
+  await dialog.getByRole("heading", { name: "会话默认配置", exact: true }).click();
+  const reasoning = dialog.getByRole("combobox", { name: "思考强度", exact: true });
+  await expect(reasoning).toHaveText("中");
+  await reasoning.click();
+  await page.getByRole("option", { name: "高", exact: true }).click();
+  await dialog.getByRole("heading", { name: "会话默认配置", exact: true }).click();
+  await expect(reasoning).toHaveText("高");
 });
 
 test("redirects the root route to the default project workbench @smoke", async ({ page }) => {
@@ -91,7 +117,7 @@ test("opens the requested settings section and aligns the sidebar footer with th
     "aria-current",
     "page",
   );
-  await dialog.getByRole("button", { name: "返回应用" }).click();
+  await page.getByRole("button", { exact: true, name: "关闭" }).click();
 
   await sidebar.locator("#global-settings-about-trigger").click();
   await expect(dialog.getByRole("button", { name: "关于" })).toHaveAttribute(
@@ -117,14 +143,14 @@ test("defaults appearance to automatic and follows the system color scheme", asy
   await page.emulateMedia({ colorScheme: "dark" });
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page.getByRole("button", { exact: true, name: "关闭" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const reopenedDialog = page.getByRole("region", { name: "全局设置" });
   await reopenedDialog.getByRole("button", { name: "自动模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await reopenedDialog.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page.getByRole("button", { exact: true, name: "关闭" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
@@ -140,13 +166,14 @@ test("defaults appearance to automatic and follows the system color scheme", asy
       }),
     ).toBe(true);
   }
-  await page.getByRole("button", { exact: true, name: "Back to app" }).click();
+  await page.getByRole("button", { exact: true, name: "Close" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
 test("applies and restores a custom workbench background", async ({ page }) => {
   await useGroupedFileChanges(page);
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });
   await dialog.getByRole("button", { name: "自定义工作台背景" }).click();
@@ -176,7 +203,7 @@ test("applies and restores a custom workbench background", async ({ page }) => {
   await expect
     .poll(() => liveCanvas.evaluate((element) => (element as HTMLCanvasElement).toDataURL()))
     .not.toBe(beforeBlur);
-  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page.getByRole("button", { exact: true, name: "关闭" }).click();
 
   const background = page.locator("[data-workbench-background]");
   await expect(background).toHaveAttribute("data-background-mode", "custom");
@@ -270,7 +297,7 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .getByRole("dialog", { name: "选择图片", exact: true })
     .getByRole("button", { name: "完成", exact: true })
     .click();
-  await reopenedDialog.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page.getByRole("button", { exact: true, name: "关闭" }).click();
   await expect(background).toHaveAttribute("data-has-image", "true");
   await expect
     .poll(() =>
@@ -300,14 +327,18 @@ test("edits global defaults on a page without overriding task settings", async (
   await dialog.getByRole("button", { name: "深色模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await dialog.getByRole("button", { name: "引导", exact: true }).click();
-  await dialog
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "智能体配置" })
-    .click();
-  await dialog.getByRole("combobox", { name: "审批" }).selectOption("never");
-  await dialog.getByRole("combobox", { name: "工作区" }).selectOption("danger-full-access");
-  await dialog.getByRole("combobox", { name: "模型" }).selectOption("gpt-5.6-terra");
-  await expect(dialog.getByRole("combobox", { name: "思考" })).toHaveValue("medium");
+  await dialog.getByRole("button", { name: "ACP", exact: true }).click();
+  for (const [label, choice] of [
+    ["审批", "从不"],
+    ["工作区", "完全访问"],
+    ["模型", "GPT-5.6 Terra"],
+  ] as const) {
+    await dialog.getByRole("combobox", { name: label, exact: true }).click();
+    await page.getByRole("option", { name: choice, exact: true }).click();
+    await dialog.getByRole("heading", { name: "会话默认配置", exact: true }).click();
+    await expect(dialog.getByRole("combobox", { name: label, exact: true })).toBeEnabled();
+  }
+  await expect(dialog.getByRole("combobox", { name: "思考强度", exact: true })).toHaveText("中");
   await dialog.getByRole("button", { name: "辅助生成" }).click();
   // 共享辅助生成设置使用 Radix Select，按可访问角色完成真实选择。
   await dialog.getByRole("combobox", { name: "默认模型" }).click();
@@ -316,7 +347,7 @@ test("edits global defaults on a page without overriding task settings", async (
   await dialog.getByRole("textbox", { name: "Git message 提示词" }).fill("突出用户可见影响。");
   await dialog.getByRole("button", { name: "常规" }).click();
   await dialog.getByRole("combobox", { name: "默认打开方式" }).selectOption("finder");
-  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
+  await page.getByRole("button", { exact: true, name: "关闭" }).click();
 
   await expect(dialog).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -331,15 +362,16 @@ test("edits global defaults on a page without overriding task settings", async (
     "aria-pressed",
     "true",
   );
-  await reopenedDialog
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "智能体配置" })
-    .click();
-  await expect(reopenedDialog.getByRole("combobox", { name: "审批" })).toHaveValue("never");
-  await expect(reopenedDialog.getByRole("combobox", { name: "工作区" })).toHaveValue(
-    "danger-full-access",
+  await reopenedDialog.getByRole("button", { name: "ACP", exact: true }).click();
+  await expect(reopenedDialog.getByRole("combobox", { name: "审批", exact: true })).toHaveText(
+    "从不",
   );
-  await expect(reopenedDialog.getByRole("combobox", { name: "模型" })).toHaveValue("gpt-5.6-terra");
+  await expect(reopenedDialog.getByRole("combobox", { name: "工作区", exact: true })).toHaveText(
+    "完全访问",
+  );
+  await expect(reopenedDialog.getByRole("combobox", { name: "模型", exact: true })).toHaveText(
+    "GPT-5.6 Terra",
+  );
   await reopenedDialog.getByRole("button", { name: "辅助生成" }).click();
   await expect(reopenedDialog.getByRole("combobox", { name: "默认模型" })).toHaveText(
     "GPT-5.6 Terra",
@@ -371,7 +403,7 @@ test("automatically saves browser preferences", async ({ page }) => {
   await page.getByRole("combobox", { name: "语言" }).selectOption("en");
   await page.getByRole("switch", { name: "Task notifications" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await page.getByRole("button", { name: "Back to app" }).click();
+  await page.getByRole("button", { name: "Close" }).click();
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.getByRole("button", { exact: true, name: "Settings" }).click();
@@ -379,12 +411,10 @@ test("automatically saves browser preferences", async ({ page }) => {
     "aria-checked",
     "false",
   );
-  await page
-    .getByRole("group", { name: "Codex", exact: true })
-    .getByRole("button", { name: "Agent configuration" })
-    .click();
-  await expect(page.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
-  await page.getByRole("button", { name: "Back to app" }).click();
+  await page.getByRole("button", { name: "ACP", exact: true }).click();
+  // ACP 选项名称由 agent 提供，切换应用语言不能改写原始标签。
+  await expect(page.getByRole("combobox", { name: "思考强度" })).toBeVisible();
+  await page.getByRole("button", { name: "Close" }).click();
   await expect(page.locator("h1").filter({ hasText: "构建 macOS 工作台" })).toBeVisible();
 });
 

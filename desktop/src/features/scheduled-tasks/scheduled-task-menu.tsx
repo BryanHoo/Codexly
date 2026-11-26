@@ -7,8 +7,9 @@ import { useTranslation } from "../../i18n/i18n.js";
 import { Button } from "../../shared/components/core/button.js";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../../shared/components/core/dropdown-menu.js";
 
-export function ScheduledTaskMenu({ task, onDelete, onEnabledChange }: Readonly<{
+export function ScheduledTaskMenu({ task, onDelete, onEnabledChange, canToggle = true }: Readonly<{
   task: ScheduledTask;
+  canToggle?: boolean;
   onDelete: (id: string) => void | Promise<unknown>;
   onEnabledChange: (id: string, enabled: boolean) => void;
 }>) {
@@ -37,12 +38,12 @@ export function ScheduledTaskMenu({ task, onDelete, onEnabledChange }: Readonly<
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={4} className="scheduled-task-menu">
-        <DropdownMenuItem aria-label={t(task.enabled ? "scheduledTasks.disableTask" : "scheduledTasks.enableTask", { name: task.name })}
+        {canToggle ? <DropdownMenuItem aria-label={t(task.enabled ? "scheduledTasks.disableTask" : "scheduledTasks.enableTask", { name: task.name })}
           onSelect={() => onEnabledChange(task.id, !task.enabled)}>
           {task.enabled ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
           {t(task.enabled ? "scheduledTasks.disable" : "scheduledTasks.enable")}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        </DropdownMenuItem> : null}
+        {canToggle ? <DropdownMenuSeparator /> : null}
         <DropdownMenuItem className="text-danger" onSelect={() => setDeleteArmed(true)}>
           <Trash2 aria-hidden="true" />{t("scheduledTasks.delete")}
         </DropdownMenuItem>

@@ -1,5 +1,6 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { UserInputQuestionnaire } from "@codexly/ui/core/user-input-questionnaire";
+import { AcpPermissionRequest } from "@codexly/ui/core/acp-permission-request";
 import type { PendingApprovalDecision, PendingRequest } from "@/protocol/index.js";
 import { useEffect, useRef, useState } from "react";
 
@@ -264,9 +265,14 @@ function UserInputRequestCard({
 }
 
 export function PendingRequestCard(props: PendingRequestCardProps) {
+  if (props.request.type === "mcp_elicitation" && props.request.mode === "url" &&
+      props.request.externalStatus) return <McpElicitationRequestCard {...props} request={props.request} />;
   // 已处理请求只保留在运行时快照中用于状态对账，不继续占用会话界面。
   if (props.request.status === "resolved" && props.request.type !== "plugin_install_suggestion") {
     return null;
+  }
+  if (props.request.type === "tool_approval" && props.request.acpOptions !== undefined) {
+    return <AcpApprovalRequestCard {...props} request={props.request} />;
   }
   if (props.request.type === "user_input") {
     return (
@@ -311,4 +317,12 @@ export function PendingRequestCard(props: PendingRequestCardProps) {
       request={props.request}
     />
   );
+}
+
+function AcpApprovalRequestCard(props: PendingRequestCardProps & { request: Extract<PendingRequest, { type: "tool_approval" }> }) {
+  const { t } = useTranslation("workbench");
+  return <AcpPermissionRequest {...props} labels={{
+    title: t("pending.toolApproval", { tool: props.request.toolName }),
+    expired: t("pending.expired"), waiting: t("pending.previousPending"),
+  }} onError={notifyActionError} onSuccess={notifyActionSuccess} />;
 }

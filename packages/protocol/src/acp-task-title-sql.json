@@ -1,0 +1,7 @@
+{
+  "schema": "CREATE TABLE IF NOT EXISTS acp_task_titles(task_id TEXT PRIMARY KEY REFERENCES managed_tasks(id) ON DELETE CASCADE,state TEXT NOT NULL CHECK(state IN ('pending','claimed','done')),token TEXT);\nCREATE TRIGGER IF NOT EXISTS acp_task_titles_register AFTER INSERT ON managed_tasks WHEN NEW.title='' AND NEW.session_id IS NULL AND NEW.provider IN ('codex','claude') BEGIN INSERT OR IGNORE INTO acp_task_titles(task_id,state) VALUES(NEW.id,'pending'); END;\nCREATE TRIGGER IF NOT EXISTS acp_task_titles_invalidate AFTER UPDATE OF title,archived ON managed_tasks WHEN OLD.title IS NOT NEW.title OR NEW.archived<>0 BEGIN UPDATE acp_task_titles SET state='done',token=NULL WHERE task_id=NEW.id; END;",
+  "claim": "UPDATE acp_task_titles SET state='claimed',token=? WHERE task_id=? AND state='pending' AND EXISTS(SELECT 1 FROM managed_tasks t WHERE t.id=task_id AND t.provider=? AND t.project_id IS ? AND t.title='' AND t.archived=0)",
+  "owned": "SELECT 1 FROM acp_task_titles WHERE task_id=? AND state='claimed' AND token=?",
+  "finish": "UPDATE acp_task_titles SET state='done',token=NULL WHERE task_id=? AND state='claimed' AND token=?",
+  "write": "UPDATE managed_tasks SET title=? WHERE id=? AND title='' AND archived=0"
+}

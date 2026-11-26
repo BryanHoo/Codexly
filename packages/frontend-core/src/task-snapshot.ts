@@ -67,9 +67,67 @@ export function mergeTurnItemTimings(
 }
 
 interface ReconciledTurn {
+  startedAt?: string | null;
+  completedAt?: string | null;
   id: string;
   items: { id: string; type: string; role?: string; identityAliases?: readonly string[] }[];
   itemTimings?: AgentTurn["itemTimings"];
+}
+
+interface SnapshotState<Metadata, Turn, Item, Request extends { status: string }> {
+  snapshotMetadata: Metadata | null;
+  pendingRequestIds: readonly string[];
+  pendingRequestsById: Readonly<Record<string, Request>>;
+  turnsNextCursor: string | null;
+  turnIds: readonly string[];
+  turnsById: Readonly<Record<string, Turn>>;
+  itemKeysByTurnId: Readonly<Record<string, readonly string[]>>;
+  itemStoresByKey: ReadonlyMap<string, { read: () => Item }>;
+}
+
+export function reconstructSnapshot<Metadata, Turn, Item, Request extends { status: string }>(
+  state: SnapshotState<Metadata, Turn, Item, Request>,
+) {
+  if (state.snapshotMetadata === null) {
+    return undefined;
+  }
+  return {
+    ...state.snapshotMetadata,
+    pendingRequests: state.pendingRequestIds.flatMap((requestId) => {
+      const request = state.pendingRequestsById[requestId];
+      // 兼容快照遵守 HTTP Schema，只重建仍可操作的 pending 请求。
+      return request?.status === "pending" ? [request] : [];
+    }),
+    turnsNextCursor: state.turnsNextCursor,
+    turns: state.turnIds.flatMap((turnId) => {
+      const turn = state.turnsById[turnId];
+      if (turn === undefined) {
+        return [];
+      }
+      // 通过宿主的条目读取接口物化正文，保留 Web 与桌面的原始条目类型。
+      const items = (state.itemKeysByTurnId[turnId] ?? []).flatMap((itemKey) => {
+        const item = state.itemStoresByKey.get(itemKey)?.read();
+        return item === undefined ? [] : [item];
+      });
+      return [{ ...turn, items }];
+    }),
+  };
+}
+
+export function reconcileSnapshot<
+  Response extends { checkpoint: { sessionId: string }; snapshot: SnapshotTurns<ReconciledTurn> },
+>(
+  state: SnapshotState<
+    object,
+    Omit<ReconciledTurn, "items">,
+    ReconciledTurn["items"][number],
+    { status: string }
+  > & {
+    checkpoint: { sessionId: string } | null;
+  },
+  response: Response,
+): Response {
+  return reconcileTaskSnapshot(state.checkpoint, () => reconstructSnapshot(state), response);
 }
 
 export function reconcileTaskSnapshot<
@@ -94,6 +152,13 @@ export function reconcileTaskSnapshot<
         const itemTimings = mergeTurnItemTimings(currentTurn.itemTimings, incoming.itemTimings);
         return {
           ...incoming,
+          // 同一运行时的空快照不能抹掉已观察到的起止时间；跨运行时仍使用权威快照。
+          ...(incoming.startedAt === null && currentTurn.startedAt
+            ? { startedAt: currentTurn.startedAt }
+            : {}),
+          ...(incoming.completedAt === null && currentTurn.completedAt
+            ? { completedAt: currentTurn.completedAt }
+            : {}),
           ...(itemTimings === undefined ? {} : { itemTimings }),
           items: retainSnapshotTurnItems(currentTurn.items, incoming.items, currentTurn.id),
         };

@@ -276,6 +276,7 @@ test("project file tree opens changed, source, image, and system files by shared
   page,
 }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();
@@ -380,6 +381,7 @@ test("project file tree virtualizes 10,000 files and keeps keyboard navigation u
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();

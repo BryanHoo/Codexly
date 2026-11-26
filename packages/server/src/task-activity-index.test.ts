@@ -82,3 +82,32 @@ test("问题与审批并存时保留两种等待事实，关闭问题不能清�
   expect(index.setAsyncPending("p", "t", false)).toBe(true);
   expect(index.snapshot()[0]?.status).toBe("running");
 });
+
+test("refreshing a failed task's history does not recreate acknowledged activity", () => {
+  const index = new TaskActivityIndex();
+  index.observe("p", { type: "task.status_updated", taskId: "t", payload: { status: "failed" } });
+  const version = index.snapshot()[0]?.version;
+  expect(version).toBeDefined();
+  expect(index.acknowledge("p", "t", version ?? 0)).toBe(true);
+  const snapshot = {
+    id: "t",
+    projectId: "p",
+    title: "任务",
+    status: "failed",
+    pendingRequests: [],
+    turns: [],
+    pinned: false,
+    updatedAt: "2026-07-28T00:00:00Z",
+    contextUsage: null,
+    goal: null,
+    plan: null,
+    turnsNextCursor: null,
+  } satisfies Parameters<TaskActivityIndex["observeSnapshot"]>[0];
+  expect(
+    index.observeSnapshot(snapshot, {
+      sessionId: "session",
+      sequence: 2,
+    }),
+  ).toBe(false);
+  expect(index.snapshot()).toEqual([]);
+});

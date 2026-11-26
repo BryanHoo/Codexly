@@ -33,12 +33,12 @@ function normalizeSubmittedSkillText(turn: AgentTurn): AgentTurn {
   return items.some((item, index) => item !== turn.items[index]) ? { ...turn, items } : turn;
 }
 
-export function mergeSubmittedPromptIntoSnapshot(
-  snapshot: RuntimeTaskSnapshot,
+export function mergeSubmittedPromptIntoSnapshot<T extends RuntimeTaskSnapshot>(
+  snapshot: T,
   submittedTurn: AgentTurn,
   input: Pick<AgentPromptInput, "attachments" | "skills" | "text"> &
     Readonly<{ messageAttachments?: readonly AgentMessageAttachment[] }>,
-): RuntimeTaskSnapshot {
+): Omit<T, "turns" | "status"> & Pick<RuntimeTaskSnapshot, "turns" | "status"> {
   const normalizedSubmittedTurn = normalizeSubmittedSkillText(submittedTurn);
   const submittedUserMessage = normalizedSubmittedTurn.items.find(
     (item) => item.type === "message" && item.role === "user",

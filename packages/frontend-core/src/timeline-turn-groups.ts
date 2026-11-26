@@ -57,7 +57,9 @@ export function describeTimelineTurnRows<Prompt>(
 
 /** Claude 的无用户输入续跑与前一阶段共用回复；只读索引和消息角色，不物化流式正文。 */
 export function groupTimelineTurns(
-  state: TimelineNavigationState<{ type: string; role?: string }>,
+  state: TimelineNavigationState<{ type: string; role?: string }> & {
+    turnsById?: Readonly<Record<string, Pick<AgentTurn, "acpBackground">>>;
+  },
   engine: string | undefined,
   previousGroups: TimelineTurnGroup[] = [],
 ): TimelineTurnGroup[] {
@@ -82,6 +84,8 @@ export function groupTimelineTurns(
     // Codex 不合并原生回合，无须读取历史条目的角色。
     if (
       engine !== "claude" ||
+      state.turnsById?.[turnId]?.acpBackground ||
+      state.turnsById?.[state.turnIds[index - 1] ?? ""]?.acpBackground ||
       (state.itemKeysByTurnId[turnId] ?? []).some((key) => {
         const item = state.itemStoresByKey.get(key)?.peek();
         return item?.type === "review" || (item?.type === "message" && item.role === "user");
@@ -100,7 +104,9 @@ export function groupTimelineTurns(
 export function createTimelineTurnGrouper() {
   let previousGroups: TimelineTurnGroup[] = [];
   return (
-    state: TimelineNavigationState<{ type: string; role?: string }>,
+    state: TimelineNavigationState<{ type: string; role?: string }> & {
+      turnsById?: Readonly<Record<string, Pick<AgentTurn, "acpBackground">>>;
+    },
     engine: string | undefined,
   ) => {
     previousGroups = groupTimelineTurns(state, engine, previousGroups);

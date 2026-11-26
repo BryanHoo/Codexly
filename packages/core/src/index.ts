@@ -1,5 +1,9 @@
 // 领域模型、用例和 Provider 端口只能从此公开入口导出。
 export {
+  ApplicationPreferencesService,
+  applicationPreferencesFromLegacy,
+} from "./application-preferences.js";
+export {
   CatalogSearchService,
   catalogSearchCursor,
   checkSearchCancellation,
@@ -73,4 +77,12 @@ export * from "./task-snapshot-checkpoint.js";
 export * from "./retained-work-budget.js";
 export { boundTaskTitleInput, taskTitlePrompt, parseTaskTitle } from "./task-title.js";
 export { readGenerationDefaults } from "./generation-defaults.js";
+export {
+  generateApplicationText,
+  type ApplicationTextGenerator,
+} from "./application-generation.js";
 export type { TaskTitleGenerator } from "./agent-provider.js";
+export type { AcpAgentSettingsService, AcpAgentServices } from "./acp-service.js";
+
+export { HostOutput, createHostOutputStream, HOST_OUTPUT_BUDGET } from "./host-output.js";
+export { NPM_REGISTRIES, selectRegistryOrder, type RegistryOrder } from "./npm-registry.js";

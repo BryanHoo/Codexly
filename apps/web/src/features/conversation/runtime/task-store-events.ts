@@ -1,15 +1,19 @@
 import type { AgentEvent, AgentItem, PendingRequest } from "@codexly/protocol";
+import type { TaskEventState } from "@codexly/frontend-core/task-event-model";
 import { createTaskEventReducer } from "@codexly/frontend-core/task-event-reducer";
-import { touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
 import {
   MAX_RETAINED_TASK_NOTICES,
   PENDING_COMMAND_LABEL,
   createTaskItemStore,
+  type TaskNotice,
   type TaskItemStore,
   type TaskSnapshotMetadata,
-  type TaskStoreState,
 } from "./task-store-core.js";
-export { getTouchedCommandOutputItemKeys };
+
+type EventState = TaskEventState<PendingRequest, TaskSnapshotMetadata, TaskItemStore>;
+
+export const isPersistentNotice = (notice: TaskNotice): boolean =>
+  notice.payload.code === "runtime_warning" || notice.payload.code === "acp_notice";
 
 function createDeltaItem(
   event: Extract<
@@ -77,7 +81,7 @@ const reduceEvent = createTaskEventReducer<
     const discarded = new Set(transient.slice(0, -MAX_RETAINED_TASK_NOTICES));
     return next.filter((notice) => !discarded.has(notice));
   },
-  isPersistentNotice: (notice) => notice.payload.code === "runtime_warning",
+  isPersistentNotice,
   resolveCompletedTurn(current, incoming) {
     const error = current?.status === "failed" ? current.error : null;
     return incoming.error === null && error !== null ? { ...incoming, error } : incoming;
@@ -85,7 +89,7 @@ const reduceEvent = createTaskEventReducer<
 });
 
 export const applyAcceptedEvent: (
-  state: TaskStoreState,
+  state: EventState,
   event: AgentEvent,
   changedItemStores: Set<TaskItemStore>,
-) => Partial<TaskStoreState> = reduceEvent;
+) => Partial<EventState> = reduceEvent;

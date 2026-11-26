@@ -53,7 +53,7 @@ test("runs official task actions from the slash command menu", async ({ page }) 
   await prompt.press("Escape");
   await expect(commandMenu).toBeHidden();
   await expect(page.getByRole("button", { name: "收起项目侧栏" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "收起上下文面板" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "展开上下文面板" })).toBeVisible();
 
   await prompt.fill("");
   await prompt.fill("/");

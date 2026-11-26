@@ -26,7 +26,7 @@ await test("native lifecycle owns terminal cleanup before exit and settings clea
   assert.ok(lifecycle.includes("terminal_lifecycle::request_exit"));
   const removal = sidebar.slice(sidebar.indexOf("pub async fn remove_project("), sidebar.indexOf("pub async fn reorder_projects("));
   assert.ok(removal.indexOf("terminals.invalidate_project") > 0);
-  assert.ok(removal.indexOf("terminals.invalidate_project") < removal.indexOf("delete_project_task_settings("));
+  assert.ok(removal.indexOf("terminals.invalidate_project") < removal.indexOf("remove_preferences("));
 });
 
 await test("shared close confirmation uses a visible native parent and three choices", async () => {

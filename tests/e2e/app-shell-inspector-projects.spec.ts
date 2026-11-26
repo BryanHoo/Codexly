@@ -115,6 +115,7 @@ test("keeps icon button tooltips visible within clipping and viewport boundaries
   page,
 }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   const assertTooltipVisible = async (label: string) => {
     await page.getByRole("button", { exact: true, name: label }).hover();

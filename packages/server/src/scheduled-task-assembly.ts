@@ -8,14 +8,15 @@ import {
 import { ScheduledTaskAttachmentManager } from "./scheduled-task-attachments.js";
 import { createScheduledSubmission } from "./scheduled-task-submission.js";
 import { createMemorySubmissionRepository } from "./task-submission-service.js";
+import { createAcpPlanExecutor } from "./acp-plan-executor.js";
+import { AcpPlanResourceManager } from "./acp-plan-resource-transfer.js";
 
 // 调度装配独立于 HTTP 应用入口，保持资源所有权与关闭顺序清晰。
 export async function createScheduledTasks(
   options: CreateCodexlyServerOptions,
   attachmentStore: AttachmentStore,
   getProjectContext: ProjectContextResolver,
-  listModels: ServerRouteContext["listModels"],
-  resolveProviderTurnInput: ServerRouteContext["resolveProviderTurnInput"],
+  execution: Pick<ServerRouteContext, "listModels" | "resolveProviderTurnInput" | "capabilities">,
 ) {
   const scheduledTaskAttachmentManager =
     options.scheduledTaskAttachmentRepository === undefined
@@ -37,10 +38,34 @@ export async function createScheduledTasks(
       attachmentStore,
       scheduledTaskAttachmentManager,
       getProjectContext,
-      listModels,
-      resolveProviderTurnInput,
+      execution.listModels,
+      execution.resolveProviderTurnInput,
+      execution.capabilities.runtime === "acp"
+        ? async (scheduleId) => {
+            // 只有明确 ACP 运行时读取私有配置；端口缺失或读取失败不能回退旧设置。
+            if (!options.localCatalogStore)
+              throw new Error("Scheduled ACP configuration store is unavailable");
+            return options.localCatalogStore.catalog("acp.schedule.read", {
+              source: "web",
+              scheduleId,
+            });
+          }
+        : undefined,
     ),
   });
   await scheduledTaskService.start();
-  return { scheduledTaskAttachmentManager, scheduledTaskService };
+  // 新计划只装配调用式执行器；后台调度和用户创建入口后续接入。
+  const acpPlanExecutor =
+    execution.capabilities.runtime === "acp" &&
+    options.localCatalogStore &&
+    options.submissionRepository
+      ? createAcpPlanExecutor({
+          catalog: options.localCatalogStore,
+          submissions: options.submissionRepository,
+          getProjectContext,
+          resolveInput: execution.resolveProviderTurnInput,
+          resources: new AcpPlanResourceManager(options.localCatalogStore, attachmentStore),
+        })
+      : undefined;
+  return { scheduledTaskAttachmentManager, scheduledTaskService, acpPlanExecutor };
 }

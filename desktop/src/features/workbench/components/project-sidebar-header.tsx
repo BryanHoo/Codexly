@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { ProductBrand as SharedProductBrand } from "@codexly/ui/core/product-brand";
+import { productNamePreference } from "../../settings/product-name-preference.js";
 import { PanelLeftClose, Search } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -15,7 +17,7 @@ export function ProjectSidebarHeader({
 }: Readonly<{ children?: ReactNode; onClose: () => void; onSearch: () => void }>) {
   const { t } = useTranslation("workbench");
   return (
-    <div className="flex h-workbench-header items-center gap-1.5 px-3">
+    <div className="flex h-workbench-header min-w-0 items-center gap-1.5 px-3">
       <ProductBrand />
       {/* 功能图标固定在搜索左侧，导航链接由调用方保留原有项目上下文。 */}
       {children}
@@ -55,15 +57,5 @@ export function ProjectSidebarHeader({
 }
 
 export function ProductBrand() {
-  return (
-    <div className="flex min-w-0 flex-1 items-center">
-      <img
-        alt="Codexly"
-        className="h-7 w-auto max-w-full"
-        height="28"
-        src="/brand/codexly-logo.svg"
-        width="116"
-      />
-    </div>
-  );
+  return <SharedProductBrand preference={productNamePreference} />;
 }

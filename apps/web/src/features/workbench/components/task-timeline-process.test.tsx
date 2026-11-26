@@ -6,6 +6,26 @@ import { getUserMessageCopyText } from "./task-timeline-store-items.js";
 import { renderToStaticMarkup, completedTurn, snapshot } from "./task-timeline.test-support.js";
 
 describe("task timeline process", () => {
+  it("ACP 未提供 phase 时保留末次答复并折叠之前的工具和说明", () => {
+    const items: AgentItem[] = [
+      { id: "progress", type: "message", role: "assistant", text: "先检查项目" },
+      { id: "tool", type: "tool", name: "读取文件", status: "completed" },
+      { id: "reply", type: "message", role: "assistant", text: "检查完成" },
+    ];
+    expect(resolveCompletedTurnProcessItemIds(items, "completed", false, false, true)).toEqual([
+      "progress",
+      "tool",
+    ]);
+    expect(resolveCompletedTurnProcessItemIds(items, "running")).toEqual([]);
+    const markup = renderToStaticMarkup(
+      <TaskSnapshotTimeline
+        snapshot={{ ...snapshot, runtime: "acp", turns: [{ ...completedTurn, items }] }}
+      />,
+    );
+    expect(markup).toContain("检查完成");
+    expect(markup).not.toContain("先检查项目");
+    expect(markup).toContain('aria-label="展开执行过程"');
+  });
   it.each([undefined, "commentary", "partial_answer", "final_answer"] as const)(
     "folds async questions with phase %s while keeping the final answer visible",
     (phase) => {

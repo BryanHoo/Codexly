@@ -1,8 +1,13 @@
-import { useSplitInspector } from "@codexly/ui/core/split-inspector";
+import { sidebarOverlayQuery } from "@codexly/frontend-core/workbench-panel-breakpoints";
+import { useWorkbenchInspectorVisibility } from "@codexly/ui/core/split-inspector";
+import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
+import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { useLayoutEffect, useRef, useState } from "react";
 
-export const sidebarOverlayQuery = "(max-width: 760px)";
-export const inspectorOverlayQuery = "(max-width: 1100px)";
+export {
+  inspectorOverlayQuery,
+  sidebarOverlayQuery,
+} from "@codexly/frontend-core/workbench-panel-breakpoints";
 
 export const sidebarWidthLimits = { default: 288, maximum: 400, minimum: 220 } as const;
 export const inspectorWidthLimits = {
@@ -20,15 +25,24 @@ export function getInspectorMaximumWidth(shellWidth: number, sidebarWidth: numbe
 }
 
 export function useWorkbenchPanelLayout({
-  inspectorInitiallyOpen = true,
+  inspectorInitiallyOpen,
+  scopeKey = "",
   sidebarInitiallyOpen = true,
-}: Readonly<{ inspectorInitiallyOpen?: boolean; sidebarInitiallyOpen?: boolean }> = {}) {
-  const sharedInspector = useSplitInspector();
+}: Readonly<{
+  inspectorInitiallyOpen?: boolean;
+  scopeKey?: string;
+  sidebarInitiallyOpen?: boolean;
+}> = {}) {
+  const defaultOpen = useConversationDisplayPreference(
+    conversationDisplayPreferences,
+    "inspectorInitiallyOpen",
+  );
+  const { open: inspectorOpen, setOpen: setInspectorOpen } = useWorkbenchInspectorVisibility(
+    inspectorInitiallyOpen ?? defaultOpen,
+    scopeKey,
+  );
   const [sidebarOpen, setSidebarOpen] = useState(
     () => sidebarInitiallyOpen && shouldOpenDesktopPanel(sidebarOverlayQuery),
-  );
-  const [inspectorOpen, setInspectorOpen] = useState(
-    () => inspectorInitiallyOpen && shouldOpenDesktopPanel(inspectorOverlayQuery),
   );
   const [sidebarWidth, setSidebarWidth] = useState<number>(sidebarWidthLimits.default);
   const [inspectorWidth, setInspectorWidth] = useState<number>(inspectorWidthLimits.default);
@@ -65,9 +79,9 @@ export function useWorkbenchPanelLayout({
 
   return {
     inspectorMaximumWidth,
-    inspectorOpen: sharedInspector?.open ?? inspectorOpen,
+    inspectorOpen,
     inspectorWidth,
-    setInspectorOpen: sharedInspector?.setOpen ?? setInspectorOpen,
+    setInspectorOpen,
     setInspectorWidth,
     setSidebarOpen,
     setSidebarWidth,

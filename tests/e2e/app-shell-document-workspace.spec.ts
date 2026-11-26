@@ -32,6 +32,7 @@ test("多文件标签支持鼠标与触控板滚动，并自动居中选择的�
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const tree = page.getByRole("tree", { name: "项目文件" });
   for (let index = 0; index < 12; index += 1) {
     await tree
@@ -82,6 +83,7 @@ test("多文件标签支持鼠标与触控板滚动，并自动居中选择的�
 
 test("文件在中栏打开并保留右栏导航、聊天草稿与对照布局 @cross-browser", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("对照文件时保留这段草稿");
@@ -167,6 +169,7 @@ test("移动端打开文件收起覆盖层，切回聊天保留草稿 @cross-bro
 test("对照分隔条支持真实指针拖动、取消与复位 @cross-browser", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("拖动对照时保留草稿");
   await page.getByRole("treeitem", { name: "package.json", exact: true }).click();
@@ -221,6 +224,7 @@ test("文件标签拖动排序、固定和关闭菜单保护聊天 @cross-browse
     });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   const tree = page.getByRole("tree", { name: "项目文件" });
   for (const name of ["a.ts", "b.ts", "c.ts", "d.ts"])
     await tree.getByRole("treeitem", { name, exact: true }).click();
@@ -261,6 +265,9 @@ test("多任务分屏中打开文件只作用于聚焦窗口 @cross-browser", as
   const first = workspaces.nth(0);
   const second = workspaces.nth(1);
   await second.getByRole("region", { name: "聊天", exact: true }).focus();
+  const rail = page.getByRole("group", { name: "运行环境" });
+  await expect(rail).toHaveCount(1);
+  await rail.getByRole("button", { name: "项目", exact: true }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("treeitem", { name: "package.json", exact: true }).click();
   await expect(second.getByRole("tabpanel", { name: "package.json", exact: true })).toBeVisible();

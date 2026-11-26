@@ -1,4 +1,6 @@
+import { AcpSubagentItemSchema, AgentCompactionItemSchema } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
+import { AgentTurnSchema as SharedAgentTurnSchema } from "@codexly/protocol";
 
 import {
   AgentAttachmentKindSchema,
@@ -30,6 +32,7 @@ export const AgentToolItemSchema = Type.Object(
     input: Type.Optional(Type.Unknown()),
     name: Type.String({ minLength: 1 }),
     output: Type.Optional(Type.Unknown()),
+    outputAttachments: Type.Optional(Type.Array(AgentMessageAttachmentSchema, { maxItems: 128 })),
     progress: Type.Optional(Type.String({ maxLength: 8_192 })),
     status: AgentItemStatusSchema,
     type: Type.Literal("tool"),
@@ -213,6 +216,8 @@ export const AgentItemSchema = Type.Union([
   AgentReasoningItemSchema,
   AgentPlanItemSchema,
   AgentActivityItemSchema,
+  AgentCompactionItemSchema,
+  AcpSubagentItemSchema,
   AgentApprovalReviewItemSchema,
   AgentReviewItemSchema,
   AgentRuntimeStatusItemSchema,
@@ -229,6 +234,9 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 原生链路保留停止原因，并复用共享字段约束，避免两端协议漂移。
+    stopReason: SharedAgentTurnSchema.properties.stopReason,
+    acpBackground: SharedAgentTurnSchema.properties.acpBackground,
     // 与共享协议一致：无原生回复位置的命令回合不提供分叉。
     forkable: Type.Optional(Type.Boolean()),
     processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),

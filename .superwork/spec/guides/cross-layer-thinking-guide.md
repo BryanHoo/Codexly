@@ -18,4 +18,4 @@
 - [ ] 从输入 Schema 跟踪到执行、存储、事件投影和两端展示，核对取消、错误与重试。
 - [ ] 同时核对 Codex / Claude，保持原生配置、审批语义与能力差异。
 - [ ] 修改共享存储时同时检查 Node 与 Rust 实现，覆盖迁移、幂等与并发读取。
-- [ ] 运行相关协议 / Provider / 交付测试、`pnpm lint:architecture` 和两端类型检查；Codex 协议变化补充 `pnpm codex:schema:check`。
+- [ ] 运行相关协议 / Provider / 交付测试、`pnpm lint:architecture` 和两端类型检查；Codex 协议变化补充 `pnpm test:acp-host`。

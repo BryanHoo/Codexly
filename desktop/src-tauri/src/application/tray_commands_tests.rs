@@ -36,6 +36,7 @@ fn tray_projects_the_rust_owned_active_task_snapshot() {
             status: TaskActivityStatus::Running,
             task_id: "task-1".to_owned(),
             task_name: "底层任务标题".to_owned(),
+            terminal_sequence: None,
         },
         TaskActivitySnapshot {
             project_id: "project-1".to_owned(),
@@ -45,6 +46,7 @@ fn tray_projects_the_rust_owned_active_task_snapshot() {
             status: TaskActivityStatus::Completed,
             task_id: "task-2".to_owned(),
             task_name: "已完成任务".to_owned(),
+            terminal_sequence: None,
         },
     ];
 

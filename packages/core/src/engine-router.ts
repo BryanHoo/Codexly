@@ -1,3 +1,5 @@
+import { isAgentEngine } from "@codexly/protocol";
+import type { AcpConfigValues } from "@codexly/protocol";
 import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AgentEngine, AgentTask, ClaudePermissionMode } from "@codexly/protocol";
 import type {
@@ -8,13 +10,13 @@ import type {
   StartAgentTaskOptions,
 } from "./agent-provider.js";
 import type { LocalCatalogStore, LocalTask } from "./local-catalog.js";
+import { AgentTurnNotSubmittedError } from "./agent-provider.js";
 
 export type AgentExecutionAdapter = Partial<AgentProvider> &
   Pick<AgentProvider, "startTask" | "readTask" | "startTurn" | "subscribeEvents">;
 
 export function localTaskMetadata(task: LocalTask): AgentTask {
-  if (task.provider !== "codex" && task.provider !== "claude")
-    throw new Error("Unsupported task engine");
+  if (!isAgentEngine(task.provider)) throw new Error("Unsupported task engine");
   return {
     engine: task.provider,
     id: task.id,
@@ -32,7 +34,7 @@ export class EngineProjectRouter implements AgentProvider {
   readonly #listeners = new Map<AgentProviderEventListener, boolean>();
   readonly #subscriptions = new Map<
     AgentEngine,
-    { adapter: AgentExecutionAdapter; dispose: () => void }
+    { adapter: AgentExecutionAdapter; dispose: () => void; disposeEphemeral?: () => void }
   >();
   constructor(
     readonly scope: AgentTaskScope,
@@ -45,22 +47,36 @@ export class EngineProjectRouter implements AgentProvider {
   #adapter(engine: AgentEngine): AgentExecutionAdapter {
     const source = this.adapters[engine];
     const adapter = typeof source === "function" ? source() : source;
-    const subscription = this.#subscriptions.get(engine);
+    if (!adapter) throw new Error("ACP Agent 未注册");
+    let subscription = this.#subscriptions.get(engine);
     if (this.#listeners.size && subscription?.adapter !== adapter) {
       // 路由可比执行适配器存活更久；回收或断开后，先迁移订阅再调用新适配器。
       subscription?.dispose();
-      this.#subscriptions.set(engine, {
+      subscription?.disposeEphemeral?.();
+      subscription = {
         adapter,
-        dispose: adapter.subscribeEvents(
-          (event) => {
-            for (const [listener, includeEphemeral] of this.#listeners) {
-              if (!this.#ephemeral.has(event.taskId) || includeEphemeral)
-                listener({ ...event, provider: engine });
-            }
-          },
-          { includeEphemeral: true },
-        ),
-      });
+        // 普通订阅沿用底层过滤：内部生成可绕过路由创建会话，不能只依赖路由的临时任务表。
+        dispose: adapter.subscribeEvents((event) => {
+          if (this.#ephemeral.has(event.taskId)) return;
+          for (const [listener, includeEphemeral] of this.#listeners)
+            if (!includeEphemeral) listener({ ...event, provider: engine });
+        }),
+      };
+      this.#subscriptions.set(engine, subscription);
+    }
+    // 仅有内部消费者时才额外订阅临时事件；独立派发以免普通任务事件重复送达。
+    if (
+      subscription &&
+      !subscription.disposeEphemeral &&
+      [...this.#listeners.values()].some(Boolean)
+    ) {
+      subscription.disposeEphemeral = adapter.subscribeEvents(
+        (event) => {
+          for (const [listener, includeEphemeral] of this.#listeners)
+            if (includeEphemeral) listener({ ...event, provider: engine });
+        },
+        { includeEphemeral: true },
+      );
     }
     return adapter;
   }
@@ -92,8 +108,7 @@ export class EngineProjectRouter implements AgentProvider {
     const ephemeral = this.#ephemeral.get(id);
     if (ephemeral) return this.#engineMethod(ephemeral, key);
     const task = await this.#task(id);
-    if (task.provider !== "codex" && task.provider !== "claude")
-      throw new Error("Unsupported task engine");
+    if (!isAgentEngine(task.provider)) throw new Error("Unsupported task engine");
     return this.#engineMethod(task.provider, key);
   }
 
@@ -165,6 +180,12 @@ export class EngineProjectRouter implements AgentProvider {
   }
 
   #disposeSubscriptions(): void {
+    if (![...this.#listeners.values()].some(Boolean)) {
+      for (const subscription of this.#subscriptions.values()) {
+        subscription.disposeEphemeral?.();
+        delete subscription.disposeEphemeral;
+      }
+    }
     if (this.#listeners.size) return;
     for (const subscription of this.#subscriptions.values()) subscription.dispose();
     this.#subscriptions.clear();
@@ -173,14 +194,25 @@ export class EngineProjectRouter implements AgentProvider {
   async updateTaskPermissionMode(id: string, mode: ClaudePermissionMode) {
     return (await this.#method(id, "updateTaskPermissionMode"))(id, mode);
   }
+  async readSessionConfiguration(id: string) {
+    return (await this.#method(id, "readSessionConfiguration"))(id);
+  }
+  async cancelBackground(...args: Parameters<NonNullable<AgentProvider["cancelBackground"]>>) {
+    return (await this.#method(args[0], "cancelBackground"))(...args);
+  }
+  async readSessionState(id: string) {
+    return (await this.#method(id, "readSessionState"))(id);
+  }
+  async setSessionConfiguration(id: string, configId: string, value: string | boolean) {
+    return (await this.#method(id, "setSessionConfiguration"))(id, configId, value);
+  }
   async readTask(...args: Parameters<AgentProvider["readTask"]>) {
     return (await this.#method(args[0], "readTask"))(args[0], args[1]);
   }
   async startTurn(...args: Parameters<AgentProvider["startTurn"]>) {
     if (this.#ephemeral.has(args[0])) return (await this.#method(args[0], "startTurn"))(...args);
     const task = await this.#task(args[0]);
-    if (task.provider !== "codex" && task.provider !== "claude")
-      throw new Error("Unsupported task engine");
+    if (!isAgentEngine(task.provider)) throw new Error("Unsupported task engine");
     if (task.provider === "codex" && !task.title && !task.preview) {
       const input = args[1];
       const preview =
@@ -194,6 +226,19 @@ export class EngineProjectRouter implements AgentProvider {
         await this.store.catalog("task.preview", { id: task.id, preview: preview.slice(0, 2048) });
     }
     return this.#engineMethod(task.provider, "startTurn")(...args);
+  }
+  async startConfiguredTurn(
+    taskId: string,
+    input: Parameters<AgentProvider["startTurn"]>[1],
+    initialConfig?: AcpConfigValues,
+  ) {
+    const execute = await this.#method(taskId, "startConfiguredTurn").catch((cause: unknown) => {
+      // 路由和端口解析失败发生在 prompt 前；进入执行端后的错误不能在这里重分类。
+      throw new AgentTurnNotSubmittedError("ACP 任务执行端口不可用", { cause });
+    });
+    return initialConfig === undefined
+      ? execute(taskId, input)
+      : execute(taskId, input, initialConfig);
   }
   async stopSession(taskId: string, backgroundTaskId?: string) {
     return (await this.#method(taskId, "stopSession"))(taskId, backgroundTaskId);

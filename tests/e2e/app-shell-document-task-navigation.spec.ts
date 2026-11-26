@@ -42,7 +42,7 @@ for (const width of [1440, 390]) {
       });
     });
     await page.goto("/p/codexly/t/task-1");
-    if (width < 760) await page.getByRole("button", { name: "展开上下文面板" }).click();
+    await page.getByRole("button", { name: "展开上下文面板" }).click();
     await page.getByRole("treeitem", { name: "package.json", exact: true }).click();
     const workspace = page.locator("[data-document-workspace]");
     const content = workspace.locator(".cm-content");

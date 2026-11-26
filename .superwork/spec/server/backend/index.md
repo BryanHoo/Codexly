@@ -10,6 +10,8 @@
 - [ ] `better-sqlite3` 同步 I/O 放入独立 `worker_threads` Worker，主线程不直接访问数据库；业务数据统一位于 `~/.codexly`，遵循共享 Schema 与迁移契约。
 - [ ] HTTP / WebSocket 交付遵循 Protocol，保留认证、目录权限、幂等和取消清理；事件按增量发送，保持背压与有界保留，避免逐 token 触发历史或统计 I/O。
 - [ ] 文件读取与条件保存遵循 [文本编辑契约](../../../../docs/text-file-editing.md)；Git 动作遵循 [Git 工作流](../../../../docs/git-workflow.md)，写锁、快照校验和幂等边界不能被路由拆分绕过。
+- [ ] Git 状态快照须覆盖 HEAD、分支、暂存对象与模式以及变更文件元数据。porcelain v2 的 NUL 记录须保留完整文件路径和对象信息，提交前重新读取并校验快照。Git 工作流回归覆盖相同状态码下替换索引对象、改变索引模式和移动 HEAD。
+- [ ] Web Git 提交接受状态列表中的完整文件选择，提交请求与状态读取共用文件数上限。Git 通过标准输入接收批量写入路径，并按字节分批读取暂存对象，最终创建一个提交。回归覆盖 800 个长路径以及未勾选的暂存文件。
 - [ ] 本地任务目录和搜索分别遵循 [本地目录与任务](../../../../docs/local-catalog.md)、[全局搜索](../../../../docs/global-search.md)。
 - [ ] 执行 `pnpm exec vitest run packages/server/src`、`pnpm typecheck`、`pnpm lint:architecture`，补充受影响 Client / CLI 用例；性能变化运行 `pnpm test:performance`，完整根门槛为 `pnpm check`。
 
@@ -23,7 +25,7 @@
 - `GET /v1/diagnostics` 沿用全局访问认证，局域网模式要求有效配对 Cookie；响应为 `DiagnosticsResponseSchema`，设置 `Cache-Control: no-store`，不触发外部版本查询。
 - 每个服务实例只保留最近 2000 条、合计最多 2 MiB 的结构化日志白名单投影，包含错误码/指纹与关联 ID，排除正文、原始请求、凭据及任意异常附加字段；默认不向终端 stdout/stderr 输出，仅在显式提供 `logDestination` 时同步写入该目的地。关闭实例时释放缓存，快照暴露淘汰计数。日志仅驻留内存，不读取任意宿主文件。
 - 回归入口：`packages/server/src/diagnostics.test.ts`、`packages/server/src/app-diagnostics.test.ts` 与 `packages/client/src/http-client-diagnostics.test.ts`。
-- `POST /v1/diagnostics/codex` 将有界应用快照与 `feedback/save` 生成的原生 ZIP 合并成一个临时 ZIP；只使用私有临时目录内的全新绝对路径，校验原生结果路径、普通文件、ZIP 签名及 256 MiB 上限。原生不可用时在清单明确标注，不上传反馈、不接受任意宿主读取参数。
+- `POST /v1/diagnostics/archive` 将有界应用快照写入私有临时 ZIP，清单标明 ACP 运行时。下载标识绑定创建者且只能领取一次。
 - `GET /v1/diagnostics/downloads/:downloadId` 复用全局配对认证，随机标识绑定创建会话、一次领取、5 分钟失效，响应禁止缓存。生成中、待领取及传输中的归档合计最多 2 份；通过流传输，完成、断连、到期、生成失败及关闭时清理临时文件。POST 正文正常结束也会关闭请求流，不能把它误认为响应连接断开。
 - 受控下载与真实 HTTP 回归入口：`packages/server/src/codex-diagnostics.test.ts`；两端操作与原生不可用状态见 [诊断文档](../../../../desktop/docs/diagnostics.md)。
 
@@ -37,3 +39,15 @@
 
 - 公开聊天路由 `/v1/temporary/open-capabilities` 与 `/v1/temporary/open` 共用项目宿主应用服务。聊天不要求项目根查询参数，基准目录由服务端聊天作用域确定，不能用客户端 `rootPath` 替换；普通项目仍要求显式有效项目根。能力探测不得创建聊天运行时或订阅引擎事件。保留宿主能力访问限制、幂等和错误映射。
 - 回归入口：`app-chat-quick-open.test.ts` 覆盖公开路由、目录解析、幂等与未知项目拒绝；`app-runtime.test.ts` 和 `app-security.test.ts` 覆盖项目和访问边界。
+
+## ACP 模型预览取消与错误
+
+- 模型草稿预览与辅助生成共用响应流取消边界，正常 POST 正文结束不得取消；客户端响应连接关闭或超时才取消，处理结束释放监听和计时器。启用生产 handlerTimeout 的真实 HTTP 回归不能用关闭超时的 inject 测试替代。
+- `/v1/temporary/acp/{codex|claude}/preview` 复用项目 ACP 授权和预览处理，不把客户端传入的任意路径交给 Agent。
+- 预览超时使用可重试 `PROVIDER_ERROR`；Protocol 的 mutation 错误枚举包含服务端兜底 `INTERNAL_ERROR`，客户端不能把正常结构的 HTTP 500 二次误报为协议不匹配。
+- 回归入口：`acp-preview.test.ts`（真实 HTTP、超时、断连、聊天/项目）、`temporary-task-routing.test.ts` 与客户端 `http-client-acp.test.ts`。
+
+## 启动与调度锁隔离
+
+- Web SQLite 初始化使用独立的 `state.sqlite3.startup-lock` 事务互斥；运行时定时任务继续使用 `state.sqlite3.scheduled-lock`。不能让新实例的 Schema 初始化等待另一实例跨异步操作持有的调度锁，也不能通过删除锁文件或终止其他实例解决竞争。
+- 回归 `scheduled-task-multi-instance.test.ts` 必须在已有实例持有调度锁时启动第二实例，并确认启动成功、业务调度仍然互斥、释放后可继续领取；原生 SQLite 进程锁在进程退出时自动释放。

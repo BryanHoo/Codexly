@@ -8,11 +8,12 @@ import {
 import { resolveGlobalSettings } from "./global-settings-reader.js";
 import { LocalFileSearchService } from "./local-file-search.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
-import { registerEngineRoutes } from "./routes/engine-routes.js";
+import { registerAgentServiceRoutes } from "./routes/agent-service-routes.js";
 import { WorkbenchChanges } from "./workbench-changes.js";
 import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
 import type {
   AgentGlobalSettings,
+  AgentEngine,
   AgentModel,
   AgentProjectDefaults,
   AgentTaskSettings,
@@ -76,7 +77,7 @@ import { createScheduledTasks } from "./scheduled-task-assembly.js";
 import { configureServerDelivery } from "./server-delivery.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
 import { runSingleFlight } from "./single-flight.js";
-import { registerCodexDiagnosticRoutes } from "./codex-diagnostics.js";
+import { registerDiagnosticArchiveRoutes } from "./diagnostic-archive.js";
 import { resolveTaskScope } from "./task-scope.js";
 import { rewriteTemporaryTaskUrl } from "./temporary-task-routing.js";
 import {
@@ -260,9 +261,7 @@ export async function createCodexlyServer(
     },
     release: (projectId) => releaseProjectContext(projectId, true),
   });
-  const listModels = async (
-    engine: "codex" | "claude" = "codex",
-  ): Promise<readonly AgentModel[]> => {
+  const listModels = async (engine: AgentEngine = "codex"): Promise<readonly AgentModel[]> => {
     if (engine === "codex") return (await modelCatalogCache.read()).data;
     const service = options.provider.engines?.[engine];
     if (!service) throw new Error("Claude engine is unavailable");
@@ -270,22 +269,20 @@ export async function createCodexlyServer(
   };
   const readEffectiveGlobalSettings = async (
     models?: readonly AgentModel[],
-    engine: "codex" | "claude" = "codex",
+    engine: AgentEngine = "codex",
   ): Promise<AgentGlobalSettings> => {
     const catalog = models ?? (await listModels(engine));
     const stored = await options.settingsRepository.readGlobalSettings();
     // Codex 是智能体默认值的来源；本地记录仅补齐未配置字段与应用专属偏好。
     const runtimeDefaults = engine === "codex" ? await options.provider.readDefaultSettings() : {};
     const generation = await options.provider.readGenerationDefaults?.(stored);
-    return {
-      ...resolveGlobalSettings(
-        catalog,
-        stored,
-        runtimeDefaults,
-        engine === "claude" && !stored?.defaultAgent ? ["claude"] : ["codex", "claude"],
-      ),
-      ...generation,
-    };
+    return resolveGlobalSettings(
+      catalog,
+      stored,
+      runtimeDefaults,
+      engine === "claude" && !stored?.defaultAgent ? ["claude"] : ["codex", "claude"],
+      generation,
+    );
   };
   const readEffectiveProjectDefaults = async (
     projectId: string,
@@ -363,8 +360,7 @@ export async function createCodexlyServer(
     options,
     attachmentStore,
     getProjectContext,
-    listModels,
-    resolveProviderTurnInput,
+    { listModels, resolveProviderTurnInput, capabilities },
   );
   const activeGitMutations = new Set<string>();
   const taskStartRecoveries = new Map<string, TaskStartRecovery>();
@@ -406,6 +402,7 @@ export async function createCodexlyServer(
     attachmentStore,
     buildCommitMessagePrompt,
     capabilities,
+    localCatalogStore: options.localCatalogStore,
     commitProjectChanges,
     pushProjectCommits: options.pushProjectCommits ?? pushProjectCommits,
     createProjectBranch: options.createProjectBranch ?? gitBranch.createProjectBranch,
@@ -474,10 +471,10 @@ export async function createCodexlyServer(
   });
   registerDiagnosticRoutes(app, diagnosticLogs);
   registerNetworkProxyRoutes(app, options.networkProxyDirectory);
-  registerCodexDiagnosticRoutes(app, options.provider);
+  registerDiagnosticArchiveRoutes(app);
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerPromptOptimizationRoutes, routeContext);
-  await app.register(registerEngineRoutes, routeContext);
+  await registerAgentServiceRoutes(app, routeContext, options.acpAgents);
   await app.register(registerPersonalizationRoutes, routeContext);
   await app.register(registerHistoryStorageRoutes(options.localCatalogStore), routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);

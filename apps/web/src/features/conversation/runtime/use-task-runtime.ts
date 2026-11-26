@@ -1,3 +1,4 @@
+import type { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
 import { bindTaskRuntime } from "@codexly/frontend-core/task-runtime-binding";
 import type { AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { loadTaskHistory } from "@codexly/frontend-core/task-history-page";
@@ -20,6 +21,7 @@ const taskStoreRegistry = createTaskStoreRegistry({ maxRetainedStores: 20 });
 const emptyTaskStore = createTaskStore({ projectId: "", taskId: "" });
 
 export type TaskRuntimeView = Readonly<{
+  writeAccess?: "checking" | "writable" | "external" | undefined;
   activeTurnId: string | undefined;
   connectionState: "closed" | "connected" | "connecting" | "reconnecting";
   error: Error | null;
@@ -38,6 +40,7 @@ export function useTaskRuntime(
   projectId: string,
   taskId: string | undefined,
   projectRuntime: ProjectRuntimeManager,
+  RateSampler?: typeof TurnOutputRates,
 ): TaskRuntimeView {
   const queryClient = useQueryClient();
   const client = projectRuntime.client;
@@ -75,11 +78,15 @@ export function useTaskRuntime(
       return;
     }
     const acquiredStore = taskStoreRegistry.acquire(projectId, taskId);
+    // 在订阅事件流前开始采样，保留视图挂载前到达的首批正文。
+    if (RateSampler !== undefined) {
+      acquiredStore.getState().turnOutputRates.current ??= new RateSampler();
+    }
     setStore(acquiredStore);
     return () => {
       taskStoreRegistry.release(projectId, taskId);
     };
-  }, [projectId, taskId]);
+  }, [projectId, taskId, RateSampler]);
 
   useEffect(() => {
     if (store === undefined || taskId === undefined) {
@@ -161,10 +168,16 @@ export function useTaskRuntime(
       }
     }
   }, [activeRuntime, client, projectId, taskId, turnsNextCursor]);
+  const storedWriteAccess = useStore(
+    activeRuntime ?? emptyTaskStore,
+    (state) => state.snapshotMetadata?.writeAccess,
+  );
   const hasHydratedSnapshot = activeRuntime?.getState().snapshotMetadata !== null;
   const taskQueryError = taskQueryState.scope === taskScope ? taskQueryState.error : null;
   const taskQueryPending =
     taskId !== undefined && (taskQueryState.scope !== taskScope || taskQueryState.isPending);
+  // 权限确认期间保留缓存历史，但先禁用发送，避免旧可写状态绕过本次检查。
+  const writeAccess = taskQueryPending ? "checking" : storedWriteAccess;
   const error =
     activeRuntime === undefined || !hasHydratedSnapshot
       ? taskQueryError
@@ -185,6 +198,7 @@ export function useTaskRuntime(
   return useMemo(
     () => ({
       activeTurnId,
+      writeAccess,
       connectionState: activeRuntime === undefined ? "connecting" : connectionState,
       error,
       hasOlderHistory: turnsNextCursor !== null,
@@ -199,6 +213,7 @@ export function useTaskRuntime(
     }),
     [
       activeRuntime,
+      writeAccess,
       activeTurnId,
       connectionState,
       error,

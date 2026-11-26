@@ -1,3 +1,4 @@
+import { ActiveTaskSnapshotRecoveryController } from "@codexly/frontend-core/task-snapshot-recovery";
 import { CodexlyEventError, type AgentEventConnectionState } from "@codexly/client";
 import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@codexly/protocol";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -15,10 +16,7 @@ import {
   type RecoverTaskSnapshot,
 } from "./project-runtime-history.js";
 
-import {
-  ActiveTaskSnapshotRecoveryController,
-  TaskEventTarget,
-} from "./project-runtime-recovery.js";
+import { TaskEventTarget } from "./project-runtime-recovery.js";
 import { TaskUnsubscribeRetryController } from "./task-unsubscribe-retry.js";
 
 type ProjectRuntimeCallbacks = Readonly<{
@@ -66,6 +64,9 @@ export class ProjectEventRuntime {
       (_taskId, response) => {
         this.#callbacks.onSnapshot(response);
       },
+      (error) => {
+        recordInternalWarning("snapshot_recovery_failed", error);
+      },
     );
     this.#taskUnsubscribe = new TaskUnsubscribeRetryController(
       projectId,
@@ -100,6 +101,8 @@ export class ProjectEventRuntime {
       this.#disposed ||
       projectId !== this.#projectId ||
       snapshotMetadata === null ||
+      // 离开后订阅可能已经释放；缓存的可写或只读状态都不能代替当前写入权。
+      snapshotMetadata.writeAccess !== undefined ||
       checkpoint === null ||
       this.#connectionState !== "connected" ||
       this.#snapshotRecoveryRequired ||

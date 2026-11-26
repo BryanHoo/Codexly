@@ -9,7 +9,6 @@ import {
   projectLanguageByFileName,
 } from "../../shared/components/agent/code-languages.js";
 import type { AgentFileChange } from "./file-change.js";
-import { normalizeFileChangePatch } from "./file-change.js";
 
 configureDiffLanguages(projectLanguageByExtension, projectLanguageByFileName);
 
@@ -20,7 +19,8 @@ export default function PatchDiffViewer({ change }: Readonly<{ change: AgentFile
       unavailableLabel={t("diff.previewUnavailable")}
       emptyLabel={t("diff.noTextChanges")}
       path={change.path}
-      patch={change.diff === "" ? "" : normalizeFileChangePatch(change)}
+      kind={change.kind}
+      patch={change.diff}
     />
   );
 }

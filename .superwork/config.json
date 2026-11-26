@@ -48,8 +48,8 @@
       "layers": ["backend"]
     },
     {
-      "name": "provider-claude",
-      "path": "packages/provider-claude",
+      "name": "provider-acp",
+      "path": "packages/provider-acp",
       "layers": ["backend"]
     },
     {
@@ -69,7 +69,6 @@
     "pnpm lint",
     "pnpm lint:architecture",
     "pnpm typecheck",
-    "pnpm codex:schema:check",
     "pnpm test:performance",
     "pnpm build",
     "pnpm bundle:check",
@@ -77,7 +76,7 @@
     "pnpm check",
     "pnpm test:e2e",
     "pnpm test:performance:browser",
-    "pnpm test:claude-host",
+    "pnpm test:acp-host",
     "pnpm --dir desktop test:run",
     "pnpm --dir desktop test:browser",
     "pnpm --dir desktop check:web",

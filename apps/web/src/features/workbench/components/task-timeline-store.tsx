@@ -1,3 +1,8 @@
+import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
+import {
+  AcpSubagentTranscripts,
+  splitAcpSubagentItems,
+} from "@codexly/ui/agent/acp-subagent-transcript";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
 import { StorePendingRequestList } from "./task-timeline-pending-requests.js";
@@ -30,13 +35,16 @@ import type { PendingRequestResolution } from "./pending-request.js";
 
 import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
-import { TaskTimelinePagination } from "./task-timeline-pagination.js";
 import { getTaskTimelineNavigationItems } from "./task-timeline-navigation.js";
 import { TaskTimelineSearchNavigation } from "./task-timeline-search-navigation.js";
 import { StoreTaskNoticeList } from "./task-timeline-notices.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
 import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
-import { StoredUserMessage, groupStoredTurnTimelineItems } from "./task-timeline-store-items.js";
+import {
+  StoredTimelineItemContent,
+  StoredUserMessage,
+  groupStoredTurnTimelineItems,
+} from "./task-timeline-store-items.js";
 import { TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 
 // 分组成员引用稳定后，父时间线的结构更新不会再触发未变化历史的正文与文件变更聚合。
@@ -81,15 +89,20 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     store,
     useShallow((state) => sourceIds.map((id) => state.itemKeysByTurnId[id])),
   );
-  const itemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
+  const allItemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
   const turn = useMemo(() => mergeTimelineTurns(sourceTurns), [sourceTurns]);
   const independentFileDiffs = useConversationDisplayPreference(
     conversationDisplayPreferences,
     "independentFileDiffs",
   );
   const [processExpanded, setProcessExpanded] = useState(false);
-  if (turn === undefined) return null;
   const itemStoresByKey = store.getState().itemStoresByKey;
+  const { rootKeys: itemKeys, transcripts } = useMemo(
+    () => splitAcpSubagentItems(allItemKeys, (key) => itemStoresByKey.get(key)?.peek()),
+    [allItemKeys, itemStoresByKey],
+  );
+  if (turn === undefined) return null;
+  const rootKeys = new Set(itemKeys);
   const processTurns = sourceTurns.filter(
     (source) => source.processCursor !== undefined && source.status !== "running",
   );
@@ -97,13 +110,16 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   const processItemKeys = new Set<string>();
   const paginatedProcessItemKeys = new Set<string>();
   sourceTurns.forEach((source, index) => {
-    const keys = store.getState().itemKeysByTurnId[source.id] ?? [];
+    const keys = (store.getState().itemKeysByTurnId[source.id] ?? []).filter((key) =>
+      rootKeys.has(key),
+    );
     const processIds = new Set(
       resolveCompletedTurnProcessItemIds(
         keys.flatMap((key) => itemStoresByKey.get(key)?.peek() ?? []),
         source.status,
         hasNextSubmission || index < sourceTurns.length - 1,
         independentFileDiffs,
+        store.getState().snapshotMetadata?.runtime === "acp",
       ),
     );
     for (const key of keys) {
@@ -170,6 +186,23 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           />
         ),
       )}
+      <AcpSubagentTranscripts
+        transcripts={transcripts}
+        label={(index) => i18n.t("subagent.defaultName", { ns: "conversation", index })}
+        renderItem={(itemKey) => (
+          <StoredTimelineItemContent
+            key={itemKey}
+            itemKey={itemKey}
+            isLastTurnItem={false}
+            onOpenFileDiff={onOpenFileDiff}
+            onOpenSourceFile={onOpenSourceFile}
+            projectId={projectId}
+            store={store}
+            taskId={taskId}
+            turnStatus={turn.status}
+          />
+        )}
+      />
       {/* 引导或问答答案会让用户消息成为尾组；运行提示应接在该消息后，不能依赖历史助手组是否存在。 */}
       {turn.status === "running" &&
       timelineGroups.at(-1)?.type !== "assistant" &&
@@ -268,8 +301,7 @@ export function TaskStoreTimeline({
   pendingPrompt?: PendingPrompt;
   searchTarget?: HistoryAnchor;
 }>) {
-  const projectId = store.getState().projectId;
-  const taskId = store.getState().taskId;
+  const { projectId, taskId } = store.getState();
   const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
@@ -397,6 +429,7 @@ export function TaskStoreTimeline({
                   error={olderHistoryError}
                   isLoading={isLoadingOlderHistory}
                   onLoad={onLoadOlderHistory}
+                  t={(key) => i18n.t(key, { ns: "conversation" })}
                 />
               ),
             }

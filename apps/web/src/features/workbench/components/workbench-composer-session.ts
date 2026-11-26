@@ -66,7 +66,7 @@ type ComposerSessionOptions = Readonly<{
   projectToolsEnabled: boolean;
   projectTodos: ProjectTodoStore;
   runtime: TaskRuntimeView | undefined;
-  settings: AgentTaskSettings;
+  settings: AgentTaskSettings | undefined;
   skills: readonly AgentSkill[];
   taskId: string | undefined;
 }>;
@@ -93,7 +93,7 @@ export function useComposerSession({
 }: ComposerSessionOptions) {
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
   // Git 与文件异步操作绑定当前根；切换根后旧请求不得更新新根的 Composer 状态。
-  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}:${settings.engineOptions?.engine ?? "codex"}`;
+  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}:${runtime?.metadata?.engine ?? settings?.engineOptions?.engine ?? "codex"}`;
   const composerDraftStore = useComposerDraftStore();
   const composerDraftBinding = useMemo(
     () =>
@@ -110,7 +110,7 @@ export function useComposerSession({
   const initialComposerDraft = initialDraft ?? composerDraftBinding.read();
   const [settingsOverride, setSettingsOverride] = useState<{
     scope: string;
-    settings: AgentTaskSettings;
+    settings: AgentTaskSettings | undefined;
   }>();
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
   const [attachments, setAttachments] = useState<readonly PromptInputAttachment[]>(
@@ -165,18 +165,18 @@ export function useComposerSession({
   const { canInterrupt, canSubmit, canSteer } = deriveComposerActions(
     capabilities,
     activeTaskId !== undefined,
+    runtime?.metadata?.acpSession?.canSteer,
   );
-  const connectionState = runtime?.connectionState ?? "connected";
   const state = deriveComposerState({
     activeTurnId,
-    connectionState,
+    connectionState: runtime?.connectionState ?? "connected",
     isSubmitting,
     mutationFailed: mutationError !== null || runtime?.error !== null,
   });
-  const promptSubmission = toPromptSkillSubmission(promptContent);
   const threadConfiguration = runtime?.metadata?.threadConfiguration;
   const activeSettings = useMemo(
     () =>
+      settings &&
       resolveThreadComposerSettings(
         settings,
         threadConfiguration,
@@ -186,12 +186,12 @@ export function useComposerSession({
   );
   const composerMode = composerModeState?.scope === routeScope ? composerModeState.mode : undefined;
   const selectedModel =
-    models.find((model) => model.id === activeSettings.model) ??
+    models.find((model) => model.id === activeSettings?.model) ??
     models.find((model) => model.isDefault) ??
     models[0];
   const selectedReasoningEffort = resolveReasoningEffort(
     selectedModel,
-    activeSettings.reasoningEffort,
+    activeSettings?.reasoningEffort ?? "",
   );
   const contextUsage = runtime?.metadata?.contextUsage;
   const promptHistoryEntries = useMemo(
@@ -201,9 +201,8 @@ export function useComposerSession({
         : collectPromptHistoryEntriesFromTaskStore(runtime.store.getState(), skills),
     [runtime, skills],
   );
-  const attachmentCount = attachments.length;
   const { attachmentsDisabled, draftInputDisabled, turnControlsDisabled } =
-    deriveComposerInputAvailability(state);
+    deriveComposerInputAvailability(state, runtime?.writeAccess);
   const fileSearch = useProjectFileSearch(
     client,
     projectId,
@@ -215,7 +214,8 @@ export function useComposerSession({
   const { filteredCommands, filteredSkills } = usePromptSuggestions(
     getPromptCommandItems({
       projectToolsEnabled,
-      ...(engineCommands === undefined ? {} : { engineCommands }),
+      acpCommands: runtime?.metadata?.acpSession?.availableCommands,
+      engineCommands,
     }),
     capabilities?.skills.use === true ? skills : [],
     commandQuery,
@@ -428,7 +428,7 @@ export function useComposerSession({
     activeSettings,
     activeTaskId,
     activeTurnId,
-    attachmentCount,
+    attachmentCount: attachments.length,
     attachmentPickerKind,
     attachments,
     attachmentsDisabled,
@@ -446,7 +446,7 @@ export function useComposerSession({
     commandSurfaceRef,
     composerController,
     composerScope,
-    connectionState,
+    connectionState: runtime?.connectionState ?? "connected",
     contextUsage,
     draftInputDisabled,
     filteredCommands,
@@ -466,7 +466,7 @@ export function useComposerSession({
     pendingTask,
     composerMode,
     promptContent,
-    promptSubmission,
+    promptSubmission: toPromptSkillSubmission(promptContent),
     referenceProjectPath,
     replacePromptContent,
     reviewMenuMode,

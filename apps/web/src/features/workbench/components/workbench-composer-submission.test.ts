@@ -138,6 +138,23 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
 }
 
 describe("createComposerSubmission", () => {
+  it("ACP 使用当前会话发送，不依赖旧模型和思考档位", async () => {
+    const send = vi.fn(() => Promise.resolve({ taskId: "task-1", turn, checkpoint }));
+    const h = createHarness({
+      taskId: "task-1",
+      activeTaskId: "task-1",
+      promptContent: createPromptSkillContent("继续"),
+      selectedModel: undefined,
+      selectedReasoningEffort: undefined,
+      acp: { controls: null, isBusy: false, submit: send },
+    });
+    expect(await h.submit({ files: [], text: "继续" })).toBe(true);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "继续" }),
+      expect.any(String),
+    );
+    expect(h.submitTask).not.toHaveBeenCalled();
+  });
   it("clears an immediate prompt before the server responds and restores it on rejection", async () => {
     let rejectSubmission: ((error: Error) => void) | undefined;
     const submitTask = vi.fn(

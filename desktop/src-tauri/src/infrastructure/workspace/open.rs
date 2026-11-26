@@ -190,44 +190,6 @@ pub async fn open_path(app_id: &str, path: &Path) -> Result<(), WorkspaceError> 
         .ok_or(WorkspaceError::InvalidPath)
 }
 
-pub async fn reveal_path(path: &Path) -> Result<(), WorkspaceError> {
-    if !path.is_file() {
-        return Err(WorkspaceError::InvalidPath);
-    }
-    let mut command = reveal_command(path)?;
-    if cfg!(target_os = "windows") {
-        command.spawn()?;
-        return Ok(());
-    }
-    command
-        .status()
-        .await?
-        .success()
-        .then_some(())
-        .ok_or(WorkspaceError::InvalidPath)
-}
-
-#[cfg(target_os = "macos")]
-fn reveal_command(path: &Path) -> Result<Command, WorkspaceError> {
-    let mut command = Command::new("open");
-    command.arg("-R").arg(path);
-    Ok(command)
-}
-
-#[cfg(target_os = "linux")]
-fn reveal_command(path: &Path) -> Result<Command, WorkspaceError> {
-    let mut command = Command::new("xdg-open");
-    command.arg(path.parent().ok_or(WorkspaceError::InvalidPath)?);
-    Ok(command)
-}
-
-#[cfg(target_os = "windows")]
-fn reveal_command(path: &Path) -> Result<Command, WorkspaceError> {
-    let mut command = Command::new("explorer");
-    command.arg("/select,").arg(path);
-    Ok(command)
-}
-
 fn should_wait_for_exit(platform: &str, app_id: &str) -> bool {
     platform != "windows" || !matches!(app_id, "system-default" | "explorer" | "command-prompt")
 }

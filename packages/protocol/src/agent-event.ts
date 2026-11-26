@@ -1,6 +1,7 @@
 import { Type, type Static, type TProperties, type TSchema } from "@sinclair/typebox";
 
 import { ClaudePermissionModeSchema } from "./agent-engine.js";
+import { AcpSessionUpdatedEventSchema } from "./acp-session.js";
 import { EventCheckpointSchema } from "./event-checkpoint.js";
 export { EventCheckpointSchema, type EventCheckpoint } from "./event-checkpoint.js";
 import {
@@ -8,6 +9,7 @@ import {
   CommandOutputDeltaEventSchema,
   GoalClearedEventSchema,
   MessageDeltaEventSchema,
+  CompactionSummaryDeltaEventSchema,
   PlanDeltaEventSchema,
   ProjectGitMetadataChangedEventSchema,
   ProviderErrorEventSchema,
@@ -23,6 +25,7 @@ export {
   CommandOutputDeltaEventSchema,
   GoalClearedEventSchema,
   MessageDeltaEventSchema,
+  CompactionSummaryDeltaEventSchema,
   PlanDeltaEventSchema,
   ProjectGitMetadataChangedEventSchema,
   ProviderErrorEventSchema,
@@ -138,6 +141,15 @@ export const ItemStartedEventSchema = createEventSchema({
   type: Type.Literal("item.started"),
 });
 
+export const AcpBackgroundUpdatedEventSchema = createEventSchema({
+  payload: Type.Object(
+    { startedAt: Type.String(), completedAt: Type.Union([Type.String(), Type.Null()]) },
+    { additionalProperties: false },
+  ),
+  turnId: Type.String({ minLength: 1 }),
+  type: Type.Literal("acp.background.updated"),
+});
+
 export const TurnCompletedEventSchema = createEventSchema({
   payload: Type.Object({ turn: AgentTurnSchema }, { additionalProperties: false }),
   turnId: Type.String({ minLength: 1 }),
@@ -145,7 +157,14 @@ export const TurnCompletedEventSchema = createEventSchema({
 });
 
 export const UsageUpdatedEventSchema = createEventSchema({
-  payload: Type.Object({ usage: AgentContextUsageSchema }, { additionalProperties: false }),
+  payload: Type.Object(
+    {
+      usage: AgentContextUsageSchema,
+      // 仅供实时速率取样，计数从当前前台回合开始累计。
+      outputTokens: Type.Optional(Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })),
+    },
+    { additionalProperties: false },
+  ),
   turnId: Type.String({ minLength: 1 }),
   type: Type.Literal("usage.updated"),
 });
@@ -187,8 +206,11 @@ export const PendingRequestExpiredEventSchema = createPendingRequestEventSchema(
 );
 
 export const AgentEventSchema = Type.Union([
+  AcpSessionUpdatedEventSchema,
+  AcpBackgroundUpdatedEventSchema,
   TurnStartedEventSchema,
   MessageDeltaEventSchema,
+  CompactionSummaryDeltaEventSchema,
   ReasoningDeltaEventSchema,
   CommandOutputDeltaEventSchema,
   PlanDeltaEventSchema,

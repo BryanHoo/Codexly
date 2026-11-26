@@ -1,8 +1,10 @@
+import type { AgentEngine } from "@codexly/protocol";
 import type { CreateProjectFileRequest, CreateProjectFileResponse } from "@codexly/protocol";
 import type {
   AsyncQuestionRepository,
   ProjectTodoRepository,
   TaskSubmissionRepository,
+  LocalCatalogStore,
 } from "@codexly/core";
 import type {
   AgentFileSearchProvider,
@@ -123,6 +125,7 @@ export type TaskStartRecovery = Readonly<{
 }>;
 
 export interface ServerRouteContext {
+  readonly localCatalogStore?: LocalCatalogStore | undefined;
   readonly websocketLifecycle: WebSocketLifecycle;
   readonly workbenchChanges: WorkbenchChanges;
   readonly projectTodoRepository?: ProjectTodoRepository;
@@ -162,7 +165,7 @@ export interface ServerRouteContext {
   readonly fingerprintPayload: (payload: unknown) => string;
   readonly idempotencyCacheSize: number;
   readonly installAppUpdate: (version: string) => Promise<InstallAppUpdateResponse>;
-  readonly listModels: (engine?: "codex" | "claude") => Promise<readonly AgentModel[]>;
+  readonly listModels: (engine?: AgentEngine) => Promise<readonly AgentModel[]>;
   readonly maximumAttachmentBytes: (kind: AgentAttachmentKind) => number;
   readonly modelCatalogCache: Readonly<{
     clear: () => void;
@@ -179,7 +182,7 @@ export interface ServerRouteContext {
   readonly providerConnectionRepository: AgentProviderConnectionRepository;
   readonly readEffectiveGlobalSettings: (
     models?: readonly AgentModel[],
-    engine?: "codex" | "claude",
+    engine?: AgentEngine,
   ) => Promise<AgentGlobalSettings>;
   readonly readAppInfo: (query?: AppInfoQuery) => Promise<AppInfoResponse>;
   readonly readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;

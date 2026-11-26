@@ -43,6 +43,19 @@ impl RequestCancellationRegistry {
         }
     }
 
+    /// 协作式取消不丢弃工作 Future；资源回收及已经开始的事务必须得到完成机会。
+    pub(super) async fn run_cooperative<T, F, Fut>(&self, request_id: Option<&str>, task: F) -> T
+    where
+        F: FnOnce(CancellationToken) -> Fut,
+        Fut: Future<Output = T>,
+    {
+        let registration = request_id.map(|id| self.register(id));
+        let token = registration
+            .as_ref()
+            .map(|r| r.token.clone())
+            .unwrap_or_default();
+        task(token).await
+    }
     pub(super) fn cancel(&self, request_id: &str) -> bool {
         let requests = self
             .requests
@@ -99,6 +112,30 @@ mod tests {
 
     use super::RequestCancellationRegistry;
 
+    #[tokio::test]
+    async fn cooperative_cancel_should_wait_for_cleanup() {
+        let registry = Arc::new(RequestCancellationRegistry::default());
+        let worker = registry.clone();
+        let (entered, ready) = tokio::sync::oneshot::channel();
+        let (release, wait) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(async move {
+            worker
+                .run_cooperative(Some("cooperative"), |stop| async move {
+                    let _ = entered.send(());
+                    stop.cancelled().await;
+                    let _ = wait.await;
+                    42
+                })
+                .await
+        });
+        ready.await.unwrap();
+        assert!(registry.cancel("cooperative"));
+        tokio::task::yield_now().await;
+        assert!(!task.is_finished());
+        release.send(()).unwrap();
+        assert_eq!(task.await.unwrap(), 42);
+        assert!(!registry.cancel("cooperative"));
+    }
     #[tokio::test]
     async fn cancellation_should_stop_and_remove_the_registered_request() {
         let registry = Arc::new(RequestCancellationRegistry::default());

@@ -1,4 +1,10 @@
-import type { AgentCommand, AgentCapabilities, AgentSkill } from "@codexly/protocol";
+import type {
+  AcpAvailableCommand,
+  AgentCommand,
+  AgentCapabilities,
+  AgentSkill,
+} from "@codexly/protocol";
+import { createAcpCommandItems } from "@codexly/frontend-core/acp-command-items";
 
 import { i18n } from "../../../i18n/i18n.js";
 
@@ -9,6 +15,7 @@ export type PromptCommandItem = Readonly<{
   action: PromptCommandAction;
   command?: string;
   content?: string;
+  argumentHint?: string;
   description: string;
   id: string;
   keywords: readonly string[];
@@ -18,10 +25,13 @@ export type PromptCommandItem = Readonly<{
 export function getPromptCommandItems({
   projectToolsEnabled = true,
   engineCommands,
+  acpCommands,
 }: Readonly<{
   projectToolsEnabled?: boolean;
-  engineCommands?: readonly AgentCommand[];
+  engineCommands?: readonly AgentCommand[] | undefined;
+  acpCommands?: readonly AcpAvailableCommand[] | undefined;
 }> = {}): readonly PromptCommandItem[] {
+  if (acpCommands !== undefined) return createAcpCommandItems(acpCommands);
   const translate = (key: string) => i18n.t(key, { ns: "workbench" });
   const items: readonly PromptCommandItem[] = [
     {

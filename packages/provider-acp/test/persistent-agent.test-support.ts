@@ -1,0 +1,130 @@
+import { testPrompt } from "../src/acp-v1-peer.test-support.js";
+import type { AgentProvider } from "@codexly/core";
+import * as acp from "@agentclientprotocol/sdk/unstable";
+import { AcpConnection, type AcpAgentLauncher } from "../src/index.js";
+
+/** 保留会话的 SDK 对端，供应用重启测试复用；不调用真实账号或模型。 */
+export function createPersistentAgentPeer(
+  onSetConfig?: (configId: string, value: string | boolean) => void,
+  loadError?: (sessionId: string) => { code: number; message: string; data?: unknown } | undefined,
+) {
+  const loaded: string[] = [];
+  const prompts: string[] = [];
+  const transcripts = new Map<string, { user: boolean; text: string }[]>();
+  let native = 0;
+  const options: acp.SessionConfigOption[] = [
+    {
+      id: "model",
+      name: "模型",
+      category: "model",
+      type: "select",
+      currentValue: "model-a",
+      options: [
+        { value: "model-a", name: "模型 A" },
+        { value: "model-b", name: "模型 B" },
+      ],
+    },
+  ];
+  const launch: AcpAgentLauncher = async (_engine, _scope, callbacks) => {
+    const a = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
+    const b = new TransformStream<acp.AnyMessage, acp.AnyMessage>();
+    const peer = acp
+      .agent({ name: "integration" })
+      .onRequest(acp.methods.agent.initialize, () => ({
+        protocolVersion: 1,
+        agentInfo: { name: "test-agent", version: "1" },
+        agentCapabilities: {
+          loadSession: true,
+          sessionCapabilities: { resume: {}, close: {}, list: {} },
+        },
+      }))
+      .onRequest(acp.methods.agent.session.new, () => {
+        const sessionId = `native-${String(++native)}`;
+        transcripts.set(sessionId, []);
+        return { sessionId, configOptions: options };
+      })
+      .onRequest(acp.methods.agent.session.resume, ({ params }) => {
+        loaded.push(params.sessionId);
+        return { configOptions: options };
+      })
+      .onRequest(acp.methods.agent.session.load, async ({ params, client }) => {
+        loaded.push(params.sessionId);
+        const error = loadError?.(params.sessionId);
+        if (error) throw new acp.RequestError(error.code, error.message, error.data);
+        // 模拟持久化 agent 按 ACP 约定重放原会话，不能用空重放伪造恢复成功。
+        for (const [index, entry] of (transcripts.get(params.sessionId) ?? []).entries()) {
+          const chunk = {
+            messageId: `${params.sessionId}-${String(index)}`,
+            content: { type: "text" as const, text: entry.text },
+          };
+          const update: acp.SessionUpdate = entry.user
+            ? { sessionUpdate: "user_message_chunk", ...chunk }
+            : { sessionUpdate: "agent_message_chunk", ...chunk };
+          await client.notify(acp.methods.client.session.update, {
+            sessionId: params.sessionId,
+            update,
+          });
+        }
+        return { configOptions: options };
+      })
+      .onRequest(acp.methods.agent.session.list, () => ({ sessions: [] }))
+      .onRequest(acp.methods.agent.session.close, () => ({}))
+      .onRequest(acp.methods.agent.session.setConfigOption, ({ params }) => {
+        if (typeof params.value !== "string" && typeof params.value !== "boolean")
+          throw new Error("Unsupported test config");
+        onSetConfig?.(params.configId, params.value);
+        return {
+          configOptions: options.map((option) =>
+            option.id === params.configId
+              ? ({ ...option, currentValue: params.value } as acp.SessionConfigOption)
+              : option,
+          ),
+        };
+      })
+      .onRequest(
+        acp.methods.agent.session.prompt,
+        testPrompt(async ({ params, client }) => {
+          const text = params.prompt
+            .filter((part) => part.type === "text")
+            .map((part) => part.text)
+            .join("");
+          prompts.push(text);
+          transcripts
+            .get(params.sessionId)
+            ?.push({ user: true, text }, { user: false, text: `回答：${text}` });
+          await client.notify(acp.methods.client.session.update, {
+            sessionId: params.sessionId,
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              messageId: "test-message",
+              content: { type: "text", text: `回答：${text}` },
+            },
+          });
+          return { stopReason: "end_turn" };
+        }),
+      )
+      .connect({ readable: a.readable, writable: b.writable });
+    const connection = await AcpConnection.connect(
+      { readable: b.readable, writable: a.writable },
+      callbacks,
+    );
+    return {
+      connection,
+      close: () => {
+        connection.close();
+        peer.close();
+        return Promise.resolve();
+      },
+    };
+  };
+  return { launch, loaded, prompts, transcripts };
+}
+
+/** 验证可选端口存在后发送，避免测试用类型断言掩盖宿主能力缺失。 */
+export function startConfiguredAcpTurn(
+  provider: AgentProvider,
+  ...args: Parameters<NonNullable<AgentProvider["startConfiguredTurn"]>>
+) {
+  if (!provider.startConfiguredTurn) throw new Error("缺少 ACP 配置发送端口");
+  return provider.startConfiguredTurn(...args);
+}

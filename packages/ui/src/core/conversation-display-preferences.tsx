@@ -3,7 +3,7 @@ import type {
   ConversationDisplayPreference,
   ConversationDisplayPreferenceStore,
 } from "@codexly/frontend-core/conversation-display-preferences";
-import { Button } from "./button.js";
+import { Switch } from "./switch.js";
 
 export function useConversationDisplayPreference(
   store: ConversationDisplayPreferenceStore,
@@ -25,21 +25,12 @@ export function ConversationDisplaySwitch({
 }>) {
   const enabled = useConversationDisplayPreference(store, preference);
   return (
-    <Button
-      role="switch"
+    <Switch
       aria-label={label}
-      aria-checked={enabled}
-      className={`h-6 w-10 rounded-pill p-0.5 ${enabled ? "bg-brand hover:bg-brand" : "bg-control-hover"}`}
-      variant="ghost"
-      type="button"
-      onClick={() => {
-        store.set(preference, !enabled);
+      checked={enabled}
+      onCheckedChange={(value) => {
+        store.set(preference, value);
       }}
-    >
-      <span
-        aria-hidden="true"
-        className={`block size-5 rounded-pill bg-brand-contrast shadow-control transition-transform motion-reduce:transition-none ${enabled ? "translate-x-2" : "-translate-x-2"}`}
-      />
-    </Button>
+    />
   );
 }

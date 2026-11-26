@@ -11,7 +11,6 @@ Var CodexlyRuntimeCleanupFailed
   !insertmacro ${action} "runtime\codex\codex-resources\codex-windows-sandbox-setup.exe"
   !insertmacro ${action} "runtime\codex\codex-resources\voice\bin\codex-voice-host.exe"
   !insertmacro ${action} "runtime\claude\claude.exe"
-  !insertmacro ${action} "claude-host.exe"
 !macroend
 
 !macro CodexlyMatchRuntime relativePath

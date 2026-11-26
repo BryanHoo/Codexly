@@ -25,13 +25,15 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
     let frame = 0;
     let restoring = false;
     let turnRows: HTMLElement[] | undefined;
+    let touchY: number | undefined;
+    const resumeAtBottom = () => {
+      if (viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight > 24) return false;
+      following = true;
+      anchor = null;
+      return true;
+    };
     const capture = () => {
-      if (viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 24) {
-        following = true;
-        anchor = null;
-        return;
-      }
-      if (following) return;
+      if (following || resumeAtBottom()) return;
       const top = viewport.getBoundingClientRect().top;
       // 回合是正文容器的直接子节点。行结构变化后才重建索引，滚动只二分测量节点。
       const rows = (turnRows ??= Array.from(content.children).filter(
@@ -67,10 +69,12 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       });
     };
     const onScroll = () => {
-      if (viewport.clientHeight > 0) top = viewport.scrollTop;
-      if (restoring) return;
+      if (viewport.clientHeight === 0) return;
+      top = viewport.scrollTop;
+      if (restoring || following) return;
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(capture);
+      // 用户刚滚到底就恢复跟随，避免下一批卡片先增高列表，令下一帧读到过时的底部距离。
+      if (!resumeAtBottom()) frame = requestAnimationFrame(capture);
     };
     const pause = () => {
       following = false;
@@ -96,14 +100,33 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       // 拖动原生滚动条同样属于用户阅读意图，不依赖 wheel 才能暂停。
       if (event.target === viewport) pause();
     };
+    const onWheel = (event: WheelEvent) => {
+      // 已贴底时仍可能收到向下的惯性滚轮事件，此时没有 scroll 事件能重新启用跟随。
+      if (!event.shiftKey && !event.ctrlKey && event.deltaY < 0) onReadingIntent(event);
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      touchY = event.touches.length === 1 ? event.touches[0]?.clientY : undefined;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const previousY = touchY;
+      onTouchStart(event);
+      // 单指向下拖动才是在查看较早的消息，向上拖动和双指缩放保留当前跟随状态。
+      if (touchY !== undefined && previousY !== undefined && touchY > previousY) {
+        onReadingIntent(event);
+      }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key))
+      if (
+        ["ArrowUp", "PageUp", "Home"].includes(event.key) ||
+        (event.key === " " && event.shiftKey)
+      )
         onReadingIntent(event);
     };
     actions.current = { pause, follow };
     viewport.addEventListener("scroll", onScroll, { passive: true });
-    viewport.addEventListener("wheel", onReadingIntent, { passive: true });
-    viewport.addEventListener("touchmove", onReadingIntent, { passive: true });
+    viewport.addEventListener("wheel", onWheel, { passive: true });
+    viewport.addEventListener("touchstart", onTouchStart, { passive: true });
+    viewport.addEventListener("touchmove", onTouchMove, { passive: true });
     viewport.addEventListener("keydown", onKeyDown);
     viewport.addEventListener("pointerdown", onPointerDown);
     const resize = new ResizeObserver(syncLayout);
@@ -138,8 +161,9 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
       resize.disconnect();
       mutations.disconnect();
       viewport.removeEventListener("scroll", onScroll);
-      viewport.removeEventListener("wheel", onReadingIntent);
-      viewport.removeEventListener("touchmove", onReadingIntent);
+      viewport.removeEventListener("wheel", onWheel);
+      viewport.removeEventListener("touchstart", onTouchStart);
+      viewport.removeEventListener("touchmove", onTouchMove);
       viewport.removeEventListener("keydown", onKeyDown);
       viewport.removeEventListener("pointerdown", onPointerDown);
       actions.current = { pause: idle, follow: idle };

@@ -43,11 +43,24 @@ describe("WorkbenchShortcuts", () => {
     expect(onNewTask).toHaveBeenCalledOnce();
     expect(onToggleSidebar).not.toHaveBeenCalled();
 
+    const notification = document.createElement("div");
+    notification.setAttribute("role", "dialog");
+    notification.setAttribute("data-toast", "");
+    notification.setAttribute("aria-modal", "false");
+    notification.textContent = "Agent 已就绪";
+    document.body.append(notification);
+    try {
+      document.dispatchEvent(shortcutEvent("n"));
+      expect(onNewTask).toHaveBeenCalledTimes(2);
+    } finally {
+      notification.remove();
+    }
+
     const modal = document.createElement("dialog");
     modal.open = true;
     document.body.append(modal);
     document.dispatchEvent(shortcutEvent("n"));
-    expect(onNewTask).toHaveBeenCalledOnce();
+    expect(onNewTask).toHaveBeenCalledTimes(2);
     modal.remove();
     await screen.unmount();
   });

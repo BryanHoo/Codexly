@@ -89,7 +89,11 @@ void test("every registered production command has an ACL definition and a windo
 
 void test("frontend IPC calls have registered handlers and at least one enabled window grant", () => {
   const granted = new Set(capabilities.flatMap((capability) => expand(capability.permissions)));
+  const retired = new Set(["global", "task"].flatMap((kind) =>
+    strings(read(`src/platform/tauri/${kind}-command-boundary.ts`).split("new Set([")[1].split("]);")[0]),
+  ));
   for (const { path, command } of frontendCommands()) {
+    if (retired.has(command) && !manifest.has(command)) continue;
     if (command.startsWith("plugin:")) continue;
     assert.ok(handlers.has(command), `${path}: ${command} has no native handler`);
     assert.ok(granted.has(command), `${path}: ${command} has no window grant`);
@@ -152,4 +156,32 @@ void test("terminal test commands are granted only by the dedicated WebView test
     assert.ok(!production.has(command), `${command} granted in production`);
     assert.ok(testCommands.has(command), `${command} denied in WebView tests`);
   }
+});
+
+void test("ACP profile command is registered and granted only to the main window", () => {
+  assert.ok(handlers.has("read_acp_agent"));
+  assert.ok(manifest.has("read_acp_agent"));
+  assert.ok(allowedByWindow("main").has("read_acp_agent"));
+  assert.ok(!allowedByWindow("file-test").has("read_acp_agent"));
+});
+
+void test("ACP settings command remains confined to the main window", () => {
+  assert.ok(handlers.has("acp_agent_request"));
+  assert.ok(manifest.has("acp_agent_request"));
+  assert.ok(allowedByWindow("main").has("acp_agent_request"));
+  assert.ok(!allowedByWindow("file-test").has("acp_agent_request"));
+});
+
+void test("ACP task requests remain confined to the main window", () => {
+  assert.ok(handlers.has("acp_task_request"));
+  assert.ok(manifest.has("acp_task_request"));
+  assert.ok(allowedByWindow("main").has("acp_task_request"));
+  assert.ok(!allowedByWindow("file-test").has("acp_task_request"));
+});
+
+void test("ACP task creation stays confined to the main window", () => {
+  assert.ok(handlers.has("create_acp_task"));
+  assert.ok(manifest.has("create_acp_task"));
+  assert.ok(allowedByWindow("main").has("create_acp_task"));
+  assert.ok(!allowedByWindow("file-test").has("create_acp_task"));
 });

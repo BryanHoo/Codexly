@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Value } from "@sinclair/typebox/value";
 import { StartAgentTaskRequestSchema } from "./agent-actions.js";
 import { AgentTaskBaseSchema } from "./task-common.js";
-import { AgentTaskSnapshotSchema } from "./agent-runtime.js";
+import { LegacyAgentTaskSnapshotSchema } from "./agent-runtime.js";
 import { PendingRequestSchema, ResolvePendingRequestRequestSchema } from "./pending-request.js";
 import { AgentTaskSettingsSchema } from "./project-settings.js";
 import { ClaudeSettingsSchema, DEFAULT_CLAUDE_SETTINGS } from "./agent-engine.js";
@@ -95,7 +95,9 @@ describe("conversation engine identity", () => {
 
   it("carries the same optional engine identity in task lists and snapshots", () => {
     expect(AgentTaskBaseSchema.properties).toHaveProperty("engine");
-    expect(AgentTaskSnapshotSchema.properties.engine).toBe(AgentTaskBaseSchema.properties.engine);
+    expect(LegacyAgentTaskSnapshotSchema.properties.engine).toBe(
+      AgentTaskBaseSchema.properties.engine,
+    );
     expect(AgentTaskBaseSchema.required).not.toContain("engine");
   });
 });

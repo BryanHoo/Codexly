@@ -60,11 +60,12 @@ describe("MCP URL elicitation", () => {
         <McpElicitationRequestCard
           interactive
           onResolve={onResolve}
-          request={urlRequest}
+          request={{ ...urlRequest, acp: true }}
         />
       </TestProviders>,
     );
 
+    await expect.element(screen.getByText("docs 请求用户交互")).toBeVisible();
     await expect.element(screen.getByText("auth.example.com", { exact: true })).toBeVisible();
     await expect.element(screen.getByText(urlRequest.url, { exact: true })).toBeVisible();
     await screen.getByRole("button", { name: "同意并打开链接" }).click();
@@ -113,6 +114,42 @@ describe("MCP URL elicitation", () => {
 
     await expect.element(screen.getByText("URL 无效，无法打开")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "同意并打开链接" })).toBeDisabled();
+  });
+});
+
+it("在窄屏使用原问答卡片填写 Codex ACP 异步问题", async () => {
+  await i18n.changeLanguage("zh-CN");
+  await page.viewport(390, 720);
+  const { url: _url, ...identity } = urlRequest;
+  const request = {
+    ...identity,
+    acp: true,
+    codexAsyncQuestion: true,
+    serverName: "Codex",
+    message: "Codex keeps working while you answer.",
+    mode: "form",
+    fields: [{
+      id: "question_0", type: "string", title: "哪个任务失败了？", required: false,
+      description: null, defaultValue: null, format: null, maxLength: null, minLength: null,
+    }],
+  } satisfies PendingRequest;
+  const onResolve = vi.fn().mockResolvedValue(undefined);
+  const screen = await render(
+    <TestProviders>
+      <McpElicitationRequestCard request={request} interactive onResolve={onResolve} />
+    </TestProviders>,
+  );
+
+  await expect.element(screen.getByRole("region", { name: "待回答问题" })).toBeVisible();
+  await expect.element(screen.getByText(request.message)).not.toBeInTheDocument();
+  const send = screen.getByRole("button", { name: "发送回答" });
+  await expect.element(send).toBeDisabled();
+  await screen.getByRole("textbox", { name: "回答：哪个任务失败了？" }).fill("昨晚的任务");
+  await send.click();
+  await vi.waitFor(() => {
+    expect(onResolve).toHaveBeenCalledWith(
+      request, { action: "accept", content: { question_0: "昨晚的任务" } }, expect.any(String),
+    );
   });
 });
 

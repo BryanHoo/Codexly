@@ -1,6 +1,29 @@
 export type SettingsSaveStatus = "idle" | "saving" | "saved" | "error";
 export const SETTINGS_INPUT_DEBOUNCE_MS = 400;
 
+/** 基线属于本地草稿，不能接管服务端合并后的其他设备字段；失败重试保留请求身份。 */
+export function createSettingsDraftPersistence<T>(
+  persist: (next: T, baseline: T, idempotencyKey: string) => Promise<void>,
+  createKey: () => string,
+) {
+  let baseline: T | undefined;
+  let attempt: { hash: string; key: string } | undefined;
+  return {
+    reset(value: T) {
+      baseline = structuredClone(value);
+      attempt = undefined;
+    },
+    async save(next: T) {
+      if (baseline === undefined) throw new Error("Settings draft has no baseline");
+      const hash = JSON.stringify(next);
+      if (attempt?.hash !== hash) attempt = { hash, key: createKey() };
+      await persist(next, baseline, attempt.key);
+      baseline = structuredClone(next);
+      attempt = undefined;
+    },
+  };
+}
+
 /** 两端共用的设置保存队列：合并文本输入，串行写入，失败快照只在用户重试或继续编辑时提交。 */
 export function createSettingsAutosave<T>(
   persist: (value: T) => Promise<void>,

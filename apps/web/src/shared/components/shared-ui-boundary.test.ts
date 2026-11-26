@@ -94,9 +94,10 @@ describe("共享 UI 边界", () => {
     }
   });
 
-  it("Diff 共享渲染，平台各自准备补丁", () => {
+  it("两端共用补丁规范化和 Diff 渲染", () => {
     const shared = readFileSync(join(uiRoot, "src/agent/patch-diff-viewer.tsx"), "utf8");
-    expect(shared).not.toMatch(/file-change|@tauri-apps|@codexly\/client/u);
+    expect(shared).toContain("@codexly/frontend-core/file-change-patch");
+    expect(shared).not.toMatch(/@tauri-apps|@codexly\/client/u);
     const web = readFileSync(
       join(root, "apps/web/src/features/diff/patch-diff-viewer.tsx"),
       "utf8",
@@ -105,7 +106,7 @@ describe("共享 UI 边界", () => {
       join(root, "desktop/src/features/diff/patch-diff-viewer.tsx"),
       "utf8",
     );
-    expect(web).toContain("normalizeFileChangePatch(change)");
+    expect(web).toContain("patch={change.diff}");
     expect(desktop).toContain("patch={change.diff}");
     expect(web).toContain("@codexly/ui/agent/patch-diff-viewer");
     expect(desktop).toContain("@codexly/ui/agent/patch-diff-viewer");

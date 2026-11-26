@@ -17,7 +17,7 @@ it.each(["completed", "failed", "interrupted"] as const)("ends the pending timer
   };
   const store = createTaskStore({ projectId: snapshot.projectId, taskId: snapshot.id }, { checkpoint: { sequence: 1, sessionId: "session" }, snapshot });
   const markup = renderToStaticMarkup(createElement(TooltipProvider, null, createElement(StoreTurnTimelineSection, {
-    projectId: "project", taskId: "task", store, turnId: "turn", turnIndex: 0, pendingSubmission: true,
+    projectId: "project", taskId: "task", store, turnId: "turn", turnIndex: 0, suppressEmptyRunningStatus: false,
     onOpenFileDiff: () => {}, onOpenSourceFile: () => {}, onReviewFileChanges: () => {},
   })));
   expect(markup).toContain("任务输入");

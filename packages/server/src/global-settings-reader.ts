@@ -13,6 +13,7 @@ export function resolveGlobalSettings(
   stored: AgentGlobalSettings | undefined,
   runtimeDefaults: AgentRuntimeDefaultSettings,
   engines: readonly AgentEngine[] = ["codex", "claude"],
+  generation?: { defaultAgent: AgentEngine; defaultModel: string },
 ): AgentGlobalSettings {
   const requestedDefaults = { ...stored, ...runtimeDefaults };
   const effectiveModel = resolveProjectDefaults(
@@ -23,7 +24,9 @@ export function resolveGlobalSettings(
   // 辅助模型不能被当前聊天的模型目录替换，两个 Agent 的模型目录彼此独立。
   const defaultAgent = engines.includes(stored?.defaultAgent ?? "codex")
     ? (stored?.defaultAgent ?? "codex")
-    : (engines[0] ?? "codex");
+    : (engines.find(
+        (engine): engine is "codex" | "claude" => engine === "codex" || engine === "claude",
+      ) ?? "codex");
   const defaultModel =
     stored?.defaultModel && (stored.defaultAgent ?? "codex") === defaultAgent
       ? stored.defaultModel
@@ -50,5 +53,9 @@ export function resolveGlobalSettings(
     followUpBehavior: stored?.followUpBehavior ?? "queue",
     pet: stored?.pet ?? { enabled: false, selectedPetId: null },
     ...effectiveModel,
+    // 旧 HTTP 设置契约保持双引擎格式；通用 Agent 偏好只由 ACP 独立接口返回。
+    ...(generation && (generation.defaultAgent === "codex" || generation.defaultAgent === "claude")
+      ? { defaultAgent: generation.defaultAgent, defaultModel: generation.defaultModel }
+      : {}),
   };
 }

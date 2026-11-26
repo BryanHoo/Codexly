@@ -1,3 +1,5 @@
+import { TurnOutputRates } from "@codexly/frontend-core/turn-output-rate";
+import { useApplicationSettings } from "@codexly/ui/core/use-application-settings";
 import { useTaskVisibility } from "@codexly/ui/core/use-task-visibility";
 import { documentResourceId } from "@codexly/frontend-core/document-presentation";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
@@ -9,11 +11,7 @@ import { resolveDesktopTaskRoot } from "./workbench-task-root.js";
 import type {
   AgentMessageAttachment,
   AgentPromptInput,
-  AgentTask,
-  AgentTaskSnapshot,
-  AgentTaskSettings,
   AgentTurn,
-  EventCheckpoint,
 } from "@/protocol/index.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -21,7 +19,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "../../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import {
-  mergeSubmittedPromptIntoSnapshot,
   type RuntimeTaskSnapshot,
 } from "../../conversation/runtime/task-runtime.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
@@ -40,8 +37,6 @@ import { resolveProjectRootFromSelections } from "../../projects/project-root-se
 import {
   appInfoQueryOptions,
   appUpdateMutationOptions,
-  globalSettingsMutationOptions,
-  globalSettingsQueryOptions,
   mcpServersQueryOptions,
   mcpServersReloadMutationOptions,
   modelsQueryOptions,
@@ -67,40 +62,12 @@ import {
 } from "../workbench-inspector-activation.js";
 import { shouldEnableWorkbenchSkills } from "../workbench-query-availability.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
-import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 import { createProjectOpenRequest, type ProjectPathOpenInput } from "../project-file-reference.js";
-export { useSubmissionStartedAt } from "./use-submission-started-at.js";
+export { useSubmissionStartedAt } from "@codexly/ui/core/use-submission-started-at";
 const emptyExpandedFileTreePaths = new Set<string>();
-export function taskLaunchQueryKey(projectId: string, taskId: string) {
-  return ["projects", projectId, "tasks", taskId, "launch"] as const;
-}
-export type TaskLaunchState = Readonly<{
-  checkpoint: EventCheckpoint;
-  input: AgentPromptInput;
-  messageAttachments: readonly AgentMessageAttachment[];
-  settings: AgentTaskSettings;
-  submissionStartedAt?: string;
-  task: AgentTask;
-  turn: AgentTurn;
-}>;
-export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): AgentTaskSnapshot {
-  const snapshot = mergeSubmittedPromptIntoSnapshot(
-    {
-      ...taskLaunchState.task,
-      contextUsage: null,
-      goal: null,
-      plan: null,
-      pendingRequests: [],
-      settings: taskLaunchState.settings,
-      status: "running",
-      turns: [taskLaunchState.turn],
-      turnsNextCursor: null,
-    },
-    taskLaunchState.turn,
-    { ...taskLaunchState.input, messageAttachments: taskLaunchState.messageAttachments },
-  );
-  return { ...snapshot, pendingRequests: [] };
-}
+import { createTaskLaunchSnapshot, taskLaunchQueryKey, type TaskLaunchState } from "./workbench-task-launch.js";
+export { createTaskLaunchSnapshot, taskLaunchQueryKey, type TaskLaunchState } from "./workbench-task-launch.js";
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
   messageAttachments: readonly AgentMessageAttachment[];
@@ -134,7 +101,8 @@ export function useWorkbenchShellRuntime({
   const draftWorkspace = useComposerWorkspaceSelection(projectId, taskId);
   const { markTaskRunning, projectRuntime, refreshProjectGitStatus, retry, viewTask } =
     useProjectActions();
-  const runtime = useTaskRuntime(projectId, workspaceOnly ? undefined : taskId, projectRuntime);
+  const runtimeTaskId = workspaceOnly ? undefined : taskId;
+  const runtime = useTaskRuntime(projectId, runtimeTaskId, projectRuntime, TurnOutputRates);
   const activeTask = tasks.find((task) => task.projectId === projectId && task.id === taskId);
   const { activeRootId, projectRoots, selectedRootPath } = resolveDesktopTaskRoot({
     metadataTaskId: runtime.metadata?.id,
@@ -156,7 +124,7 @@ export function useWorkbenchShellRuntime({
     sidebarOpen,
     sidebarWidth,
     workbenchShellRef,
-  } = useWorkbenchPanelLayout({ temporary, scopeKey: inspectorScopeKey, inspectorInitiallyOpen: true, sidebarInitiallyOpen: !paneOnly });
+  } = useWorkbenchPanelLayout({ scopeKey: inspectorScopeKey, sidebarInitiallyOpen: !paneOnly });
   const defaultInspectorTab: WorkbenchInspectorTab = getDefaultWorkbenchInspectorTab(temporary);
   const [inspectorTabState, setInspectorTabState] = useState<{
     scopeKey: string;
@@ -198,13 +166,16 @@ export function useWorkbenchShellRuntime({
   const engines = useSelectedEngines();
   const codexEnabled = engines?.includes("codex") ?? true;
   const engineEnabled = engines === undefined || engines.length > 0;
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled });
-  const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
+  // ACP 使用原始会话配置；能力未确认前不预先启动旧模型和认证查询。
+  const applicationRuntime = capabilities === undefined ? "pending" : capabilities.runtime ?? "legacy";
+  const legacyConfiguration = applicationRuntime === "legacy";
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled && legacyConfiguration });
+  const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled && legacyConfiguration });
   const mcpServersQuery = useQuery(
-    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
+    mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context, applicationRuntime),
   );
   const mcpServersReloadMutation = useMutation({
-    ...mcpServersReloadMutationOptions(projectId, taskId, client),
+    ...mcpServersReloadMutationOptions(projectId, taskId, client, applicationRuntime),
     onSuccess(response) {
       queryClient.setQueryData(
         ["projects", projectId, "tasks", taskId ?? null, "mcp-servers"],
@@ -212,7 +183,6 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const projectOpenCapabilitiesQuery = useQuery(projectOpenCapabilitiesQueryOptions(client));
   const projectPathOpenMutation = useMutation({
     // 外部应用已经提供明确的成功反馈，仅保留失败 toast。
@@ -245,18 +215,16 @@ export function useWorkbenchShellRuntime({
     ...skillsQueryOptions(projectId, client),
     enabled: codexEnabled && shouldEnableWorkbenchSkills(capabilities?.skills.list === true, temporary),
   });
-  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary));
+  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary && legacyConfiguration));
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
     onSuccess(response) {
       queryClient.setQueryData(["projects", projectId, "defaults"], response);
     },
   });
-  const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
-    async onSuccess(response) {
-      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
-      if (!shouldRefreshTaskDefaults(response.changedFields)) {
+  const {globalSettingsQuery,globalSettingsMutation} = useApplicationSettings(
+    client, codexEnabled ? "codex" : "claude", applicationRuntime, async changedFields => {
+      if (!shouldRefreshTaskDefaults(changedFields)) {
         return;
       }
       // 仅任务默认字段变化时，重新解析未配置的 Project 与当前 Task 回退值。
@@ -268,7 +236,7 @@ export function useWorkbenchShellRuntime({
         await projectRuntime.refreshTaskSnapshot(projectId, taskId);
       }
     },
-  });
+  );
   const taskLaunchState =
     taskId === undefined
       ? undefined
@@ -286,7 +254,8 @@ export function useWorkbenchShellRuntime({
     taskId,
     isTaskRunning,
     inspectorActivation.context,
-  );
+
+    applicationRuntime,  );
   const fileTreeScope = `${projectId}:${selectedRootPath ?? "temporary"}`;
   const [fileTreeExpansion, setFileTreeExpansion] = useState(() => ({
     paths: new Set<string>(),

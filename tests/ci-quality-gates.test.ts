@@ -122,6 +122,15 @@ describe("CI 质量门禁", () => {
     );
   });
 
+  it("应用包只通过 ACP 目录获取 Agent", () => {
+    const lock = readFileSync(join(process.cwd(), "pnpm-lock.yaml"), "utf8");
+    const tauri = readFileSync(join(process.cwd(), "desktop/src-tauri/build.rs"), "utf8");
+    for (const name of ["@anthropic-ai/claude-agent-sdk", "@openai/codex"]) {
+      expect(lock).not.toContain(name);
+    }
+    expect(tauri).not.toContain("get_configured_engines");
+  });
+
   it("分离增量构建与 Release clean build", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       scripts: Record<string, string>;
@@ -157,7 +166,7 @@ describe("CI 质量门禁", () => {
     const testGroups = [
       "apps/web",
       "packages/client packages/core packages/protocol",
-      "packages/provider-codex",
+      "packages/provider-acp packages/provider-codex",
       "packages/server",
       '"$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts',
     ];
@@ -169,7 +178,6 @@ describe("CI 质量门禁", () => {
 
     for (const gate of [
       "pnpm run audit:prod",
-      "pnpm run codex:schema:check",
       "pnpm run format:check",
       "pnpm run lint",
       "pnpm run lint:architecture",

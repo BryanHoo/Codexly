@@ -4,7 +4,6 @@ import { basename, dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CODEXLY_USER_AGENT } from "@codexly/protocol";
-export { readClaudeCodeVersion } from "./claude-version.js";
 
 import {
   requiresElevatedNpmInstall,
