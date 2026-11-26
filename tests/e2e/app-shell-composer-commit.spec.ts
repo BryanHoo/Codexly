@@ -378,7 +378,7 @@ for (const scenario of [
       await expect(pushButton).toBeEnabled();
       // 提交后使用新快照单独推送，不再要求提交信息或文件选择。
       await pushButton.click();
-      await expect(successToast).toHaveText("推送成功");
+      await expect(page.getByRole("dialog", { name: "推送成功", exact: true })).toBeVisible();
       expect(pushRequests).toEqual([
         {
           action: "push",

@@ -403,6 +403,9 @@ export function SplitWorkspaceGrid({
         const key = splitPaneKey(pane);
         const active = key === workspace.activeKey;
         const cell = multiple ? cells?.get(key) : undefined;
+        const focusPane = () => {
+          workspace.focus(pane);
+        };
         return (
           <Activity
             key={mounts.keys[index]}
@@ -416,12 +419,8 @@ export function SplitWorkspaceGrid({
                 data-right-edge={cell === undefined || cell.x + cell.width >= 8 - 1e-6}
                 tabIndex={-1}
                 style={cell === undefined ? undefined : splitPaneStyle(cell)}
-                onPointerDownCapture={() => {
-                  workspace.focus(pane);
-                }}
-                onFocusCapture={() => {
-                  workspace.focus(pane);
-                }}
+                onPointerDownCapture={focusPane}
+                onFocusCapture={focusPane}
               >
                 {/* 身份和父级位置始终稳定，增删相邻窗口不重建输入框或时间线。 */}
                 <SplitPaneProvider

@@ -178,12 +178,13 @@ it.each(["web", "native"] as const)(
         </TooltipProvider>
       </QueryClientProvider>,
     );
-    // 等待真实懒加载入口挂载，不把模块首次下载计入配置调用的断言窗口。
+    // 先等待输入框懒加载完成，再验证挂载时发起的配置协商。
+    const editor = screen.getByRole("textbox");
+    await expect.element(editor, { timeout: 15_000 }).toBeVisible();
     await expect.poll(() => preview.mock.calls.length).toBe(1);
     expect(created).not.toHaveBeenCalled();
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
     finish(initial);
-    const editor = screen.getByRole("textbox");
     await expect.element(editor).toHaveValue("首次输入");
     await expect
       .element(screen.getByRole("button", { name: "原始开关", exact: true }))

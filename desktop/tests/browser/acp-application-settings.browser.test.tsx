@@ -92,9 +92,14 @@ for(const [platform,Page,Container] of [["Web",WebPage,WebContainer],["Native",N
         settings={preferences} onSave={onSave} onRetry={()=>undefined} onClose={()=>undefined}/>
     </div></TooltipProvider></QueryClientProvider>);
     await screen.getByRole("textbox",{name:"任务标题提示词",exact:true}).fill("新的标题指令");
-    await screen.getByRole("heading",{name:"辅助生成",exact:true}).click();
+    const retry = page.getByRole("button",{name:"重试",exact:true});
+    // 先让防抖保存失败，再失焦，覆盖重复提交的时间窗口。
     await expect.poll(()=>onSave.mock.calls.length).toBe(1);
-    await page.getByRole("button",{name:"重试",exact:true}).click();
+    await expect(onSave.mock.results[0]?.value).rejects.toThrow("offline");
+    await screen.getByRole("heading",{name:"辅助生成",exact:true}).click();
+    await expect.element(retry).toBeVisible();
+    expect(onSave).toHaveBeenCalledOnce();
+    await retry.click();
     await expect.poll(()=>onSave.mock.calls.length).toBe(2);
     expect(onSave.mock.calls[0]).toEqual(onSave.mock.calls[1]);
     expect(onSave.mock.calls[0]?.[0]).toEqual({...preferences,taskTitlePrompt:"新的标题指令"});

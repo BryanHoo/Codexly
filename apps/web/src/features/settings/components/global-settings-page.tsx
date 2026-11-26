@@ -310,7 +310,8 @@ export function GlobalSettingsPage<
                     update((current) => ({ ...current, ...change(current) }), debounce);
                   }}
                   onFlush={() => {
-                    if (draftRef.current !== undefined) queue.save(draftRef.current);
+                    // 失焦只提前提交正在防抖的草稿，失败后由重试按钮复用原请求。
+                    void queue.flush();
                   }}
                 />
               </>

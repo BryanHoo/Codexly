@@ -13,7 +13,22 @@ test("submits a prompt and streams the completed reply @cross-browser", async ({
   await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("完成流式回复");
-  await page.getByRole("button", { exact: true, name: "提交" }).click();
+  // 首次提交接收后还要读取新任务快照，等应用完成交接所需的两个请求。
+  const [submission, snapshot] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/v1/projects/codexly/submissions",
+    ),
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        /^\/v1\/projects\/codexly\/tasks\/[\da-f-]{36}$/u.test(new URL(response.url()).pathname),
+    ),
+    page.getByRole("button", { exact: true, name: "提交" }).click(),
+  ]);
+  expect(submission.status()).toBe(201);
+  expect(snapshot.ok()).toBe(true);
 
   await expect(page).toHaveURL(/\/p\/codexly\/t\/[\da-f-]{36}$/);
   const turn = page.getByLabel("Turn 1");

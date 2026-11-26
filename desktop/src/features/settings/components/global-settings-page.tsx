@@ -326,7 +326,8 @@ export function GlobalSettingsPage<
                     updateDraft((current) => ({ ...current, ...change(current) }), debounce)
                   }
                   onFlush={() => {
-                    void saveQueue.flush(draftRef.current);
+                    // 失焦只提前提交正在防抖的草稿，失败后由重试按钮复用原请求。
+                    void saveQueue.flush();
                   }}
                 />
               </>

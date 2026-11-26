@@ -189,7 +189,7 @@ test("supports structured activity without Escape changing panel state", async (
   await page.getByRole("button", { name: "展开上下文面板" }).click();
 
   await expect(page.getByText("思考过程", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("分析工作台信息架构", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /分析工作台信息架构/u })).toBeVisible();
   await page.getByText("读取 Web 设计规范").click();
   await expect(page.getByText("docs/web-design.md")).toBeVisible();
 

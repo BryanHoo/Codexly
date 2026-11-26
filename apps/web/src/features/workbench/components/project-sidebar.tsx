@@ -1,4 +1,5 @@
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
+import { hasKeyboardBlockingDialog } from "@codexly/ui/core/keyboard-dialog-guard";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
@@ -191,19 +192,16 @@ export function ProjectSidebar({
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
-      const hasVisibleDialog = Array.from(
-        document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]'),
-      ).some((element) => element.getClientRects().length > 0);
       if (
-        sidebarRef.current?.getClientRects().length === 0 ||
-        hasVisibleDialog ||
         event.defaultPrevented ||
         event.isComposing ||
         event.repeat ||
         event.altKey ||
         event.shiftKey ||
         event.key.toLocaleLowerCase() !== "f" ||
-        !(event.metaKey || event.ctrlKey)
+        !(event.metaKey || event.ctrlKey) ||
+        sidebarRef.current?.getClientRects().length === 0 ||
+        hasKeyboardBlockingDialog()
       ) {
         return;
       }

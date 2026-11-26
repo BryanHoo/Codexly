@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent } from "react";
+import { hasKeyboardBlockingDialog } from "@codexly/ui/core/keyboard-dialog-guard";
 
 import {
   matchesShortcut,
@@ -16,12 +17,6 @@ type WorkbenchShortcutsProps = Readonly<{
   onToggleInspector?: () => void;
   onToggleSidebar?: () => void;
 }>;
-
-function hasVisibleModal(): boolean {
-  return [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')].some(
-    (element) => element.getClientRects().length > 0,
-  );
-}
 
 export function WorkbenchShortcuts({
   onNewTask,
@@ -49,7 +44,7 @@ export function WorkbenchShortcuts({
   useEffect(() => {
     const mac = /mac/i.test(navigator.platform);
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (hasVisibleModal()) return;
+      if (hasKeyboardBlockingDialog()) return;
       const shortcut = WORKBENCH_SHORTCUTS.find((candidate) =>
         matchesShortcut(event, candidate, mac),
       );

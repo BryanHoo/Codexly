@@ -223,7 +223,16 @@ test("sends a Codex ACP custom answer from the original question card @cross-bro
 
 test("loads ACP session history in the Timeline @smoke", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/codexly/t/task-realtime");
+  const matchesSnapshot = taskSnapshotRoute("task-realtime");
+  // 首次读取由真实 ACP 进程恢复历史，先确认快照响应，再检查消息渲染。
+  const [snapshot] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" && matchesSnapshot(new URL(response.url())),
+    ),
+    page.goto("/p/codexly/t/task-realtime"),
+  ]);
+  expect(snapshot.ok()).toBe(true);
 
   await expect(page.getByText("ACP 历史输入", { exact: true })).toBeVisible();
   await expect(page.getByText("ACP 历史回复", { exact: true })).toBeVisible();

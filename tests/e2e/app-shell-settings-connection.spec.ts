@@ -1,5 +1,5 @@
 import { useGroupedFileChanges } from "./fixtures/conversation-display.js";
-import { expect, mockAppShellApi, parseRequestRecord, test } from "./fixtures/app-shell.js";
+import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
 
 function parseCssAlpha(color: string): number {
@@ -9,28 +9,9 @@ function parseCssAlpha(color: string): number {
   return alpha === undefined ? 1 : Number(alpha);
 }
 
-test("connects a custom API from the provider gate and reuses it in settings", async ({ page }) => {
-  await mockAppShellApi(page, { providerConnected: false });
-  await page.goto("/");
-
-  await expect(page.getByRole("heading", { exact: true, name: "选择编程助手" })).toBeVisible();
-  await page.getByRole("button", { name: "Codex OpenAI", exact: true }).click();
-  await page.getByRole("button", { name: "继续", exact: true }).click();
-  await expect(page.getByRole("heading", { exact: true, name: "连接 Codex" })).toBeVisible();
-  const officialModeButton = page.getByRole("button", { name: "ChatGPT", exact: true });
-  const customModeButton = page.getByRole("button", { name: "自定义 API" });
-  await expect(officialModeButton).toHaveCSS("align-items", "center");
-  await expect(officialModeButton).toHaveCSS("justify-content", "center");
-  await expect(customModeButton).toHaveCSS("align-items", "center");
-  await expect(customModeButton).toHaveCSS("justify-content", "center");
-  await customModeButton.click();
-  await page.getByRole("textbox", { name: "API 地址" }).fill("https://api.example.com/v1/");
-  await page.getByLabel("API 密钥（可选）").fill("e2e-secret");
-  await page.getByRole("button", { exact: true, name: "连接并开始使用" }).click();
-
-  await expect(page).toHaveURL(/\/p\/codexly$/u);
-  await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("region", { name: "全局设置" });
+test("saves a custom API and session defaults from ACP settings", async ({ page }) => {
+  let baseUrl = "https://native.example/v1";
+  let connectionWrite: Record<string, unknown> | undefined;
   await page.route("**/v1/acp/agents/codex", (route) =>
     route.fulfill({
       json: {
@@ -38,8 +19,8 @@ test("connects a custom API from the provider gate and reuses it in settings", a
         protocolVersion: 2,
         providerConfiguration: true,
         connection: {
-          source: "native",
-          baseUrl: "https://api.example.com/v1",
+          source: connectionWrite === undefined ? "native" : "application",
+          baseUrl,
           apiType: "openai",
           hasCredentials: true,
         },
@@ -47,26 +28,47 @@ test("connects a custom API from the provider gate and reuses it in settings", a
       },
     }),
   );
-  await page.route("**/v1/acp/agents/codex/providers", (route) =>
-    route.fulfill({
+  await page.route("**/v1/acp/agents/codex/providers", (route) => {
+    if (route.request().method() === "PUT") {
+      connectionWrite = parseRequestRecord(route.request().postData());
+      baseUrl = String(connectionWrite["baseUrl"]);
+    }
+    return route.fulfill({
       json: {
         providers: [
           {
             providerId: "openai",
             supported: ["openai"],
             required: false,
-            current: { apiType: "openai", baseUrl: "https://api.example.com/v1" },
+            current: { apiType: "openai", baseUrl },
           },
         ],
         restartRequired: false,
       },
-    }),
-  );
+    });
+  });
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
+  await page.getByRole("button", { exact: true, name: "设置" }).click();
+  const dialog = page.getByRole("region", { name: "全局设置" });
   await dialog.getByRole("button", { name: "ACP", exact: true }).click();
-  await expect(dialog.getByRole("textbox", { name: "API 地址", exact: true })).toHaveValue(
-    "https://api.example.com/v1",
-  );
-  await expect(dialog.getByLabel("API Key", { exact: true })).toHaveValue("");
+  const address = dialog.getByRole("textbox", { name: "API 地址", exact: true });
+  await expect(address).toHaveValue(baseUrl);
+  const key = dialog.getByLabel("API Key", { exact: true });
+  await expect(key).toHaveValue("");
+  await address.fill("https://api.example.com/v1");
+  await key.fill("e2e-secret");
+  await dialog.getByRole("button", { name: "保存连接", exact: true }).click();
+  await expect
+    .poll(() => connectionWrite)
+    .toEqual({
+      providerId: "openai",
+      apiType: "openai",
+      baseUrl: "https://api.example.com/v1",
+      headers: { Authorization: "Bearer e2e-secret" },
+    });
+  await expect(key).toHaveValue("");
+  await expect(address).toHaveValue("https://api.example.com/v1");
   await dialog.getByRole("combobox", { name: "模型", exact: true }).click();
   await page.getByRole("option", { name: "custom-coder", exact: true }).click();
   await dialog.getByRole("heading", { name: "会话默认配置", exact: true }).click();

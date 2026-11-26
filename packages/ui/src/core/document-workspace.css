@@ -20,6 +20,8 @@
   flex-shrink: 0;
   height: 28px;
   padding: 0 6px;
+  /* 文件标签操作避开浮动右栏，文档正文仍使用完整宽度。 */
+  padding-inline-end: max(6px, var(--workbench-inspector-clearance, 0px));
   gap: 4px;
 }
 .document-workspace-tabs {
