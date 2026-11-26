@@ -157,12 +157,19 @@ export async function dispatchAcpHost(
         return service.authElicitation(input);
       }
       case "settings.preview": {
-        if (Object.keys(params).some((key) => !["engine", "values", "change"].includes(key)))
+        if (
+          Object.keys(params).some(
+            (key) => !["engine", "values", "change", "includeCommands"].includes(key),
+          )
+        )
           throw new Error("Invalid preview parameters");
         if (!Value.Check(Scope, message["scope"])) throw new Error("Invalid preview scope");
         const input = {
           values: params["values"],
           ...(params["change"] === undefined ? {} : { change: params["change"] }),
+          ...(params["includeCommands"] === undefined
+            ? {}
+            : { includeCommands: params["includeCommands"] }),
         };
         if (!Value.Check(AcpConfigPreviewRequestSchema, input))
           throw new Error("Invalid preview input");

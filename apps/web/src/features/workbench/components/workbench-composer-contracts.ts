@@ -27,7 +27,7 @@ import type { Ref, ReactNode } from "react";
 import type { AcpSessionClient } from "@codexly/ui/core/use-acp-session";
 import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
 import type { SubmitTaskResponse } from "@codexly/protocol";
-import type { AgentCommand } from "@codexly/protocol";
+import type { AcpAvailableCommand, AgentCommand } from "@codexly/protocol";
 
 import type {
   BrowserPromptInputAttachment,
@@ -71,6 +71,7 @@ export type WorkbenchComposerHandle = Readonly<{
 
 export type WorkbenchComposerProps = Readonly<{
   acp?: Readonly<{
+    availableCommands?: readonly AcpAvailableCommand[];
     controls: ReactNode;
     leadingControls?: ReactNode;
     trailingControls?: ReactNode;

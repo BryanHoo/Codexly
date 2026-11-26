@@ -123,7 +123,7 @@ test("runs official task actions from the slash command menu", async ({ page }) 
 
   await prompt.fill("/压缩");
   await prompt.press("Enter");
-  await expect(page.locator('[data-toast][data-type="success"]')).toHaveText("正在压缩上下文");
+  await expect(page.getByRole("dialog", { name: "正在压缩上下文", exact: true })).toBeVisible();
   await expect
     .poll(() => commandRequests.map((request) => request.path))
     .toContain("/v1/projects/codexly/tasks/task-1/compact");

@@ -70,6 +70,11 @@
 - 压缩条目保留在时间线首次出现的位置。后续状态更新和摘要分块按原 ID 原位应用，摘要显式清空和省略遵循 ACP 的补丁语义。完成后条目仍可见，摘要默认折叠。两端共用 [会话更新组件](../../../../packages/ui/src/agent/acp-session-updates.tsx)。
 - 摘要以文本增量传输，只唤醒所属条目。历史使用原有回合匹配锚点，重放可补回压缩条目而保留应用侧回合身份。回归覆盖 [ACP 回放](../../../../packages/provider-acp/src/replay.test.ts) 与 [桌面浏览器时间线](../../../../desktop/src/features/workbench/components/task-timeline-context-compaction.browser.test.tsx)。协议依据为 [Session Notices](https://agentclientprotocol.com/rfds/session-notices) 与 [Session Compaction](https://agentclientprotocol.com/rfds/session-compaction)。
 
+## ACP 斜杠命令
+
+- 输入框使用当前 Agent 会话上报的完整命令清单，空清单清除旧建议。已有任务与模式设置共用会话状态，新草稿和跨 Agent 接续从各自的配置预览取得清单。预览仅在输入框请求命令时短暂等待异步公告，到期后仍允许输入与提交。项目初始化沿用应用入口，Agent 公布同名命令时选择原生命令。
+- 保留 Agent 发布的命令名称、描述和参数提示。选择命令后按普通 `session/prompt` 提交原始文本与附件，输出沿用现有聊天增量、会话配置和结构化事件。回归入口为 [双端草稿浏览器测试](../../../../desktop/tests/browser/acp-draft-composer.browser.test.tsx)、[共享连接测试](../../../../packages/provider-acp/src/connection.test.ts) 和 [编译宿主测试](../../../../tools/acp-host.test.mjs)。协议依据为 [ACP v1 Slash Commands](https://agentclientprotocol.com/protocol/v1/slash-commands)。
+
 ## 对话 JSON 导出
 
 - 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。

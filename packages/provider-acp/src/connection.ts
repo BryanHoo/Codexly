@@ -245,6 +245,9 @@ export class AcpConnection {
     const state = this.metadata.read(sessionId);
     return this.supportsSteering ? { ...state, canSteer: true } : state;
   }
+  readPreviewCommands(sessionId: string) {
+    return this.metadata.waitForCommands(sessionId, this.transport.signal);
+  }
   readSessionUsage(sessionId: string | undefined) {
     return sessionId ? this.metadata.readUsage(sessionId) : null;
   }
@@ -256,7 +259,6 @@ export class AcpConnection {
     this.#sessions.delete(sessionId);
     this.metadata.delete(sessionId);
   }
-
   async newSession(
     request: acp.NewSessionRequest,
   ): Promise<Omit<acp.NewSessionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }> {

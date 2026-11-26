@@ -5,8 +5,85 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { once } from "node:events";
 
 const binary = process.env.CODEXLY_COMPILED_ACP_HOST;
+
+test(
+  "compiled ACP host returns commands advertised after session creation",
+  {
+    skip: !binary,
+    timeout: 15_000,
+  },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "acp-compiled-commands-"));
+    const peer = `
+    const { createInterface } = require("node:readline");
+    const send = (frame) => console.log(JSON.stringify({ jsonrpc: "2.0", ...frame }));
+    createInterface({ input: process.stdin }).on("line", (line) => {
+      const { id, method } = JSON.parse(line);
+      if (method === "initialize") send({ id, result: {
+        protocolVersion: 1, agentCapabilities: { sessionCapabilities: { close: {} } },
+      } });
+      if (method === "session/new") {
+        send({ id, result: { sessionId: "s" } });
+        setTimeout(() => send({ method: "session/update", params: { sessionId: "s", update: {
+          sessionUpdate: "available_commands_update",
+          availableCommands: [{ name: "check", description: "检查", input: { hint: "范围" } }],
+        } } }), 25);
+      }
+      if (method === "session/close") send({ id, result: {} });
+    });`;
+    const child = spawn(binary, [root], { stdio: ["pipe", "pipe", "pipe"] });
+    child.stderr.resume();
+    const exited = once(child, "exit");
+    const lines = createInterface({ input: child.stdout });
+    const storage = storageCallbacks(child);
+    const scope = { id: "p", kind: "project", rootPath: root, runtimeWorkspaceRoots: [root] };
+    let next = 0;
+    async function request(method, params) {
+      const id = ++next;
+      const result = new Promise((resolve, reject) => {
+        const listener = (line) => {
+          const frame = JSON.parse(line);
+          if (storage(frame) || frame.id !== id) return;
+          lines.off("line", listener);
+          if (frame.error) reject(new Error(JSON.stringify(frame.error)));
+          else resolve(frame.result);
+        };
+        lines.on("line", listener);
+      });
+      child.stdin.write(JSON.stringify({ id, method, params, scope }) + "\n");
+      return result;
+    }
+    try {
+      await request("agents.configure", {
+        registration: {
+          engine: "acp-test",
+          name: "Test",
+          enabled: true,
+          command: process.execPath,
+          args: ["-e", peer],
+        },
+      });
+      const preview = await request("settings.preview", {
+        engine: "acp-test",
+        values: {},
+        includeCommands: true,
+      });
+      assert.deepEqual(preview.availableCommands, [
+        { name: "check", description: "检查", input: { hint: "范围" } },
+      ]);
+      child.stdin.end();
+      assert.equal((await exited)[0], 0);
+    } finally {
+      child.kill();
+      lines.close();
+      await exited.catch(() => undefined);
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 // 宿主已将设置写入协调交给原生目录；此处模拟精确锁端口，完整 SQLite 桥接另有集成测试。
 function storageCallbacks(child) {

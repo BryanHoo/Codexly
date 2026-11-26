@@ -81,6 +81,7 @@ export function WorkbenchComposerBase({
   const editingProjectDraftId =
     editingProjectDraft?.projectId === projectId ? editingProjectDraft.draftId : undefined;
   const session = useComposerSession({
+    acp,
     engineCommands,
     capabilities,
     client,

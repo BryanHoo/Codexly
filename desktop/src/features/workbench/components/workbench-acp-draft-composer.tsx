@@ -41,6 +41,7 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
       fastModeAvailable={false}
       settings={undefined}
       acp={{
+        availableCommands: draft.preview?.availableCommands ?? [],
         controls: draft.controls,
         leadingControls: draft.leadingControls,
         trailingControls: draft.trailingControls,

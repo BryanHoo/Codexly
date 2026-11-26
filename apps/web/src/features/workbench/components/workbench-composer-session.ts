@@ -50,8 +50,8 @@ import {
 } from "./prompt-history.js";
 import type { ComposerMode, WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import { useComposerInputReset } from "./use-composer-input-reset.js";
-
 type ComposerSessionOptions = Readonly<{
+  acp?: WorkbenchComposerProps["acp"];
   engineCommands?: WorkbenchComposerProps["engineCommands"];
   capabilities: AgentCapabilities | undefined;
   composerDraftId: string | undefined;
@@ -70,9 +70,9 @@ type ComposerSessionOptions = Readonly<{
   skills: readonly AgentSkill[];
   taskId: string | undefined;
 }>;
-
 const emptyProjectFileSearchResults: readonly ProjectFileSearchEntry[] = [];
 export function useComposerSession({
+  acp,
   engineCommands,
   capabilities,
   composerDraftId,
@@ -210,11 +210,10 @@ export function useComposerSession({
     fileQuery,
     codexEnabled && fileMenuOpen && projectToolsEnabled && !turnControlsDisabled,
   );
-  const fileSearchResults = fileSearch.data?.data ?? emptyProjectFileSearchResults;
   const { filteredCommands, filteredSkills } = usePromptSuggestions(
     getPromptCommandItems({
       projectToolsEnabled,
-      acpCommands: runtime?.metadata?.acpSession?.availableCommands,
+      acpCommands: acp ? (acp.availableCommands ?? []) : undefined,
       engineCommands,
     }),
     capabilities?.skills.use === true ? skills : [],
@@ -222,6 +221,7 @@ export function useComposerSession({
     projectId,
     commandSlashCommand?.trigger,
   );
+  const fileSearchResults = fileSearch.data?.data ?? emptyProjectFileSearchResults;
   const baseBranches = gitStatus?.baseBranches ?? [];
   const menuItemCount = fileMenuOpen
     ? fileSearchResults.length

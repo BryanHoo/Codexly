@@ -72,6 +72,7 @@ export function useAcpDraft({
           engine,
           {
             ...request,
+            includeCommands: true,
             ...(workspace && projectId !== "temporary" ? { workspacePath: workspace } : {}),
           },
           { signal },

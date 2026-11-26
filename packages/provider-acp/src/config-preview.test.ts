@@ -97,7 +97,7 @@ it("预览支持宿主提供的临时会话释放回调", async () => {
       { configured: true, values: {} } as never,
       {},
       undefined,
-      release,
+      { releaseSession: release },
     ),
   ).resolves.toEqual({ configOptions: [], values: {} });
   expect(release).toHaveBeenCalledExactlyOnceWith("standard");

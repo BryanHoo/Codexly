@@ -16,6 +16,7 @@ interface Entry {
   bytes: number;
   usage: AgentContextUsage | null;
   usesV1Modes: boolean;
+  commandsAdvertised: boolean;
 }
 
 /** 保存 ACP 会话元数据；允许创建响应前的命令更新，不为聊天 token 分配缓存。 */
@@ -36,12 +37,35 @@ export class AcpSessionMetadataStore {
   }
 
   readonly #entries = new Map<string, Entry>();
+  readonly #commandWaiters = new Map<string, () => void>();
   #bytes = 0;
 
   read(sessionId: string): AcpSessionMetadata {
     return structuredClone(
       this.#entries.get(sessionId)?.value ?? { configOptions: [], availableCommands: [] },
     );
+  }
+  async waitForCommands(sessionId: string, connection: AbortSignal) {
+    connection.throwIfAborted();
+    if (!this.#entries.get(sessionId)?.commandsAdvertised) {
+      // v1 允许在创建响应后异步公告。只有命令预览等待，普通会话和配置读取不增加延时。
+      const signal = AbortSignal.any([connection, AbortSignal.timeout(500)]);
+      // 预览连接串行使用，每个临时会话至多有一个等待者。空清单也表示 Agent 已上报。
+      const { promise, resolve } = Promise.withResolvers<undefined>();
+      const done = () => {
+        resolve(undefined);
+      };
+      this.#commandWaiters.set(sessionId, done);
+      signal.addEventListener("abort", done, { once: true });
+      try {
+        await promise;
+      } finally {
+        signal.removeEventListener("abort", done);
+        this.#commandWaiters.delete(sessionId);
+      }
+    }
+    connection.throwIfAborted();
+    return this.read(sessionId).availableCommands;
   }
   hasBackgroundWork(sessionId?: string): boolean {
     if (sessionId !== undefined) return !!this.#entries.get(sessionId)?.value.background?.length;
@@ -98,10 +122,14 @@ export class AcpSessionMetadataStore {
       });
     }
     if (update.sessionUpdate !== "available_commands_update") return undefined;
-    return this.#write(sessionId, {
+    const state = this.#write(sessionId, {
       ...this.read(sessionId),
       availableCommands: this.#commands(update.availableCommands),
     });
+    const entry = this.#entries.get(sessionId);
+    if (entry) entry.commandsAdvertised = true;
+    this.#commandWaiters.get(sessionId)?.();
+    return state;
   }
   #commands(commands: AvailableCommand[]): AcpSessionMetadata["availableCommands"] {
     return commands.flatMap((command): AcpSessionMetadata["availableCommands"] => {
@@ -138,6 +166,7 @@ export class AcpSessionMetadataStore {
       bytes,
       usage: previous?.usage ?? null,
       usesV1Modes: previous?.usesV1Modes ?? false,
+      commandsAdvertised: previous?.commandsAdvertised ?? false,
     });
     this.#bytes = total;
     return structuredClone(copy);

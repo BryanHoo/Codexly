@@ -53,6 +53,7 @@ import type { ComposerMode, WorkbenchComposerProps } from "./workbench-composer-
 import { useComposerInputReset } from "./use-composer-input-reset.js";
 
 type ComposerSessionOptions = Readonly<{
+  acp?: WorkbenchComposerProps["acp"];
   engineCommands?: WorkbenchComposerProps["engineCommands"];
   capabilities: AgentCapabilities | undefined;
   composerDraftId: string | undefined;
@@ -71,10 +72,10 @@ type ComposerSessionOptions = Readonly<{
   skills: readonly AgentSkill[];
   taskId: string | undefined;
 }>;
-
 const emptyProjectFileSearchResults: readonly ProjectFileSearchEntry[] = [];
 
 export function useComposerSession({
+  acp,
   engineCommands,
   capabilities,
   composerDraftId,
@@ -214,7 +215,8 @@ export function useComposerSession({
 
   const { filteredCommands, filteredSkills } = usePromptSuggestions(
     getPromptCommandItems({ projectToolsEnabled, ...(engineCommands === undefined ? {} : { engineCommands }),
-      ...(runtime?.metadata?.acpSession === undefined ? {} : { acpCommands: runtime.metadata.acpSession.availableCommands }) }),
+      ...(acp ? { acpCommands: acp.availableCommands ?? [] } : {}),
+    }),
     capabilities?.skills.use === true ? skills : [],
     commandQuery,
     projectId,

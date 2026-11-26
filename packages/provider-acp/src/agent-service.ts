@@ -260,9 +260,10 @@ export class AcpAgentService implements AcpAgentSettingsService {
           signal?.throwIfAborted();
           const saved = await this.store.inspect(this.engine);
           signal?.throwIfAborted();
-          return previewAcpConfig(connection, cwd, saved, input.values, input.change, (id) =>
-            this.#closeSession(connection, id),
-          );
+          return previewAcpConfig(connection, cwd, saved, input.values, input.change, {
+            releaseSession: (id) => this.#closeSession(connection, id),
+            ...(input.includeCommands ? { includeCommands: true } : {}),
+          });
         })();
         const result = await Promise.race([preview, cancelled.promise]);
         signal?.throwIfAborted();

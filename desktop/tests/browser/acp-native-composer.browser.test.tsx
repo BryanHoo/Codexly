@@ -160,6 +160,20 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
   );
   const editor = screen.getByRole("textbox");
   await expect.element(editor).toHaveValue("未发送的草稿");
+  // 仅更新任务 store，模拟 Agent 在输入框挂载后推送清单；属性中的快照保持原值。
+  const updateCommands = (sequence: number, availableCommands: AcpSessionState["availableCommands"]) =>
+    store.getState().applyEvents([{
+      version: 2, provider: "codex", projectId: "project-1", taskId: "task-1",
+      sessionId: "session-1", sequence, timestamp: "2026-11-26T00:00:00.000Z",
+      type: "acp.session.updated", payload: { state: { ...initial, availableCommands } },
+    }]);
+  await editor.fill("/");
+  updateCommands(100, [{ name: "plan", description: "Agent 计划" }]);
+  const plan = screen.getByRole("option", { name: /\/plan/ });
+  await expect.element(plan).toBeVisible();
+  updateCommands(101, []);
+  await expect.element(plan).not.toBeInTheDocument();
+  await editor.fill("未发送的草稿");
   const node = editor.element();
   const reasoning = screen.getByRole("button", { name: "推理强度", exact: true });
   await expect.element(reasoning).toBeVisible();

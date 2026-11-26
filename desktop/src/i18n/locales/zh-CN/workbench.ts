@@ -118,7 +118,7 @@ export const workbench = {
     goalObjectiveTooLong: "目标文本不能超过 4,000 个字符",
     goalStructuredInputUnsupported: "目标模式暂不支持附件或 Skill，请改用文本和 @文件路径",
     initializingAgentsPrompt:
-      "请检查当前项目，并在项目根目录创建或完善 AGENTS.md，写入适用于 Codex 的项目说明、常用命令和验证要求。",
+      "请检查当前项目，并在项目根目录创建或完善 AGENTS.md，写入供智能体使用的项目说明、常用命令和验证要求。",
     landmark: "消息编辑器",
     modelListFailed: "模型列表加载失败",
     modelLoading: "模型加载中",
@@ -212,7 +212,7 @@ export const workbench = {
       label: "目标",
     },
     initialize: {
-      description: "创建包含 Codex 说明的 AGENTS.md 文件",
+      description: "创建包含项目说明的 AGENTS.md 文件",
       label: "初始化",
     },
     plan: {

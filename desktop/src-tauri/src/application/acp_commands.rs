@@ -63,9 +63,12 @@ fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, A
             || params.keys().any(|key| {
                 !matches!(
                     key.as_str(),
-                    "projectId" | "values" | "change" | "workspacePath"
+                    "projectId" | "values" | "change" | "workspacePath" | "includeCommands"
                 )
             })
+            || params
+                .get("includeCommands")
+                .is_some_and(|value| !value.is_boolean())
             || params.get("workspacePath").is_some_and(|path| {
                 !path.as_str().is_some_and(|path| {
                     !path.is_empty()
@@ -244,9 +247,17 @@ mod tests {
             settings_params(
                 "claude",
                 "settings.preview",
-                json!({"projectId":"p","values":{"enabled":false}})
+                json!({"projectId":"p","values":{"enabled":false},"includeCommands":true})
             )
             .is_ok()
+        );
+        assert!(
+            settings_params(
+                "claude",
+                "settings.preview",
+                json!({"projectId":"p","values":{},"includeCommands":"true"})
+            )
+            .is_err()
         );
         assert!(settings_params("claude", "settings.preview", json!({"values":{}})).is_err());
         assert!(

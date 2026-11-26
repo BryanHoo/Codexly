@@ -10,7 +10,7 @@ export async function previewAcpConfig(
   saved: AcpStoredSettings,
   values: AcpConfigValues,
   change?: AcpConfigPreviewRequest["change"],
-  releaseSession?: (id: string) => Promise<void>,
+  options?: { releaseSession?: (id: string) => Promise<void>; includeCommands?: boolean },
 ) {
   const session = await connection.newSession({ cwd, mcpServers: [] });
   try {
@@ -34,13 +34,17 @@ export async function previewAcpConfig(
       configOptions = await applyAcpConfig(connection, session.sessionId, configOptions, {
         [change.configId]: change.value,
       });
+    const availableCommands = options?.includeCommands
+      ? await connection.readPreviewCommands(session.sessionId)
+      : undefined;
     return {
       configOptions,
       values: Object.fromEntries(configOptions.map((option) => [option.id, option.currentValue])),
+      ...(availableCommands === undefined ? {} : { availableCommands }),
     };
   } finally {
     // 关闭失败必须向上报告，不能把泄漏的会话当作成功预览。
-    if (releaseSession) await releaseSession(session.sessionId);
+    if (options?.releaseSession) await options.releaseSession(session.sessionId);
     else await connection.closeSession(session.sessionId);
   }
 }

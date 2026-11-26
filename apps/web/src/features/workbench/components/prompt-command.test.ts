@@ -201,10 +201,18 @@ it("ACP 命令由原始列表完整驱动，保留同名命令且不走旧应用
   }));
   const commands = getPromptCommandItems({
     acpCommands: raw,
+    projectToolsEnabled: false,
     engineCommands: [{ name: "old", description: "旧命令", argumentHint: "" }],
   });
   expect(commands.map((item) => [item.action, item.command, item.label, item.description])).toEqual(
     raw.map((item) => ["native", item.name, `/${item.name}`, item.description]),
   );
-  expect(getPromptCommandItems({ acpCommands: [] })).toEqual([]);
+  expect(getPromptCommandItems({ acpCommands: [], projectToolsEnabled: false })).toEqual([]);
+});
+
+it("ACP 项目保留初始化入口，Agent 公布同名命令时由 Agent 执行", () => {
+  expect(getPromptCommandItems({ acpCommands: [] })).toMatchObject([{ action: "initialize" }]);
+  expect(
+    getPromptCommandItems({ acpCommands: [{ name: "init", description: "原生初始化" }] }),
+  ).toMatchObject([{ action: "native", command: "init" }]);
 });

@@ -122,7 +122,7 @@ export const workbench = {
     goalStructuredInputUnsupported:
       "Goal mode does not support attachments or Skills; use text and @file paths instead",
     initializingAgentsPrompt:
-      "Inspect the current project and create or improve AGENTS.md in the project root with Codex project guidance, common commands, and verification requirements.",
+      "Inspect the current project and create or improve AGENTS.md in the project root with project guidance for coding agents, common commands, and verification requirements.",
     landmark: "Message composer",
     modelListFailed: "Failed to load model list",
     modelLoading: "Loading models",
@@ -217,7 +217,7 @@ export const workbench = {
       label: "Goal",
     },
     initialize: {
-      description: "Create an AGENTS.md file with Codex guidance",
+      description: "Create an AGENTS.md file with project guidance",
       label: "Initialize",
     },
     plan: {

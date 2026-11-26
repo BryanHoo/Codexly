@@ -23,7 +23,7 @@ import type {
   ProjectRoot,
 } from "@/protocol/index.js";
 import type { Ref, ReactNode } from "react";
-import type { AgentCommand } from "@codexly/protocol";
+import type { AcpAvailableCommand, AgentCommand } from "@codexly/protocol";
 
 import { buildNativeAssetUrl } from "../../../platform/native-asset-url.js";
 import type {
@@ -69,6 +69,7 @@ export type WorkbenchComposerHandle = Readonly<{
 
 export type WorkbenchComposerProps = Readonly<{
   acp?: Readonly<{
+    availableCommands?: readonly AcpAvailableCommand[];
     controls: ReactNode;
     leadingControls?: ReactNode;
     trailingControls?: ReactNode;

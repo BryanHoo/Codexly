@@ -9,7 +9,13 @@ import {
   PromptInputCommandItem,
   PromptInputCommandList,
 } from "../agent/prompt-input-controls.js";
-type MenuCommand = Readonly<{ action: string; id: string; label: string; description: string }>;
+type MenuCommand = Readonly<{
+  action: string;
+  id: string;
+  label: string;
+  description: string;
+  argumentHint?: string;
+}>;
 
 export type ComposerCommandMenuTranslationKey =
   | "composer.commandInput"
@@ -130,6 +136,11 @@ export function ComposerCommandMenu<Command extends MenuCommand>({
                         <CommandIcon action={command.action} />
                         <span className="flex min-w-0 flex-1 flex-col">
                           <span className="font-medium">{command.label}</span>
+                          {command.argumentHint && availability.available ? (
+                            <span className="truncate text-caption text-muted-foreground">
+                              {command.argumentHint}
+                            </span>
+                          ) : null}
                           <span className="truncate text-caption text-muted-foreground">
                             {availability.reason ?? command.description}
                           </span>

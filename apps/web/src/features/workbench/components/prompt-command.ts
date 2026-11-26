@@ -31,8 +31,22 @@ export function getPromptCommandItems({
   engineCommands?: readonly AgentCommand[] | undefined;
   acpCommands?: readonly AcpAvailableCommand[] | undefined;
 }> = {}): readonly PromptCommandItem[] {
-  if (acpCommands !== undefined) return createAcpCommandItems(acpCommands);
   const translate = (key: string) => i18n.t(key, { ns: "workbench" });
+  const initialize: PromptCommandItem = {
+    action: "initialize",
+    description: translate("promptCommand.initialize.description"),
+    id: "initialize",
+    keywords: ["init", "initialize", "初始化", "AGENTS.md"],
+    label: translate("promptCommand.initialize.label"),
+  };
+  if (acpCommands !== undefined) {
+    const commands = createAcpCommandItems(acpCommands);
+    // 项目初始化复用应用已有入口；会话公布同名命令时，交给 Agent 原生执行。
+    return projectToolsEnabled &&
+      !acpCommands.some(({ name }) => ["init", "initialize"].includes(name.toLowerCase()))
+      ? [...commands, initialize]
+      : commands;
+  }
   const items: readonly PromptCommandItem[] = [
     {
       action: "review",
@@ -41,13 +55,7 @@ export function getPromptCommandItems({
       keywords: ["review", "code review", "审查", "代码审查"],
       label: translate("promptCommand.review.label"),
     },
-    {
-      action: "initialize",
-      description: translate("promptCommand.initialize.description"),
-      id: "initialize",
-      keywords: ["init", "initialize", "初始化", "AGENTS.md"],
-      label: translate("promptCommand.initialize.label"),
-    },
+    initialize,
     {
       action: "compact",
       description: translate("promptCommand.compact.description"),

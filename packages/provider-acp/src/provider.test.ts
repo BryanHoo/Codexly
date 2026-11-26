@@ -185,6 +185,35 @@ it("完整ACP会话状态包含提前到达的命令，配置变更更新事件�
   });
   expect(f.created).toHaveBeenCalledOnce();
 });
+it("原生命令保留名称和参数，分块回答进入订阅流与历史", async () => {
+  const command = "/review-branch main";
+  const f = await fixture("claude", async ({ params, client }) => {
+    expect(params.prompt).toEqual([{ type: "text", text: command }]);
+    for (const text of ["**审查", "完成**"]) {
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text },
+        },
+      });
+    }
+    return { stopReason: "end_turn" };
+  });
+  const events: AgentProviderEvent[] = [];
+  f.provider.subscribeEvents((event) => events.push(event));
+  const task = await f.provider.startTask();
+  await f.provider.startTurn(task.id, { ...input, text: command }, {} as AgentTurnOptions);
+  await expect
+    .poll(async () => (await f.provider.readTask(task.id)).turns[0]?.items)
+    .toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "message", role: "assistant", text: "**审查完成**" }),
+      ]),
+    );
+  expect(events.some((event) => event.type === "message.delta")).toBe(true);
+});
+
 it("历史读取结束时同步交付最新快照给 checkpoint 捕获器", async () => {
   const f = await fixture("codex");
   const task = await f.provider.startTask();

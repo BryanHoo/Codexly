@@ -3,6 +3,7 @@ import { testPrompt } from "./acp-v1-peer.test-support.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpConnection } from "./connection.js";
+import { previewAcpConfig } from "./config-preview.js";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -85,6 +86,39 @@ it("仅声明已实现的客户端能力，启用标准布尔配置但不声明�
 });
 
 describe("共享 ACP 连接", () => {
+  it.each([false, true])(
+    "草稿预览在关闭会话前接收异步命令列表（有命令 %s）",
+    async (hasCommands) => {
+      const commands: acp.AvailableCommand[] = hasCommands
+        ? [{ name: "review", description: "检查" }]
+        : [];
+      const f = fixture();
+      f.create.mockImplementation(({ client }) => {
+        setTimeout(() => {
+          void client.notify(acp.methods.client.session.update, {
+            sessionId: "preview",
+            update: { sessionUpdate: "available_commands_update", availableCommands: commands },
+          });
+        }, 30);
+        return { sessionId: "preview", configOptions: [] };
+      });
+      const close = vi.fn(() => ({}));
+      f.app.onRequest(acp.methods.agent.session.close, close);
+      const connection = await connect(f);
+      const result = await previewAcpConfig(
+        connection,
+        "/project",
+        { configured: true, values: {} } as never,
+        {},
+        undefined,
+        { includeCommands: true },
+      );
+      expect(result).toMatchObject({
+        availableCommands: commands.map(({ name, description }) => ({ name, description })),
+      });
+      expect(close).toHaveBeenCalledOnce();
+    },
+  );
   it("并发创建保留早于响应到达的命令，完整配置响应不丢命令或另一个待绑定会话", async () => {
     const f = fixture({ loadSession: true, sessionCapabilities: { close: {} } });
     const secondEntered = Promise.withResolvers<undefined>(),

@@ -8,6 +8,14 @@ export * from "./acp-providers.js";
 const Text = Type.String({ maxLength: 16384 });
 const NullableText = Type.Optional(Type.Union([Text, Type.Null()]));
 const Meta = Type.Optional(Type.Union([Type.Record(Type.String(), Type.Unknown()), Type.Null()]));
+/** 保留 Agent 发布的命令标识、参数提示与扩展元数据。 */
+export const AcpAvailableCommandSchema = Type.Object({
+  name: Text,
+  description: Text,
+  input: Type.Optional(Type.Union([Type.Object({ hint: Text, _meta: Meta }), Type.Null()])),
+  _meta: Meta,
+});
+export type AcpAvailableCommand = Static<typeof AcpAvailableCommandSchema>;
 const Choice = Type.Object({ value: Text, name: Text, description: NullableText, _meta: Meta });
 const Group = Type.Object({ group: Text, name: Text, options: Type.Array(Choice), _meta: Meta });
 const Common = {
@@ -181,11 +189,16 @@ export const AcpConfigPreviewRequestSchema = Type.Object(
     values: AcpConfigValuesSchema,
     workspacePath: Type.Optional(ProjectRootPathSchema),
     change: Type.Optional(AcpSessionConfigRequestSchema),
+    includeCommands: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
 export const AcpConfigPreviewSchema = Type.Object(
-  { configOptions: AcpSessionConfigSchema, values: AcpConfigValuesSchema },
+  {
+    configOptions: AcpSessionConfigSchema,
+    values: AcpConfigValuesSchema,
+    availableCommands: Type.Optional(Type.Array(AcpAvailableCommandSchema)),
+  },
   { additionalProperties: false },
 );
 export type AcpConfigPreviewRequest = Static<typeof AcpConfigPreviewRequestSchema>;

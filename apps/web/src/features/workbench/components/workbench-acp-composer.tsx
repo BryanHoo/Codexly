@@ -47,6 +47,9 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     },
   });
   const acp = {
+    // 接续发送归属目标 Agent，命令也必须出自目标草稿的协商结果。
+    availableCommands:
+      (continuation.target ? continuation.preview : session.session)?.availableCommands ?? [],
     isBusy: continuation.target
       ? continuation.busy
       : session.isPending || session.isSaving || session.error !== null,

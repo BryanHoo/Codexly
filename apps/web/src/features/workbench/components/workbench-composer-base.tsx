@@ -76,6 +76,7 @@ export function WorkbenchComposerBase({
   const todoEditing = useProjectTodoEditing(projectId, initialTodoId);
   const { editingTodoId, projectTodos, todos } = todoEditing;
   const session = useComposerSession({
+    acp,
     engineCommands,
     capabilities,
     composerDraftId,

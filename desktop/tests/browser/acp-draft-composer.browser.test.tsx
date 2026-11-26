@@ -1,4 +1,5 @@
 import { createRef } from "react";
+import { userEvent } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ it.each(["web", "native"] as const)(
     const initial: AcpConfigPreview = {
       values: { raw: false },
       configOptions: [{ id: "raw", name: "原始开关", type: "boolean", currentValue: false }],
+      availableCommands: [{ name: "goal", description: "Agent 目标", input: { hint: "目标内容" } }],
     };
     const preview = vi
       .fn()
@@ -45,6 +47,7 @@ it.each(["web", "native"] as const)(
       .mockResolvedValue({
         values: { raw: true },
         configOptions: [{ ...initial.configOptions[0]!, currentValue: true }],
+        availableCommands: [{ name: "goal", description: "Agent 目标", input: { hint: "目标内容" } }],
       });
     const turn = {
       id: "turn-new",
@@ -189,6 +192,13 @@ it.each(["web", "native"] as const)(
     await expect
       .element(screen.getByRole("button", { name: "原始开关", exact: true }))
       .toHaveTextContent("关闭");
+    await editor.fill("/");
+    const goal = screen.getByRole("option", { name: /\/goal/ });
+    await expect.element(goal).toBeVisible();
+    await expect.element(goal).toHaveTextContent("目标内容");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(editor).toHaveValue("/goal ");
+    await editor.fill("首次输入");
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
     await expect.element(editor).toHaveValue("首次输入");
     await screen.getByRole("button", { name: "原始开关", exact: true }).click();
@@ -196,6 +206,7 @@ it.each(["web", "native"] as const)(
     await expect
       .element(screen.getByRole("button", { name: "原始开关", exact: true }))
       .toHaveTextContent("开启");
+    await editor.fill("/goal 检查文档");
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
     expect(started).not.toHaveBeenCalled();
     await expect(ref.current?.submitCurrent()).resolves.toBe(true);
@@ -207,7 +218,7 @@ it.each(["web", "native"] as const)(
     expect(typeof firstKey).toBe("string");
     expect(typeof nextKey).toBe("string");
     expect(nextKey).not.toBe(firstKey);
-    const input = { type: "prompt", text: "首次输入", attachments: [], skills: [] };
+    const input = { type: "prompt", text: "/goal 检查文档", attachments: [], skills: [] };
     const expected =
       platform === "web"
         ? [
