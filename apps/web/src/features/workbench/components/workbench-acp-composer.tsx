@@ -1,11 +1,8 @@
 import { AcpActivity } from "@codexly/ui/core/acp-activity";
 import { useMemo } from "react";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
-import {
-  AcpModelSelector,
-  AcpComposerLeading,
-  AcpComposerReasoning,
-} from "@codexly/ui/core/acp-model-selector";
+import { AcpComposerLeading, AcpComposerReasoning } from "@codexly/ui/core/acp-model-selector";
+import { useAcpTaskContinuation } from "@codexly/ui/core/acp-task-continuation";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
@@ -40,8 +37,19 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     error: session.error,
     language: getCurrentLanguage(),
   };
+  const continuation = useAcpTaskContinuation({
+    ...configuration,
+    projectId: props.projectId,
+    taskId: props.taskId,
+    workspace: props.runtime?.metadata?.workspacePath ?? props.projectPath,
+    onSelect: (_engine, id, value) => {
+      void session.setConfig(id, value);
+    },
+  });
   const acp = {
-    isBusy: session.isPending || session.isSaving || session.error !== null,
+    isBusy: continuation.target
+      ? continuation.busy
+      : session.isPending || session.isSaving || session.error !== null,
     trailingControls: (
       <AcpComposerReasoning
         {...configuration}
@@ -60,27 +68,43 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
         }}
       />
     ),
-    controls: (
-      <AcpModelSelector
-        {...configuration}
-        engine={
-          props.runtime?.metadata?.engine ??
-          (props.capabilities?.provider === "claude" ? "claude" : "codex")
-        }
-        locked
-        onSelect={(_engine, id, value) => {
-          void session.setConfig(id, value);
-        }}
-      />
-    ),
-    submit: (input: AgentPromptInput, key: string) =>
-      session.runConfigured(() =>
+    controls: continuation.controls,
+    ...(continuation.target ? { confirmContinuation: continuation.confirm } : {}),
+    submit: (input: AgentPromptInput, key: string) => {
+      const target = continuation.target;
+      if (target)
+        return continuation.submit(input, key, async (delivery) => {
+          const read = props.client.readTask;
+          if (!read) throw new Error("ACP 任务读取端口不可用");
+          const result = await props.client.submitTask(
+            props.projectId,
+            {
+              type: "acp-prompt",
+              engine: target,
+              input,
+              initialConfig: delivery.values,
+              continuationSourceTaskId: props.taskId,
+              ...(delivery.recoveryKey ? { recoveryKey: delivery.recoveryKey } : {}),
+            },
+            { idempotencyKey: delivery.key },
+          );
+          const acpSnapshot = await read.call(props.client, props.projectId, result.taskId);
+          if (
+            acpSnapshot.snapshot.runtime !== "acp" ||
+            acpSnapshot.snapshot.id !== result.taskId ||
+            acpSnapshot.snapshot.projectId !== props.projectId
+          )
+            throw new Error("ACP 接续任务快照归属不匹配");
+          return { ...result, acpSnapshot };
+        });
+      return session.runConfigured(() =>
         props.client.submitTask(
           props.projectId,
           { type: "acp-prompt", taskId: props.taskId, input },
           { idempotencyKey: key },
         ),
-      ),
+      );
+    },
   };
   // 复用编辑器和草稿；旧模型目录、全局设置及专用快速模式均不参与 ACP 发送。
   return (

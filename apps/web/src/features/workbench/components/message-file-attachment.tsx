@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { PdfAttachment } from "@codexly/ui/core/pdf-attachment";
 import { classifyMessageAttachment } from "../project-file-reference.js";
 import type { AgentMessageAttachment } from "@codexly/protocol";
@@ -18,6 +19,7 @@ type MessageFileAttachmentProps = Readonly<{
   children?: ReactNode;
   className?: string;
   url: string;
+  projectId?: string;
 }>;
 
 export function MessageFileAttachment({
@@ -25,6 +27,7 @@ export function MessageFileAttachment({
   children,
   className,
   url,
+  projectId,
 }: MessageFileAttachmentProps) {
   const isLanAccess = useIsLanAccess();
   if (classifyMessageAttachment(attachment) === "pdf") {
@@ -59,7 +62,7 @@ export function MessageFileAttachment({
       </PdfAttachment>
     );
   }
-  return (
+  const card = (
     <LanDownloadContextMenu enabled={isLanAccess} name={attachment.name} url={url}>
       <a
         aria-label={i18n.t("timeline.downloadAttachment", {
@@ -85,5 +88,20 @@ export function MessageFileAttachment({
         )}
       </a>
     </LanDownloadContextMenu>
+  );
+  const sourceId = attachment.continuationSourceTaskId;
+  if (!sourceId || !projectId) return card;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {card}
+      <Link
+        {...(projectId === "temporary"
+          ? { to: "/temporary/t/$taskId" as const, params: { taskId: sourceId } }
+          : { to: "/p/$projectId/t/$taskId" as const, params: { projectId, taskId: sourceId } })}
+        className="text-caption text-muted-foreground underline-offset-2 hover:underline"
+      >
+        {i18n.language === "zh-CN" ? "打开来源任务" : "Open source task"}
+      </Link>
+    </div>
   );
 }

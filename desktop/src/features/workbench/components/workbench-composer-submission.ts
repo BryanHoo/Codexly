@@ -226,8 +226,13 @@ export function createComposerSubmission({
       return false;
     }
 
+    const continuation = acp?.confirmContinuation;
+    if (continuation && (action !== "start" || !(await continuation()) || !isCurrentScope(requestScope)))
+      return false;
+
     // 排队项由调用方关闭置底请求，只有用户当前发出的即时消息改变阅读位置。
     if (
+      !continuation &&
       onCaptureSubmission === undefined &&
       action !== "queue" &&
       options.requestTimelineScroll !== false
@@ -434,16 +439,16 @@ export function createComposerSubmission({
           // Goal 已写入 Codex Thread，后续消息必须恢复为普通提交，避免替换目标。
           onGoalStarted();
         }
-        setSubmittedTurnState({ scope: requestScope, turnId: result.turn.id });
+        if (!continuation) setSubmittedTurnState({ scope: requestScope, turnId: result.turn.id });
       }
       // Mutation 返回后立即上报本次提交，Timeline 不等待 Provider Snapshot 落盘。
-      onTurnStarted?.(result.turn, input, messageAttachments);
+      if (!continuation) onTurnStarted?.(result.turn, input, messageAttachments);
       if (isCurrentScope(requestScope)) {
         startTurnAttempt.current = undefined;
         uploadedAttachments.current.clear();
         uploadAttempts.current.clear();
       }
-      if (taskId === undefined) {
+      if (taskId === undefined || (continuation && isCurrentScope(requestScope))) {
         const startedTask = result.createdTask ?? pendingTask;
         if (startedTask !== undefined) {
           onTaskStarted(

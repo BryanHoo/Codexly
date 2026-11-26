@@ -1,3 +1,4 @@
+import type { AgentTask } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
 import {
@@ -32,9 +33,10 @@ async function fixture(repository?: TaskSubmissionRepository) {
   const h = createProvider(),
     settings = createSettingsRepository();
   const startConfiguredTurn = vi.fn(() => Promise.resolve(turn));
+  const readTaskMetadata = vi.fn<(id: string) => Promise<AgentTask | undefined>>();
   const app = await createCodexlyServer(
     createServerOptions(
-      { ...h.provider, startConfiguredTurn },
+      { ...h.provider, startConfiguredTurn, readTaskMetadata },
       {
         settingsRepository: settings.repository,
         ...(repository ? { submissionRepository: repository } : {}),
@@ -42,7 +44,7 @@ async function fixture(repository?: TaskSubmissionRepository) {
     ),
   );
   closeCallbacks.push(() => app.close());
-  return { ...h, ...settings, startConfiguredTurn, app };
+  return { ...h, ...settings, startConfiguredTurn, readTaskMetadata, app };
 }
 
 it("ACP 创建明确未执行时允许原键重试，不遗留 creating 占用", async () => {
@@ -328,4 +330,48 @@ it("旧请求已读准备态后遇到恢复转交，仍不能重新发送", { ti
   expect((await stale).statusCode).toBe(409);
   expect(first.startConfiguredTurn).toHaveBeenCalledOnce();
   expect(second.startConfiguredTurn).toHaveBeenCalledOnce();
+});
+
+it("接续请求只创建并发送到新任务一次，跨项目来源无法读取", async () => {
+  const h = await fixture();
+  h.readTaskMetadata
+    .mockResolvedValueOnce({
+      id: "source",
+      projectId: "other",
+      title: "不可访问",
+      engine: "codex",
+      pinned: false,
+      updatedAt: "2026-11-26T00:00:00.000Z",
+    })
+    .mockResolvedValue({
+      id: "source",
+      projectId: "codexly",
+      title: "导出",
+      engine: "codex",
+      pinned: false,
+      updatedAt: "2026-11-26T00:00:00.000Z",
+    });
+  const payload = {
+    type: "acp-prompt",
+    engine: "claude",
+    continuationSourceTaskId: "source",
+    initialConfig: {},
+    input: request.payload.input,
+  };
+  const invalid = await h.app.inject({
+    ...request,
+    headers: { "idempotency-key": "invalid-source" },
+    payload,
+  });
+  expect(invalid.statusCode).toBe(404);
+  expect(h.startTask).not.toHaveBeenCalled();
+  const created = await h.app.inject({ ...request, payload });
+  expect(created.statusCode, created.body).toBe(201);
+  expect((await h.app.inject({ ...request, payload })).json()).toEqual(created.json());
+  expect(h.startTask).toHaveBeenCalledExactlyOnceWith({ engine: "claude" });
+  expect(h.startConfiguredTurn).toHaveBeenCalledExactlyOnceWith(
+    "task-1",
+    expect.objectContaining({ continuationSourceTaskId: "source", text: "继续旧会话" }),
+    {},
+  );
 });

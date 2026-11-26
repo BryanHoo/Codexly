@@ -176,11 +176,7 @@ export function TimelineItemContent({
                 );
               }
               return (
-                <MessageFileAttachment
-                  attachment={attachment}
-                  key={attachment.id}
-                  url={attachmentUrl}
-                />
+                <MessageFileAttachment attachment={attachment} key={attachment.id} projectId={projectId} url={attachmentUrl} />
               );
             })}
           </Attachments>

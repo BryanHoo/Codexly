@@ -180,13 +180,13 @@ export function TimelineItemContent({
                 <MessageFileAttachment
                   attachment={attachment}
                   key={attachment.id}
+                  projectId={projectId}
                   url={attachmentUrl}
                 />
               );
             })}
           </Attachments>
         );
-
       if (item.role === "assistant") {
         return (
           <MessageContent className="w-full" data-conversation-anchor={anchorId}>

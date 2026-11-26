@@ -23,16 +23,20 @@ export class HistoricalTaskAttachments {
   }
   async prepare(taskId: string, input: AgentProviderTurnInput): Promise<AgentMessageAttachment[]> {
     const attachments: AgentMessageAttachment[] = [];
-    const add = (attachment: AgentMessageAttachment | undefined) => {
+    const add = (attachment: AgentMessageAttachment | undefined, sourceTaskId?: string) => {
       // 发送成功必须意味着历史可恢复；正文持久化失败时不能静默丢弃卡片再启动 SDK。
       if (!attachment) throw new Error("任务 附件保存失败，请检查附件与存储后重试");
-      attachments.push(attachment);
+      // 来源链接随新任务的消息保存，附件内容仍由原有授权入口读取。
+      attachments.push(
+        sourceTaskId ? { ...attachment, continuationSourceTaskId: sourceTaskId } : attachment,
+      );
     };
     for (const [index, image] of input.images.entries())
       add(await this.store.addLocalImage(taskId, image.path, index));
     for (const [index, text] of input.textAttachments.entries())
-      add(await this.store.addText(taskId, text, index));
-    for (const file of input.files) add(await this.store.addLocalFile(taskId, file));
+      add(await this.store.addText(taskId, text, index), text.continuationSourceTaskId);
+    for (const file of input.files)
+      add(await this.store.addLocalFile(taskId, file), file.continuationSourceTaskId);
     await this.#persistReferences(taskId);
     return attachments;
   }

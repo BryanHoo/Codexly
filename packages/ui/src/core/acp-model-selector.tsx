@@ -71,6 +71,8 @@ export type AcpModelSelectorProps = Readonly<{
   error: Error | null;
   language?: string;
   locked?: boolean;
+  label?: string | undefined;
+  selectDefaultEngine?: (engine: AgentEngine) => void;
   loadOptions?: (engine: AgentEngine, signal: AbortSignal) => Promise<readonly AcpConfigOption[]>;
   onSelect: (engine: AgentEngine, id: string, value: string) => void;
   retry?: { label: string; run: () => void };
@@ -186,7 +188,8 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
   const loading =
     tab !== "favorites" && target !== engine && targetOptions === undefined && !remote?.error;
   const failure = target === engine ? error : remote?.engine === target ? remote.error : undefined;
-  const label = `${engineName(engine)} / ${selected ?? (zh ? "选择模型" : "Select model")}`;
+  const label =
+    props.label ?? `${engineName(engine)} / ${selected ?? (zh ? "选择模型" : "Select model")}`;
   return (
     <Popover.Root
       open={open}
@@ -343,6 +346,25 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
             </Tabs.Content>
           </Tabs.Root>
           <div className="border-t border-separator p-1">
+            {props.selectDefaultEngine &&
+            target !== engine &&
+            !loading &&
+            !failure &&
+            entries.length === 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={disabled}
+                onClick={() => {
+                  props.selectDefaultEngine?.(target);
+                  setOpen(false);
+                }}
+              >
+                {zh
+                  ? `使用 ${engineName(target)} 的默认模型`
+                  : `Use ${engineName(target)} defaults`}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"

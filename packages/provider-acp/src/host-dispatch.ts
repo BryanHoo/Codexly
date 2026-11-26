@@ -260,10 +260,22 @@ export async function dispatchAcpHost(
       if (!provider.startConfiguredTurn)
         throw new AgentTurnNotSubmittedError("ACP 配置会话执行端口不可用");
       const key = params["idempotencyKey"];
-      const input =
-        typeof key === "string" && key.length <= 128 && key.trim()
-          ? { ...params["input"], submissionKey: key }
-          : params["input"];
+      const continuation = params["continuationSourceTaskId"];
+      if (
+        continuation !== undefined &&
+        (typeof continuation !== "string" ||
+          !continuation.trim() ||
+          continuation.length > 256 ||
+          params["initialConfig"] === undefined)
+      )
+        throw new AgentTurnNotSubmittedError("无效的接续任务首发请求");
+      const input = {
+        ...params["input"],
+        ...(typeof key === "string" && key.length <= 128 && key.trim()
+          ? { submissionKey: key }
+          : {}),
+        ...(typeof continuation === "string" ? { continuationSourceTaskId: continuation } : {}),
+      };
       if (params["initialConfig"] !== undefined) {
         if (!Value.Check(AcpConfigValuesSchema, params["initialConfig"]))
           throw new Error("Invalid initial config");

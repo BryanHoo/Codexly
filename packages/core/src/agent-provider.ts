@@ -172,7 +172,10 @@ export type ReadAgentTaskInput = Readonly<{
 export type AgentProviderTurnInput = Readonly<{
   /** 已通过应用提交记录校验的发送身份，仅由 Web 服务或桌面宿主设置。 */
   submissionKey?: string;
+  /** 接续来源仅由两端可信的首发交付层传入。 */
+  continuationSourceTaskId?: string;
   files: readonly Readonly<{
+    continuationSourceTaskId?: string;
     mediaType: string;
     name: string;
     path: string;
@@ -187,6 +190,7 @@ export type AgentProviderTurnInput = Readonly<{
   skills: readonly AgentSkillReference[];
   text: string;
   textAttachments: readonly Readonly<{
+    continuationSourceTaskId?: string;
     name: string;
     text: string;
   }>[];

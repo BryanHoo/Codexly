@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { TauriWorkspaceClient } from "../../../platform/tauri/workspace-client.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
 import { PdfAttachment } from "@codexly/ui/core/pdf-attachment";
@@ -20,6 +21,7 @@ type MessageFileAttachmentProps = Readonly<{
   children?: ReactNode;
   className?: string;
   url: string;
+  projectId?: string;
 }>;
 
 export function MessageFileAttachment({
@@ -27,6 +29,7 @@ export function MessageFileAttachment({
   children,
   className,
   url,
+  projectId,
 }: MessageFileAttachmentProps) {
   if (classifyMessageAttachment(attachment) === "pdf") {
     return (
@@ -60,7 +63,7 @@ export function MessageFileAttachment({
       </PdfAttachment>
     );
   }
-  return (
+  const card = (
     <a
       aria-label={i18n.t("timeline.downloadAttachment", {
         name: attachment.name,
@@ -84,5 +87,20 @@ export function MessageFileAttachment({
         </Attachment>
       )}
     </a>
+  );
+  const sourceId = attachment.continuationSourceTaskId;
+  if (!sourceId || !projectId) return card;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {card}
+      <Link
+        {...(projectId === "temporary"
+          ? { to: "/temporary/t/$taskId" as const, params: { taskId: sourceId } }
+          : { to: "/p/$projectId/t/$taskId" as const, params: { projectId, taskId: sourceId } })}
+        className="text-caption text-muted-foreground underline-offset-2 hover:underline"
+      >
+        {i18n.language === "zh-CN" ? "打开来源任务" : "Open source task"}
+      </Link>
+    </div>
   );
 }

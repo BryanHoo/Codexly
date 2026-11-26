@@ -1,4 +1,3 @@
-import { AcpComposerSettingsContext } from "@codexly/ui/core/acp-composer-settings";
 import { ComposerPromptProjectsContext } from "@codexly/ui/core/composer-submit-actions";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
@@ -134,7 +133,7 @@ export function WorkbenchShellLayout({
   const inspectorVisible = resolveInspectorVisibility(utilityView, inspectorOpen);
   const taskWriteBlocked =
     workspaceContent === undefined && taskId !== undefined && runtime.writeAccess !== undefined && runtime.writeAccess !== "writable";
-  const content = (
+  return (
     <ComposerPromptProjectsContext value={projects}>
     <TaskInteractionContext value={taskWriteBlocked ? JSON.stringify([projectId, taskId]) : null}>
       <div
@@ -372,5 +371,4 @@ export function WorkbenchShellLayout({
     </TaskInteractionContext>
     </ComposerPromptProjectsContext>
   );
-  return <AcpComposerSettingsContext value={() => { setGlobalSettingsSection("acp"); }}>{content}</AcpComposerSettingsContext>;
 }

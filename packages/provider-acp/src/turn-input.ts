@@ -80,6 +80,13 @@ export async function createAcpPrompt(
         name: file.name,
         mimeType: file.mediaType,
         uri: pathToFileURL(path).href,
+        ...(file.continuationSourceTaskId
+          ? {
+              description:
+                "来源任务的历史对话。需要上下文时，请按需读取相关回合，以本轮用户消息为准。",
+              size: source.size,
+            }
+          : {}),
       });
     }
     if (!prompt.length) throw new Error("ACP 输入不能为空");

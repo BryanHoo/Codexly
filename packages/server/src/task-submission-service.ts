@@ -102,6 +102,23 @@ export async function executeTaskSubmission(
   try {
     return await submitTask(repository, projectId, key, context.fingerprintPayload(input), input, {
       validate: async () => {
+        if (
+          input.type === "acp-prompt" &&
+          "continuationSourceTaskId" in input &&
+          input.continuationSourceTaskId
+        ) {
+          const source = await runtime.provider.readTaskMetadata?.(input.continuationSourceTaskId);
+          if (!source || source.projectId !== runtime.scope.id)
+            throw new MutationHttpError(
+              "TASK_NOT_FOUND",
+              "Continuation source task not found",
+              404,
+            );
+          if (!input.engine || source.engine === input.engine || input.workspacePath !== undefined)
+            throw new MutationHttpError("INVALID_REQUEST", "Invalid continuation target", 400);
+          // 目录由来源任务决定，继续由 Provider 校验项目及 worktree 的实际授权。
+          workspacePath = runtime.scope.kind === "temporary" ? undefined : source.workspacePath;
+        }
         if (input.type !== "review" && input.workspacePath !== undefined) {
           if (input.taskId !== undefined)
             throw new MutationHttpError(
@@ -175,7 +192,13 @@ export async function executeTaskSubmission(
         if (prepared === undefined) throw new Error("Submission input is unavailable");
         if (input.type === "acp-prompt") {
           if (!runtime.provider.startConfiguredTurn) throw new Error("ACP prompt is unavailable");
-          const providerInput = { ...prepared.providerInput, submissionKey: key };
+          const sourceId =
+            "continuationSourceTaskId" in input ? input.continuationSourceTaskId : undefined;
+          const providerInput = {
+            ...prepared.providerInput,
+            submissionKey: key,
+            ...(sourceId === undefined ? {} : { continuationSourceTaskId: sourceId }),
+          };
           const turn =
             "initialConfig" in input
               ? await runtime.provider.startConfiguredTurn(

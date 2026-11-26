@@ -75,6 +75,7 @@ export type WorkbenchComposerProps = Readonly<{
     leadingControls?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
+    confirmContinuation?: () => Promise<boolean>;
     submit: (
       input: AgentPromptInput,
       key: string,

@@ -34,6 +34,7 @@ import { acpCapabilities, discoverAcpModels } from "./provider-discovery.js";
 import { applyAcpConfig, configureAcpTurn } from "./configuration.js";
 import { prepareAcpPrompt, sendAcpPrompt, submitAcpTurn } from "./turn-submission.js";
 import { steerAcpTurn } from "./steering.js";
+import { withTaskContinuation } from "./task-continuation.js";
 import { startAcpLocalTask } from "./task-creation.js";
 import { generateAcpText } from "./text-generation.js";
 import type { AcpSessionMetadata } from "./session-metadata.js";
@@ -221,7 +222,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
   }
   #startTurn(
     id: string,
-    input: AgentProviderTurnInput,
+    originalInput: AgentProviderTurnInput,
     options: Partial<Pick<AgentTurnOptions, "model" | "reasoningEffort">>,
     signal?: AbortSignal,
     initialConfig?: AcpConfigValues,
@@ -237,8 +238,16 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         const agent = await this.#link.get();
         const bound = this.#link.sessions.get(id);
         if (bound) agent.assertSessionReady(bound);
-        const prompt = await prepareAcpPrompt(agent, this.history.directory, id, input, onRollback);
-        const attachments = await this.attachments.prepare(id, input);
+        const { prompt, attachments } = await withTaskContinuation(
+          this,
+          task,
+          originalInput,
+          initialConfig,
+          async (input) => ({
+            prompt: await prepareAcpPrompt(agent, this.history.directory, id, input, onRollback),
+            attachments: await this.attachments.prepare(id, input),
+          }),
+        );
         await this.#load(task, initialConfig !== undefined);
         const sessionId = this.#link.sessions.get(id);
         if (!sessionId) throw new Error("ACP 会话绑定缺失");
@@ -263,12 +272,10 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           task,
           this.#ephemeral.has(id) ? undefined : this.initialization,
         );
-        await this.#patch(id, {
-          status: "active",
-          updatedAt: Math.floor(Date.now() / 1000),
-        });
+        const updatedAt = Math.floor(Date.now() / 1000);
+        await this.#patch(id, { status: "active", updatedAt });
         signal?.throwIfAborted();
-        if (!this.#ephemeral.has(id)) await this.prepareTaskTitle?.(task, input);
+        if (!this.#ephemeral.has(id)) await this.prepareTaskTitle?.(task, originalInput);
         if (this.engine === "codex" && !this.#ephemeral.has(id))
           await this.initialization?.markFirstPrompt({ ...task, sessionId }, sessionId);
         await this.#background.flush(id);
@@ -280,7 +287,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           this.#ephemeral.has(id) ? undefined : () => this.history.cache.content(id),
         );
         this.#active.set(id, projection);
-        projection.userMessage(`acp:message:user:${randomUUID()}`, input.text, attachments);
+        projection.userMessage(`acp:message:user:${randomUUID()}`, originalInput.text, attachments);
         const turn = projection.snapshot();
         this.#emit({ type: "turn.started", taskId: id, turnId: turn.id, payload: { turn } });
         if (signal?.aborted) {
@@ -293,7 +300,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           sessionId,
           prompt,
           projection,
-          input.submissionKey,
+          originalInput.submissionKey,
         ).then((final) => this.#commitTurn(id, projection, final, prompt));
         this.#settlements.add(settlement);
         this.#taskSettlements.set(id, settlement);

@@ -59,6 +59,16 @@ for (const width of [390, 1280]) {
     await page.goto("/p/codexly");
     const editor = page.getByRole("textbox", { name: "任务输入" });
     await editor.fill("保留首发草稿");
+    // 从会话窗格的真实模型入口验证外层工作台打开 ACP 设置，并保留未发送草稿。
+    await page.getByRole("button", { name: "Codex / 选择模型", exact: true }).click();
+    await page.getByRole("button", { name: "配置 Agent", exact: true }).click();
+    const settings = page.getByRole("dialog", { name: "全局设置" });
+    await expect(settings.getByRole("button", { name: "ACP", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await settings.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(editor).toHaveAttribute("data-serialized-value", "保留首发草稿");
     const rawOption = page.getByRole("button", { name: "ACP 原始开关", exact: true });
     const more = page.getByRole("button", { name: "更多配置", exact: true });
     // 窄屏会将原始配置收进溢出菜单，使用真实入口完成相同设置操作。

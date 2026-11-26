@@ -3,6 +3,7 @@ import {
   type SplitPaneIdentity,
 } from "@codexly/frontend-core/split-workspace";
 import { SplitInspectorProvider } from "@codexly/ui/core/split-inspector";
+import { AcpComposerSettingsContext } from "@codexly/ui/core/acp-composer-settings";
 import {
   SplitTaskInteractionProvider,
   useReportSplitTaskInteraction,
@@ -38,13 +39,17 @@ function WorkbenchShellContent({
   const shell = useWorkbenchShellRuntime({ ...taskScope, temporary, workspaceOnly });
   const context = useWorkbenchShellController(shell, { ...taskScope, temporary });
   const setSidebarOpen = context.setSidebarOpen;
+  const setGlobalSettingsSection = context.setGlobalSettingsSection;
+  const openAcpSettings = useCallback(() => {
+    setGlobalSettingsSection("acp");
+  }, [setGlobalSettingsSection]);
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((open) => !open);
   }, [setSidebarOpen]);
   return (
     <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
-      {/* 设置以模态浮层覆盖工作台，背景和会话状态保持原位。 */}
-      <>
+      {/* 普通聊天和分屏共用外层工作台的设置状态，由下方的设置弹窗读取。 */}
+      <AcpComposerSettingsContext value={openAcpSettings}>
         <WorkbenchShellLayout
           board={board}
           scheduledTasks={scheduledTasks}
@@ -83,7 +88,7 @@ function WorkbenchShellContent({
           {...taskScope}
           temporary={temporary}
         />
-      </>
+      </AcpComposerSettingsContext>
       <WorkbenchSettingsPage context={context} projectToolsEnabled={!temporary} />
       <WorkbenchPetLayer settings={context.globalSettings?.pet} />
     </SplitInspectorProvider>

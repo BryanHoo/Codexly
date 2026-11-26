@@ -39,6 +39,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
     idempotencyKey: string,
     initialConfig?: AcpConfigValues,
     recoveryKey?: string,
+    continuationSourceTaskId?: string,
   ): Promise<NativeAgentTurn> {
     return this.mutateAcpTask(
       projectId,
@@ -49,6 +50,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
         idempotencyKey,
         ...(initialConfig === undefined ? {} : { initialConfig }),
         ...(recoveryKey === undefined ? {} : { recoveryKey }),
+        ...(continuationSourceTaskId === undefined ? {} : { continuationSourceTaskId }),
       },
       {},
     );
@@ -71,7 +73,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
   async createAcpTask(
     projectId: string,
     engine: AgentEngine,
-    options: MutationOptions & { idempotencyKey: string; workspacePath?: string },
+    options: MutationOptions & { idempotencyKey: string; workspacePath?: string; continuationSourceTaskId?: string },
   ): Promise<
     Pick<
       AgentTaskSnapshotResponse["snapshot"],
@@ -86,6 +88,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
       engine,
       idempotencyKey,
       ...(options.workspacePath === undefined ? {} : { workspacePath: options.workspacePath }),
+      ...(options.continuationSourceTaskId === undefined ? {} : { continuationSourceTaskId: options.continuationSourceTaskId }),
     });
   }
 

@@ -135,6 +135,7 @@ export function stripLeadingAgentSkillReferences(
 // Snapshot 只保存可授权读取的附件元数据，避免历史二进制随消息缓存复制。
 export const AgentMessageAttachmentSchema = Type.Object(
   {
+    continuationSourceTaskId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
     id: Type.String({ minLength: 1 }),
     kind: AgentAttachmentKindSchema,
     mediaType: AgentAttachmentMediaTypeSchema,

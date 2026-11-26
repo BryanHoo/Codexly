@@ -17,6 +17,7 @@ export const SubmitTaskRequestSchema = Type.Union([
       input: AgentPromptInputSchema,
       taskId: Type.Optional(Type.Never()),
       initialConfig: AcpConfigValuesSchema,
+      continuationSourceTaskId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
       recoveryKey: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
     },
     { additionalProperties: false },
