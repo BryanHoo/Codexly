@@ -128,7 +128,10 @@ export const CompactAgentTaskResponseSchema = Type.Object(
 export type CompactAgentTaskResponse = Readonly<Static<typeof CompactAgentTaskResponseSchema>>;
 
 export const ForkAgentTaskRequestSchema = Type.Object(
-  { lastTurnId: Type.Optional(Type.String({ minLength: 1 })) },
+  {
+    lastTurnId: Type.Optional(Type.String({ minLength: 1, maxLength: 1024 })),
+    lastItemId: Type.Optional(Type.String({ minLength: 1, maxLength: 2048 })),
+  },
   { additionalProperties: false },
 );
 export type ForkAgentTaskRequest = Readonly<Static<typeof ForkAgentTaskRequestSchema>>;

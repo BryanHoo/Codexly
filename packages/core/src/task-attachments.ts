@@ -99,7 +99,12 @@ export class HistoricalTaskAttachments {
     });
   }
   /** 只复制分叉点之前实际展示的附件；引用 ID 不变，正文及删除生命周期归新任务独立所有。 */
-  async forkAttachment(source: string, target: string, id: string): Promise<void> {
+  async forkAttachment(
+    source: string,
+    target: string,
+    id: string,
+    destination = this,
+  ): Promise<void> {
     const metadata = JSON.parse(await readFile(this.#path(source, id), "utf8")) as Omit<
       HistoricalAttachmentMetadata,
       "schemaVersion"
@@ -112,13 +117,13 @@ export class HistoricalTaskAttachments {
       throw new Error("任务 分叉附件记录无效");
     const sourceHash = createHash("sha256").update(source).digest("hex");
     const targetHash = createHash("sha256").update(target).digest("hex");
-    await mkdir(this.#directory(target), { recursive: true, mode: 0o700 });
+    await mkdir(destination.#directory(target), { recursive: true, mode: 0o700 });
     await copyTaskStorage(
       join(this.directory, "blobs", sourceHash, metadata.blobKey),
-      join(this.directory, "blobs", targetHash, metadata.blobKey),
+      join(destination.directory, "blobs", targetHash, metadata.blobKey),
       true,
     );
-    await writeFile(this.#path(target, id), JSON.stringify(metadata), { mode: 0o600 });
+    await writeFile(destination.#path(target, id), JSON.stringify(metadata), { mode: 0o600 });
   }
 }
 

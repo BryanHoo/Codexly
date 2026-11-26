@@ -384,7 +384,6 @@ export class AcpEventProjection {
       error: this.#error,
       ...(this.#stopReason ? { stopReason: this.#stopReason } : {}),
       items: structuredClone([...this.#items.values()]),
-      forkable: false,
     };
   }
 

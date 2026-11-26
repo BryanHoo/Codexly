@@ -85,11 +85,18 @@ export async function withTaskContinuation<T>(
   initialConfig: AcpConfigValues | undefined,
   use: (input: AgentProviderTurnInput) => Promise<T>,
 ): Promise<T> {
-  if (!input.continuationSourceTaskId) return use(input);
-  if (initialConfig === undefined || (await history.hasTurns(target.id)))
-    throw new Error("接续附件只可用于新任务首轮");
-  const source = await store.catalog("task.read", { id: input.continuationSourceTaskId });
-  validateTaskContinuation(source, target);
+  const fork = await history.forkContextPending(target.id);
+  const sourceId = input.continuationSourceTaskId;
+  if (!fork && !sourceId) return use(input);
+  let source = target;
+  if (!fork && sourceId) {
+    if (initialConfig === undefined || (await history.hasTurns(target.id)))
+      throw new Error("接续附件只可用于新任务首轮");
+    const previous = await store.catalog("task.read", { id: sourceId });
+    validateTaskContinuation(previous, target);
+    source = previous;
+  }
+  const link = fork ? undefined : source.id;
   const used = input.textAttachments.reduce(
     (sum, attachment) => sum + Buffer.byteLength(attachment.name + attachment.text),
     Buffer.byteLength(input.text),
@@ -137,7 +144,7 @@ export async function withTaskContinuation<T>(
     if (text && !text.endsWith(omitted))
       return await use({
         ...input,
-        textAttachments: addText(continuationFileName, text, source.id),
+        textAttachments: addText(continuationFileName, text, link),
       });
 
     // 用户已选文件优先占用既有总额度，历史附件使用剩余空间。
@@ -149,7 +156,7 @@ export async function withTaskContinuation<T>(
       if (!text) throw new Error("提示词和文件已达到发送容量，无法附加接续记录");
       return await use({
         ...input,
-        textAttachments: addText(continuationFileName, text, source.id),
+        textAttachments: addText(continuationFileName, text, link),
       });
     }
     return await withTaskContinuationFile(history, source, available, (path) =>
@@ -164,7 +171,7 @@ export async function withTaskContinuation<T>(
             name: continuationFileName,
             path,
             mediaType: "text/markdown",
-            continuationSourceTaskId: source.id,
+            ...(link === undefined ? {} : { continuationSourceTaskId: link }),
           },
         ],
       }),

@@ -146,6 +146,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
         group.type === "user" ? (
           <StoredUserMessage
             itemKey={group.itemKey}
+            {...(onForkTask === undefined ? {} : { onForkTask })}
             key={group.itemKey}
             onOpenFileDiff={onOpenFileDiff}
             onOpenSourceFile={onOpenSourceFile}
@@ -354,11 +355,13 @@ export function TaskStoreTimeline({
       ),
     [turnGroups, submissionTurnId, showPendingSubmission, submissionHandoffState, pendingPrompt],
   );
+  // 搜索定位使用只读历史快照，但分支仍可通过独立的任务请求创建。
+  const canFork = connected || searchTarget !== undefined;
   const renderTurn = useCallback(
     (row: TimelineTurnRow<PendingPrompt>, turnIndex: number) => (
       <StoreTurnTimelineSection
         {...(connected && row.isLast && onBuildPlan !== undefined ? { onBuildPlan } : {})}
-        {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
+        {...(canFork && onForkTask !== undefined ? { onForkTask } : {})}
         onOpenFileDiff={onOpenFileDiff}
         onOpenSourceFile={onOpenSourceFile}
         onReviewFileChanges={onReviewFileChanges}
@@ -374,6 +377,7 @@ export function TaskStoreTimeline({
       />
     ),
     [
+      canFork,
       connected,
       onBuildPlan,
       onForkTask,

@@ -59,6 +59,7 @@ export function StoredAssistantGroup({
   // 完成态聚合只在 Turn 终态或 Item 顺序变化时执行，不参与文本 Delta。
   const itemStoresByKey = store.getState().itemStoresByKey;
   const assistantTextParts: string[] = [];
+  let replyKey: string | undefined;
   const responseFileChanges: AgentFileChange[] = [];
   const visibleItemKeys = itemKeys.filter(
     (key) => !paginatedProcessItemKeys.has(key) && (processExpanded || !processItemKeys.has(key)),
@@ -68,12 +69,21 @@ export function StoredAssistantGroup({
       const item = itemStoresByKey.get(itemKey)?.read();
       if (item?.type === "message" && item.role === "assistant") {
         assistantTextParts.push(item.text);
+        replyKey = itemKey;
       } else if (item?.type === "file_change" && item.status === "completed") {
         responseFileChanges.push(...item.changes);
       }
     }
   }
   const assistantText = assistantTextParts.join("\n\n");
+  const [replyTurnId, replyId] =
+    replyKey === undefined ? [] : (JSON.parse(replyKey) as [string, string]);
+  // 组合展示可能跨多个 ACP 回合，分支必须使用末条可见回答所属的原始回合。
+  const replyTurn = replyTurnId === undefined ? undefined : store.getState().turnsById[replyTurnId];
+  const canFork =
+    replyTurn !== undefined &&
+    !replyTurn.acpBackground &&
+    (replyTurn.forkable !== false || store.getState().snapshotMetadata?.runtime === "acp");
   return (
     <Message from="assistant">
       {showProcessingTime ? (
@@ -128,8 +138,9 @@ export function StoredAssistantGroup({
       ) : null}
       {turn.status !== "running" && assistantText.trim().length > 0 ? (
         <MessageMetadata
-          lastTurnId={turn.id}
-          {...(onForkTask === undefined || turn.forkable === false ? {} : { onForkTask })}
+          {...(onForkTask && canFork && replyTurnId && replyId
+            ? { onForkTask, lastTurnId: replyTurnId, lastItemId: replyId }
+            : {})}
           text={assistantText}
         />
       ) : null}

@@ -281,12 +281,14 @@ export function TurnProcessingTime({
 export function MessageMetadata({
   editAction,
   lastTurnId,
+  lastItemId,
   modeLabel,
   onForkTask,
   text,
 }: Readonly<{
   editAction?: ReactNode;
   lastTurnId?: string;
+  lastItemId?: string;
   modeLabel?: string;
   onForkTask?: ForkTaskAction;
   text: string;
@@ -315,7 +317,8 @@ export function MessageMetadata({
       setForkPending(true);
       try {
         // 重试复用同一幂等键，避免响应丢失时重复创建任务。
-        await onForkTask(lastTurnId, forkIdempotencyKeyRef.current);
+        await onForkTask(lastTurnId, forkIdempotencyKeyRef.current, lastItemId);
+        forkIdempotencyKeyRef.current = null;
         notifyActionSuccess();
       } catch (error) {
         notifyActionError(error);
@@ -335,7 +338,6 @@ export function MessageMetadata({
       >
         <Copy className="size-3.5" aria-hidden="true" />
       </MessageAction>
-      {editAction}
       {lastTurnId === undefined || onForkTask === undefined ? null : (
         <MessageAction
           disabled={forkPending}
@@ -352,6 +354,7 @@ export function MessageMetadata({
           <GitFork className="size-3.5" aria-hidden="true" />
         </MessageAction>
       )}
+      {editAction}
       {modeLabel === undefined ? null : <span>{modeLabel}</span>}
     </MessageActions>
   );

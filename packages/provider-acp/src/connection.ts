@@ -6,39 +6,18 @@ import { AcpAuthStatusTracker } from "./auth-status.js";
 import { AcpSessionMetadataStore, type AcpSessionMetadata } from "./session-metadata.js";
 import { AcpRequestElicitation, registerAcpElicitation } from "./request-elicitation.js";
 
-const CANCEL_GRACE_MS = 5_000;
+import { AcpForkCursors } from "./fork-cursors.js";
+
+import {
+  cancelAcpPrompt,
+  type ActivePrompt,
+  type PendingCancellation,
+} from "./connection-cancellation.js";
+
+import type { AcpClientCallbacks } from "./connection-callbacks.js";
+export type { AcpClientCallbacks } from "./connection-callbacks.js";
+
 const SESSION_CAPACITY = 64;
-
-interface ActivePrompt {
-  abandoned: PromiseWithResolvers<never>;
-  foregroundActive: boolean;
-}
-
-interface PendingCancellation {
-  sent: boolean;
-  timedOut: boolean;
-  write: Promise<void>;
-  finish(): void;
-}
-
-export interface AcpClientCallbacks {
-  /** 更新直接增量交付；上层按 sessionId 路由，禁止在这里重建整个历史。 */
-  onUpdate?(notification: acp.SessionNotification, historical: boolean): void | Promise<void>;
-  supportsSubagents?: boolean;
-  supportsRequestElicitation?: boolean;
-  subagentRoot?(sessionId: string): string | undefined;
-  resetSubagentWork?(rootSessionId: string): void;
-  onSessionState?(sessionId: string, state: AcpSessionMetadata): void | Promise<void>;
-  requestElicitation?(
-    request: acp.CreateElicitationRequest,
-    signal: AbortSignal,
-  ): Promise<acp.CreateElicitationResponse>;
-  onElicitationComplete?(id: string): void;
-  requestPermission?(
-    request: acp.RequestPermissionRequest,
-    signal: AbortSignal,
-  ): Promise<acp.RequestPermissionResponse>;
-}
 
 /** 通过 ACP 稳定接口及 Agent 主动公布的扩展通信。 */
 export class AcpConnection {
@@ -57,6 +36,7 @@ export class AcpConnection {
     private readonly resetSubagentWork: (rootSessionId: string) => void,
     private readonly metadata: AcpSessionMetadataStore,
     readonly requestElicitation: AcpRequestElicitation | undefined,
+    readonly forkCursors: AcpForkCursors,
     private readonly publishForeground: (
       sessionId: string,
       state: "running" | "idle",
@@ -84,6 +64,7 @@ export class AcpConnection {
     const replaying = new Set<string>();
     const metadata = new AcpSessionMetadataStore();
     const authStatus = new AcpAuthStatusTracker();
+    const forkCursors = new AcpForkCursors();
     const requestElicitation = callbacks.supportsRequestElicitation
       ? new AcpRequestElicitation()
       : undefined;
@@ -109,6 +90,11 @@ export class AcpConnection {
           // 子会话与根会话共用同一个 load 响应边界，嵌套公告也按根会话判定新旧。
           const root = callbacks.subagentRoot?.(sessionId);
           const historical = replaying.has(root ?? sessionId);
+          if (params.update.sessionUpdate === "cursor_update") {
+            if (root === undefined && callbacks.onUpdate)
+              forkCursors.update(sessionId, params.update);
+            return;
+          }
           // v1 回放的配置、命令和用量同样是 Agent 确认的会话元数据。
           const state = root === undefined ? metadata.update(params) : undefined;
           if (state) await callbacks.onSessionState?.(sessionId, state);
@@ -146,7 +132,7 @@ export class AcpConnection {
           session: {
             configOptions: { boolean: {} },
             // ACP v1 通过显式能力对象启用实时通知和压缩历史回放。
-            ...(callbacks.onUpdate ? { notices: {}, compaction: {} } : {}),
+            ...(callbacks.onUpdate ? { notices: {}, compaction: {}, cursors: {} } : {}),
           },
           ...(callbacks.supportsSubagents ? { subagents: {} } : {}),
           ...(callbacks.requestElicitation || requestElicitation
@@ -176,6 +162,7 @@ export class AcpConnection {
         (sessionId) => callbacks.resetSubagentWork?.(sessionId),
         metadata,
         requestElicitation,
+        forkCursors,
         (sessionId, foreground) =>
           enqueue(async () => {
             const state = metadata.foreground(sessionId, foreground);
@@ -258,13 +245,38 @@ export class AcpConnection {
   forgetSession(sessionId: string): void {
     this.#sessions.delete(sessionId);
     this.metadata.delete(sessionId);
+    this.forkCursors.delete(sessionId);
   }
-  async newSession(
-    request: acp.NewSessionRequest,
-  ): Promise<Omit<acp.NewSessionResponse, "configOptions"> & { configOptions: AcpConfigOption[] }> {
+  get canForkSessions(): boolean {
+    return !!this.initialization.agentCapabilities?.sessionCapabilities?.fork;
+  }
+
+  async forkSession(request: acp.ForkSessionRequest): Promise<string> {
+    if (!this.canForkSessions) throw new Error("ACP Agent 未声明会话分支能力");
+    return (
+      await this.#bindNewSession(
+        () => this.transport.agent.request(acp.methods.agent.session.fork, request),
+        request.sessionId,
+      )
+    ).sessionId;
+  }
+
+  newSession(request: acp.NewSessionRequest) {
+    return this.#bindNewSession(() =>
+      this.transport.agent.request(acp.methods.agent.session.new, request),
+    );
+  }
+
+  /** ACP 新建和分支都直接建立暖绑定，使用同一容量与配置边界。 */
+  async #bindNewSession(open: () => Promise<acp.NewSessionResponse>, source?: string) {
     this.#beginBinding();
     try {
-      const result = await this.transport.agent.request(acp.methods.agent.session.new, request);
+      const result = await open();
+      if (
+        source !== undefined &&
+        (!result.sessionId || result.sessionId === source || this.#sessions.has(result.sessionId))
+      )
+        throw new Error("ACP Agent 返回了无效的分支会话");
       const configOptions = await this.#publishSessionOptions(result.sessionId, result);
       this.#sessions.add(result.sessionId);
       await this.drainUpdates();
@@ -289,7 +301,11 @@ export class AcpConnection {
     this.#beginBinding(sessionId);
     this.resetSubagentWork(sessionId);
     const load = replay || !this.initialization.agentCapabilities?.sessionCapabilities?.resume;
-    if (load) this.replaying.add(sessionId);
+    if (load) {
+      // 完整回放重建 Agent 宣告的游标集合，避免继续使用已撤销的历史位置。
+      this.forkCursors.delete(sessionId);
+      this.replaying.add(sessionId);
+    }
     try {
       // v1 的 load 响应即回放边界；resume 仅在明确声明且无需正文时使用。
       const params = { ...request, mcpServers: request.mcpServers ?? [] };
@@ -305,6 +321,7 @@ export class AcpConnection {
     } catch (error) {
       // 恢复失败时，丢弃请求期间收集的实时子会话工作状态。
       this.resetSubagentWork(sessionId);
+      if (load) this.forkCursors.delete(sessionId);
       throw error;
     } finally {
       this.replaying.delete(sessionId);
@@ -453,42 +470,15 @@ export class AcpConnection {
   }
 
   cancel(sessionId: string): Promise<void> {
-    const existing = this.#cancellations.get(sessionId);
-    if (existing) return existing.write;
-    if (!this.#activePrompts.has(sessionId)) return Promise.resolve();
-    const finished = Promise.withResolvers<undefined>();
-    // 超时只结算目标回合为结果未知；原通知与响应收敛前禁止在同一会话发送新 prompt。
-    const timeout = () => {
-      if (cancellation.timedOut) return;
-      cancellation.timedOut = true;
-      clearTimeout(timer);
-      const active = this.#activePrompts.get(sessionId);
-      if (active) active.abandoned.reject(new Error("Agent 未确认取消，回合结果未知"));
-      finished.resolve(undefined);
-      if (this.#allSessionsAbandoned()) this.recycleAbandoned();
-    };
-    const timer = setTimeout(timeout, CANCEL_GRACE_MS);
-    timer.unref();
-    const cancellation: PendingCancellation = {
-      sent: false,
-      timedOut: false,
-      write: finished.promise,
-      finish: () => {
-        clearTimeout(timer);
-        if (this.#cancellations.get(sessionId) === cancellation)
-          this.#cancellations.delete(sessionId);
-        finished.resolve(undefined);
+    return cancelAcpPrompt(
+      sessionId,
+      this.#cancellations,
+      this.#activePrompts,
+      this.transport,
+      () => {
+        if (this.#allSessionsAbandoned()) this.recycleAbandoned();
       },
-    };
-    this.#cancellations.set(sessionId, cancellation);
-    cancellation.write = Promise.race([
-      this.transport.agent.notify(acp.methods.agent.session.cancel, { sessionId }).then(() => {
-        cancellation.sent = true;
-        if (!this.#activePrompts.has(sessionId)) cancellation.finish();
-      }, timeout),
-      finished.promise,
-    ]);
-    return cancellation.write;
+    );
   }
 
   close(error?: unknown): void {

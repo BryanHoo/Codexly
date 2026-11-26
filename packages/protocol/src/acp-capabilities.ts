@@ -9,7 +9,7 @@ export function createAcpCapabilities(engine: AgentEngine): AgentCapabilities {
     feedback: { upload: false },
     goals: { clear: false, read: false, update: false },
     skills: { list: false, use: false },
-    tasks: { fork: false, list: true, read: true, start: true },
+    tasks: { fork: true, list: true, read: true, start: true },
     turns: { compact: false, interrupt: true, review: false, start: true, steer: false },
   };
 }

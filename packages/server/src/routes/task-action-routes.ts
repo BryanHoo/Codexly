@@ -31,6 +31,7 @@ import type { FastifyInstance } from "fastify";
 export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRouteContext): void {
   const {
     assertValidProjectDefaults,
+    capabilities,
     getProjectContext,
     listModels,
     readEffectiveTaskSettings,
@@ -305,15 +306,27 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
           if (context === undefined) {
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           }
-          const task = await context.provider.readTask(request.params.taskId);
+          const taskId = request.params.taskId;
+          // ACP 分支直接从持久历史读取源任务，归属检查无需提前加载原生会话。
+          const metadata =
+            capabilities.runtime === "acp"
+              ? context.provider.readTaskMetadata?.(taskId)
+              : undefined;
+          const task = await (metadata ?? context.provider.readTask(taskId));
           if (task?.projectId !== context.scope.id) {
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
-          const fork = await context.provider.forkTask(
-            request.params.taskId,
-            request.body.lastTurnId,
-          );
-          if (task.engine === "claude") {
+          const usesAcp =
+            capabilities.runtime === "acp" || ("runtime" in task && task.runtime === "acp");
+          const fork = usesAcp
+            ? await context.provider.forkTask(
+                request.params.taskId,
+                request.body.lastTurnId,
+                request.body.lastItemId,
+                request.headers["idempotency-key"],
+              )
+            : await context.provider.forkTask(request.params.taskId, request.body.lastTurnId);
+          if (!usesAcp && task.engine === "claude") {
             try {
               const settings = await readEffectiveTaskSettings(
                 request.params.projectId,

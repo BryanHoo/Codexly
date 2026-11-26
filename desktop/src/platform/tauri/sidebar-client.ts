@@ -1,3 +1,4 @@
+import { v4 as createUuid } from "uuid";
 import type { StopAgentSessionResponse } from "@codexly/protocol";
 import type { TaskSearchInput } from "@/protocol/global-search.js";
 import type { CreateProjectDirectoryRequest, CreateProjectDirectoryResponse } from "@codexly/protocol";
@@ -417,13 +418,13 @@ export class TauriSidebarClient extends TauriTaskManagementClient {
     projectId: string,
     taskId: string,
     input: ForkAgentTaskRequest,
-    _options: MutationOptions = {},
+    options: MutationOptions = {},
   ): Promise<ForkAgentTaskResponse> {
-    const response = await this.call<ForkAgentTaskResponse>("fork_task", {
-      lastTurnId: input.lastTurnId ?? null,
+    const response = await this.call<ForkAgentTaskResponse>("acp_task_request", {
       projectId,
-      taskId,
-    });
+      method: "task.fork",
+      params: { ...input, taskId, idempotencyKey: options.idempotencyKey ?? createUuid() },
+    }, options.signal);
     this.taskProjects.set(response.task.id, projectId);
     return response;
   }

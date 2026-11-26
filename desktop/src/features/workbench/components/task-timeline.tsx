@@ -80,6 +80,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
   const location = useHistoryLocation((state) => state.location?.projectId === props.projectId && state.location.taskId === props.taskId ? state.location : null);
   if (location !== null) {
     return <Suspense fallback={<LoadingSkeleton variant="conversation" className="min-h-0 flex-1 overflow-hidden px-6 py-5" label={i18n.t("timeline.loading", { ns: "conversation" })} />}><HistoryTaskTimeline location={location}
+      {...(props.onForkTask === undefined ? {} : { onForkTask: props.onForkTask })}
       {...(props.onOpenFileDiff === undefined ? {} : { onOpenFileDiff: props.onOpenFileDiff })}
       {...(props.onOpenSourceFile === undefined ? {} : { onOpenSourceFile: props.onOpenSourceFile })}
       {...(props.onReviewFileChanges === undefined ? {} : { onReviewFileChanges: props.onReviewFileChanges })} /></Suspense>;

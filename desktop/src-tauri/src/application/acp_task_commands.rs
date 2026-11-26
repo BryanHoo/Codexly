@@ -17,6 +17,7 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
             | "task.retain"
             | "task.release"
             | "attachment.export"
+            | "task.fork"
             | "task.pin"
             | "task.rename"
             | "task.archive"
@@ -338,6 +339,17 @@ async fn request_with_input(
             }
             // 变更事件已由共享 Provider 发布，不重复使用会触发旧引擎退订的目录发布器。
             result = response;
+        }
+        if method == "task.fork"
+            && let (Some(id), Some(title)) = (
+                result["task"]["id"].as_str(),
+                result["task"]["title"].as_str(),
+            )
+        {
+            // 用新任务的归属登记订阅与标题，避免沿用来源任务的身份。
+            state
+                .remember_task_metadata(&project_id, [(id, title)])
+                .await;
         }
         // 宿主保留统一 ACP 数据，桌面视图转换集中在 IPC 返回边界并纳入幂等重放。
         super::acp_view::normalize_response(&method, &mut result);

@@ -10,6 +10,7 @@ import { Button } from "../../shared/components/core/button.js";
 import { createTaskStore } from "../conversation/runtime/task-store.js";
 import type { AgentFileChange } from "../diff/file-change.js";
 import { useProjectData } from "../projects/project-context.js";
+import type { ForkTaskAction } from "../workbench/components/task-timeline-contracts.js";
 import { TaskStoreTimeline } from "../workbench/components/task-timeline-store.js";
 import { useHistoryLocation, type HistoryLocation } from "./history-location.js";
 import { resolveHistoryTarget } from "./history-target.js";
@@ -22,11 +23,13 @@ const ignoreRequest = () => Promise.resolve();
 
 export function HistoryTaskTimeline({
   location,
+  onForkTask,
   onOpenFileDiff = ignoreDiff,
   onOpenSourceFile = ignoreFile,
   onReviewFileChanges = ignoreChanges,
 }: Readonly<{
   location: HistoryLocation;
+  onForkTask?: ForkTaskAction;
   onOpenFileDiff?: (change: AgentFileChange) => void;
   onOpenSourceFile?: (reference: MessageFileReference) => void;
   onReviewFileChanges?: (changes: readonly AgentFileChange[]) => void;
@@ -115,6 +118,7 @@ export function HistoryTaskTimeline({
       {store !== null && target !== null ? (
         <TaskStoreTimeline
           connected={false}
+          {...(onForkTask === undefined ? {} : { onForkTask })}
           onOpenFileDiff={onOpenFileDiff}
           onOpenSourceFile={onOpenSourceFile}
           onResolvePendingRequest={ignoreRequest}

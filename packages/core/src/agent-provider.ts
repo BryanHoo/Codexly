@@ -305,7 +305,12 @@ export interface AgentProvider {
   archiveTask(taskId: string): Promise<void>;
   compactTask(taskId: string, options?: AgentTurnOptions): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
-  forkTask(taskId: string, lastTurnId?: string): Promise<AgentTask>;
+  forkTask(
+    taskId: string,
+    lastTurnId?: string,
+    lastItemId?: string,
+    idempotencyKey?: string,
+  ): Promise<AgentTask>;
   getCapabilities(engine?: AgentEngine): Promise<AgentCapabilities>;
   clearGoal(taskId: string): Promise<void>;
   listModels(engine?: AgentEngine): Promise<AgentModelPage>;

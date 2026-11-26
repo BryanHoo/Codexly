@@ -2,7 +2,7 @@ import type { SessionUpdate } from "@agentclientprotocol/sdk/unstable";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { join } from "node:path";
-import type { AcpHistory } from "./history.js";
+import { AcpHistoryCorruptionError, type AcpHistory } from "./history.js";
 import { matchesSteering, readSteeringCandidate, userUpdate } from "./replay-steering.js";
 import { AcpEventProjection } from "./event-projection.js";
 import {
@@ -132,6 +132,16 @@ export class AcpReplay {
         return message;
       };
       try {
+        // 应用继承的前缀从未在原生会话中执行，须在回放对齐前原样保留。
+        const inherited = await history.forkPrefix(taskId).catch((error: unknown) => {
+          if (error instanceof AcpHistoryCorruptionError) return 0;
+          throw error;
+        });
+        for (let index = 0; index < inherited; index++) {
+          const entry = await previous.next();
+          if (entry.done) throw new Error("任务分支历史缺失");
+          yield entry.value;
+        }
         for await (const { turn, content, messageId } of replay.#turns(
           reader,
           findSteering,

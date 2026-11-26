@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { LoaderCircle, MapPin, RotateCcw } from "lucide-react";
 import { createTaskStore } from "../conversation/runtime/task-store.js";
 import { useProjectData } from "../projects/project-context.js";
+import type { ForkTaskAction } from "../workbench/components/task-timeline-contracts.js";
 import { TaskStoreTimeline } from "../workbench/components/task-timeline-store.js";
 import { Button } from "../../shared/components/core/button.js";
 import { useTranslation } from "../../i18n/i18n.js";
@@ -24,11 +25,13 @@ const ignoreRequest = () => Promise.resolve();
 
 export function HistoryTaskTimeline({
   location,
+  onForkTask,
   onOpenFileDiff = ignoreDiff,
   onOpenSourceFile = ignoreFile,
   onReviewFileChanges = ignoreChanges,
 }: Readonly<{
   location: HistoryLocation;
+  onForkTask?: ForkTaskAction;
   onOpenFileDiff?: (change: AgentFileChange) => void;
   onOpenSourceFile?: (reference: MessageFileReference) => void;
   onReviewFileChanges?: (changes: readonly AgentFileChange[]) => void;
@@ -128,6 +131,7 @@ export function HistoryTaskTimeline({
       {store !== null && target !== null ? (
         <TaskStoreTimeline
           connected={false}
+          {...(onForkTask === undefined ? {} : { onForkTask })}
           store={store}
           searchTarget={target}
           onOpenFileDiff={onOpenFileDiff}

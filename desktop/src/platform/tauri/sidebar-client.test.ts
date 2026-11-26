@@ -353,7 +353,7 @@ describe("TauriSidebarClient", () => {
   it("routes compact and fork through native Tauri commands", async () => {
     const invoke = vi.fn(async (command: string) => {
       if (command === "compact_task") return { status: "compacting", taskId: "thread-a" };
-      if (command === "fork_task") {
+      if (command === "acp_task_request") {
         return {
           task: {
             id: "thread-b",
@@ -382,7 +382,7 @@ describe("TauriSidebarClient", () => {
     });
 
     await client.compactTask("project-a", "thread-a");
-    await client.forkTask("project-a", "thread-a", { lastTurnId: "turn-a" });
+    await client.forkTask("project-a", "thread-a", { lastTurnId: "turn-a", lastItemId: "message-a" }, { idempotencyKey: "fork-a" });
     const settings = {
       approvalPolicy: "on-request",
       approvalsReviewer: "user",
@@ -401,10 +401,10 @@ describe("TauriSidebarClient", () => {
       projectId: "project-a",
       taskId: "thread-a",
     });
-    expect(invoke).toHaveBeenNthCalledWith(2, "fork_task", {
-      lastTurnId: "turn-a",
+    expect(invoke).toHaveBeenNthCalledWith(2, "acp_task_request", {
+      method: "task.fork",
       projectId: "project-a",
-      taskId: "thread-a",
+      params: { taskId: "thread-a", lastTurnId: "turn-a", lastItemId: "message-a", idempotencyKey: "fork-a" },
     });
     expect(invoke).toHaveBeenNthCalledWith(3, "get_task_settings", {
       projectId: "project-a",

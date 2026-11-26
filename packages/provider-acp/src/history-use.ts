@@ -1,5 +1,5 @@
 import type { AcpConnection } from "./connection.js";
-import type { AcpHistory } from "./history.js";
+import { AcpHistoryCorruptionError, type AcpHistory } from "./history.js";
 import type { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 
 /** Provider 的使用登记与缓存策略分离；同一任务的串行操作共用一份保护。 */
@@ -13,7 +13,14 @@ export class AcpHistoryUse {
   async connect(id: string, get: () => Promise<AcpConnection>, ephemeral: boolean) {
     await this.retain(id, ephemeral);
     const agent = await get();
-    if (!ephemeral) await this.history.cache.setReplayable(id, agent.canReplaySessions);
+    if (!ephemeral) {
+      const inherited = await this.history.forkPrefix(id).catch((error: unknown) => {
+        // 损坏的指针仍需进入既有完整回放修复路径，修复前保守保留磁盘内容。
+        if (error instanceof AcpHistoryCorruptionError) return 1;
+        throw error;
+      });
+      await this.history.cache.setReplayable(id, agent.canReplaySessions && !inherited);
+    }
     return agent;
   }
   async release(id: string): Promise<void> {

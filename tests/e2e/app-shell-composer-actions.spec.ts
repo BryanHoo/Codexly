@@ -337,7 +337,7 @@ test("selects and submits a project file reference from an inline @ mention", as
   await expect(submittedMessage).toContainText("读取文件");
 });
 
-test("从 AI 回复复制任务并保留到所属 Turn", async ({ page }) => {
+test("从 AI 回复复制任务并定位到所选消息 @cross-browser", async ({ page }) => {
   const forkRequests: Readonly<{ body: Record<string, unknown>; path: string }>[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -364,7 +364,7 @@ test("从 AI 回复复制任务并保留到所属 Turn", async ({ page }) => {
   await expect
     .poll(() => forkRequests)
     .toContainEqual({
-      body: { lastTurnId: "turn-1" },
+      body: { lastTurnId: "turn-1", lastItemId: "message-2" },
       path: "/v1/projects/codexly/tasks/task-1/fork",
     });
   await expect(page).toHaveURL(/\/p\/codexly\/t\/task-2$/u);

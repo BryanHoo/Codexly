@@ -20,6 +20,8 @@ interface Head {
   previous?: string[];
   incomplete?: true;
   recent?: Receipt[];
+  forkPrefix?: number;
+  forkPending?: boolean;
 }
 export class AcpHistoryCorruptionError extends Error {}
 
@@ -66,6 +68,8 @@ function validHead(value: unknown): value is Head {
     Number.isSafeInteger(h.end) &&
     h.end >= 0 &&
     (h.incomplete === undefined || h.incomplete === true) &&
+    (h.forkPrefix === undefined || (Number.isSafeInteger(h.forkPrefix) && h.forkPrefix > 0)) &&
+    (h.forkPending === undefined || typeof h.forkPending === "boolean") &&
     (h.recent === undefined ||
       (Array.isArray(h.recent) &&
         h.recent.length <= RECENT_TURNS &&
@@ -174,6 +178,8 @@ export class AcpHistory {
       const path = join(root, `${generation}.jsonl`);
       const file = await open(path, "wx", 0o600);
       let end = 0;
+      let inheritedEnd = 0;
+      let count = 0;
       let committed = false;
       const recent: Receipt[] = [];
       try {
@@ -182,12 +188,22 @@ export class AcpHistory {
           const data = this.#encode(turn);
           await file.writeFile(data);
           end += data.length;
+          if (++count === old?.forkPrefix) inheritedEnd = end;
           keepRecent(recent, receipt("turn" in turn ? turn.turn : turn));
         }
         await file.sync();
         await file.close();
         const previous = old ? [old.generation] : [];
-        await this.#publish(root, { generation, end, previous, recent });
+        await this.#publish(root, {
+          generation,
+          end,
+          previous,
+          recent,
+          ...(old?.forkPrefix && {
+            forkPrefix: old.forkPrefix,
+            forkPending: old.forkPending === true && end === inheritedEnd,
+          }),
+        });
         committed = true;
         await this.cache.rebuilt(task);
         // 只留一份旧投影供近期游标续读，避免每次重放长期累积八份完整正文。
@@ -241,6 +257,7 @@ export class AcpHistory {
         keepRecent(recent, next);
         await this.#publish(root, {
           ...head,
+          ...(head.forkPending && !turn.acpBackground ? { forkPending: false } : {}),
           end: head.end + data.length,
           recent,
           ...(incomplete ? { incomplete: true as const } : {}),
@@ -250,6 +267,23 @@ export class AcpHistory {
       }
     });
   }
+  /** 降级分支的历史前缀独立于原生会话，修复回放时须保留。 */
+  async markForkPrefix(task: string, count: number): Promise<void> {
+    await this.#locked(task, async (root) => {
+      const head = await this.#head(root);
+      if (!head?.end) throw new Error("任务分支历史缺失");
+      await this.#publish(root, { ...head, forkPrefix: count, forkPending: true });
+    });
+  }
+
+  async forkPrefix(task: string): Promise<number> {
+    return (await this.#head(this.#root(task)))?.forkPrefix ?? 0;
+  }
+
+  async forkContextPending(task: string): Promise<boolean> {
+    return (await this.#head(this.#root(task)))?.forkPending === true;
+  }
+
   async deleteTask(task: string): Promise<void> {
     await this.#locked(task, async (root) => {
       const directory = await opendir(root);

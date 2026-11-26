@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 
 pub(super) fn validate(method: &str, params: &Value) -> Result<(), AppError> {
     let keys: &[&str] = match method {
+        "task.fork" => &["taskId", "lastTurnId", "lastItemId", "idempotencyKey"],
         "task.pin" => &["taskId", "pinned"],
         "task.rename" => &["taskId", "title"],
         "task.archive" | "task.unarchive" | "task.delete" => &["taskId"],
@@ -13,6 +14,17 @@ pub(super) fn validate(method: &str, params: &Value) -> Result<(), AppError> {
         .as_object()
         .is_some_and(|values| values.keys().all(|key| keys.contains(&key.as_str())));
     let valid_input = match method {
+        "task.fork" => {
+            let valid_text = |key: &str, limit: usize| {
+                params[key].as_str().is_some_and(|text| {
+                    !text.trim().is_empty() && text.chars().take(limit + 1).count() <= limit
+                })
+            };
+            valid_text("idempotencyKey", 128)
+                && (params.get("lastTurnId").is_none() || valid_text("lastTurnId", 1024))
+                && (params.get("lastItemId").is_none()
+                    || (valid_text("lastTurnId", 1024) && valid_text("lastItemId", 2048)))
+        }
         "task.pin" => params["pinned"].is_boolean(),
         // 与前端及共享 Schema 的 UTF-16 长度一致，不把表情字符算成单个单元。
         "task.rename" => params["title"].as_str().is_some_and(|title| {

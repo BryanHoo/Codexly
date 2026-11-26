@@ -24,6 +24,7 @@ import {
   ResolvePendingRequestRequestSchema,
   ReorderAgentQueuedSubmissionsRequestSchema,
   PinAgentTaskRequestSchema,
+  ForkAgentTaskRequestSchema,
   RenameAgentTaskRequestSchema,
   SearchOccurrencesQuerySchema,
 } from "@codexly/protocol";
@@ -399,6 +400,20 @@ export async function dispatchAcpHost(
         },
       );
       return result === undefined ? undefined : ACP_HOST_RESPONSE_SENT;
+    }
+    case "task.fork": {
+      const { taskId: _task, idempotencyKey, ...input } = params;
+      if (
+        typeof idempotencyKey !== "string" ||
+        !idempotencyKey.trim() ||
+        idempotencyKey.length > 128 ||
+        !Value.Check(ForkAgentTaskRequestSchema, input)
+      )
+        throw new Error("Invalid task fork");
+      // 按来源任务路由，分支 ID 和工作目录由共享 Provider 确定。
+      return {
+        task: await provider.forkTask(id, input.lastTurnId, input.lastItemId, idempotencyKey),
+      };
     }
     case "task.pin": {
       const { taskId: _task, ...input } = params;

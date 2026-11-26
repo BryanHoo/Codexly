@@ -3,7 +3,7 @@ import type { AcpBackgroundTarget, AcpConfigOption } from "@codexly/protocol";
 import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
 import { randomUUID } from "node:crypto";
 import type * as acp from "@agentclientprotocol/sdk/unstable";
-import { AcpTaskManagement } from "./task-management.js";
+import { createAcpTaskManagement, type AcpTaskManagement } from "./task-management.js";
 import * as taskSnapshot from "./task-snapshot.js";
 import {
   AgentTurnNotSubmittedError,
@@ -107,23 +107,14 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         void this.#background.close().catch(() => undefined);
       },
     );
-    this.#management = new AcpTaskManagement(
-      engine,
-      scope.kind === "temporary" ? null : scope.id,
-      store,
-      (id) => this.#active.has(id),
-      async (task) => {
-        await this.#link.deleteSession(task.id, task.sessionId);
-        await this.#background.flush(task.id);
-        this.#needsDefaults.delete(task.id);
-      },
-      async (id) => {
-        await this.initialization?.deleteTask(id);
-        await history.deleteTask(id);
-        await this.attachments.deleteTask(id);
-      },
-      this.#emit,
-    );
+    this.#management = createAcpTaskManagement(this, {
+      link: this.#link,
+      active: this.#active,
+      background: this.#background,
+      needsDefaults: this.#needsDefaults,
+      recover: (task) => this.#load(task, false, true),
+      emit: this.#emit,
+    });
   }
   subscribeEvents(
     listener: AgentProviderEventListener,
@@ -376,6 +367,11 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       text,
       model,
       signal,
+    );
+  }
+  forkTask(id: string, lastTurnId?: string, lastItemId?: string, idempotencyKey?: string) {
+    return this.#serial(id, () =>
+      this.#management.forkTask(id, { lastTurnId, lastItemId, idempotencyKey }),
     );
   }
   renameTask(id: string, title: string) {

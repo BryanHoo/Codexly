@@ -171,8 +171,13 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     resolution: PendingRequestResolution,
     idempotencyKey: string,
   ) => client.resolvePendingRequest(request, resolution, { idempotencyKey }).then(() => undefined);
-  const forkTask = async (lastTurnId: string, idempotencyKey: string) => {
-    const response = await client.forkTask(projectId, taskId, { lastTurnId }, { idempotencyKey });
+  const forkTask = async (lastTurnId: string, idempotencyKey: string, lastItemId?: string) => {
+    const response = await client.forkTask(
+      projectId,
+      taskId,
+      { lastTurnId, ...(lastItemId === undefined ? {} : { lastItemId }) },
+      { idempotencyKey },
+    );
     // 复用统一的新任务入口，保证列表缓存先于路由切换更新。
     onTaskStarted(response.task);
   };

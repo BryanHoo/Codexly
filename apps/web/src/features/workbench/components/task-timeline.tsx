@@ -101,6 +101,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
       >
         <HistoryTaskTimeline
           location={location}
+          {...(props.onForkTask === undefined ? {} : { onForkTask: props.onForkTask })}
           {...(props.onOpenFileDiff === undefined ? {} : { onOpenFileDiff: props.onOpenFileDiff })}
           {...(props.onOpenSourceFile === undefined
             ? {}

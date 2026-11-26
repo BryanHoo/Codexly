@@ -526,3 +526,23 @@ it("uses persisted Claude settings for compaction and inherits them for message-
   expect(h.forkTask).toHaveBeenCalledExactlyOnceWith("task-1", "clicked-turn");
   expect(h.writeTaskSettings).toHaveBeenCalledWith("codexly", "task-2", settings);
 });
+
+it("passes the ACP message boundary and idempotency key through the fork route", async () => {
+  const h = await createHarness();
+  h.readTask.mockResolvedValue({ ...snapshot, runtime: "acp" });
+  const request = {
+    headers: { "idempotency-key": "acp-fork-key" },
+    method: "POST",
+    payload: { lastTurnId: "turn-1", lastItemId: "message-2" },
+    url: "/v1/projects/codexly/tasks/task-1/fork",
+  } as const;
+  const fork = await h.app.inject(request);
+  expect(fork.statusCode, fork.body).toBe(201);
+  expect((await h.app.inject(request)).json()).toEqual(fork.json());
+  expect(h.forkTask).toHaveBeenCalledExactlyOnceWith(
+    "task-1",
+    "turn-1",
+    "message-2",
+    "acp-fork-key",
+  );
+});
