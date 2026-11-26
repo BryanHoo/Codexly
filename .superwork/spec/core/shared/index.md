@@ -27,7 +27,7 @@
 - 未绑定回合的“立即发送”允许在同一任务锁内重新读取状态并补发一次；显式绑定回合的引导不得改投后来回合。连续拒绝保留队列；结果未知继续阻塞，不能自动重复发送。
 - ACP 即时引导由活动会话公布 `acpSession.canSteer`，两端据此启用直接引导和队列引导。只有确认支持 `idleBehavior: "promptRequired"` 的适配器才能调用扩展，避免回合结束时隐式启动新回合。缺少该能力的会话在运行中继续接收排队消息。回归入口为 [ACP 引导](../../../../packages/provider-acp/src/provider-steering.test.ts) 与 [ACP 队列](../../../../packages/provider-acp/src/queue.test.ts)。
 - 桌面 ACP 队列独立持有附件正文与导出文件。以已提交的队列记录确定归属，替换、删除和成功发送后回收失去引用的文件。已发送消息继续由任务历史持有自己的附件。旧版队列继续读取历史附件引用，保留可能由历史共用的文件。编辑队列项时，草稿先取得附件正文，再撤回队列项。
-- 回归入口为 `packages/server/src/persistent-task-queue.test.ts`、`app-queue-dispatch.test.ts`、`sqlite-queue-execution.test.ts`、`packages/provider-codex/src/agent-provider-steer-errors.test.ts` 与 `tools/acp-host-queue.test.mjs`，覆盖轮次切换、历史残留、重启恢复、并发幂等及未知结果保护。
+- 回归入口为 `packages/server/src/persistent-task-queue.test.ts`、`app-queue-dispatch.test.ts`、`sqlite-queue-execution.test.ts`、`packages/provider-acp/src/provider-lifecycle.test.ts` 与 `tools/acp-host-queue.test.mjs`，覆盖轮次切换、历史残留、重启恢复、并发幂等及未知结果保护。
 
 ## 单任务导航的归档状态
 

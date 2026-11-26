@@ -23,23 +23,23 @@ const MAX_DOWNLOAD_BYTES = 4 * 1_024 * 1_024;
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 const MAX_CONCURRENT_DOWNLOADS = 2;
 
-export type CreateCodexWorkbenchPetProviderOptions = Readonly<{
-  codexHome: string;
+export type CreateLocalWorkbenchPetProviderOptions = Readonly<{
+  assetHome: string;
   fetch?: typeof globalThis.fetch;
   logger?: Readonly<{ warn(message: string): void }>;
 }>;
 
-export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
+export class LocalWorkbenchPetProvider implements WorkbenchPetProvider {
   readonly #assetRecords = new Map<string, PetAssetRecord>();
-  readonly #codexHome: string;
+  readonly #assetHome: string;
   readonly #fetch: typeof globalThis.fetch;
   readonly #inFlight = new Map<string, Promise<WorkbenchPetDescriptor>>();
   readonly #logger: Readonly<{ warn(message: string): void }> | undefined;
   readonly #downloadWaiters: (() => void)[] = [];
   #activeDownloads = 0;
 
-  public constructor(options: CreateCodexWorkbenchPetProviderOptions) {
-    this.#codexHome = resolve(options.codexHome);
+  public constructor(options: CreateLocalWorkbenchPetProviderOptions) {
+    this.#assetHome = resolve(options.assetHome);
     this.#fetch = options.fetch ?? globalThis.fetch;
     this.#logger = options.logger;
   }
@@ -197,7 +197,7 @@ export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
     manifestName: "avatar.json" | "pet.json",
     source: "custom" | "legacy",
   ): Promise<PetAssetRecord[]> {
-    const root = join(this.#codexHome, rootName);
+    const root = join(this.#assetHome, rootName);
     let entries;
     try {
       entries = await readdir(root, { withFileTypes: true });
@@ -221,7 +221,7 @@ export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
   }
 
   #builtinPath(pet: BuiltinPet): string {
-    return join(this.#codexHome, "cache", "tui-pets", PET_PACK_VERSION, "assets", pet.file);
+    return join(this.#assetHome, "cache", "tui-pets", PET_PACK_VERSION, "assets", pet.file);
   }
 
   async #acquireDownloadSlot(): Promise<void> {
@@ -239,10 +239,10 @@ export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
   }
 }
 
-export function createCodexWorkbenchPetProvider(
-  options: CreateCodexWorkbenchPetProviderOptions,
-): CodexWorkbenchPetProvider {
-  return new CodexWorkbenchPetProvider(options);
+export function createLocalWorkbenchPetProvider(
+  options: CreateLocalWorkbenchPetProviderOptions,
+): LocalWorkbenchPetProvider {
+  return new LocalWorkbenchPetProvider(options);
 }
 
 async function validateBuiltinFile(path: string): Promise<void> {

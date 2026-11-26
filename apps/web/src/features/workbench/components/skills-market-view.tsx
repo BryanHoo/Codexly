@@ -8,12 +8,7 @@ const LazySkillsMarketContainer = lazy(() =>
   })),
 );
 
-export function SkillsMarketView(
-  props: Readonly<{
-    onSectionChange?: (section: "mcp" | "plugins" | "skills") => void;
-    section?: string;
-  }>,
-) {
+export function SkillsMarketView() {
   const { t } = useTranslation("workbench");
   return (
     <Suspense
@@ -25,7 +20,7 @@ export function SkillsMarketView(
         />
       }
     >
-      <LazySkillsMarketContainer {...props} />
+      <LazySkillsMarketContainer />
     </Suspense>
   );
 }

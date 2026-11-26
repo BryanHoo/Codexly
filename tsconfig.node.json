@@ -9,7 +9,6 @@
       "@codexly/core/app-storage-paths": ["./packages/core/src/app-storage-paths.ts"],
       "@codexly/core": ["./packages/core/src/index.ts"],
       "@codexly/protocol": ["./packages/protocol/src/index.ts"],
-      "@codexly/provider-codex": ["./packages/provider-codex/src/index.ts"],
       "@codexly/server": ["./packages/server/src/index.ts"]
     },
     "tsBuildInfoFile": ".cache/types/root.tsbuildinfo",
@@ -25,9 +24,6 @@
     },
     {
       "path": "./packages/core"
-    },
-    {
-      "path": "./packages/provider-codex"
     },
     {
       "path": "./packages/server"

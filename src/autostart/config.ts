@@ -83,11 +83,6 @@ export function createConfig(
   // 只冻结明确的启动参数与 PATH；终端里的 API Key 等秘密不应被整份复制到后台配置。
   start.noOpen = true;
   start.port ??= 3210;
-  start.codexHome = resolve(
-    runtime.cwd,
-    start.codexHome ?? runtime.environment["CODEX_HOME"] ?? join(runtime.home, ".codex"),
-  );
-  if (start.codexBin) start.codexBin = resolve(runtime.cwd, start.codexBin);
   if (start.workspaceRoots)
     start.workspaceRoots = start.workspaceRoots.map((path) => resolve(runtime.cwd, path));
   if (start.lan) {
@@ -167,8 +162,7 @@ export async function readConfig(path: string): Promise<AutostartConfig | undefi
     )
       throw new Error("启动路径无效");
     const start = raw["start"];
-    if (!record(start) || start["noOpen"] !== true || !absolute(start["codexHome"]))
-      throw new Error("启动参数无效");
+    if (!record(start) || start["noOpen"] !== true) throw new Error("启动参数无效");
     const port = start["port"];
     if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535)
       throw new Error("端口无效");
@@ -180,8 +174,6 @@ export async function readConfig(path: string): Promise<AutostartConfig | undefi
       throw new Error("LAN 密码无效");
     if (start["sessionTtl"] !== undefined && typeof start["sessionTtl"] !== "string")
       throw new Error("会话期限无效");
-    if (start["codexBin"] !== undefined && !absolute(start["codexBin"]))
-      throw new Error("Codex 路径无效");
     for (const key of ["workspaceRoots", "allowedHosts"]) {
       const entries = start[key];
       if (
@@ -208,6 +200,9 @@ export async function readConfig(path: string): Promise<AutostartConfig | undefi
     )
       throw new Error("登录目标无效");
     const value = raw as unknown as AutostartConfig;
+    // 旧登记继续使用原端口和访问配置，专用引擎参数不再传给后台服务。
+    delete start["codexHome"];
+    delete start["codexBin"];
     validateStartOptions(value.start);
     return value;
   } catch (error) {

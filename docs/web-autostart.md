@@ -23,7 +23,7 @@ codexly autostart status
 codexly autostart credentials
 ```
 
-`enable` accepts `--lan`, `--port`, `--lan-password`, `--session-ttl`, `--allowed-host`, `--codex-bin`, `--codex-home`, and `--workspace`. Paths are saved as absolute paths; hosts and workspaces can be repeated. `--now` replaces the running managed instance and waits up to 120 seconds for readiness to allow a cold Codex Home to initialize. After a timeout, use `status` and `logs` to inspect the service.
+`enable` accepts `--lan`, `--port`, `--lan-password`, `--session-ttl`, `--allowed-host`, and `--workspace`. Paths are saved as absolute paths; hosts and workspaces can be repeated. `--now` replaces the running managed instance and waits up to 120 seconds for readiness. After a timeout, use `status` and `logs` to inspect the service.
 
 Each system user has one managed login entry. Repeating `enable` replaces startup settings with the supplied arguments and applicable `CODEXLY_*` environment defaults. An existing LAN password is reused when LAN remains enabled and no replacement password is supplied. Running `enable` without `--lan` switches back to local mode. Without `--now`, changes take effect on restart or the next login; `status` reports pending changes.
 
@@ -46,7 +46,7 @@ codexly start --no-open
 
 LAN startup generates and saves a strong random password once, then reuses it. Only `credentials` explicitly displays it; ordinary logs, status output, and native service definitions do not contain it. Custom passwords must contain 16–128 characters, including uppercase, lowercase, and numbers. Every restart invalidates previous LAN sessions, requiring authentication with the saved password again.
 
-The configuration freezes the resolved Codex home, startup arguments, and PATH. It does not copy the entire terminal environment. Login startup does not source shell profiles. API keys and proxy variables present only in an interactive shell are not persisted; use Codex's persistent configuration or the operating system's user environment. An explicit `--codex-bin` remains a fixed path and must be reconfigured when that executable moves.
+The configuration stores startup arguments and PATH. The service uses the login environment. Configure agent-specific environment variables in **Settings → ACP**.
 
 | System  | Private configuration directory                   | Native entry                                                         |
 | ------- | ------------------------------------------------- | -------------------------------------------------------------------- |

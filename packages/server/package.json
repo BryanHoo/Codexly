@@ -21,6 +21,7 @@
     "better-sqlite3": "catalog:",
     "fastify": "catalog:",
     "ignore": "catalog:",
+    "image-dimensions": "catalog:",
     "p-limit": "catalog:",
     "rrule": "catalog:",
     "safe-stable-stringify": "catalog:",

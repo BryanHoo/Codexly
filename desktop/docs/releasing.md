@@ -64,12 +64,12 @@ Provider 运行时供应链校验和原生系统实机回归，不应引导用�
 
 ## Provider 运行时完整性
 
-Codexly 桌面发布包内置目标平台的 Codex 和 Claude 运行时。正式发布前必须验证：
+Codexly 桌面发布包内置目标平台的 ACP 宿主。
 
 - 构建使用锁定的官方包；交叉目标下载通过锁文件 SHA-512 校验，只打包目标架构、必要辅助文件与许可证。
-- Codex 保留官方 vendor 布局与签名；Claude CLI 保留原厂签名，自建宿主作为 Tauri sidecar 参与签名及公证。
+- ACP 宿主作为 Tauri sidecar 参与签名及公证。
 - 发行版直接运行只读安装目录中的文件，不复制到用户目录，不在每次启动时重算大文件摘要，也不联网安装运行时。
-- 运行时缺失或损坏时提示修复安装，不回退到全局程序；只启用 Claude 时公共功能不隐式启动 Codex。
+- 验证 ACP 宿主可初始化，并能连接从目录安装的智能体。
 - Windows ZIP 必须同时包含主程序、ACP 宿主和 `runtime`，并在对应平台验证真实启动。
 
 完整流程见 [Provider Runtime Manager](./provider-runtime-management.md)。

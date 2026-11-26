@@ -11,18 +11,17 @@
 
 ## 包与层
 
-| 包             | 代码位置                           | 规范                                                                     |
-| -------------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| root           | `src`、`tools`                     | [CLI 与工具](root/backend/index.md)                                      |
-| desktop        | `desktop/src`、`desktop/src-tauri` | [前端](desktop/frontend/index.md)、[Rust 后端](desktop/backend/index.md) |
-| web            | `apps/web`                         | [Web 与移动前端](web/frontend/index.md)                                  |
-| protocol       | `packages/protocol`                | [公开协议](protocol/shared/index.md)                                     |
-| core           | `packages/core`                    | [领域规则与端口](core/shared/index.md)                                   |
-| frontend-core  | `packages/frontend-core`           | [前端共享逻辑](frontend-core/shared/index.md)                            |
-| ui             | `packages/ui`                      | [共享组件](ui/shared/index.md)                                           |
-| client         | `packages/client`                  | [HTTP 与事件客户端](client/shared/index.md)                              |
-| provider-codex | `packages/provider-codex`          | [Codex 适配器](provider-codex/backend/index.md)                          |
-| provider-acp   | `packages/provider-acp`            | [共享 ACP 适配器](../../packages/provider-acp/README.md)                 |
-| server         | `packages/server`                  | [Web 服务](server/backend/index.md)                                      |
+| 包            | 代码位置                           | 规范                                                                     |
+| ------------- | ---------------------------------- | ------------------------------------------------------------------------ |
+| root          | `src`、`tools`                     | [CLI 与工具](root/backend/index.md)                                      |
+| desktop       | `desktop/src`、`desktop/src-tauri` | [前端](desktop/frontend/index.md)、[Rust 后端](desktop/backend/index.md) |
+| web           | `apps/web`                         | [Web 与移动前端](web/frontend/index.md)                                  |
+| protocol      | `packages/protocol`                | [公开协议](protocol/shared/index.md)                                     |
+| core          | `packages/core`                    | [领域规则与端口](core/shared/index.md)                                   |
+| frontend-core | `packages/frontend-core`           | [前端共享逻辑](frontend-core/shared/index.md)                            |
+| ui            | `packages/ui`                      | [共享组件](ui/shared/index.md)                                           |
+| client        | `packages/client`                  | [HTTP 与事件客户端](client/shared/index.md)                              |
+| provider-acp  | `packages/provider-acp`            | [共享 ACP 适配器](../../packages/provider-acp/README.md)                 |
+| server        | `packages/server`                  | [Web 服务](server/backend/index.md)                                      |
 
 跨端规则见 [工程约束导航](guides/index.md)。开发与文档要求以 [贡献指南](../../CONTRIBUTING.md) 为事实来源。

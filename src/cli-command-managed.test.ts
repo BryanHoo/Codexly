@@ -24,7 +24,6 @@ describe("CLI managed startup", () => {
           options: {
             lan,
             noOpen: true,
-            codexHome: "/persisted/home",
             port: 4321,
             ...(lan ? { lanPassword: "Saved-Lan_Password123" } : {}),
           },
@@ -46,7 +45,7 @@ describe("CLI managed startup", () => {
         expect(f.dependencies.openBrowser).not.toHaveBeenCalled();
         expect(f.dependencies.createAcpRuntime).toHaveBeenCalledWith(
           expect.objectContaining({
-            environment: { PATH: "/frozen/bin", CODEX_HOME: "/persisted/home" },
+            environment: { PATH: "/frozen/bin" },
           }),
         );
       } finally {

@@ -2,7 +2,7 @@
 
 1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载适合当前平台的发布包。
 2. 按照下方对应平台的步骤安装并启动 Codexly。
-3. 应用直接进入工作台，在设置中配置 Codex、Claude 或两者，再添加项目并创建任务；已有受支持的本机配置可直接复用。安装包内置运行时，无需另装 Node.js、Bun 或首次下载。详见[首次使用](../../docs/getting-started.md)。
+3. 在「设置 → ACP」安装或配置智能体，然后添加项目。安装包内置 ACP 宿主。[首次任务](../../docs/getting-started.md)
 
 本文仅介绍桌面安装。电脑浏览器与手机访问请阅读 [Web 与移动端指南](../../docs/web.md)。
 

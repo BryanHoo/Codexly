@@ -8,7 +8,7 @@
 
 - [ ] Tauri 命令、事件、前端 `platform/tauri` 与 `protocol` 的请求 / 响应保持一致；权限随能力配置维护，不让界面绕过路径或操作校验。
 - [ ] 同机应用数据位于 `~/.codexly`，遵循共享 Protocol 的目录 Schema、迁移和用量 SQL；参照 [本地目录与任务](../../../../docs/local-catalog.md)。
-- [ ] Codex 与 Claude 保持独立配置、身份和能力；各 Agent 使用共享 TypeScript 适配器的 stdio 宿主。资源布局见 [运行时分发](../../../../desktop/docs/provider-runtime-management.md)。
+- [ ] 各 Agent 使用共享 TypeScript ACP 适配器的 stdio 宿主，配置、身份和能力由各连接维护。资源布局见 [运行时分发](../../../../desktop/docs/provider-runtime-management.md)。
 - [ ] 共享宿主的实时事件经 Tauri Channel 发布时，按原生任务创建规则校验 `provider` 并保留合法引擎 ID，包括第三方 `acp-*`。缺省或无效值沿用 Claude 回退。回归入口为 `state_catalog.rs` 的原生事件身份测试。
 - [ ] 文件、进程、终端与生命周期操作保持有界，取消和退出释放资源；遵守 Cargo 的 `unsafe_code = "forbid"` 与平台条件编译。
 - [ ] Windows 超过 20,000 条暂存与未暂存变更时，Git 行数统计按两侧顺序读取，避免同一 index/blob 的并发磁盘争用；保留每个命令 30 秒超时，小清单与其他平台仍并行。用 `performance_baseline_large_git_status_pages` 的 10k/50k/100k 清单验证，不能通过放宽超时掩盖回归。
@@ -23,11 +23,6 @@
 - 每轮首个 `message.delta` 会通过 `assistant_reply_started` 触发 `ProjectProvider` 的标题元数据同步，读取并回写聊天快照。分屏保持挂载、直接发送新消息时同样会触发该读取；验证快照竞争不能只覆盖打开或切回会话。
 - 复用 Web 的有限重读原则：冲突最多重新读取一次，持续冲突返回 `TASK_SNAPSHOT_BUSY`，保留实时订阅；其他任务的输出不能导致目标任务重读。观察者只保存有界计数，不复制聊天正文，取消请求后释放观察者。
 - 回归入口为 `state_snapshot_tests.rs`（补齐正文、持续输出、其他任务及取消清理）、`state_skill_snapshot_tests.rs`（换代保护）及 `task-timeline-streaming.browser.test.tsx`（文字接命令、双分屏不导航发送及首字快照同步，Chromium / WebKit）。
-
-## Codex 生成图片引用
-
-- 原始帧清理优先保存有效 `savedPath`；存在非空 `fileId` 时不解码迁移记录的旧 `result`，也不将引用作为文件路径。完成且未失败的不可读图片映射为 `[图片]` 消息，其他状态保留工具生命周期。
-- IPC 仅传受控附件元数据或占位，不外传输入图片路径、摘要与上游引用。两端共同语义见 [Codex 适配器规范](../../provider-codex/backend/index.md)，原生回归入口为 `codex_164_contract_tests.rs`。
 
 ## 系统通知资源
 

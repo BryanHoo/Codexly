@@ -105,7 +105,7 @@ pub struct PetDownloadResponse {
 
 #[tauri::command]
 pub async fn list_workbench_pets(app: AppHandle) -> Result<PetCatalogResponse, AppError> {
-    let codex_home = super::personalization_commands::codex_home(&app)?;
+    let codex_home = legacy_pet_asset_home(&app)?;
     let mut data = Vec::with_capacity(BUILTIN_PETS.len());
     for pet in &BUILTIN_PETS {
         data.push(describe_pet(&codex_home, pet).await);
@@ -124,7 +124,7 @@ pub async fn download_workbench_pet(
         .iter()
         .find(|pet| pet.id == pet_id)
         .ok_or(AppError::PetAssetUnavailable)?;
-    let codex_home = super::personalization_commands::codex_home(&app)?;
+    let codex_home = legacy_pet_asset_home(&app)?;
     if describe_pet(&codex_home, pet).await.availability != "ready" {
         download_pet(&codex_home, pet).await?;
     }
@@ -254,6 +254,18 @@ async fn validated_asset_path(path: &Path) -> Option<PathBuf> {
     }
     let bytes = fs::read(&canonical).await.ok()?;
     (webp_dimensions(&bytes) == Some((SPRITESHEET_WIDTH, SPRITESHEET_HEIGHT))).then_some(canonical)
+}
+
+// 仅用于查找已有宠物资源，智能体指令经 ACP 应用设置管理。
+fn legacy_pet_asset_home(app: &AppHandle) -> Result<PathBuf, AppError> {
+    if let Some(path) = std::env::var_os("CODEX_HOME") {
+        return Ok(path.into());
+    }
+    Ok(app
+        .path()
+        .home_dir()
+        .map_err(|_| AppError::FilesystemRequestFailed)?
+        .join(".codex"))
 }
 
 fn pet_path(codex_home: &Path, pet: &BuiltinPet) -> PathBuf {

@@ -2,7 +2,7 @@
 
 1. Download the release artifact for your platform from [Releases](https://github.com/BryanHoo/Codexly/releases).
 2. Follow the platform-specific steps below to install and launch Codexly.
-3. The app opens directly into the workspace. Configure Codex, Claude, or both in Settings, then add a project and create a task. Supported existing local configurations can be reused. Runtimes are bundled: no separate Node.js or Bun installation or first-launch download is needed. See [getting started](../../docs/getting-started.en.md).
+3. Open **Settings → ACP** to install or configure an agent, then add a project. The installer includes the ACP host. [First task](../../docs/getting-started.en.md)
 
 This guide covers desktop installation. For computer and mobile browsers, see [Web and mobile](../../docs/web.en.md).
 

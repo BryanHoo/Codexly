@@ -1,6 +1,6 @@
 # Codexly 文档
 
-Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏览器三种使用方式。移动端连接 Web 服务，项目与智能体运行在提供服务的电脑上。
+Codexly 通过 ACP 连接智能体，提供桌面应用、电脑 Web 和移动浏览器三种使用方式。移动端连接 Web 服务，项目与智能体运行在提供服务的电脑上。
 
 [产品首页](../README.md) · [English README](../README.en.md) · [下载桌面版](https://github.com/BryanHoo/Codexly/releases)
 
@@ -27,9 +27,9 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 
 以下文档也包含实现细节，日常使用可先读首次使用与工作台指南。
 
-- [智能体引擎与连接](agent-engines.md)：Codex / Claude 的配置来源、能力边界及扩展范围。
+- [智能体引擎与连接](agent-engines.md)：ACP 智能体的安装、配置与能力边界。
 - [ACP 接入核对](acp-integration-audit.md)：官方 v1 能力、尚未接入项与跨端优化边界。
-- [模型与思考强度](model-discovery.md)：模型目录、Claude 模型映射与能力来源。
+- [模型与思考强度](model-discovery.md)：ACP 会话模型与能力来源。
 - [会话上下文](thread-memory.md)：查看上下文占用与 Agent 公布的压缩摘要。
 - [模型上下文窗口](model-context-window.md)：两种引擎的窗口和自动压缩设置。
 - [本地目录与任务](local-catalog.md)：同机共享数据、旧数据导入与配置目录。
@@ -38,7 +38,7 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 
 ## 问题排查
 
-Web、移动浏览器和桌面均可在「设置 → 关于」导出整合诊断 ZIP，默认纳入可用的 Codex 原生诊断；原生诊断不可用时仍保留应用诊断，并在清单中说明。Web 服务默认不向终端持续输出运行日志，启动错误仍可在终端查看，按需运行 `codexly doctor`。先确认出错的使用端和智能体，再按[常见问题](faq.md)排查；[Web 诊断](web.md#排查问题)与[诊断日志指南](../desktop/docs/diagnostics.md)提供内容检查和进一步分析方法。
+Web、移动浏览器和桌面均可在「设置 → 关于」导出整合诊断 ZIP，包含应用诊断与文件清单。Web 服务默认不向终端持续输出运行日志，启动错误仍可在终端查看，按需运行 `codexly doctor`。先确认出错的使用端和智能体，再按[常见问题](faq.md)排查；[Web 诊断](web.md#排查问题)与[诊断日志指南](../desktop/docs/diagnostics.md)提供内容检查和进一步分析方法。
 
 [问题反馈](https://github.com/BryanHoo/Codexly/issues) · [安全漏洞私密报告](../SECURITY.md) · [更新日志](../CHANGELOG.md)
 

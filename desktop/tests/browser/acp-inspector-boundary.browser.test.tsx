@@ -92,3 +92,84 @@ it.each(["Web", "Native"] as const)("%s：后台任务在右栏上下文随会�
   await screen.unmount();
   cache.clear();
 });
+
+it.each([["Web", "light", 260], ["Native", "dark", 360]] as const)(
+  "%s：%s 主题的 %spx 右栏仅补充具体的回合停止原因",
+  async (platform, theme, width) => {
+    const { createTaskStore: createWebStore } = await import("../../../apps/web/src/features/conversation/runtime/task-store.js");
+    const { createTaskStore: createNativeStore } = await import("../../src/features/conversation/runtime/task-store.js");
+    const { createResponse, createPendingRequest, eventEnvelope, timestamp } = await import("../../../apps/web/src/features/conversation/runtime/task-store.test-support.js");
+    const { changeAppLanguage } = await import("../../../apps/web/src/i18n/i18n.js");
+    const { i18n: nativeI18n } = await import("../../src/i18n/i18n.js");
+    const { page } = await import("vitest/browser");
+    await changeAppLanguage("zh-CN");
+    await nativeI18n.changeLanguage("zh-CN");
+    const running = { id: "turn-running", items: [], status: "running" as const, error: null, startedAt: timestamp, completedAt: null };
+    const session = { configOptions: [], availableCommands: [], foreground: "requires_action" as const };
+    const plan = { explanation: null, steps: [{ status: "in_progress" as const, text: "验证双端" }] };
+    const response = createResponse({
+      acpSession: session,
+      turns: [running],
+      pendingRequests: [createPendingRequest()],
+      plan,
+      contextUsage: { usedTokens: 95_000, contextWindow: 100_000 },
+    });
+    const Inspector = platform === "Web" ? WebInspector : NativeInspector;
+    const createStore = platform === "Web" ? createWebStore : createNativeStore;
+    const store = createStore({ projectId: "project-1", taskId: "task-1" });
+    store.getState().hydrate(response);
+    const wrap = (taskId: string) => (
+      <TooltipProvider>
+        <div style={{ width }}>
+          <Inspector contextOnly legacyContext={false} projectId="project-1" taskId={taskId}
+            projectName="项目" projectPath="/workspace" projectRootId="root"
+            task={{ turns: [], plan }} taskStore={store as never} />
+        </div>
+      </TooltipProvider>
+    );
+    document.documentElement.dataset.theme = theme;
+    try {
+      const screen = await render(wrap("task-1"));
+      const details = screen.getByRole("region", { name: "回合详情" });
+      const planRegion = screen.getByRole("region", { name: "计划", exact: true });
+      await expect.element(planRegion).toBeVisible();
+      await expect.element(screen.getByText("验证双端", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("等待操作", { exact: true })).not.toBeInTheDocument();
+      await expect.element(screen.getByText("1 项待处理", { exact: true })).not.toBeInTheDocument();
+      await expect.element(screen.getByText("上下文窗口", { exact: true })).not.toBeInTheDocument();
+      await expect.element(screen.getByRole("progressbar", { name: "计划进度" })).not.toBeInTheDocument();
+      await expect.element(details).not.toBeInTheDocument();
+
+      store.getState().applyEvents([
+        { ...eventEnvelope(11), type: "turn.completed", turnId: running.id, payload: {
+          turn: { ...running, status: "interrupted", stopReason: "max_tokens", completedAt: timestamp },
+        } },
+      ]);
+      await expect.element(details.getByText("已达到 Token 上限", { exact: true })).toBeVisible();
+      expect(details.element().scrollWidth).toBeLessThanOrEqual(details.element().clientWidth);
+      expect(details.element().querySelector("h3")?.className)
+        .toBe(planRegion.element().querySelector("h3")?.className);
+      await page.screenshot({ path: `../../test-results/acp-turn-outcome-${platform}.png` });
+
+      const background = { ...running, id: "background", acpBackground: true as const, status: "completed" as const, stopReason: "end_turn", completedAt: timestamp };
+      const settled = { ...running, status: "completed" as const, completedAt: timestamp };
+      store.getState().hydrate(createResponse({
+        acpSession: { ...session, foreground: "idle" },
+        turns: [{ ...settled, stopReason: "refusal" }, background],
+      }));
+      await expect.element(details.getByText("Agent 拒绝继续", { exact: true })).toBeVisible();
+      await screen.rerender(wrap("other-task"));
+      await expect.element(details).not.toBeInTheDocument();
+      await screen.rerender(wrap("task-1"));
+      store.getState().hydrate(createResponse({
+        acpSession: { ...session, foreground: "idle" },
+        turns: [{ ...settled, stopReason: "end_turn" }],
+      }));
+      await expect.element(details).not.toBeInTheDocument();
+      await expect.element(screen.getByRole("region", { name: "任务概览" })).not.toBeInTheDocument();
+      await screen.unmount();
+    } finally {
+      delete document.documentElement.dataset.theme;
+    }
+  },
+);

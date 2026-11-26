@@ -14,7 +14,7 @@ Web 服务运行在保存项目的电脑上，电脑、手机和平板通过浏�
 npx --package @bryanhu/codexly@latest codexly start
 ```
 
-默认打开 `http://127.0.0.1:3210`；端口占用时自动递增，以终端输出为准。保持终端运行，按 `Ctrl+C` 停止。首次使用按[连接指南](getting-started.md)配置 Codex 或 Claude。
+默认打开 `http://127.0.0.1:3210`；端口占用时自动递增，以终端输出为准。保持终端运行，按 `Ctrl+C` 停止。首次使用按[连接指南](getting-started.md)配置 ACP 智能体。
 
 日常使用建议全局安装：
 
@@ -55,14 +55,10 @@ npx --package @bryanhu/codexly@latest codexly start --lan
 | `--session-ttl <时长>`   | 固定登录有效期，如 `12h`；省略则持续到服务重启；须与 `--lan` 合用    |
 | `--workspace <绝对路径>` | 限制项目选择根目录，可重复指定                                       |
 | `--allowed-host <域名>`  | 允许准确的代理域名，可重复指定                                       |
-| `--codex-home <目录>`    | 指定 Codex 原生配置与历史目录，不改变 `~/.codexly` 应用目录          |
-| `--codex-bin <路径>`     | 使用兼容的外部 Codex 程序，仅影响 Codex 引擎                         |
 
 含 Shell 特殊字符的密码需要正确加引号。用 `codexly start --help` 查看完整帮助。
 
-当前内置 Codex CLI `0.164.0`；`--codex-bin` 或 `CODEXLY_CODEX_BIN` 指定的外部版本须满足 `>=0.164.0,<0.165.0`。Claude 使用 npm 包固定的 SDK 依赖，无需配置外部 Codex 才能使用。
-
-多实例启动会跳过占用端口。启动目录不决定应用数据目录；临时任务默认使用用户主目录，或第一个显式 `--workspace` 根目录。`--codex-home` 只隔离 Codex 自身的数据，不隔离共享的 Codexly 应用目录。
+多个实例会跳过占用端口。临时任务使用用户主目录或首个显式指定的 `--workspace` 根目录。
 
 ## 登录后后台启动
 
@@ -124,4 +120,4 @@ codexly doctor
 codexly start --help
 ```
 
-`doctor` 提供本地环境与 Codex 检查，不代替 Claude API 和模型额度验证。仅使用 Claude 时应结合 Claude 设置与具体错误排查，不能将 Codex 未配置直接视为整个应用不可用。更多说明见[常见问题](faq.md)。
+`doctor` 检查 Node.js、已启用的 ACP 智能体握手和 SQLite。[常见问题](faq.md)

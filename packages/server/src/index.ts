@@ -20,3 +20,9 @@ export {
   type SqliteStateRepositoryOptions,
 } from "./sqlite-state-repository.js";
 export { LocalProjectRepository } from "./local-project-repository.js";
+
+// 宠物资源由应用服务读取，和 ACP Agent 的启动及连接无关。
+export {
+  createLocalWorkbenchPetProvider,
+  type CreateLocalWorkbenchPetProviderOptions,
+} from "./workbench-pets.js";

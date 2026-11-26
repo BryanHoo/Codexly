@@ -2,7 +2,6 @@ import { AcpComposerSettingsContext } from "@codexly/ui/core/acp-composer-settin
 import { ComposerPromptProjectsContext } from "@codexly/ui/core/composer-submit-actions";
 import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
-import { useNavigate } from "@tanstack/react-router";
 import { useRef, type CSSProperties, type ReactNode } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -50,7 +49,6 @@ export function WorkbenchShellLayout({
   todoId?: string;
 }>) {
   const composerRef = useRef<WorkbenchComposerHandle>(null);
-  const navigate = useNavigate();
   const {
     appInfoQuery,
     appUpdateMutation,
@@ -238,19 +236,7 @@ export function WorkbenchShellLayout({
               {scheduled ? (
                 <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
               ) : extensions ? (
-                <SkillsMarketView
-                  section={extensionSection}
-                  onSectionChange={(nextSection) => {
-                    void navigate(
-                      temporary
-                        ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
-                        : {
-                            params: { projectId, section: nextSection },
-                            to: "/p/$projectId/extensions/$section",
-                          },
-                    );
-                  }}
-                />
+                <SkillsMarketView />
               ) : board ? (
                 <TaskBoardContainer projectId={projectId} />
               ) : error !== null ||

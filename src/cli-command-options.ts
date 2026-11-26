@@ -1,7 +1,5 @@
 export interface ParsedCommandOptions {
   allowedHosts?: string[];
-  codexBin?: string;
-  codexHome?: string;
   lan?: boolean;
   noOpen?: boolean;
   now?: boolean;
@@ -15,8 +13,8 @@ export const CLI_HELP = `Usage: codexly [command] [options]
 
 Commands:
   autostart Manage Web startup after user login (enable/status/logs/restart/disable/repair).
-  start    Start the Codexly server and open the Web interface.
-  doctor   Check whether the local Codexly runtime is ready.
+  start    Start the ACP-powered Web server and open the browser.
+  doctor   Check Node.js, ACP agents and the local database.
   version  Print the installed Codexly version.
 
 Start options:
@@ -30,16 +28,8 @@ Start options:
   --allowed-host <domain>    Allow an exact reverse proxy domain. May be repeated.
   --session-ttl <duration>   Set the fixed LAN session lifetime using ms, s, m, h, or d.
                              Sessions do not expire when omitted. Requires --lan.
-  --codex-bin <path>         Use the Codex executable at the specified path.
-  --codex-home <path>        Use a custom Codex home directory instead of CODEX_HOME
-                             or the default ~/.codex directory.
   --workspace <path>         Restrict project selection to an absolute workspace root.
                              May be repeated for multiple roots.
-
-Doctor options:
-  --codex-bin <path>         Check the Codex executable at the specified path.
-  --codex-home <path>        Use a custom Codex home for engine checks and legacy data import.
-                             Application data is always stored in ~/.codexly.
 
 Global options:
   -h, --help                 Display all commands, options, and usage details.
@@ -52,7 +42,7 @@ Examples:
   codexly start --allowed-host code.example.com
   codexly start --lan --session-ttl 12h
   codexly start --workspace /workspace
-  codexly doctor --codex-bin /path/to/codex
+  codexly doctor
   codexly --version
 
 Running codexly without a command is equivalent to codexly start.
@@ -62,7 +52,7 @@ Run codexly <command> --help for command-specific options.
 export const CLI_COMMAND_HELP: Readonly<Record<string, string>> = {
   start: `Usage: codexly start [options]
 
-Start the Codexly server and open the Web interface.
+Start the ACP-powered Web server and open the browser.
 
 Options:
   --no-open                  Do not open the browser.
@@ -71,18 +61,14 @@ Options:
   --lan-password <password>  Set a 16-128 character LAN password (requires --lan).
   --allowed-host <domain>    Allow an exact reverse proxy domain; may be repeated.
   --session-ttl <duration>   Set the LAN session lifetime in ms, s, m, h, or d (requires --lan).
-  --codex-bin <path>         Use this Codex executable.
-  --codex-home <path>        Use this Codex home directory.
   --workspace <path>         Restrict projects to this absolute root; may be repeated.
   -h, --help                 Display help for start.
 `,
   doctor: `Usage: codexly doctor [options]
 
-Check whether the local Codexly runtime is ready.
+Check Node.js, ACP agents and the local database.
 
 Options:
-  --codex-bin <path>         Check this Codex executable.
-  --codex-home <path>        Validate configuration in this Codex home.
   -h, --help                 Display help for doctor.
 `,
   version: `Usage: codexly version
@@ -124,11 +110,7 @@ export function parseCommandOptions(
       throw new Error(`选项缺少值: ${option}`);
     }
 
-    if (option === "--codex-bin") {
-      parsed.codexBin = value;
-    } else if (option === "--codex-home") {
-      parsed.codexHome = value;
-    } else if (option === "--lan-password") {
+    if (option === "--lan-password") {
       parsed.lanPassword = value;
     } else if (option === "--allowed-host") {
       parsed.allowedHosts = [...(parsed.allowedHosts ?? []), value];
@@ -179,8 +161,6 @@ export function applyStartEnvironmentDefaults(
 // 普通启动与自启动登记共用同一组参数，保证两种入口的校验与新增选项一致。
 export const START_VALUE_OPTIONS: ReadonlySet<string> = new Set([
   "--allowed-host",
-  "--codex-bin",
-  "--codex-home",
   "--lan-password",
   "--port",
   "--session-ttl",

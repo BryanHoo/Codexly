@@ -30,11 +30,11 @@ describe("autostart configuration", () => {
       lan: true,
       noOpen: true,
       port: 4567,
-      codexHome: resolve("/custom"),
       workspaceRoots: [resolve("/work", "项目")],
     });
     expect(config.start.lanPassword).toMatch(/^[A-Za-z0-9_-]{20,}/);
     expect(config.environment).toEqual({ PATH: "/bin" });
+    expect(config.start).not.toHaveProperty("codexHome");
     expect(JSON.stringify(config)).not.toContain("secret");
   });
   it("preserves generated LAN credentials when enabling again", () => {
@@ -55,6 +55,12 @@ describe("autostart configuration", () => {
       { node: "/node", cli: "/cli", home: root, cwd: root, environment: {} },
     );
     await writePrivateJson(path, config);
+    expect(await readConfig(path)).toEqual(config);
+    // 更新前保存的专用参数可被读取并丢弃，原有服务参数继续生效。
+    await writePrivateJson(path, {
+      ...config,
+      start: { ...config.start, codexHome: resolve("/old"), codexBin: resolve("/old/codex") },
+    });
     expect(await readConfig(path)).toEqual(config);
     if (process.platform !== "win32") expect((await stat(path)).mode & 0o777).toBe(0o600);
     await writePrivateJson(path, { version: 999 });

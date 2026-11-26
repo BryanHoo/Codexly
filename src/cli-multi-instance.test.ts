@@ -4,18 +4,18 @@ import { runCli } from "./cli-command.js";
 import { createHarness } from "./cli-command.test-support.js";
 
 describe("CLI multiple Web instances", () => {
-  it("starts two instances in the same directory and Codex Home with independent shutdown", async () => {
+  it("starts two instances with shared application storage with independent shutdown", async () => {
     vi.spyOn(process, "cwd").mockReturnValue("/unrelated/launch-directory");
     const first = createHarness();
     const second = createHarness();
     const firstController = new AbortController();
     const secondController = new AbortController();
     const runs = [
-      runCli(["start", "--codex-home", "/shared/codex-home"], {
+      runCli(["start"], {
         ...first.options,
         signal: firstController.signal,
       }),
-      runCli(["start", "--codex-home", "/shared/codex-home"], {
+      runCli(["start"], {
         ...second.options,
         signal: secondController.signal,
       }),
@@ -26,11 +26,6 @@ describe("CLI multiple Web instances", () => {
         expect(second.serverListen).toHaveBeenCalledOnce();
       });
       for (const harness of [first, second]) {
-        expect(harness.dependencies.createAcpRuntime).toHaveBeenCalledWith(
-          expect.objectContaining({
-            environment: expect.objectContaining({ CODEX_HOME: "/shared/codex-home" }) as unknown,
-          }),
-        );
         expect(harness.dependencies.createServer).toHaveBeenCalledWith(
           expect.objectContaining({ standaloneCwd: homedir() }),
         );

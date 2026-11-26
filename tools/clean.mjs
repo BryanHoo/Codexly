@@ -14,7 +14,6 @@ await Promise.all(
     "packages/client/tsconfig.tsbuildinfo",
     "packages/core/tsconfig.tsbuildinfo",
     "packages/protocol/tsconfig.tsbuildinfo",
-    "packages/provider-codex/tsconfig.tsbuildinfo",
     "packages/server/tsconfig.tsbuildinfo",
     "tests/tsconfig.tsbuildinfo",
   ].map((path) => rm(path, { force: true, recursive: true })),

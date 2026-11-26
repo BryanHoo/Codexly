@@ -6,7 +6,6 @@ pub mod bing_wallpaper;
 pub(crate) mod bundled_runtime;
 pub mod diagnostics;
 pub mod filesystem;
-pub mod personalization;
 pub mod project_directory_create;
 pub mod scheduled_tasks;
 mod sqlite_journal;

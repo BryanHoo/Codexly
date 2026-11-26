@@ -107,7 +107,7 @@
 - Web 回答或关闭成功后，先取消在途问题查询，再写入最新集合，避免较晚返回的旧查询复活问题。持久回答补回历史时，只在对应问题与下一次同文提问之间识别原生回执，不复用后一次回答。
 - 同一运行时合并历史快照、`item.started` / `item.completed` 和 `turn.completed` 时均保留已确认的 `identityAliases`；实时事件或终态摘要省略别名不能撤销身份关系，否则随后补回的持久回答会重复出现在助手回复之后。原生回答与持久回答交替使用各自 ID 时仍在原位置接管为唯一实体。仅依据明确 ID 关系合并，不因正文相同合并独立消息。两端真实 Store 共用 `testing/task-identity-contract.ts` 验证三类事件后反复恢复及顺序稳定；新 session 继续丢弃旧身份。
 - 回归入口：共享 `prompt-delivery.test.ts`、两端 `composer-queue-state.test.ts`、Web `use-async-questions.test.tsx`、Core `async-question.test.ts` 及桌面 `async-question-projection.test.ts`、`async-question-dock.browser.test.tsx`。聊天流式连续性继续由 Web `app-shell-async-questions.spec.ts` / `app-shell-runtime-queue.spec.ts` 与桌面 `task-timeline-running.browser.test.tsx` 验证。
-- 官方语义依据：[Codex App Server](https://learn.chatgpt.com/docs/app-server) 的 `turn/steer` 与消息生命周期，以及 [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) 的查询取消与缓存写入约定。异步问题属于消息，不转换为阻塞式 `requestUserInput` 审批请求。
+- 即时引导受 ACP 会话公布的能力约束。提交生命周期沿用 TanStack Query 的查询取消与缓存写入约定。
 
 ## 任务事件消费与双端回放
 

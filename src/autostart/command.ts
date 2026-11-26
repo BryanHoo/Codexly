@@ -51,8 +51,6 @@ Enable options:
                              Otherwise generate once and reuse on future logins.
   --session-ttl <duration>   LAN session lifetime (requires --lan).
   --allowed-host <domain>    Allow an exact proxy domain; may be repeated.
-  --codex-bin <path>         Persist an absolute Codex executable path.
-  --codex-home <path>        Persist the Codex data directory.
   --workspace <path>         Persist workspace roots; may be repeated.
 
 Repair options:
@@ -285,11 +283,7 @@ export async function runAutostartCommand(
       output.info(
         `下次启动模式: ${config.start.lan ? "LAN" : "本机"}；起始端口: ${String(config.start.port)}；自动打开浏览器: 否`,
       );
-      for (const path of [
-        config.node,
-        config.cli,
-        ...(config.start.codexBin ? [config.start.codexBin] : []),
-      ]) {
+      for (const path of [config.node, config.cli]) {
         try {
           await access(path);
         } catch {
@@ -350,7 +344,6 @@ export async function runAutostartCommand(
         : createConfig(options, runtime, previous);
     if (config.start.allowedHosts)
       config.start.allowedHosts = config.start.allowedHosts.map(normalizeAllowedHost);
-    if (config.start.codexBin) await access(config.start.codexBin);
     await register(config, previous, context);
     output.success(
       command === "repair" ? "已修复自启动路径。" : "已配置用户登录自启动，默认不打开浏览器。",

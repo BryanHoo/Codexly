@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { appStorageDirectory } from "@codexly/core/app-storage-paths";
 import type { inspectOfficialAcpAgents } from "@codexly/provider-acp";
@@ -15,10 +14,7 @@ export interface CliDoctorDependencies {
   appVersion: string;
   nodeVersion: string;
   inspectAcpAgents: typeof inspectOfficialAcpAgents;
-  createStateRepository: (
-    databasePath: string,
-    codexHome?: string,
-  ) => Promise<CliManagedStateRepository>;
+  createStateRepository: (databasePath: string) => Promise<CliManagedStateRepository>;
 }
 
 function assertSupportedNodeVersion(version: string): void {
@@ -34,22 +30,16 @@ export async function runDoctor(
   dependencies: CliDoctorDependencies,
   output: TerminalOutput,
 ): Promise<number> {
-  const options = parseCommandOptions(args, new Set(["--codex-bin", "--codex-home"]));
+  parseCommandOptions(args, new Set());
   assertSupportedNodeVersion(dependencies.nodeVersion);
   output.success(`Node.js ${dependencies.nodeVersion}`);
 
-  const codexHome = options.codexHome ?? process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
-  const agents = await dependencies.inspectAcpAgents({
-    ...process.env,
-    CODEX_HOME: codexHome,
-    ...(options.codexBin ? { CODEX_PATH: options.codexBin } : {}),
-  });
+  const agents = await dependencies.inspectAcpAgents(process.env);
   for (const agent of agents)
     output.success(`ACP ${agent.engine} 协议 v${String(agent.protocolVersion)} (${agent.name})`);
   const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
   const stateRepository = await dependencies.createStateRepository(
     join(applicationDirectory, "state.sqlite3"),
-    codexHome,
   );
   try {
     const diagnostics = await stateRepository.diagnose();

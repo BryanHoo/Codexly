@@ -125,10 +125,16 @@ describe("CI 质量门禁", () => {
   it("应用包只通过 ACP 目录获取 Agent", () => {
     const lock = readFileSync(join(process.cwd(), "pnpm-lock.yaml"), "utf8");
     const tauri = readFileSync(join(process.cwd(), "desktop/src-tauri/build.rs"), "utf8");
-    for (const name of ["@anthropic-ai/claude-agent-sdk", "@openai/codex"]) {
+    for (const name of [
+      "@anthropic-ai/claude-agent-sdk",
+      "@openai/codex",
+      "packages/provider-codex:",
+    ]) {
       expect(lock).not.toContain(name);
     }
     expect(tauri).not.toContain("get_configured_engines");
+    expect(tauri).not.toContain("save_global_instructions");
+    expect(tauri).toContain('"acp_agent_request"');
   });
 
   it("分离增量构建与 Release clean build", () => {
@@ -166,7 +172,7 @@ describe("CI 质量门禁", () => {
     const testGroups = [
       "apps/web",
       "packages/client packages/core packages/protocol",
-      "packages/provider-acp packages/provider-codex",
+      "packages/provider-acp",
       "packages/server",
       '"$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts',
     ];

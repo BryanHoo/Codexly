@@ -386,7 +386,6 @@ export interface AgentRuntimeProvider {
   ): Promise<string>;
   readonly engines?: Partial<Record<AgentEngine, AgentEngineService>>;
   readonly historyStorage?: { compress(): Promise<HistoryCompressionResult> };
-  readonly personalization?: PersonalizationProvider;
   readonly fileSearch?: AgentFileSearchProvider;
   readonly search?: AgentSearchProvider;
   cancelProviderLogin(loginId: string): Promise<AgentProviderConnectionMutationResponse>;
@@ -456,4 +455,3 @@ export type TaskTitleGenerator = (
   text: string,
   signal: AbortSignal,
 ) => Promise<string>;
-import type { PersonalizationProvider } from "./personalization.js";

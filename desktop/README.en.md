@@ -2,7 +2,7 @@
 
 <h1 align="center">Codexly Desktop</h1>
 
-<p align="center">A local AI coding workspace for Codex and Claude on macOS, Windows, and Ubuntu.</p>
+<p align="center">A local AI coding workspace powered by ACP.</p>
 
 [Product overview](../README.en.md) · [Download desktop](https://github.com/BryanHoo/Codexly/releases) · [简体中文](README.md)
 
@@ -11,7 +11,7 @@
 ## Get started
 
 1. Download the package for your system and architecture; follow [installation](docs/installation.en.md).
-2. Configure Codex, Claude, or both in Settings. Supported existing local configurations can be reused.
+2. In **Settings → ACP**, enable an agent from the catalog or add a custom ACP command.
 3. Add a project folder, create a task, and send your request.
 
 Runtimes are bundled, with no separate Node.js, Bun, or CLI installation. Supported platforms are Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Silicon / Intel.
@@ -22,7 +22,7 @@ For Windows portable builds, extract the entire ZIP and keep the executable, ACP
 
 Desktop shares conversations, approvals, queues, files, Git, extensions, and scheduled workflows with Web and mobile. It adds a native project terminal, global shortcuts, system notifications, and tray integration. Enable startup at login in **Settings → General**.
 
-User messages can be edited into the current composer and sent as new messages, preserving the original history. The context panel displays available Codex session memory summaries and supports manual refresh. The interface uses system fonts; elapsed-time refresh pauses in the background and recalibrates on return.
+User messages can be edited into the current composer and sent as new messages, preserving the original history. The interface uses system fonts; elapsed-time refresh pauses in the background and recalibrates on return.
 
 Sending focuses the new question and preserves your position while reading. Enable **Sticky messages** and **Message navigation anchors** independently in **Settings → General → Editor**; both default to off. Preview cited web sources and follow or pause output in subagent details. Consecutive commands, tools, and image-view operations share a five-row summary window with complete output in separate detail dialogs.
 
@@ -44,7 +44,6 @@ Marking notifications as read or resolving their requests removes the correspond
 
 Use `⌘/Ctrl+Shift+7/8/9/0` (left, up, down, right) to split tasks and **Help → Keyboard shortcuts** to view available shortcuts. Export a diagnostic ZIP from **Settings → About** when troubleshooting.
 
-The extension center manages local Skills, MCP, and official plugins for Codex or Claude, with search, filters, and global or project scope. Available operations follow each engine's capabilities. Start a new conversation after configuration changes for complete loading.
 
 Desktop and Web under the same OS user on the same computer share projects, tasks, and history in `~/.codexly`. Mobile access needs a separate Web server with LAN enabled; the desktop app does not host it. See [Web and mobile](../docs/web.en.md).
 

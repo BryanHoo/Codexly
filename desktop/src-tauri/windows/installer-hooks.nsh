@@ -4,6 +4,8 @@
 Var CodexlyRuntimeCleanupFailed
 
 !macro CodexlyRuntimePaths action
+  !insertmacro ${action} "acp-host.exe"
+  ; The following paths are only used when replacing a pre-ACP installation.
   !insertmacro ${action} "runtime\codex\bin\codex.exe"
   !insertmacro ${action} "runtime\codex\bin\codex-code-mode-host.exe"
   !insertmacro ${action} "runtime\codex\codex-path\rg.exe"

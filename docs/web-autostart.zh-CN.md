@@ -23,7 +23,7 @@ codexly autostart status
 codexly autostart credentials
 ```
 
-`enable` 接受普通启动的 `--lan`、`--port`、`--lan-password`、`--session-ttl`、`--allowed-host`、`--codex-bin`、`--codex-home`、`--workspace`。目录参数会保存为绝对路径，`--allowed-host` 和 `--workspace` 可重复。`--now` 会停止旧托管实例并使用新配置启动，最多等待 120 秒检查就绪状态，以容纳首次 Codex Home 初始化；超时后可用 `status` 和 `logs` 继续检查。
+`enable` 接受普通启动的 `--lan`、`--port`、`--lan-password`、`--session-ttl`、`--allowed-host`、`--workspace`。目录参数会保存为绝对路径，`--allowed-host` 和 `--workspace` 可重复。`--now` 会停止旧托管实例并使用新配置启动，最多等待 120 秒检查就绪状态；超时后可用 `status` 和 `logs` 继续检查。
 
 每个系统用户管理一个登录项。再次执行 `enable` 会以本次参数及适用的 `CODEXLY_*` 环境默认值替换启动设置；只有已有的 LAN 密码会在仍启用 LAN 且未提供新密码时复用。例如 `enable --lan` 后执行 `enable` 会切换为本机模式。未指定 `--now` 时，已经运行的实例继续使用原配置；`status` 会提示存在未应用的修改。
 
@@ -46,7 +46,7 @@ codexly start --no-open
 
 LAN 自启动首次生成并保存高强度随机密码，之后重启复用。只有 `credentials` 显式输出密码；普通日志、状态输出和系统服务定义不会写入该密码。自定义密码仍要求 16–128 位并包含大写字母、小写字母和数字。服务重启会使所有旧 LAN 会话失效，需要重新输入固定密码。
 
-配置中保存 `CODEX_HOME` 的解析结果、启动参数和启用时的 PATH，不会复制整个终端环境。登录启动不会读取 `.zshrc`、`.bashrc` 或 PowerShell profile。仅在交互 Shell 中设置的 API Key、代理等变量不会自动保存；需要使用 Codex 自身的持久化配置或操作系统的用户环境。指定 `--codex-bin` 时保存的是固定路径，需要随该可执行文件的迁移重新配置。
+配置保存启动参数和启用时的 PATH。登录启动使用系统服务环境。智能体环境可在「设置 → ACP」中配置。
 
 | 系统    | 私有配置目录                                      | 原生登录项                                        |
 | ------- | ------------------------------------------------- | ------------------------------------------------- |

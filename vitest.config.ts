@@ -57,9 +57,6 @@ export const vitestAliases = {
   "@codexly/core": fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
   "@codexly/client": fileURLToPath(new URL("./packages/client/src/index.ts", import.meta.url)),
   "@codexly/protocol": fileURLToPath(new URL("./packages/protocol/src/index.ts", import.meta.url)),
-  "@codexly/provider-codex": fileURLToPath(
-    new URL("./packages/provider-codex/src/index.ts", import.meta.url),
-  ),
   "@codexly/server": fileURLToPath(new URL("./packages/server/src/index.ts", import.meta.url)),
 };
 
@@ -86,12 +83,6 @@ export default defineConfig({
           functions: 60,
           lines: 60,
           statements: 60,
-        },
-        "packages/provider-codex/src/codex-transcript.ts": {
-          branches: 70,
-          functions: 85,
-          lines: 80,
-          statements: 80,
         },
         "packages/server/src/server-delivery.ts": {
           branches: 85,

@@ -4,7 +4,7 @@
 
 <h1 align="center">Codexly</h1>
 
-<p align="center">支持 Codex 与 Claude 的本地 AI 编程工作台，在桌面、Web 和手机浏览器中处理项目。</p>
+<p align="center">基于 ACP 的本地 AI 编程工作台，支持桌面、Web 和手机浏览器。</p>
 
 <p align="center">
   <a href="https://github.com/BryanHoo/Codexly/releases">下载桌面版</a> ·
@@ -31,7 +31,7 @@ Codexly 将 AI 对话、编程任务、项目文件、代码变更与 Git 操作
 
 ## 你可以用它做什么
 
-- **用 Codex 或 Claude 处理项目**：独立配置任一引擎，也可同时配置并在新任务中选择；已有任务保留原引擎。
+- **通过 ACP 处理项目**。从目录安装智能体，或添加自定义 ACP 启动命令。
 - **跟进执行过程**：实时查看回复、命令、工具调用、计划与文件变更，在输入框上方处理审批和问答；将后续消息加入持久队列。
 - **整理输入与复用提示词**：输入非空正文后用 AI 优化草稿，在发送菜单保存项目待办或常用提示词；同机桌面、Web 与移动浏览器共用提示词。
 - **复用历史提问**：将用户消息编辑到当前输入框，修改后作为新消息发送。
@@ -58,10 +58,10 @@ Codexly 将 AI 对话、编程任务、项目文件、代码变更与 Git 操作
 ### 桌面端
 
 1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载对应系统和架构的安装包。
-2. 安装并打开 Codexly，在设置中配置 Codex、Claude 或两者；已有的受支持本机配置可直接复用。
+2. 在「设置 → ACP」启用目录中的智能体，或添加自定义 ACP 命令。
 3. 添加项目文件夹，新建任务并发送需求。
 
-Windows 便携版请完整解压 ZIP，保留程序、Claude 宿主和 `runtime` 目录。各平台安装、更新与卸载步骤见[桌面安装指南](desktop/docs/installation.md)。
+Windows 便携版请完整解压 ZIP，保留程序、ACP 宿主和 `runtime` 目录。各平台安装、更新与卸载步骤见[桌面安装指南](desktop/docs/installation.md)。
 
 ### Web 端
 
@@ -94,14 +94,9 @@ npx --package @bryanhu/codexly@latest codexly start --lan
 
 局域网模式使用 HTTP，仅用于可信网络，不要直接暴露到公网。桌面应用本身不提供手机连接入口；需要移动访问时启动 Web 服务。详见[移动端与局域网访问](docs/web.md#移动端与局域网访问)。
 
-## 连接 Codex 与 Claude
+## 连接 ACP 智能体
 
-| 智能体 | 连接方式                                                                                                                            |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Codex  | 使用 ChatGPT 登录，或配置支持 Responses API 与模型列表的 OpenAI 兼容服务                                                            |
-| Claude | 复用受支持的本机 Claude Code 凭据，或填写支持 Anthropic Messages API 与 `/v1/models` 的服务地址和密钥；应用内不提供 Claude 账号登录 |
-
-只使用 Claude 时无需配置 Codex。模型可用性、额度与费用由所用账号或服务决定，Codexly 不包含模型服务额度。桌面端在本机配置，Web 和移动端在 Web 服务所在电脑配置。
+进入「设置 → ACP → 添加 Agent」安装或添加智能体。认证方式、模型和会话选项由所连智能体提供。桌面端使用本机环境，Web 与手机浏览器使用服务主机环境。[连接与能力参考](docs/agent-engines.md)
 
 ## 文档与帮助
 
@@ -109,7 +104,7 @@ npx --package @bryanhu/codexly@latest codexly start --lan
 - [首次使用](docs/getting-started.md)：连接智能体并完成第一个任务。
 - [工作台使用](docs/usage.md)：对话、分屏、文件、Git、扩展与定时任务。
 - [常见问题](docs/faq.md)：数据保存、跨端使用、连接与更新。
-- 诊断导出位于「设置 → 关于」：各端均导出整合 ZIP，默认纳入可用的 Codex 原生诊断；分享前请检查内容，详见[诊断指南](desktop/docs/diagnostics.md)。
+- 在「设置 → 关于」导出应用诊断 ZIP。[诊断指南](desktop/docs/diagnostics.md)
 - [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/BryanHoo/Codexly/issues) · [安全策略](SECURITY.md)
 - [参与贡献](CONTRIBUTING.md)：源码开发、验证与发布入口。
 

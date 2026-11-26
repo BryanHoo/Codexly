@@ -1,7 +1,11 @@
 import { initializeNetworkProxy } from "@codexly/provider-acp/network-proxy";
 import { runDoctor, type CliDoctorDependencies } from "./cli-doctor.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
-import { appStorageDirectory, legacyStorageDirectories } from "@codexly/core/app-storage-paths";
+import {
+  appStorageDirectory,
+  defaultCodexHome,
+  legacyStorageDirectories,
+} from "@codexly/core/app-storage-paths";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,23 +23,16 @@ import {
   type CreateCliAcpRuntimeInput,
 } from "./cli-acp-runtime.js";
 import {
-  createCodexWorkbenchPetProvider,
-  type CreateCodexWorkbenchPetProviderOptions,
-} from "@codexly/provider-codex";
-import {
   createCodexlyServer,
+  createLocalWorkbenchPetProvider,
+  type CreateLocalWorkbenchPetProviderOptions,
   normalizeAllowedHost,
   SqliteStateRepository,
   LocalProjectRepository,
 } from "@codexly/server";
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
-import {
-  parseStartOptions,
-  CLI_COMMAND_HELP,
-  CLI_HELP,
-  type ParsedCommandOptions,
-} from "./cli-command-options.js";
+import { parseStartOptions, CLI_COMMAND_HELP, CLI_HELP } from "./cli-command-options.js";
 import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
 import type { CreateServerInput } from "./cli-server-input.js";
@@ -72,7 +69,7 @@ export interface CliDependencies extends CliDoctorDependencies {
   createProjectRepository: (input: {
     projection: ProjectProjectionStore;
   }) => CliManagedProjectRepository;
-  createPetProvider: (input: CreateCodexWorkbenchPetProviderOptions) => WorkbenchPetProvider;
+  createPetProvider: (input: CreateLocalWorkbenchPetProviderOptions) => WorkbenchPetProvider;
   createAcpRuntime: (input: CreateCliAcpRuntimeInput) => CliAcpRuntime | Promise<CliAcpRuntime>;
   readEngineVersions: typeof readAcpEngineVersions;
   createServer: (input: CreateServerInput) => Promise<CliManagedServer>;
@@ -107,10 +104,10 @@ const defaultDependencies: CliDependencies = {
       projection as CliManagedStateRepository & LocalCatalogStore,
       projection,
     ),
-  createPetProvider: createCodexWorkbenchPetProvider,
-  createStateRepository: (databasePath, codexHome) =>
+  createPetProvider: createLocalWorkbenchPetProvider,
+  createStateRepository: (databasePath) =>
     SqliteStateRepository.open(databasePath, {
-      legacyDirectories: legacyStorageDirectories(codexHome ?? resolveCodexHome({})),
+      legacyDirectories: legacyStorageDirectories(defaultCodexHome()),
     }),
   createAcpRuntime: createCliAcpRuntime,
   readEngineVersions: readAcpEngineVersions,
@@ -131,10 +128,6 @@ const defaultDependencies: CliDependencies = {
   restartAfterUpdate: restartCliAfterUpdate,
   webRoot: fileURLToPath(new URL("../dist/web", import.meta.url)),
 };
-
-function resolveCodexHome(options: ParsedCommandOptions): string {
-  return options.codexHome ?? process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
-}
 
 export async function runStart(
   args: readonly string[],
@@ -204,17 +197,10 @@ export async function runStart(
     let stateRepository: CliManagedStateRepository | undefined;
 
     try {
-      const codexHome = options.codexHome ?? environment["CODEX_HOME"] ?? join(homedir(), ".codex");
       // 启动位置不参与内部运行：多个 Web 实例共用应用数据目录，由端口和业务事务处理并发。
       const runtimeCwd = homedir();
-      const env = {
-        ...environment,
-        CODEX_HOME: codexHome,
-        ...(options.codexBin ? { CODEX_PATH: options.codexBin } : {}),
-      };
       stateRepository = await dependencies.createStateRepository(
         join(applicationDirectory, "state.sqlite3"),
-        codexHome,
       );
       const projectRepository = dependencies.createProjectRepository({
         projection: stateRepository,
@@ -233,10 +219,10 @@ export async function runStart(
       runtime = await dependencies.createAcpRuntime({
         applicationDirectory,
         store: stateRepository,
-        environment: env,
+        environment,
       });
       const provider = runtime;
-      const petProvider = dependencies.createPetProvider({ codexHome });
+      const petProvider = dependencies.createPetProvider({ assetHome: defaultCodexHome() });
       const versions = await dependencies.readEngineVersions(environment);
       const appUpdateService = createAppUpdateService({
         appVersion: dependencies.appVersion,

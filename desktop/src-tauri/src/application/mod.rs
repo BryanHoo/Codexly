@@ -40,7 +40,6 @@ pub mod notification_commands;
 pub(crate) mod notification_delivery;
 pub mod open_commands;
 pub mod pending_resolution;
-pub mod personalization_commands;
 mod pet_assets;
 pub mod pet_commands;
 pub mod project_file_window_commands;

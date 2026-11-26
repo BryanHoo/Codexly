@@ -1,7 +1,7 @@
 {
   "name": "@bryanhu/codexly",
   "version": "0.53.0",
-  "description": "支持 Codex 与 Claude 的本地 AI 编程工作台，覆盖桌面、Web 与移动浏览器",
+  "description": "基于 ACP 的本地 AI 编程工作台，覆盖桌面、Web 与移动浏览器",
   "type": "module",
   "author": "BryanHu",
   "homepage": "https://github.com/BryanHoo/Codexly#readme",
@@ -14,8 +14,7 @@
   },
   "keywords": [
     "ai",
-    "codex",
-    "claude",
+    "acp",
     "coding-agent",
     "developer-tools",
     "desktop",
@@ -77,7 +76,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "oxlint . --disable-nested-config --ignore-pattern 'desktop/**' --max-warnings 0 --report-unused-disable-directives",
-    "lint:architecture": "depcruise --config dependency-cruiser.config.cjs src apps/web/src packages/client/src packages/core/src packages/frontend-core/src packages/ui/src packages/protocol/src packages/provider-codex/src packages/server/src packages/provider-acp/src && node --test tools/dialog-contract.test.mjs",
+    "lint:architecture": "depcruise --config dependency-cruiser.config.cjs src apps/web/src packages/client/src packages/core/src packages/frontend-core/src packages/ui/src packages/protocol/src packages/server/src packages/provider-acp/src && node --test tools/dialog-contract.test.mjs",
     "package:check": "node ./tools/verify-package.mjs",
     "start": "pnpm run build && node ./dist/cli.js start",
     "test": "vitest run --passWithNoTests",

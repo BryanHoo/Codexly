@@ -1,3 +1,4 @@
+import { AcpTurnOutcome } from "@codexly/ui/core/acp-turn-outcome";
 import { AcpBackgroundSection } from "@codexly/ui/core/acp-activity";
 import type { AcpBackgroundTarget } from "@codexly/protocol";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
@@ -217,6 +218,14 @@ export function WorkbenchInspector({
   const projectRootName = projectPath.split(/[\\/]/u).filter(Boolean).at(-1) ?? projectName;
   const contextContent = (
     <div className="h-full space-y-5 overflow-y-auto p-2.5">
+      {!legacyContext && taskStore && projectId && taskId ? (
+        <AcpTurnOutcome
+          source={taskStore}
+          projectId={projectId}
+          taskId={taskId}
+          language={i18n.language}
+        />
+      ) : null}
       {!legacyContext && taskStore && projectId && taskId ? (
         <AcpBackgroundSection
           key={`${projectId}:${taskId}`}

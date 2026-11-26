@@ -1,4 +1,6 @@
 import {
+  BingWallpaperCatalogSchema,
+  HistoryCompressionResultSchema,
   TaskActivityPageSchema,
   ProjectTodoPageSchema,
   ProjectTodoResponseSchema,
@@ -9,11 +11,18 @@ import {
   type SaveProjectTodoRequest,
 } from "@codexly/protocol";
 import { Type } from "@sinclair/typebox";
-import { PersonalizationHttpClient } from "./http-client-personalization.js";
+import { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 import { projectPath, type MutationOptions, type ReadOptions } from "./http-client-transport.js";
 import { subscribeResourceChanges } from "./resource-change-events.js";
 
-export class ProjectTodoHttpClient extends PersonalizationHttpClient {
+export class ProjectTodoHttpClient extends ScheduledTaskHttpClient {
+  compressHistory(options: MutationOptions = {}) {
+    return this.mutation("/v1/history/compress", {}, HistoryCompressionResultSchema, options);
+  }
+
+  listWorkbenchBackgrounds(options: ReadOptions = {}) {
+    return this.read("/v1/workbench-background/bing/catalog", BingWallpaperCatalogSchema, options);
+  }
   getTaskActivities(options: ReadOptions = {}) {
     return this.read("/v1/tasks/activity", TaskActivityPageSchema, options);
   }

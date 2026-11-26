@@ -4,7 +4,7 @@ Windows、macOS、Ubuntu 共用脱敏 JSONL 日志和诊断 ZIP。Windows 额外
 
 ## 自动留存
 
-- `codeagent.log` 及轮转日志：常规 Rust、前端和 Codex 结构化事件。
+- `codeagent.log` 及轮转日志：常规 Rust、前端和 ACP 结构化事件。
 - `codeagent-emergency.log` 与 `codeagent-emergency-previous.log`：每份最多 512 KiB，严重错误同步落盘；任务订阅、启动、退出关键节点同步写入操作系统，避免导航等待 fsync。独立文件不依赖常规 logger 的队列和 flush；panic hook 只写应急文件，避免重入 logger。锁繁忙时跳过，不能阻塞崩溃线程。
 - Windows `codeagent-host-<session>.log`：同一可执行文件以内部观察模式启动一个无界面进程，取得宿主同步/查询句柄后阻塞等待退出，记录原始无符号退出码与十六进制值。保留最近 8 次启动的记录。它不加载应用窗口、不启动引擎、不做周期轮询、不上传数据；仍会占用一个进程的内存。
 
@@ -20,8 +20,7 @@ Windows、macOS、Ubuntu 共用脱敏 JSONL 日志和诊断 ZIP。Windows 额外
 | `host_observer_failed` / `host_observer_start_failed`                     | 观察器未能工作，保留 OS 错误信息                                                         |
 | `webview_process_failed`                                                  | WebView2 原生失败种类、可用时的原因与退出码；浏览器崩溃、渲染器崩溃或无响应均可能触发    |
 | `rust_panic`                                                              | Rust panic 信息与最多 8192 字符的脱敏回溯，优先查看应急文件                              |
-| `codex_stderr_unstructured`                                               | 非 JSON stderr 的脱敏、截断样本；每个汇总窗口限量，完整丢弃数量仍见 ingest summary       |
-| `codex_process_exited`                                                    | Codex 实际退出码，Unix 信号及是否收到关闭请求；EOF 清理后的关闭请求不代表用户主动退出    |
+| `acp_host_stderr_tail`                                                    | ACP 宿主结束时记录的有界 stderr 摘要。                                                   |
 | `task_subscription_retain_started` / `task_subscription_retain_completed` | 打开任务的关联身份与结果；开始无完成可帮助缩小退出前的执行范围                           |
 
 `app_started` 包含应用、系统、架构与 WebView 版本。任务身份使用现有 session 脱敏规则，错误文本使用现有凭据和路径清理规则。日志不会逐 token 记录正文。非结构化错误样本也必须在分享前检查，通用文本脱敏无法识别所有业务敏感内容。
@@ -33,7 +32,7 @@ Windows、macOS、Ubuntu 共用脱敏 JSONL 日志和诊断 ZIP。Windows 额外
 1. 正常退出：存在 `app_stopped` 和宿主退出码 0。
 2. 使用任务管理器结束主应用：观察进程应继续写入退出码，重启出现 `previous_session_unclean`。不要同时结束整个进程树，否则观察器也会被终止。
 3. 结束应用对应的 WebView2 渲染进程：记录 `webview_process_failed`；不要结束其他应用的 WebView2。
-4. 结束 Codex 子进程：出现其退出码，末尾 stderr 继续排空，运行时按原有策略恢复。
+4. 结束 ACP 宿主进程，核对连接中断提示和宿主 stderr 摘要。重新连接后确认原任务仍可打开。
 5. 快速切换任务及重载页面：每个 WebView 只有一个失败监听，窗口销毁释放监听。
 6. 在专用测试构建触发 Rust panic、原生访问异常和栈溢出：验证应急文件或外部退出码；核对诊断导出包含这些记录。
 

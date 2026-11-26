@@ -133,7 +133,7 @@ describe("runCli LAN", () => {
       ["start", "--allowed-host", "https://code.example.com"],
       ["start", "--allowed-host", "code.example.com:443"],
       ["start", "--lan", "--lan"],
-      ["start", "--lan", "--codex-bin", "/first", "--codex-bin", "/second"],
+      ["start", "--port", "3210", "--port", "3211"],
     ]) {
       const harness = createHarness();
       await expect(runCli(args, harness.options)).resolves.toBe(1);

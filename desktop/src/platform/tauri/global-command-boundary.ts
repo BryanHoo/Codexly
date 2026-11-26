@@ -2,8 +2,6 @@
 const legacyGlobalCommands = new Set([
   "read_thread_memory",
   "compress_history",
-  "get_global_instructions",
-  "save_global_instructions",
   "get_memory_settings",
   "update_memory_settings",
   "reset_memories",

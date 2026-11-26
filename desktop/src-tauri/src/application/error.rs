@@ -25,8 +25,6 @@ pub enum AppError {
     GoalInput(#[from] crate::domain::goal_input::GoalInputError),
     #[error("queue recovery capacity is exhausted; retry later")]
     QueueRecoveryCapacityExceeded,
-    #[error("global instructions changed; reload before saving")]
-    GlobalInstructionsChanged,
     #[error(transparent)]
     Terminal(#[from] crate::domain::project_terminal::TerminalError),
     #[error("failed to check for a Codexly update")]
@@ -85,9 +83,6 @@ impl Serialize for AppError {
             Self::GoalInput(error) => Some((error.code(), error.to_string())),
             Self::QueueRecoveryCapacityExceeded => {
                 Some(("IDEMPOTENCY_CAPACITY_EXCEEDED", self.to_string()))
-            }
-            Self::GlobalInstructionsChanged => {
-                Some(("GLOBAL_INSTRUCTIONS_CHANGED", self.to_string()))
             }
             Self::Terminal(error) => Some((error.code(), error.to_string())),
             Self::RequestCancelled => Some(("REQUEST_CANCELLED", self.to_string())),

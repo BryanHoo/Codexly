@@ -43,11 +43,6 @@
       "layers": ["shared"]
     },
     {
-      "name": "provider-codex",
-      "path": "packages/provider-codex",
-      "layers": ["backend"]
-    },
-    {
       "name": "provider-acp",
       "path": "packages/provider-acp",
       "layers": ["backend"]

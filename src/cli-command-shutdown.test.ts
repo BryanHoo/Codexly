@@ -83,23 +83,23 @@ describe("runCli shutdown and help", () => {
 
     const help = helpHarness.stdout.join("");
     expect(help).toContain("Usage: codexly [command] [options]");
-    expect(help).toContain("start    Start the Codexly server and open the Web interface.");
-    expect(help).toContain("doctor   Check whether the local Codexly runtime is ready.");
+    expect(help).toContain("start    Start the ACP-powered Web server and open the browser.");
+    expect(help).toContain("doctor   Check Node.js, ACP agents and the local database.");
     expect(help).toContain("version  Print the installed Codexly version.");
     expect(help).toContain("--port <port>");
     expect(help).toContain("--lan");
     expect(help).toContain("--lan-password <password>");
     expect(help).toContain("--allowed-host <domain>");
     expect(help).toContain("--session-ttl <duration>");
-    expect(help).toContain("--codex-bin <path>");
-    expect(help).toContain("--codex-home <path>");
+    expect(help).not.toContain("--codex-bin <path>");
+    expect(help).not.toContain("--codex-home <path>");
     expect(help).toContain("-h, --help");
     expect(help).toContain("Defaults to 3210.");
     expect(help).toContain("Automatically increases the port when it is occupied.");
     expect(help).toContain("Requires --lan.");
     expect(help).toContain("Running codexly without a command is equivalent to codexly start.");
     expect(unknownHarness.stderr.join("")).toContain("未知命令: unknown");
-    expect(invalidHarness.stderr.join("")).toContain("选项缺少值: --codex-bin");
+    expect(invalidHarness.stderr.join("")).toContain("未知选项: --codex-bin");
   });
 
   it("supports conventional global version and command-specific help without starting", async () => {
@@ -112,7 +112,7 @@ describe("runCli shutdown and help", () => {
 
     for (const [args, usage, option] of [
       [["start", "--help"], "Usage: codexly start [options]", "--port <port>"],
-      [["doctor", "-h"], "Usage: codexly doctor [options]", "--codex-bin <path>"],
+      [["doctor", "-h"], "Usage: codexly doctor [options]", "ACP agents"],
       [["version", "--help"], "Usage: codexly version", "--version"],
     ] as const) {
       const harness = createHarness();

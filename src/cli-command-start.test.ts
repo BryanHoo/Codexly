@@ -46,21 +46,13 @@ describe("runCli startup", () => {
   it("checks Node.js, both ACP agents and SQLite diagnostics in doctor", async () => {
     const harness = createHarness();
 
-    await expect(
-      runCli(
-        ["doctor", "--codex-bin", "/custom/codex", "--codex-home", "/custom/home"],
-        harness.options,
-      ),
-    ).resolves.toBe(0);
-    expect(harness.dependencies.inspectAcpAgents).toHaveBeenCalledWith(
-      expect.objectContaining({ CODEX_PATH: "/custom/codex", CODEX_HOME: "/custom/home" }),
-    );
+    await expect(runCli(["doctor"], harness.options)).resolves.toBe(0);
+    expect(harness.dependencies.inspectAcpAgents).toHaveBeenCalledWith(process.env);
     expect(harness.stdout.join("")).toContain("[成功] Node.js 24.19.0");
     expect(harness.stdout.join("")).toContain("[成功] ACP codex 协议 v1 (codex-acp)");
     expect(harness.stdout.join("")).toContain("[成功] ACP claude 协议 v1 (claude-acp)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join(homedir(), ".codexly", "state.sqlite3"),
-      "/custom/home",
     );
     expect(harness.stdout.join("")).toContain("[成功] SQLite 可写");
     expect(harness.stdout.join("")).toContain("[成功] SQLite migration 4");
@@ -101,7 +93,7 @@ describe("runCli startup", () => {
     const harness = createHarness();
     const readSettings = vi.spyOn(harness.stateRepository, "readGlobalSettings");
     const controller = new AbortController();
-    const run = runCli(["start", "--codex-bin", "/custom/codex", "--codex-home", "/custom/home"], {
+    const run = runCli(["start"], {
       ...harness.options,
       signal: controller.signal,
     });
@@ -112,10 +104,6 @@ describe("runCli startup", () => {
     const runtimeInput = vi.mocked(harness.dependencies.createAcpRuntime).mock.calls[0]?.[0];
     expect(runtimeInput).toMatchObject({
       store: harness.stateRepository,
-      environment: expect.objectContaining({
-        CODEX_HOME: "/custom/home",
-        CODEX_PATH: "/custom/codex",
-      }) as unknown,
     });
     expect(readSettings).not.toHaveBeenCalled();
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
@@ -136,7 +124,6 @@ describe("runCli startup", () => {
     expect(typeof serverOptions?.readAppInfo).toBe("function");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join(homedir(), ".codexly", "state.sqlite3"),
-      "/custom/home",
     );
     expect(harness.serverListen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 3210 });
     expect(harness.dependencies.openBrowser).toHaveBeenCalledWith("http://127.0.0.1:3210");
@@ -179,7 +166,7 @@ describe("runCli startup", () => {
     await expect(run).resolves.toBe(0);
   });
 
-  it("stops startup and cleans resources when Codex project synchronization fails", async () => {
+  it("stops startup and cleans resources when project synchronization fails", async () => {
     const harness = createHarness();
     harness.projectRepository.synchronize.mockRejectedValue(new Error("project sync failed"));
 

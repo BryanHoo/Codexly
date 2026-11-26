@@ -67,7 +67,7 @@ it("真实 CLI / HTTP / SQLite 使用共享 ACP，Codex 离线不阻断 Claude �
   };
   const start = () => {
     const controller = new AbortController();
-    const run = runCli(["start", "--no-open", "--codex-home", root], {
+    const run = runCli(["start", "--no-open"], {
       ...harness.options,
       signal: controller.signal,
     });

@@ -13,8 +13,6 @@ function gate() {
 const legacyCommands = [
   "read_thread_memory",
   "compress_history",
-  "get_global_instructions",
-  "save_global_instructions",
   "get_memory_settings",
   "update_memory_settings",
   "reset_memories",
@@ -151,7 +149,6 @@ const publicCalls = [
   (client: Client) => client.logoutProvider(),
   (client: Client) => client.setSkillEnabled("/skills/SKILL.md", true),
   (client: Client) => client.getMemorySettings(),
-  (client: Client) => client.getGlobalInstructions(),
 ];
 it.each(publicCalls.map((call, index) => [index, call] as const))(
   "公共旧全局方法 %i 在 ACP 不执行 IPC",

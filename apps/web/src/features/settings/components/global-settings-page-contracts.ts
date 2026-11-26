@@ -48,14 +48,7 @@ export type SettingsClient = Pick<
   | "disconnectEngine"
   | "getClaudeSettings"
   | "updateClaudeSettings"
-  | "getGlobalInstructions"
-  | "saveGlobalInstructions"
-  | "getMemorySettings"
-  | "updateMemorySettings"
-  | "resetMemories"
   | "compressHistory"
-  | "getAgentPreferences"
-  | "updateAgentPreferences"
 > &
   Partial<
     AcpAuthClient & Pick<CodexlyClient, "getAgentInstructionsTargets" | "saveAgentInstructions">

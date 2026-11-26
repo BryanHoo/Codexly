@@ -55,9 +55,7 @@ permissions = [
 
   "allow-get-temporary-workspace-settings",
   "allow-choose-temporary-workspace-root",
-  "allow-get-global-instructions",
     "allow-sync-saved-prompts",
-  "allow-save-global-instructions",
 
   # 仅主窗口的扩展中心可同步官方插件，辅助窗口不授予此权限。
 

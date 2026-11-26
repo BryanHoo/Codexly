@@ -23,7 +23,7 @@ import type {
 } from "@/protocol/index.js";
 
 import { TauriApplicationPreferencesClient } from "./application-preferences-client.js";
-import type { GlobalInstructions, MemorySettings, MemorySettingsUpdate } from "@/protocol/index.js";
+import type { MemorySettings, MemorySettingsUpdate } from "@/protocol/index.js";
 
 export class TauriCatalogClient extends TauriApplicationPreferencesClient {
   public async readThreadMemory(projectId: string, taskId: string, options: ReadOptions = {}): Promise<AgentThreadMemory> {
@@ -33,21 +33,6 @@ export class TauriCatalogClient extends TauriApplicationPreferencesClient {
 
   public async compressHistory(): Promise<HistoryCompressionResult> {
     return this.call("compress_history");
-  }
-
-  public async getGlobalInstructions(): Promise<GlobalInstructions> {
-    const { parseInstructions } = await import("./personalization-response.js");
-    return parseInstructions(await this.call("get_global_instructions"));
-  }
-
-  public async saveGlobalInstructions(
-    content: string,
-    expectedContent: string,
-  ): Promise<GlobalInstructions> {
-    const { parseInstructions } = await import("./personalization-response.js");
-    return parseInstructions(
-      await this.call("save_global_instructions", { content, expectedContent }),
-    );
   }
 
   public async getMemorySettings(): Promise<MemorySettings> {

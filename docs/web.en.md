@@ -55,14 +55,10 @@ After global installation, use these with `codexly start`. For temporary use, pr
 | `--session-ttl <duration>`    | Fixed session lifetime, e.g. `12h`; omitted sessions last until restart; requires `--lan` |
 | `--workspace <absolute-path>` | Restrict project roots; repeatable                                                        |
 | `--allowed-host <domain>`     | Allow an exact proxy domain; repeatable                                                   |
-| `--codex-home <directory>`    | Set Codex configuration/history location; does not move `~/.codexly`                      |
-| `--codex-bin <path>`          | Use a compatible external Codex executable; affects Codex only                            |
 
 Quote shell-special characters in passwords. Run `codexly start --help` for complete help.
 
-The bundled Codex CLI is `0.164.0`. External executables supplied through `--codex-bin` or `CODEXLY_CODEX_BIN` must satisfy `>=0.164.0,<0.165.0`. Claude uses the package's pinned SDK dependency and does not require an external Codex executable.
-
-Multiple instances skip occupied ports. The launch directory does not determine application storage. Temporary tasks default to the user's home directory or the first explicit `--workspace` root. Separate `--codex-home` directories isolate Codex data only, not the shared Codexly application directory.
+Multiple instances skip occupied ports. The launch directory does not determine application storage. Temporary tasks default to the user's home directory or the first explicit `--workspace` root.
 
 ## Start after login
 
@@ -124,4 +120,4 @@ codexly doctor
 codexly start --help
 ```
 
-`doctor` checks local environment and Codex readiness; it does not verify Claude API access or inference credits. For Claude-only setups, inspect Claude settings and the actual error rather than treating missing Codex configuration as an application-wide failure.
+`doctor` checks Node.js, handshakes with enabled ACP agents, and checks SQLite.

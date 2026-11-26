@@ -99,8 +99,6 @@ describe("GlobalSettingsPage", () => {
 
   it("独立展示 Git 提交设置，不加载 Codex 指令和记忆", async () => {
     const client = new CodexlyClient();
-    const instructions = vi.spyOn(client, "getGlobalInstructions");
-    const memories = vi.spyOn(client, "getMemorySettings");
     const markup = await renderSettingsDialog(
       <GlobalSettingsPage
         client={client}
@@ -122,8 +120,6 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("辅助生成");
     expect(markup).toContain("留空时使用应用内置提示词");
     expect(markup).not.toContain('id="codex-global-instructions"');
-    expect(instructions).not.toHaveBeenCalled();
-    expect(memories).not.toHaveBeenCalled();
   });
 
   it("智能体设置只呈现 ACP 公布的原始控件，不添加厂商参数", async () => {

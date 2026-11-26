@@ -87,7 +87,6 @@ export function WorkbenchShellLayout({
     inspectorWidth,
     models,
     modelsQuery,
-    navigate,
     newChatSubmissionStartedAt,
     openFileDiff,
     openFileReview,
@@ -221,19 +220,7 @@ export function WorkbenchShellLayout({
             </Suspense>
           ) : extensions ? (
             <Suspense fallback={<LoadingSkeleton className="flex-1 p-6" label={t("skillsMarket.loadingExtension")} />}>
-              <LazySkillsMarketContainer
-                section={extensionSection}
-                onSectionChange={(nextSection) => {
-                  void navigate(
-                    temporary
-                      ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
-                      : {
-                          params: { projectId, section: nextSection },
-                          to: "/p/$projectId/extensions/$section",
-                        },
-                  );
-                }}
-              />
+              <LazySkillsMarketContainer />
             </Suspense>
           ) : error !== null ||
             (projectTaskState?.error ?? null) !== null ||

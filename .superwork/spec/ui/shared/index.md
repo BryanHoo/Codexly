@@ -120,8 +120,9 @@
 - 卡片加载使用 `LoadingSkeleton` 的 settings-fields 变体，只占位字段而非重复整页标题，保留上下留白，与实际行高一致。
 - 回归为 `desktop/tests/browser/acp-settings-layout.browser.test.tsx`，覆盖两端、Chromium/WebKit、390px/1280px：长内容滚动不移动 Agent 与关闭区，不导致横向溢出，骨架屏间距和控件尺寸符合公共规格。
 
-## ACP 后台任务
+## ACP 回合详情与后台任务
 
+- Web 与桌面右栏的「回合详情」复用共享分组样式，显示最近前台回合的 Token 上限、模型请求次数上限或拒绝原因。后台回合更新时保留前台结果，切换任务时按任务隔离。上下文用量由中栏底栏展示，计划沿用右栏的完整步骤列表，待处理请求与连接状态沿用聊天入口。回归入口为 [双端右栏测试](../../../../desktop/tests/browser/acp-inspector-boundary.browser.test.tsx)。协议依据见 [ACP 回合停止原因](https://agentclientprotocol.com/protocol/v1/prompt-turn#stop-reasons)。
 - Web 与桌面的后台终端、工具调用和子 Agent 展示在右栏「上下文」的「后台任务」区域。共享组件订阅当前任务 Store 的会话元数据，随清单更新，空清单隐藏区域。
 - 后台任务复用共享 `InspectorSection` 标题、主题及间距；列表用类型图标、名称和次级状态组成。停止按钮沿用共享 Button/Tooltip，支持键盘操作、请求中禁用和失败重试。明暗主题与窄栏回归为 `desktop/tests/browser/acp-activity.browser.test.tsx`。
 - 右栏沿用会话内的单项停止能力与写入权限校验。切换任务立即隔离旧清单，只读任务可查看后台状态。回归入口为 `desktop/tests/browser/acp-inspector-boundary.browser.test.tsx`，覆盖双端实际右栏、清单更新与停止操作。

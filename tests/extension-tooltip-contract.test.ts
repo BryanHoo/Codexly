@@ -4,7 +4,6 @@ import { expect, it } from "vitest";
 
 const components = [
   "../packages/ui/src/core/claude-extensions-pane.tsx",
-  "../packages/ui/src/core/extension-center.tsx",
   "../packages/ui/src/core/extension-catalog.tsx",
   "../packages/ui/src/core/codex-official-plugins-pane.tsx",
 ];

@@ -28,7 +28,7 @@ Open the menu beside Send to save the text as a project todo or a saved prompt w
 
 Save a title and instructions in **Settings → Saved prompts**, choosing global or project scope. Type `/` or `#` in chat to select a prompt by title: it inserts at the cursor, preserves existing text, and does not send automatically. Project prompts override global prompts with the same title. Prompts are stored with shared host data and work across Web, mobile browsers, and desktop on the same host. Existing local prompts migrate automatically; refocusing a window refreshes changes made in another client. When space is limited, composer options such as model selection move into a menu.
 
-Follow streaming replies, commands, tools, plans, subagents, and file changes. Respond to approvals and questions in the task. Steer running work or queue follow-ups; queued messages can be reordered, withdrawn for editing, or cancelled before execution. Claude foreground interruption and background-task stopping are separate controls.
+Follow streaming replies, commands, tools, plans, subagents, and file changes. Respond to approvals and questions in the task. Steer running work or queue follow-ups; queued messages can be reordered, withdrawn for editing, or cancelled before execution. Steering depends on the ACP capability offered by the agent.
 
 Approvals, questionnaires, and MCP forms appear above the composer. Switch between questions, select options or enter a custom answer, then submit the current form. Asynchronous questions may leave the task running; answering or closing one affects only that question. Questions from completed turns move into the expandable execution history. A running indicator continues to show progress after answers or follow-up instructions.
 
@@ -40,11 +40,9 @@ Open subagent details to inspect the initial task, replies, and execution histor
 
 Consecutive commands, tools, image-view operations, and wait activities share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. File diffs expand as individual cards during streaming and move into execution history when the turn ends. Disable **Settings → General → Editor → Show file diffs separately** to restore the end-of-turn summary.
 
-Recent history loads first. Load older turns from the top, and expand execution groups for their details. Claude supports forks from completed replies and context compaction through the command menu. Commands and capabilities follow the selected engine.
+Recent history loads first. Load older turns from the top, and expand execution groups for their details. Commands and capabilities follow the selected engine.
 
 Use the edit button beside a user message to replace the current task’s text draft with its text and skill references and focus the composer. Historical attachments are not automatically reattached; add them as needed. Review and send it as a new message; the original conversation is preserved. In split views, only that task’s draft changes.
-
-The context panel shows an available Codex session memory summary. Select Refresh to update it. The section stays hidden when no summary or supported interface is available; a failed refresh preserves existing content for retry. This is separate from the global memory toggle and reset in Settings.
 
 In a computer browser or desktop, drop files or images onto the center area of the intended task pane to attach them there. Other panes are unaffected, and nothing is sent automatically. Desktop accepts files from the system file manager; browsers use files from the current device. On mobile, use the attachment picker or supported paste actions. If import fails, check the reported file type or size before retrying.
 
@@ -98,19 +96,15 @@ In **Settings → Application → Network**, choose system, direct, or custom HT
 
 ## Scheduled work
 
-Create a schedule with a project, request, engine, model, and repeat rule. Both engines are supported; Claude-only setups select Claude automatically. Changing a schedule's engine affects future runs, not existing conversations.
+Create a schedule with a project, request, engine, model, and repeat rule. Choose an enabled agent with confirmed ACP configuration. Changing a schedule's engine affects future runs, not existing conversations.
 
 The host must remain awake with the desktop app or Web server running. An unknown execution outcome pauses further runs: inspect the linked conversation before deleting and recreating the schedule. Cleanup retries do not launch the work again.
 
-## Extensions and settings
+## Agent settings
 
 On desktop, toggle **Settings → General → Show status bar icon** to control the system status bar or tray icon. It is visible by default, changes immediately, and remembers your choice after restart. Hiding it keeps the app running and preserves minimizing to the tray when closing the window; fully quit the app to stop background work. Web and mobile browsers do not offer this setting.
 
-Select Codex or Claude in the extension center and manage Skills, MCP, and official plugins within their global or project scope. Available operations differ by engine. Claude can list, enable, disable, and remove existing MCP definitions; add new definitions through native configuration. Start a new conversation after extension changes for complete loading.
-
-Search and filter extensions, then choose global or current-project scope before making changes. Claude supports installing, enabling, disabling, updating, and uninstalling plugins from the official catalog. Its project Skills and MCP lists show that project's configuration only. Codex project MCP entries are read-only. Third-party Skills marketplace entry points have been removed; local Skills remain manageable. MCP toggles show configuration, not live connection status.
-
-Models, reasoning, permissions, and context settings are engine-specific. Defaults apply to new tasks; existing conversations retain their choices. Declaring a context window does not increase a provider's actual capacity. Claude permissions do not provide Codex's OS sandbox, and extension configuration is not copied across engines.
+Models, reasoning levels, and permissions depend on the options published by the agent. Defaults apply to new sessions. [Agent reference (中文)](agent-engines.md)
 
 ## Data across clients
 

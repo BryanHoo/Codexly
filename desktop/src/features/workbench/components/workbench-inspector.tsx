@@ -1,3 +1,4 @@
+import { AcpTurnOutcome } from "@codexly/ui/core/acp-turn-outcome";
 import { AcpBackgroundSection } from "@codexly/ui/core/acp-activity";
 import type { AcpBackgroundTarget } from "@codexly/protocol";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
@@ -220,6 +221,9 @@ export function WorkbenchInspector({
       className="h-full space-y-5 overflow-y-auto p-2.5"
       key={`${projectId ?? projectName}:${taskId ?? "draft"}:context`}
     >
+      {!legacyContext && taskStore && projectId && taskId ? (
+        <AcpTurnOutcome source={taskStore} projectId={projectId} taskId={taskId} language={i18n.language} />
+      ) : null}
       {!legacyContext && taskStore && projectId && taskId ? (
         <AcpBackgroundSection key={`${projectId}:${taskId}`}
           source={taskStore} projectId={projectId} taskId={taskId} language={i18n.language}

@@ -74,9 +74,7 @@ fn main() {
         "download_workbench_pet",
         "get_temporary_workspace_settings",
         "choose_temporary_workspace_root",
-        "get_global_instructions",
         "sync_saved_prompts",
-        "save_global_instructions",
         // 历史压缩必须进入 ACL 命令清单，主窗口授权后才能转发给 Codex。
 
         // 刷新官方插件会先同步状态；此命令必须生成 ACL 权限，再由主窗口显式授权。

@@ -6,7 +6,7 @@
 
 ## 契约与检查项
 
-- [ ] 按任务绑定选择 Codex / Claude，Claude 单引擎配置不要求启动 Codex；浏览器不能直接访问 Provider。
+- [ ] 按任务绑定选择 ACP 智能体。浏览器通过服务端访问共享适配器。
 - [ ] `better-sqlite3` 同步 I/O 放入独立 `worker_threads` Worker，主线程不直接访问数据库；业务数据统一位于 `~/.codexly`，遵循共享 Schema 与迁移契约。
 - [ ] HTTP / WebSocket 交付遵循 Protocol，保留认证、目录权限、幂等和取消清理；事件按增量发送，保持背压与有界保留，避免逐 token 触发历史或统计 I/O。
 - [ ] 文件读取与条件保存遵循 [文本编辑契约](../../../../docs/text-file-editing.md)；Git 动作遵循 [Git 工作流](../../../../docs/git-workflow.md)，写锁、快照校验和幂等边界不能被路由拆分绕过。
@@ -27,7 +27,7 @@
 - 回归入口：`packages/server/src/diagnostics.test.ts`、`packages/server/src/app-diagnostics.test.ts` 与 `packages/client/src/http-client-diagnostics.test.ts`。
 - `POST /v1/diagnostics/archive` 将有界应用快照写入私有临时 ZIP，清单标明 ACP 运行时。下载标识绑定创建者且只能领取一次。
 - `GET /v1/diagnostics/downloads/:downloadId` 复用全局配对认证，随机标识绑定创建会话、一次领取、5 分钟失效，响应禁止缓存。生成中、待领取及传输中的归档合计最多 2 份；通过流传输，完成、断连、到期、生成失败及关闭时清理临时文件。POST 正文正常结束也会关闭请求流，不能把它误认为响应连接断开。
-- 受控下载与真实 HTTP 回归入口：`packages/server/src/codex-diagnostics.test.ts`；两端操作与原生不可用状态见 [诊断文档](../../../../desktop/docs/diagnostics.md)。
+- 受控下载与真实 HTTP 回归入口：`packages/server/src/diagnostic-archive.test.ts`；两端诊断导出见 [诊断文档](../../../../desktop/docs/diagnostics.md)。
 
 ## Web 升级与静态入口缓存
 

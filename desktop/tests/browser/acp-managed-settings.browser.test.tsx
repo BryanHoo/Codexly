@@ -39,7 +39,6 @@ beforeEach(async () => {
   state.calls.mockClear();
   state.listInstalledSkills.mockClear();
   for (const method of [
-    "getGlobalInstructions",
     "getMemorySettings",
     "listInstalledSkills",
     "listConfiguredMcpServers",
@@ -158,7 +157,8 @@ for (const [platform, Page, Market] of [
     expect(state.listInstalledSkills).not.toHaveBeenCalled();
     state.capabilities = {};
     await screen.rerender(wrap());
-    await expect.poll(() => state.listInstalledSkills.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("请使用智能体自身提供的设置管理 Skills、MCP 和插件。", { exact: true })).toBeVisible();
+    expect(state.listInstalledSkills).not.toHaveBeenCalled();
     cache.clear();
   });
 }
