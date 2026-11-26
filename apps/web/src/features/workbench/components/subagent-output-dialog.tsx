@@ -1,3 +1,4 @@
+import { isAcpSubagentItemId } from "@codexly/frontend-core/acp-subagent-presentation";
 import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
 import { useRef } from "react";
 import {
@@ -78,16 +79,17 @@ function OpenSubagentOutputDialog({
   else if (runtime.isPending || !runtime.metadata || !runtime.store)
     content = <SubagentOutputState message={t("subagentOutput.loading")} role="status" />;
   else
-    content = selection.embedded ? (
-      <EmbeddedTimeline
-        store={runtime.store}
-        itemId={selection.embedded.itemId}
-        projectId={projectId}
-        taskId={selection.embedded.parentTaskId}
-      />
-    ) : (
-      <IndependentTimeline store={runtime.store} runtime={runtime} selection={selection} />
-    );
+    content =
+      selection.embedded && !isAcpSubagentItemId(selection.embedded.itemId) ? (
+        <EmbeddedTimeline
+          store={runtime.store}
+          itemId={selection.embedded.itemId}
+          projectId={projectId}
+          taskId={selection.embedded.parentTaskId}
+        />
+      ) : (
+        <IndependentTimeline store={runtime.store} runtime={runtime} selection={selection} />
+      );
   return (
     <Dialog
       open
@@ -181,7 +183,10 @@ function IndependentTimeline({
   selection: SubagentSelection;
 }) {
   const { projectId, taskId } = store.getState();
-  const firstKey = useStore(store, (state) => state.itemKeysByTurnId[state.turnIds[0] ?? ""]?.[0]);
+  const acpItemPrefix = selection.embedded?.itemId;
+  const firstKey = useStore(store, (state) =>
+    acpItemPrefix ? undefined : state.itemKeysByTurnId[state.turnIds[0] ?? ""]?.[0],
+  );
   const firstItem = firstKey ? store.getState().itemStoresByKey.get(firstKey)?.peek() : undefined;
   const initialPrompt =
     firstKey &&
@@ -195,6 +200,7 @@ function IndependentTimeline({
     <SubagentThreadContent
       store={store}
       initialPrompt={initialPrompt}
+      acpItemPrefix={acpItemPrefix}
       taskId={selection.taskId}
       status={selection.status}
       olderHistory={

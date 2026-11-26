@@ -8,7 +8,7 @@ Web CLI 通过 `AcpApplicationRuntime` 装配运行时，桌面通过 `acp-host`
 
 实现依据：[v1 初始化](https://agentclientprotocol.com/protocol/v1/initialization)、[v1 回合](https://agentclientprotocol.com/protocol/v1/prompt-turn)、[v1 会话恢复](https://agentclientprotocol.com/protocol/v1/session-setup)和[官方 TypeScript 客户端示例](https://github.com/agentclientprotocol/typescript-sdk/blob/main/src/examples/client.ts)。保持流式背压和能力协商，不自动重试已经提交的 prompt；v1 不提供 v2 后台清单或单项取消。
 
-子会话由父会话的 `subagent_update` 登记。共享宿主随后按原生会话身份分发更新和用户交互，两端在对应主聊天内展开子会话记录。后台子会话可在父 prompt 返回后继续工作，已收到的记录随后台段提交到本地历史。审批使用原始选项，并按同一请求通道回传。 [ACP v1 子会话](https://agentclientprotocol.com/protocol/v1/subagents)
+子会话由父会话的 `subagent_update` 登记。共享宿主随后按原生会话身份分发更新和用户交互，两端在右栏「上下文」列出子会话，点击后在弹窗查看对应记录。后台子会话可在父 prompt 返回后继续工作，已收到的记录随后台段提交到本地历史。审批使用原始选项，并按同一请求通道回传。 [ACP v1 子会话](https://agentclientprotocol.com/protocol/v1/subagents)
 
 ## 接口
 

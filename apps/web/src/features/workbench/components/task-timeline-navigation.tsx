@@ -1,3 +1,4 @@
+import { isAcpSubagentItemId } from "@codexly/frontend-core/acp-subagent-presentation";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
 import { TimelineNavigation } from "@codexly/ui/core/timeline-navigation";
 import {
@@ -14,6 +15,7 @@ import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
 import { getReviewMessageText } from "./task-timeline-running.js";
 
 function getNavigationPreview(item: AgentItem): string | null {
+  if (isAcpSubagentItemId(item.id)) return null;
   if (item.type === "review") {
     return getReviewMessageText(item);
   }

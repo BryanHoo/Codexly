@@ -50,7 +50,7 @@ const snapshot = {
 };
 
 it.each([["Web", WebTimeline], ["桌面", DesktopTimeline]] as const)(
-  "%s 独立展开子会话，同名消息 ID 各自展示",
+  "%s 主时间线仅展示根会话",
   async (_platform, Timeline) => {
     const screen = await render(
       <div style={{ height: 540 }}>
@@ -59,14 +59,7 @@ it.each([["Web", WebTimeline], ["桌面", DesktopTimeline]] as const)(
     );
     await expect.element(screen.getByText("根会话答复")).toBeVisible();
     await expect.element(screen.getByText("第一份审阅结果")).not.toBeInTheDocument();
-    await screen.getByText("第一位审阅者").click();
-    await expect.element(screen.getByText("第一份审阅结果")).toBeVisible();
-    await expect.element(screen.getByText("第二份审阅结果")).not.toBeInTheDocument();
-    await screen.getByText("第二位审阅者").click();
-    await expect.element(screen.getByText("第二份审阅结果")).toBeVisible();
-    await expect.element(screen.getByText("第一份审阅结果")).toBeVisible();
-    await screen.getByText("第一位审阅者").click();
-    await expect.element(screen.getByText("第一份审阅结果")).not.toBeInTheDocument();
-    await expect.element(screen.getByText("第二份审阅结果")).toBeVisible();
+    await expect.element(screen.getByText("第一位审阅者")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("第二位审阅者")).not.toBeInTheDocument();
   },
 );

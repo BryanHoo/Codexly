@@ -390,7 +390,7 @@ export function useWorkbenchShellRuntime({
     inspectorOpen && paneActive && !workspaceOnly,
     startingSnapshot,
   );
-  const subagents = useMemo(() => collectSubagents(inspectorTask), [inspectorTask]);
+  const subagents = useMemo(() => collectSubagents(inspectorTask, taskId), [inspectorTask, taskId]);
   const selectedSubagent =
     subagentDialogSelection?.projectId === projectId &&
     subagentDialogSelection.parentTaskId === taskId

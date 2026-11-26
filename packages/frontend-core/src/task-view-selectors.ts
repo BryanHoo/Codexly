@@ -60,7 +60,7 @@ export function selectTaskRuntimeMetadata(
   };
 }
 
-// Item 保留调用端类型，兼容桌面原生扩展；筛选只依赖 type 与 role。
+// Item 保留调用端类型，兼容桌面原生扩展；子会话公告也参与右栏投影。
 export function createInspectorTaskSelector<TItem extends ViewItem = AgentItem>() {
   let revision = -1;
   let itemStores: TaskViewStoreState<TItem>["itemStoresByKey"] | undefined;
@@ -79,7 +79,9 @@ export function createInspectorTaskSelector<TItem extends ViewItem = AgentItem>(
         if (turn === undefined) return [];
         const items = (state.itemKeysByTurnId[turnId] ?? []).flatMap((key) => {
           const item = state.itemStoresByKey.get(key)?.peek();
-          return item?.type === "tool" || (item?.type === "message" && item.role === "user")
+          return item?.type === "tool" ||
+            item?.type === "acp_subagent" ||
+            (item?.type === "message" && item.role === "user")
             ? [item]
             : [];
         });

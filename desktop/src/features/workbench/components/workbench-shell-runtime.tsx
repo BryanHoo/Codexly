@@ -356,8 +356,8 @@ export function useWorkbenchShellRuntime({
   }, [hasInspectorGoal, hasInspectorPlan, inspectorScopeKey, setInspectorTab]);
   const inspectorTurns = inspectorTask?.turns;
   const subagents = useMemo(
-    () => collectSubagents(inspectorTurns === undefined ? undefined : { turns: inspectorTurns }),
-    [inspectorTurns],
+    () => collectSubagents(inspectorTurns === undefined ? undefined : { turns: inspectorTurns }, taskId),
+    [inspectorTurns, taskId],
   );
   const selectedSubagent =
     subagentDialogSelection?.projectId === projectId &&

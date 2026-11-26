@@ -1,3 +1,4 @@
+import { getAcpSubagentStatus } from "@codexly/frontend-core/acp-subagent-presentation";
 import {
   getEmbeddedSubagentReference,
   type EmbeddedSubagentReference,
@@ -118,6 +119,7 @@ export function parseSubagentOperation(
 
 export function collectSubagents(
   snapshot: Pick<RuntimeTaskSnapshot, "turns"> | undefined,
+  parentTaskId?: string,
 ): readonly SubagentContextEntry[] {
   if (snapshot === undefined) {
     return [];
@@ -126,6 +128,20 @@ export function collectSubagents(
   const entriesByTaskId = new Map<string, SubagentContextEntry>();
   for (const turn of snapshot.turns) {
     for (const item of turn.items) {
+      if (item.type === "acp_subagent" && parentTaskId !== undefined) {
+        // ACP 子会话记录在父任务的回合内，用条目前缀定位，避免发起独立任务读取。
+        entriesByTaskId.set(item.id, {
+          embedded: { parentTaskId, itemId: item.id },
+          ...(item.description ? { message: item.description } : {}),
+          nickname:
+            item.title ??
+            entriesByTaskId.get(item.id)?.nickname ??
+            i18n.t("subagent.defaultName", { index: entriesByTaskId.size + 1, ns: "conversation" }),
+          status: getAcpSubagentStatus(item.state),
+          taskId: item.id,
+        });
+        continue;
+      }
       if (item.type !== "tool") {
         continue;
       }

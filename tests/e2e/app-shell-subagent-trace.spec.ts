@@ -1,3 +1,4 @@
+import { acpSubagentItemPrefix, type AgentItem } from "@codexly/protocol";
 import { expect, taskSnapshot, taskSnapshotRoute, test } from "./fixtures/app-shell.js";
 
 for (const width of [390, 1280]) {
@@ -191,4 +192,137 @@ for (const width of [390, 1280]) {
       await expect(sidebarTrigger).toBeFocused();
     });
   }
+}
+
+for (const width of [390, 1280]) {
+  test(`ACP 子会话在右栏打开且隐藏内部启动回执 ${String(width)}px @cross-browser`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    const prefix = acpSubagentItemPrefix("child:one");
+    const otherPrefix = acpSubagentItemPrefix("child:two");
+    const announcement: AgentItem = {
+      id: prefix,
+      type: "acp_subagent",
+      parentSessionId: "parent",
+      sessionId: "child:one",
+      title: "缓存研究员",
+      state: "running",
+    };
+    const input = '{"file_path":"src/cache.ts","offset":125}';
+    const output = JSON.stringify([
+      { type: "content", content: { type: "text", text: "const cacheKey = commitSHA;" } },
+    ]);
+    const files = [
+      { id: "history-tool-input", name: "工具输入-1.txt", body: input },
+      { id: "history-tool-output", name: "工具输出-1.txt", body: output },
+    ];
+    const reads: string[] = [];
+    for (const file of files) {
+      await page.route(`**/tasks/task-1/attachments/${file.id}*`, (route) => {
+        reads.push(file.id);
+        return route.fulfill({ body: file.body, contentType: "text/plain" });
+      });
+    }
+    const receipt = "Async agent launched successfully. (This tool result is internal metadata)";
+    const items: AgentItem[] = [
+      { id: "user", type: "message", role: "user", text: "请检查构建" },
+      {
+        id: "acp:tool:spawn",
+        type: "tool",
+        name: "启动研究员",
+        status: "completed",
+        output: [{ type: "content", content: { type: "text", text: receipt } }],
+      },
+      announcement,
+      {
+        id: prefix + "acp:tool:read",
+        type: "tool",
+        name: "Read src/cache.ts",
+        status: "completed",
+        input: "…",
+        output: "…",
+        outputAttachments: files.map(({ id, name, body }) => ({
+          id,
+          name,
+          kind: "text",
+          mediaType: "text/plain",
+          size: body.length,
+        })),
+      },
+      { id: prefix + "report", type: "message", role: "assistant", text: "第一份报告" },
+      {
+        ...announcement,
+        id: otherPrefix,
+        parentSessionId: announcement.sessionId,
+        sessionId: "child:two",
+        title: "嵌套研究员",
+      },
+      { id: otherPrefix + "report", type: "message", role: "assistant", text: "嵌套报告" },
+      { id: "answer", type: "message", role: "assistant", text: "父会话答复" },
+    ];
+    const turn = {
+      id: "parent-turn",
+      status: "completed",
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      items,
+    };
+    const { settings: _settings, ...acpTaskSnapshot } = taskSnapshot;
+    await page.route(taskSnapshotRoute("task-1"), async (route) => {
+      await route.fulfill({
+        json: {
+          checkpoint: { sequence: 0, sessionId: "e2e-session" },
+          snapshot: {
+            ...acpTaskSnapshot,
+            runtime: "acp",
+            turns: [
+              turn,
+              {
+                ...turn,
+                id: "background-turn",
+                acpBackground: true,
+                items: [
+                  {
+                    id: prefix + "background-report",
+                    type: "message",
+                    role: "assistant",
+                    text: "后台追加报告",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+    });
+    await page.goto("/p/codexly/t/task-1");
+    await expect(page.getByText("父会话答复", { exact: true })).toBeVisible();
+    for (const text of ["缓存研究员", "嵌套研究员", "启动研究员", "第一份报告", "后台追加报告"]) {
+      await expect(page.getByText(text, { exact: true })).toHaveCount(0);
+    }
+    const inspectorToggle = page.getByRole("button", { name: "展开上下文面板", exact: true });
+    if (await inspectorToggle.isVisible()) await inspectorToggle.click();
+    await page.getByRole("tab", { name: "上下文", exact: true }).click();
+    const trigger = page.getByRole("button", { name: "查看子代理 缓存研究员 的输出", exact: true });
+    await trigger.click();
+    const dialog = page.locator("[data-subagent-output-dialog]");
+    await expect(dialog.getByText("第一份报告", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("后台追加报告", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("嵌套报告", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText("父会话答复", { exact: true })).toHaveCount(0);
+    expect(reads).toEqual([]);
+    await dialog.getByRole("button", { name: /Read src\/cache\.ts/u }).click();
+    await expect(dialog.getByText(/"offset": 125/u)).toBeVisible();
+    await expect(dialog.getByText("const cacheKey = commitSHA;", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("…", { exact: true })).toHaveCount(0);
+    expect(reads.sort()).toEqual(["history-tool-input", "history-tool-output"]);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await page.getByRole("button", { name: "查看子代理 嵌套研究员 的输出", exact: true }).click();
+    await expect(dialog.getByText("嵌套报告", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("第一份报告", { exact: true })).toHaveCount(0);
+  });
 }

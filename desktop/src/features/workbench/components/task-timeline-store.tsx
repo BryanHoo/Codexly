@@ -1,5 +1,5 @@
 import { TaskTimelinePagination } from "@codexly/ui/agent/task-timeline-pagination";
-import { AcpSubagentTranscripts, splitAcpSubagentItems } from "@codexly/ui/agent/acp-subagent-transcript";
+import { isHiddenFromRootTimeline } from "@codexly/frontend-core/acp-subagent-presentation";
 import { isVisibleElicitationStatus } from "@codexly/ui/core/elicitation-request";
 import { useConversationDisplayPreference } from "@codexly/ui/core/conversation-display-preferences";
 import { conversationDisplayPreferences } from "../../settings/conversation-display-preferences.js";
@@ -39,7 +39,6 @@ import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 import { getTimelineNotices, StoreTaskInfoNotices } from "./task-timeline-notices.js";
 export { getTimelineNotices } from "./task-timeline-notices.js";
 import {
-  StoredTimelineItemContent,
   StoredUserMessage,
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
@@ -86,8 +85,11 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   const independentFileDiffs = useConversationDisplayPreference(conversationDisplayPreferences, "independentFileDiffs");
   const [processExpanded, setProcessExpanded] = useState(false);
   const itemStoresByKey = store.getState().itemStoresByKey;
-  const { rootKeys: itemKeys, transcripts } = useMemo(
-    () => splitAcpSubagentItems(allItemKeys, (key) => itemStoresByKey.get(key)?.peek()),
+  const itemKeys = useMemo(
+    () => allItemKeys.filter((key) => {
+      const item = itemStoresByKey.get(key)?.peek();
+      return item === undefined || !isHiddenFromRootTimeline(item);
+    }),
     [allItemKeys, itemStoresByKey],
   );
   if (turn === undefined) return null;
@@ -177,23 +179,6 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           />
         ),
       )}
-      <AcpSubagentTranscripts
-        transcripts={transcripts}
-        label={(index) => i18n.t("subagent.defaultName", { ns: "conversation", index })}
-        renderItem={(itemKey) => (
-          <StoredTimelineItemContent
-            key={itemKey}
-            itemKey={itemKey}
-            isLastTurnItem={false}
-            onOpenFileDiff={onOpenFileDiff}
-            onOpenSourceFile={onOpenSourceFile}
-            projectId={projectId}
-            store={store}
-            taskId={taskId}
-            turnStatus={turn.status}
-          />
-        )}
-      />
       {/* 引导或问答答案会让用户消息成为尾组；运行提示应接在该消息后，不能依赖历史助手组是否存在。 */}
       {turn.status === "running" && !suppressEmptyRunningStatus &&
       timelineGroups.at(-1)?.type !== "assistant" ? (

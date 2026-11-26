@@ -1,3 +1,4 @@
+import { isHiddenFromRootTimeline } from "@codexly/frontend-core/acp-subagent-presentation";
 import { MessageEditAction } from "@codexly/ui/core/message-edit";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { useStore } from "zustand";
@@ -39,6 +40,7 @@ export function groupStoredTurnTimelineItems(
 
   for (const itemKey of itemKeys) {
     const item = itemStoresByKey.get(itemKey)?.peek();
+    if (item && isHiddenFromRootTimeline(item)) continue;
     if (item?.type === "review" || (item?.type === "message" && item.role === "user")) {
       flushAssistantItems();
       groups.push({ itemKey, type: "user" });

@@ -1,3 +1,4 @@
+import { isHiddenFromRootTimeline } from "@codexly/frontend-core/acp-subagent-presentation";
 import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { isAssistantProcessMessage } from "@codexly/frontend-core/turn-process";
 import { HistoryProcess } from "@codexly/ui/core/history-process";
@@ -99,6 +100,7 @@ function ProcessItems({
     const item = items.get(key)?.peek();
     return (
       item !== undefined &&
+      !isHiddenFromRootTimeline(item) &&
       item.type !== "review" &&
       (item.type !== "message" || isAssistantProcessMessage(item))
     );

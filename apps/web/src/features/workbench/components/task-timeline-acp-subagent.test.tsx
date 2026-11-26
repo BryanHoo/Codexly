@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import { TaskSnapshotTimeline } from "./task-timeline.js";
 import { completedTurn, renderToStaticMarkup, snapshot } from "./task-timeline.test-support.js";
 
-it("ACP 子会话有独立的折叠入口，子答复不覆盖根答复", () => {
+it("ACP 主时间线仅展示根会话答复", () => {
   const child = acpSubagentItemPrefix("child");
   const markup = renderToStaticMarkup(
     <TaskSnapshotTimeline
@@ -30,6 +30,6 @@ it("ACP 子会话有独立的折叠入口，子答复不覆盖根答复", () => 
     />,
   );
   expect(markup).toContain("根会话最终答复");
-  expect(markup).toContain("独立审阅");
+  expect(markup).not.toContain("独立审阅");
   expect(markup).not.toContain("子会话输出");
 });

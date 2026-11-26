@@ -1,3 +1,4 @@
+import { isHiddenFromRootTimeline } from "@codexly/frontend-core/acp-subagent-presentation";
 import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { isAssistantProcessMessage } from "@codexly/frontend-core/turn-process";
 import { HistoryProcess } from "@codexly/ui/core/history-process";
@@ -37,7 +38,7 @@ function ProcessItems({ store, projectId, taskId, turnId, onOpenFileDiff, onOpen
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const items = store.getState().itemStoresByKey;
   // 摘要已展示用户输入与最终答复；问题与旁白均需在展开过程时恢复。
-  const itemKeys = (keys ?? []).filter((key) => { const item = items.get(key)?.peek(); return item !== undefined && item.type !== "review" && (item.type !== "message" || isAssistantProcessMessage(item)); });
+  const itemKeys = (keys ?? []).filter((key) => { const item = items.get(key)?.peek(); return item !== undefined && !isHiddenFromRootTimeline(item) && item.type !== "review" && (item.type !== "message" || isAssistantProcessMessage(item)); });
   return <StoredAssistantTimelineItems itemKeys={itemKeys} itemTimings={turn?.itemTimings} lastTurnItemKey={keys?.at(-1)} onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} projectId={projectId} taskId={taskId} store={store} turnStatus="completed" />;
 }
 

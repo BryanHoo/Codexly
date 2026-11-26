@@ -4,6 +4,7 @@
 
 - 两端工具结果共用 `agent/tool.tsx` 与 `agent/acp-tool-content.tsx`。只识别 ACP content 包装中的文本、嵌入文本资源和资源链接；保留顺序与空白，React 转义正文。未知、混合、无效或超过 128 块的结果整体回退原有 JSON，不能悄悄丢掉 diff、终端或未来类型。
 - 链接仅允许无凭据的 HTTP(S) 用户主动导航，本地和自定义 URI 保留文字；不能在渲染期间自动读取资源、加载媒体或发起 RPC。错误与原始 React 元素沿用原有展示优先级，不解析 JSON 字符串猜测协议结构。
+- 工具字段保存为历史文本附件时，共享详情在展开后通过父任务的授权附件入口读取单段、至多 256 KiB 的参数与结果。内联恢复保留 ACP 结构化结果的展示规则，折叠时取消读取。较大、多段或读取失败的正文保留下载入口。回归覆盖 Web 子代理详情和桌面子代理弹窗。
 - 回归入口：`packages/ui/src/agent/acp-tool-content.test.tsx` 与 `desktop/tests/browser/acp-tool-content.browser.test.tsx`，覆盖两端包装、Chromium/WebKit、窄宽屏、明暗主题、长路径、焦点及未知格式回退。完整能力边界见 [ACP 接入核对](../../../../docs/acp-integration-audit.md)。
 
 ## 位置与职责

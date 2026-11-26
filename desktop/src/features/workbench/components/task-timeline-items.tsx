@@ -1,3 +1,4 @@
+import { ToolInvocationContent } from "@codexly/ui/agent/tool-invocation-content";
 import { BuildPlanButton } from "@codexly/ui/agent/task-timeline-build-plan-button";
 import { AcpCompactionRow } from "@codexly/ui/agent/acp-session-updates";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
@@ -43,7 +44,6 @@ import {
   ToolContent,
   ToolHeader,
   ToolInput,
-  ToolOutput,
 } from "../../../shared/components/agent/tool.js";
 import { RETAINED_COMMAND_OUTPUT_MARKER } from "../../conversation/runtime/task-store.js";
 import type { CommandOutputView } from "../../conversation/runtime/command-output-buffer.js";
@@ -70,7 +70,6 @@ import {
 import {
   SubagentToolItem,
   ToolDuration,
-  formatStructuredValue,
   toTaskStatus,
   toToolState,
 } from "./task-timeline-status.js";
@@ -296,11 +295,6 @@ export function TimelineItemContent({
       }
       const hasErrorOutput =
         item.status === "failed" || item.status === "declined" || item.status === "interrupted";
-      const errorText =
-        hasErrorOutput && item.output !== undefined
-          ? formatStructuredValue(item.output)
-          : undefined;
-
       return (
         <Tool>
           <ToolHeader
@@ -314,15 +308,16 @@ export function TimelineItemContent({
                 {item.progress}
               </p>
             )}
-            {item.input === undefined ? null : <ToolInput input={item.input} />}
-            <ToolOutput errorText={errorText} output={hasErrorOutput ? undefined : item.output} />
-            {item.outputAttachments?.map((attachment) => (
-              <MessageFileAttachment
-                attachment={attachment}
-                key={attachment.id}
-                url={buildNativeTaskAttachmentUrl(projectId, taskId, attachment.id)}
-              />
-            ))}
+            <ToolInvocationContent
+              item={item}
+              failed={hasErrorOutput}
+              labels={{
+                loading: i18n.t("projectDialog.loadingSource", { ns: "workbench" }),
+                error: i18n.t("projectDialog.loadSourceError", { ns: "workbench" }),
+              }}
+              attachmentUrl={(attachment) => buildNativeTaskAttachmentUrl(projectId, taskId, attachment.id)}
+              Attachment={MessageFileAttachment}
+            />
           </ToolContent>
         </Tool>
       );

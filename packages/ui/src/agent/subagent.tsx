@@ -1,3 +1,4 @@
+import { isAcpSubagentLaunchReceipt } from "@codexly/frontend-core/acp-subagent-presentation";
 import type { AgentItem, AgentItemStatus, AgentTurn } from "@codexly/protocol";
 import { getEmbeddedSubagentTurn } from "@codexly/frontend-core/tool-presentation";
 import { useState, useMemo, useSyncExternalStore, type ReactNode } from "react";
@@ -232,6 +233,10 @@ export type SubagentThreadEntry = Readonly<{
 type SubagentThreadState = Readonly<{
   turnIds: readonly string[];
   itemKeysByTurnId: Readonly<Record<string, readonly string[]>>;
+  itemStoresByKey: ReadonlyMap<
+    string,
+    Readonly<{ peek: () => { id: string; type: string; title?: string; output?: unknown } }>
+  >;
   turnsById: Readonly<Record<string, SubagentThreadTurn>>;
   snapshotMetadata: {
     title: string;
@@ -248,6 +253,7 @@ type SubagentThreadContentProps = Readonly<{
   status: AgentItemStatus;
   olderHistory?: ReactNode;
   initialPrompt?: Readonly<{ entryId: string; text: string }> | undefined;
+  acpItemPrefix?: string | undefined;
   renderItem: (entry: SubagentThreadEntry, turn: SubagentThreadTurn) => ReactNode;
   renderProcess: (turn: SubagentThreadTurn) => ReactNode;
 }>;
@@ -259,6 +265,7 @@ export function SubagentThreadContent({
   status,
   olderHistory,
   initialPrompt,
+  acpItemPrefix,
   renderItem,
   renderProcess,
 }: SubagentThreadContentProps) {
@@ -275,8 +282,8 @@ export function SubagentThreadContent({
   );
   const metadata = useSyncExternalStore(
     store.subscribe,
-    () => store.getState().snapshotMetadata,
-    () => store.getState().snapshotMetadata,
+    () => (acpItemPrefix ? null : store.getState().snapshotMetadata),
+    () => (acpItemPrefix ? null : store.getState().snapshotMetadata),
   );
   const readPromptHistory = () => {
     const state = store.getState();
@@ -289,25 +296,37 @@ export function SubagentThreadContent({
       : undefined;
   };
   const promptHistory = useSyncExternalStore(store.subscribe, readPromptHistory, readPromptHistory);
-  // 只在键结构变化时整理记录，Token 增量由各行自己的 Item Store 消费。
-  const entries = useMemo(
-    () =>
-      turnIds.flatMap((turnId) =>
-        (itemKeys[turnId] ?? [])
-          .filter((id) => id !== initialPrompt?.entryId)
-          .map((id, index, keys) => ({
-            id,
-            turnId,
-            first: index === 0,
-            last: index === keys.length - 1,
-          })),
-      ),
-    [turnIds, itemKeys, initialPrompt?.entryId],
-  );
+  // ACP 子会话可能跨越前台和后台回合。按完整会话前缀取记录，避免混入其他子代理。
+  // 键结构不随 Token 更新，正文增量继续由各条目的 Store 消费。
+  const { entries, title } = useMemo(() => {
+    const stores = store.getState().itemStoresByKey;
+    let title: string | undefined;
+    const entries = turnIds.flatMap((turnId) =>
+      (itemKeys[turnId] ?? [])
+        .filter((id) => {
+          if (!acpItemPrefix) return id !== initialPrompt?.entryId;
+          const item = stores.get(id)?.peek();
+          if (!item || !item.id.startsWith(acpItemPrefix)) return false;
+          if (item.type === "acp_subagent") {
+            title = item.title ?? title;
+            return false;
+          }
+          return !isAcpSubagentLaunchReceipt(item);
+        })
+        .map((id, index, keys) => ({
+          id,
+          turnId,
+          first: !acpItemPrefix && index === 0,
+          last: index === keys.length - 1,
+        })),
+    );
+    return { entries, title };
+  }, [store, turnIds, itemKeys, initialPrompt?.entryId, acpItemPrefix]);
   const loadOlderLabel = t("timeline.loadOlder");
+  const nickname = title ?? metadata?.title;
   return (
     <SubagentContent
-      agents={[{ taskId, status, ...(metadata?.title ? { nickname: metadata.title } : {}) }]}
+      agents={[{ taskId, status, ...(nickname ? { nickname } : {}) }]}
       prompt={initialPrompt?.text}
       model={metadata?.settings?.model}
       reasoningEffort={metadata?.settings?.reasoningEffort}
