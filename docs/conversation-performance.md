@@ -10,9 +10,9 @@ This document describes current conversation loading and resource management for
 
 Both interfaces share the ACP history projection. Cached reads return up to 20 turns from a bounded 4 MiB tail window. A cache miss loads the original session through ACP and processes replay one turn at a time with disk backpressure. After a successful v1 `session/load` response and completion of preceding projections, the client publishes the rebuilt history. The UI reads the local history in pages.
 
-可重放正文缓存的容量目标为同机共享 256 MiB；首次使用及会话释放时，优先淘汰最久未访问的闲置会话。实际握手未确认 `loadSession` 的历史不会自动删除。活动视图、分页读取、导出和运行中会话持有跨进程保护，允许暂时超额，释放后再回收。新生成的回答续文和工具详情附件计入此目标；原厂历史、兼容性存储、用户上传附件及旧版混合仓储附件单独保留。每次重建只保留当前及一个旧代际；过期游标明确提示刷新，不改读其他版本。
+可重放正文缓存的容量目标为同机共享 256 MiB。冷启动首读只获取当前会话的使用租约并读取所需历史页。缓存容量扫描随现有的释放维护执行，优先淘汰最久未访问的闲置会话。实际握手未确认 `loadSession` 的历史不会自动删除。活动视图、分页读取、导出和运行中会话持有跨进程保护，允许暂时超额，释放后再回收。新生成的回答续文和工具详情附件计入此目标；原厂历史、兼容性存储、用户上传附件及旧版混合仓储附件单独保留。每次重建只保留当前及一个旧代际；过期游标明确提示刷新，不改读其他版本。
 
-Replayable history has a shared 256 MiB cache target. First use and session release evict least recently accessed idle sessions. Active views, exports and running sessions hold cross-process protection and may temporarily exceed the target. New answer continuations and tool-detail attachments count toward the cache target. Unknown or non-replayable history, native agent storage, user uploads and legacy mixed attachments are retained separately. Replay keeps the current generation and one previous generation; expired cursors fail explicitly.
+Replayable history has a shared 256 MiB cache target. On cold start, the first read acquires a lease for the requested session and reads the requested history page. Release-time maintenance scans cache usage and evicts the least recently accessed idle sessions. Active views, exports and running sessions hold cross-process protection and may temporarily exceed the target. New answer continuations and tool-detail attachments count toward the cache target. Unknown or non-replayable history, native agent storage, user uploads and legacy mixed attachments are retained separately. Replay keeps the current generation and one previous generation. Expired cursors fail explicitly.
 
 ## 共享聊天组件 / Shared Chat Components
 

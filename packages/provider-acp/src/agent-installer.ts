@@ -143,9 +143,15 @@ export async function installRegistryAgent(
         typeof manifest.bin === "string" ? manifest.bin : Object.values(manifest.bin ?? {})[0];
       if (!entry || isAbsolute(entry) || entry.split(/[\\/]/).includes(".."))
         throw new Error("Agent 缺少有效的可执行入口");
+      const relativeEntry = join("node_modules", name, entry);
+      if (!(await stat(join(stage, relativeEntry)).catch(() => undefined))?.isFile())
+        throw new Error("Agent 安装包缺少可执行入口");
+      const installedEntry = join(destination, relativeEntry);
+      // CodeFree O 的 npm 包在各平台均以 .exe 文件发布原生入口，需要由宿主直接启动。
+      const native = /\.exe$/i.test(entry);
       result = {
-        command: node,
-        args: [join(destination, "node_modules", name, entry), ...(npm.args ?? [])],
+        command: native ? installedEntry : node,
+        args: native ? (npm.args ?? []) : [installedEntry, ...(npm.args ?? [])],
         ...(npm.env ? { env: npm.env } : {}),
       };
     } else if (agent.distribution.uvx) {

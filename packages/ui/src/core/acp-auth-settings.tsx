@@ -1,8 +1,14 @@
 import { SettingsGroup } from "./settings-group.js";
 import { useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateAcpPreviews } from "./acp-preview-cache.js";
 import { v4 as createUuid } from "uuid";
-import type { AcpAgentProfile, AcpAuthCredentials, AgentEngine } from "@codexly/protocol";
+import {
+  hasAcpAgentConnection,
+  type AcpAgentProfile,
+  type AcpAuthCredentials,
+  type AgentEngine,
+} from "@codexly/protocol";
 import { Button } from "./button.js";
 import { AcpConnectionForm, type AcpConnectionDraft } from "./acp-connection-form.js";
 import type { AcpProviderSettingsClient } from "./acp-provider-settings.js";
@@ -69,6 +75,7 @@ export function AcpAuthSettings({
     refetchOnWindowFocus: false,
   });
   const refresh = async () => {
+    await invalidateAcpPreviews(cache, engine);
     const next = await profile.refetch({ cancelRefetch: false });
     if (next.isError) throw new Error("Unable to refresh connection");
     if (next.data?.providerConfiguration && client.getAcpProviders)
@@ -157,33 +164,20 @@ export function AcpAuthSettings({
         className="p-0"
       />
     );
-  const identity = profile.data.authStatus;
   // 默认配置会创建临时会话，只有检测到原生认证或生效的 API 配置时才挂载。
-  const connected =
-    profile.isSuccess &&
-    (profile.data.connection !== undefined || (identity !== undefined && identity.kind !== "none"));
-  const nativeLabel =
-    identity?.kind === "account"
-      ? [identity.label, identity.account?.email].filter(Boolean).join(" · ")
-      : identity?.kind === "api_key"
-        ? "API Key"
-        : identity?.kind === "gateway"
-          ? chinese
-            ? "自定义 API"
-            : "Custom API"
-          : identity?.kind === "none"
-            ? chinese
-              ? "未登录"
-              : "Not signed in"
-            : chinese
-              ? "未检测到账号状态"
-              : "Account status not reported";
+  const connected = profile.isSuccess && hasAcpAgentConnection(profile.data);
   return (
     <>
-      <SettingsGroup title={chinese ? "连接配置" : "Connection settings"}>
-        {!profile.data.connection?.baseUrl ? (
-          <p className="break-words py-3 text-label text-muted-foreground">{nativeLabel}</p>
-        ) : null}
+      <SettingsGroup
+        title={chinese ? "连接配置" : "Connection settings"}
+        headingAccessory={
+          <ConnectionStatus
+            profile={profile.isSuccess ? profile.data : undefined}
+            connected={connected}
+            chinese={chinese}
+          />
+        }
+      >
         {providers.isError ? (
           <p role="alert" className="py-2 text-label text-danger">
             {chinese
@@ -211,5 +205,59 @@ export function AcpAuthSettings({
       </SettingsGroup>
       {connected ? connectedContent : null}
     </>
+  );
+}
+
+function ConnectionStatus({
+  profile,
+  connected,
+  chinese,
+}: Readonly<{ profile: AcpAgentProfile | undefined; connected: boolean; chinese: boolean }>) {
+  const identity = profile?.authStatus;
+  const copy = chinese
+    ? {
+        connected: "已连接",
+        signedOut: "未登录",
+        customApi: "自定义 API",
+        unknown: "状态未知",
+        failed: "检测失败",
+      }
+    : {
+        connected: "Connected",
+        signedOut: "Not signed in",
+        customApi: "Custom API",
+        unknown: "Status unknown",
+        failed: "Check failed",
+      };
+  const label = connected
+    ? copy.connected
+    : !profile
+      ? copy.failed
+      : identity?.kind === "none"
+        ? copy.signedOut
+        : copy.unknown;
+  // 标题只展示连接结论，账号和生效的 API 路由作为补充提示。
+  const details = [
+    identity?.kind === "account" ? identity.label : undefined,
+    identity?.kind === "account" ? identity.account?.email : undefined,
+    profile?.connection || identity?.kind === "gateway" ? copy.customApi : undefined,
+    identity?.kind === "api_key" ? "API Key" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <span
+      role="status"
+      aria-label={chinese ? "连接状态" : "Connection status"}
+      title={details || undefined}
+      className={`inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-meta font-medium ${
+        connected
+          ? "border-task-completed/20 bg-task-completed/10 text-task-completed"
+          : "border-separator bg-control text-muted-foreground"
+      }`}
+    >
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+      {label}
+    </span>
   );
 }

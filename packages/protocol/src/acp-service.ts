@@ -174,6 +174,11 @@ export type AcpConfigOption = Static<typeof AcpConfigOptionSchema>;
 export type AcpConfigValues = Static<typeof AcpConfigValuesSchema>;
 export type AcpDefaults = Static<typeof AcpDefaultsSchema>;
 export type AcpAgentProfile = Static<typeof AcpAgentProfileSchema>;
+/** 应用与宿主使用相同的连接凭据判定。仅建立 ACP 握手不代表已连接。 */
+export function hasAcpAgentConnection(profile?: AcpAgentProfile): boolean {
+  if (profile?.connection) return true;
+  return profile?.authStatus !== undefined && profile.authStatus.kind !== "none";
+}
 export const AcpSessionConfigSchema = Type.Array(AcpConfigOptionSchema);
 export const AcpSessionConfigRequestSchema = Type.Object(
   {

@@ -1,6 +1,7 @@
 import type { SaveAgentInstructions } from "@codexly/protocol/application-preferences";
 import { nativeInstructionsPlan, replaceNativeInstructions } from "./native-global-instructions.js";
 import { createHash } from "node:crypto";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
   EngineProjectRouter,
@@ -18,7 +19,7 @@ import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 export type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 import { AcpAgentCatalog } from "./agent-catalog.js";
 import { AcpProcess } from "./process.js";
-import { isAgentEngine } from "@codexly/protocol";
+import { hasAcpAgentConnection, isAgentEngine } from "@codexly/protocol";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
 import { AcpAgentService } from "./agent-service.js";
@@ -30,6 +31,7 @@ import { AcpStorageLeases } from "./storage-lease.js";
 import { searchAcpHistory } from "./history-search.js";
 import { AcpSessionInitialization } from "./session-initialization.js";
 import { exportTaskAttachment } from "@codexly/core/task-attachments";
+import { CODEFREE_ENGINE, codefreeCredentialRevision } from "./codefree-authorization.js";
 interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
@@ -66,7 +68,7 @@ export class AcpRuntime {
   ) {
     this.catalog = new AcpAgentCatalog(
       join(directory, "agents"),
-      {},
+      { connected: async (engine) => hasAcpAgentConnection(await this.agents[engine]?.inspect()) },
       new AcpStorageLeases(store),
       environment,
     );
@@ -74,11 +76,20 @@ export class AcpRuntime {
     this.#environment = snapshot;
     this.launch =
       launch ??
-      (async (engine, scope, callbacks) => {
-        const command = await this.catalog.command(engine);
+      (async (engine, scope, callbacks, options) => {
+        const command = await this.catalog.command(engine, options?.allowDisabled);
         return AcpProcess.start(
-          { ...command, env: { ...snapshot, ...command.env }, cwd: scope.rootPath },
+          {
+            ...command,
+            args:
+              engine === CODEFREE_ENGINE && options?.onStderrLine
+                ? [...command.args, "--print-logs"]
+                : command.args,
+            env: { ...snapshot, ...command.env },
+            cwd: scope.rootPath,
+          },
           callbacks,
+          options,
         );
       });
     launch = this.launch;
@@ -178,7 +189,50 @@ export class AcpRuntime {
       get: (target, key, receiver) => {
         if (isAgentEngine(key) && !Object.hasOwn(target, key)) {
           this.#checkOpen();
-          target[key] = new AcpAgentService(key, directory, this.settings, this.launch, store);
+          target[key] = new AcpAgentService(
+            key,
+            directory,
+            this.settings,
+            this.launch,
+            store,
+            undefined,
+            key === CODEFREE_ENGINE
+              ? async () => {
+                  const { env } = await this.catalog.command(key, true);
+                  return codefreeCredentialRevision({ ...snapshot, ...env });
+                }
+              : undefined,
+            key === CODEFREE_ENGINE
+              ? async (scope, run) => {
+                  // 桌面预览的 cwd 可能是工作树。聊天连接始终按项目主目录归属。
+                  let entry = this.#entries.get(scope.id);
+                  if (!entry) {
+                    // 桌面首次进入临时工作区时，首发创建目录的步骤可能尚未执行。
+                    if (scope.kind === "temporary") await mkdir(scope.rootPath, { recursive: true });
+                    const project =
+                      scope.kind === "project"
+                        ? await this.store.catalog("project.read", { id: scope.id })
+                        : undefined;
+                    entry = this.#entries.get(scope.id);
+                    if (!entry) {
+                      const rootPath = project?.path ?? scope.rootPath;
+                      this.#scope(
+                        rootPath === scope.rootPath
+                          ? scope
+                          : {
+                              ...scope,
+                              rootPath,
+                              runtimeWorkspaceRoots: [rootPath],
+                            },
+                      );
+                      entry = this.#entries.get(scope.id);
+                    }
+                  }
+                  if (!entry) throw new Error("ACP 项目运行时不可用");
+                  return entry.provider(key).preview(run);
+                }
+              : undefined,
+          );
         }
         return Reflect.get(target, key, receiver) as unknown;
       },

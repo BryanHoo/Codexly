@@ -136,8 +136,8 @@ function CatalogSetup({
         ? "正在后台检测和准备 Agent…"
         : "Discovering and preparing agents in the background…",
       description: zh
-        ? "可以继续使用应用，准备完成后会自动启用。"
-        : "You can keep using the app. Agents become available when ready.",
+        ? "准备完成后，可在设置 → ACP 中连接并启用。"
+        : "When ready, connect and enable agents in Settings → ACP.",
       timeout: 0,
     });
   }, [notificationId, zh]);
@@ -173,7 +173,7 @@ function CatalogSetup({
     }
     const agents = query.data?.agents ?? [];
     const failed = agents.filter((agent) => agent.error);
-    const available = agents.filter((agent) => agent.installed && agent.enabled);
+    const installed = agents.filter((agent) => agent.installed);
     if (failed.length) {
       toast.warning(zh ? "部分 Agent 准备失败" : "Some agents could not be prepared", {
         id: notificationId,
@@ -185,7 +185,7 @@ function CatalogSetup({
             .join(", ") +
           (zh ? "，可在设置 → ACP 中重试安装。" : ". Retry installation in Settings → ACP."),
       });
-    } else if (available.length) {
+    } else if (installed.length) {
       if (initialized.current) {
         toast.dismiss(notificationId);
         return;
@@ -193,11 +193,11 @@ function CatalogSetup({
       initialized.current = true;
       privateStorage.setItem(
         ENGINE_SETUP_KEY,
-        JSON.stringify({ engines: available.map((agent) => agent.engine), complete: true }),
+        JSON.stringify({ engines: installed.map((agent) => agent.engine), complete: true }),
       );
       toast.success(zh ? "Agent 已就绪" : "Agents are ready", {
         id: notificationId,
-        description: available
+        description: installed
           .slice(0, 4)
           .map((agent) => agent.name)
           .join(", "),

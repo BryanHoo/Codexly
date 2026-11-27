@@ -6,6 +6,7 @@ import type {
 import type { ApplicationTextGenerator } from "./application-generation.js";
 import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AcpAgentServices } from "./acp-service.js";
+import type { AgentTaskScope } from "./agent-task-scope.js";
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
   AcpConfigValues,
@@ -111,13 +112,7 @@ export type AgentRuntimeDefaultSettings = Readonly<{
   sandboxMode?: AgentSandboxMode;
 }>;
 
-export type AgentTaskScope = Readonly<{
-  id: string;
-  kind: "project" | "temporary";
-  // rootPath 固定为 primary cwd；运行时根列表独立控制 Agent 可访问的完整工作区。
-  rootPath: string;
-  runtimeWorkspaceRoots: readonly string[];
-}>;
+export type { AgentTaskScope } from "./agent-task-scope.js";
 
 export type ListAgentTasksInput = Readonly<{
   archived?: true;

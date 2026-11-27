@@ -1,8 +1,11 @@
 import { mkdtemp, mkdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import snapshot from "./registry-snapshot.json" with { type: "json" };
+import { codefreeAgent } from "./agent-registry.js";
 import { installRegistryAgent, type RegistryAgent } from "./agent-installer.js";
 import { AcpProcess } from "./process.js";
 
@@ -21,6 +24,24 @@ it("官方 Agent 的 npm 分发固定为目录版本", () => {
 
 // 发布门禁从快照安装真实固定版本；不允许编译宿主或开发依赖替代被测安装产物。
 describe.skipIf(process.env["CODEXLY_REGISTRY_RELEASE_TEST"] !== "1")("目录发布安装与握手", () => {
+  it("codefree-o 在当前平台安装原生入口并执行版本检查", async () => {
+    const root = await mkdtemp(join(tmpdir(), "acp-codefree-release-"));
+    try {
+      // 厂商安装脚本会配置用户运行时。测试将运行时隔离，首次登录留给真实账号流程。
+      const env = { ...process.env, OPENCODE_TEST_HOME: root };
+      const installed = await installRegistryAgent(codefreeAgent, join(root, "runtime"), env);
+      expect(installed.args).toEqual(["acp"]);
+      const result = await promisify(execFile)(installed.command, ["--version"], {
+        env,
+        cwd: root,
+        timeout: 30_000,
+        windowsHide: true,
+      });
+      expect(result.stdout.trim()).toBe(codefreeAgent.version);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 300_000);
   it.skipIf(process.platform !== "linux").each(["junie", "antigravity-acp"])(
     "%s Linux ZIP 真实安装",
     async (id) => {

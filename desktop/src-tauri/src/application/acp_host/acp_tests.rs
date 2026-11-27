@@ -1,6 +1,162 @@
 use super::*;
 
 #[tokio::test]
+async fn compiled_acp_host_should_generate_with_the_native_catalog() {
+    let Some(host) = std::env::var_os("CODEXLY_COMPILED_ACP_HOST") else {
+        return;
+    };
+    // 使用确定性的 ACP 对端验证整个宿主链路，测试无需网络或本机 Agent 配置。
+    let peer = r#"
+const { createInterface } = require("node:readline");
+const { randomUUID } = require("node:crypto");
+const send = (frame) => console.log(JSON.stringify({ jsonrpc: "2.0", ...frame }));
+createInterface({ input: process.stdin }).on("line", (line) => {
+  const { id, method, params } = JSON.parse(line);
+  if (method === "initialize") {
+    send({ id, result: { protocolVersion: 1, agentCapabilities: {
+      sessionCapabilities: { close: {} }, _meta: { authStatus: true },
+    } } });
+    send({ method: "_auth/status_update", params: { authStatus: { kind: "account", label: "Test" } } });
+  }
+  if (method === "session/new") send({ id, result: {
+    sessionId: randomUUID(),
+    configOptions: [{ id: "model", name: "Model", category: "model", type: "select",
+      currentValue: "test", options: [{ value: "test", name: "Test" }] }],
+  } });
+  if (method === "session/prompt") {
+    const input = params.prompt.find((block) => block.type === "text").text;
+    const text = input.includes('{"title":') ? '{"title":"自动任务标题"}'
+      : input.includes("Conventional Commit") ? '{"message":"docs: update README"}'
+      : input.includes("Rewrite the supplied prompt") ? '{"message":"优化后的正文"}' : "聊天回复";
+    send({ method: "session/update", params: { sessionId: params.sessionId, update: {
+      sessionUpdate: "agent_message_chunk", content: { type: "text", text },
+    } } });
+    send({ id, result: { stopReason: "end_turn" } });
+  }
+  if (method === "session/close") send({ id, result: {} });
+});
+"#;
+    let root = tempfile::tempdir().unwrap();
+    let mut child = host_command(AcpRuntimePaths { host: host.into() }, root.path(), None)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    let catalog = LocalCatalog::at(root.path()).unwrap();
+    let (transport, writes) = Transport::new();
+    let (catalog_sender, catalog_receiver) = mpsc::channel(64);
+    let (event_sender, mut events) = mpsc::channel::<transport::Routed>(64);
+    let mut tasks = JoinSet::new();
+    tasks.spawn(transport::writer_loop(
+        child.stdin.take().unwrap(),
+        writes,
+        Arc::clone(&transport),
+    ));
+    tasks.spawn(workers::catalog_loop(
+        catalog_receiver,
+        catalog.clone(),
+        Arc::clone(&transport),
+    ));
+    tasks.spawn(transport::reader_loop(
+        child.stdout.take().unwrap(),
+        Arc::clone(&transport),
+        catalog_sender,
+        vec![event_sender],
+    ));
+    let path = root.path().to_string_lossy();
+    let scope =
+        json!({"id":"temporary","kind":"temporary","rootPath":path,"runtimeWorkspaceRoots":[path]});
+    let request = |method, params| {
+        transport.request_acp(
+            method,
+            Some(scope.clone()),
+            params,
+            Instant::now() + Duration::from_secs(10),
+        )
+    };
+    let added = request(
+        "agents.configure",
+        json!({"registration":{
+            "engine":"codex","name":"Test","enabled":true,"command":"node","args":["-e",peer],
+        }}),
+    )
+    .await
+    .unwrap();
+    assert!(
+        added["agents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|agent| agent["engine"] == "codex"
+                && agent["installed"] == true
+                && agent["enabled"] == false)
+    );
+    request(
+        "agents.configure",
+        json!({"registration":{
+            "engine":"codex","name":"Test","enabled":true,"command":"node","args":["-e",peer],
+        }}),
+    )
+    .await
+    .unwrap();
+    let preferences = &crate::infrastructure::local_catalog::application_preferences::contract()
+        .unwrap()["defaults"];
+    for (purpose, expected) in [
+        ("commit", "docs: update README"),
+        ("optimize", "优化后的正文"),
+    ] {
+        let result = request(
+            "application.generate",
+            json!({
+                "preferences":preferences,"request":{"purpose":purpose,"text":"检查 README"},
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result, expected);
+    }
+    let task = request("task.start", json!({"engine":"codex"}))
+        .await
+        .unwrap();
+    request("turn.start", json!({
+        "taskId":task["id"],
+        "input":{"text":"检查 README","files":[],"images":[],"skills":[],"textAttachments":[]},
+        "options":{"approvalPolicy":"never","approvalsReviewer":"user","model":"test","reasoningEffort":"","sandboxMode":"read-only"},
+    })).await.expect("首发必须能写入预览并发送提示词");
+    // 等待标题写入后的发布事件，避免用固定延时读取尚未提交的目录记录。
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while let Some(frame) = events.recv().await {
+            let event = &frame.message["event"];
+            if event["type"] == "task.metadata_changed"
+                && event["payload"]["title"] == "自动任务标题"
+            {
+                return;
+            }
+        }
+        panic!("ACP 事件流在标题发布前关闭");
+    })
+    .await
+    .unwrap();
+    let stored = catalog
+        .call("task.read", json!({"id":task["id"]}))
+        .await
+        .unwrap();
+    assert_eq!(stored["preview"], "检查 README");
+    assert_eq!(stored["title"], "自动任务标题");
+    tasks.abort_all();
+    while tasks.join_next().await.is_some() {}
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), child.wait())
+            .await
+            .unwrap()
+            .unwrap()
+            .success()
+    );
+}
+
+#[tokio::test]
 async fn compiled_acp_host_should_roundtrip_the_native_catalog_and_exit() {
     let Some(host) = std::env::var_os("CODEXLY_COMPILED_ACP_HOST") else {
         return;

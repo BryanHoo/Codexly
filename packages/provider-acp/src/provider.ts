@@ -116,6 +116,9 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       emit: this.#emit,
     });
   }
+  preview<T>(run: (connection: AcpConnection) => Promise<T>): Promise<T> {
+    return this.#link.preview(run);
+  }
   subscribeEvents(
     listener: AgentProviderEventListener,
     options?: AgentProviderEventSubscriptionOptions,

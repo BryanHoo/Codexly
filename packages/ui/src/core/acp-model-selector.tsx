@@ -68,6 +68,7 @@ export type AcpModelSelectorProps = Readonly<{
   engines?: readonly AgentEngine[];
   options: readonly AcpConfigOption[];
   disabled: boolean;
+  loadingCurrent?: boolean;
   error: Error | null;
   language?: string;
   locked?: boolean;
@@ -185,9 +186,13 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
       /* 隐私模式下收藏仍在当前浮层可用。 */
     }
   };
-  const loading =
-    tab !== "favorites" && target !== engine && targetOptions === undefined && !remote?.error;
   const failure = target === engine ? error : remote?.engine === target ? remote.error : undefined;
+  const loading =
+    tab !== "favorites" &&
+    (target === engine ? props.loadingCurrent === true : targetOptions === undefined && !failure);
+  // 草稿正在读取当前 Agent 时，只锁住该 Agent。其他标签的结果可以立即选中。
+  const selectionDisabled = (entryEngine: AgentEngine) =>
+    disabled && (!props.loadingCurrent || entryEngine === engine);
   const label =
     props.label ?? `${engineName(engine)} / ${selected ?? (zh ? "选择模型" : "Select model")}`;
   return (
@@ -308,7 +313,7 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
                               <ModelSelectorItem
                                 value={`${entry.engine} ${entry.name} ${entry.value}`}
                                 keywords={[group]}
-                                disabled={disabled}
+                                disabled={selectionDisabled(entry.engine)}
                                 onSelect={() => {
                                   if (locked && entry.engine !== engine) return;
                                   props.onSelect(entry.engine, entry.optionId, entry.value);
@@ -354,7 +359,7 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={disabled}
+                disabled={selectionDisabled(target)}
                 onClick={() => {
                   props.selectDefaultEngine?.(target);
                   setOpen(false);

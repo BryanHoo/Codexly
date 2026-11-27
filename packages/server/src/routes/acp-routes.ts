@@ -228,7 +228,9 @@ export const registerAcpRoutes: FastifyPluginCallback<{
           }
           // 预览与首发共用根目录授权，不能把任意浏览器路径交给 agent。
           // POST 正文结束不代表离开；预览只在响应断连或实际超时时取消。
-          return agent.previewConfig(cwd, request.body, signal);
+          return request.params.engine === "acp-codefree-o"
+            ? agent.previewConfig(cwd, request.body, signal, project.scope)
+            : agent.previewConfig(cwd, request.body, signal);
         },
         "ACP model preview request timed out",
       ),
@@ -374,26 +376,26 @@ export const registerAcpRoutes: FastifyPluginCallback<{
         response: { 200: AcpAuthenticateResponseSchema },
       },
     },
-    (request) =>
+    (request, reply) =>
       context.runIdempotent(
         ["acp-authenticate", request.params.engine],
         request.headers["idempotency-key"],
         request.body,
         () =>
-          request.body.attemptId !== undefined
-            ? service(request.params.engine).authenticate(
-                request.body.methodId,
-                request.signal,
-                request.body.credentials,
-                request.body.attemptId,
-              )
-            : request.body.credentials
-              ? service(request.params.engine).authenticate(
-                  request.body.methodId,
-                  request.signal,
-                  request.body.credentials,
-                )
-              : service(request.params.engine).authenticate(request.body.methodId, request.signal),
+          // 登录在 POST 正文读完后仍需等待浏览器授权，只根据响应断连或超时取消。
+          withGenerationCancellation(
+            request,
+            reply,
+            (signal) => {
+              const agent = service(request.params.engine);
+              const { methodId, credentials, attemptId } = request.body;
+              if (attemptId !== undefined)
+                return agent.authenticate(methodId, signal, credentials, attemptId);
+              if (credentials) return agent.authenticate(methodId, signal, credentials);
+              return agent.authenticate(methodId, signal);
+            },
+            "ACP authentication request timed out",
+          ),
       ),
   );
   app.post<{ Params: { engine: AgentEngine }; Body: AcpAuthElicitationRequest }>(

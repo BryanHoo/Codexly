@@ -1,4 +1,5 @@
 import { SettingsActions } from "./settings-group.js";
+import { invalidateAcpPreviews } from "./acp-preview-cache.js";
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,6 +91,7 @@ export function AcpDefaultSettings({
     },
     onSuccess: (data, input) => {
       queryClient.setQueryData(["acp-defaults", input.engine], data);
+      return invalidateAcpPreviews(queryClient, input.engine);
     },
     meta: { actionNotification: false },
   });

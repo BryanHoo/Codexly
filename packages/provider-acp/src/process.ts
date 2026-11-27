@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { Readable, Writable } from "node:stream";
 import { ndJsonStream } from "@agentclientprotocol/sdk";
 import { AcpConnection, type AcpClientCallbacks } from "./connection.js";
+import type { AcpAgentLaunchOptions } from "./agent-launcher.js";
 
 export interface AcpProcessCommand {
   command: string;
@@ -26,8 +27,9 @@ export class AcpProcess {
   static async start(
     spec: AcpProcessCommand,
     callbacks: AcpClientCallbacks = {},
-    options: { handshakeTimeoutMs?: number } = {},
+    options: AcpAgentLaunchOptions = {},
   ): Promise<AcpProcess> {
+    options.signal?.throwIfAborted();
     const child = spawn(spec.command, [...spec.args], {
       cwd: spec.cwd,
       env: { ...process.env, ...spec.env },
@@ -47,17 +49,50 @@ export class AcpProcess {
       });
     });
     // 持续排空 stderr，避免 agent 因管道背压卡住；原始输出可能含凭据，不进入业务事件或日志。
-    child.stderr.resume();
+    const inspect = options.onStderrLine;
+    if (inspect) {
+      // 仅认证时识别有界的完整行，普通 stderr 不进入宿主诊断或业务日志。
+      const lines = child.stderr.setEncoding("utf8");
+      let pending = "";
+      let discard = false;
+      lines.on("data", (chunk: string) => {
+        const parts = chunk.split("\n");
+        const tail = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!discard && pending.length + part.length <= 8192) inspect(pending + part);
+          pending = "";
+          discard = false;
+        }
+        if (!discard) {
+          pending += tail;
+          if (pending.length > 8192) {
+            pending = "";
+            discard = true;
+          }
+        }
+      });
+    } else child.stderr.resume();
+    const cancelled = Promise.withResolvers<never>();
+    const stop = () => {
+      cancelled.reject(options.signal?.reason);
+    };
+    options.signal?.addEventListener("abort", stop, { once: true });
+    if (options.signal?.aborted) stop();
     try {
-      const connection = await AcpConnection.connect(
+      const connecting = AcpConnection.connect(
         ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout)),
         callbacks,
         options,
       );
+      const connection = options.signal
+        ? await Promise.race([connecting, cancelled.promise])
+        : await connecting;
       return new AcpProcess(connection, child, exited);
     } catch (error) {
       await terminate(child, exited);
       throw startupError ?? error;
+    } finally {
+      options.signal?.removeEventListener("abort", stop);
     }
   }
 

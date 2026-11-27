@@ -1,6 +1,7 @@
 import { SettingsActions } from "./settings-group.js";
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateAcpPreviews } from "./acp-preview-cache.js";
 import { v4 as uuid } from "uuid";
 import type { AcpAgentCatalogPage, AcpAgentRegistration, AgentEngine } from "@codexly/protocol";
 import { Button } from "./button.js";
@@ -85,7 +86,8 @@ export function AcpAgentPicker({
     // 不取消工作区的后台发现；发现完成后仍需同步其他自动安装的 Agent。
     pending.current = Promise.resolve()
       .then(action)
-      .then((page) => {
+      .then(async (page) => {
+        await invalidateAcpPreviews(cache, engine);
         cache.setQueryData(key, page);
         if (!install) setStatus("saved");
         setDraft(undefined);
@@ -131,7 +133,7 @@ export function AcpAgentPicker({
         name: draft.name,
         command: draft.command,
         args,
-        enabled: true,
+        enabled: false,
         ...(draft.replaceEnv ? { env: env as Record<string, string> } : {}),
       };
       run(
@@ -236,8 +238,8 @@ export function AcpAgentPicker({
                         ? "正在安装…"
                         : "Installing…"
                       : zh
-                        ? "安装并启用"
-                        : "Install and enable"}
+                        ? "安装"
+                        : "Install"}
                   </Button>
                   {installing === agent.engine ? (
                     <AcpStage

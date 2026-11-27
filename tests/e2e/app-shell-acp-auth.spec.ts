@@ -93,8 +93,36 @@ for (const width of [390, 1280]) {
     await page.getByRole("button", { name: "设置", exact: true }).click();
     const settings = page.getByRole("region", { name: "全局设置" });
     await settings.getByRole("button", { name: "ACP", exact: true }).click();
+    const status = settings.getByRole("status", { name: "连接状态", exact: true });
+    const heading = settings.getByRole("heading", { name: "连接配置", exact: true });
     const url = settings.getByRole("textbox", { name: "API 地址", exact: true });
     await expect(url).toHaveValue(baseUrl);
+    await expect(status).toHaveText("已连接", { timeout: 2000 });
+    const headingBounds = await heading.boundingBox();
+    const statusBounds = await status.boundingBox();
+    const groupBounds = await settings.getByRole("region", { name: "连接配置" }).boundingBox();
+    if (!headingBounds || !statusBounds || !groupBounds) throw new Error("连接配置标题未显示");
+    expect(statusBounds.x).toBeGreaterThanOrEqual(headingBounds.x + headingBounds.width);
+    expect(statusBounds.x + statusBounds.width).toBeCloseTo(groupBounds.x + groupBounds.width, 0);
+    expect(statusBounds.y + statusBounds.height / 2).toBeCloseTo(
+      headingBounds.y + headingBounds.height / 2,
+      0,
+    );
+    const themeColors = await status.evaluate((element) => {
+      const root = document.documentElement;
+      const previous = root.dataset["theme"];
+      try {
+        return ["light", "dark"].map((theme) => {
+          root.dataset["theme"] = theme;
+          const style = getComputedStyle(element);
+          return { color: style.color, background: style.backgroundColor };
+        });
+      } finally {
+        if (previous === undefined) delete root.dataset["theme"];
+        else root.dataset["theme"] = previous;
+      }
+    });
+    expect(themeColors[0]).not.toEqual(themeColors[1]);
     await expect(settings.getByRole("heading", { name: "ACP", exact: true })).toHaveCount(0);
     await expect(settings.getByText("Custom model gateway", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "全局设置", exact: true })).toBeVisible();
@@ -131,9 +159,8 @@ for (const width of [390, 1280]) {
       ]);
     // 认证问卷和重试必须使用与原请求相同的事务身份。
     expect(auth[0]?.body).toHaveProperty("attemptId", auth[0]?.requestKey);
-    await expect(
-      settings.getByText("ChatGPT Pro · user@example.com", { exact: true }),
-    ).toBeVisible();
+    await expect(status).toHaveAttribute("title", /ChatGPT Pro · user@example\.com/u);
+    await expect(status).toHaveText("已连接");
     await settings.getByRole("combobox", { name: "连接方式", exact: true }).click();
     await page.getByRole("option", { name: "自定义 API", exact: true }).click();
     await settings.getByRole("combobox", { name: "API 协议", exact: true }).click();

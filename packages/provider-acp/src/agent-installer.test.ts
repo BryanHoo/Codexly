@@ -70,7 +70,10 @@ it("ZIP 安装不依赖系统 tar 或 unzip，并保留嵌套入口、参数和�
   expect(result.env).toEqual({ ACP_MODE: "test" });
 });
 
-async function npmFixture(outcome: "success" | "failure" | "timeout" | "both-fail") {
+async function npmFixture(
+  outcome: "success" | "failure" | "timeout" | "both-fail",
+  entry = "index.js",
+) {
   const { directory, agent } = await fixture();
   const mirror = "https://registry.npmmirror.com";
   const official = "https://registry.npmjs.org";
@@ -121,8 +124,9 @@ if (outcome === "both-fail") {
 }
 const pkg = path.join(stage, "node_modules", "@test", "agent");
 fs.mkdirSync(pkg, { recursive: true });
-fs.writeFileSync(path.join(pkg, "package.json"), '{"bin":{"agent":"index.js"}}');
-fs.writeFileSync(path.join(pkg, "index.js"), "");
+const entry = ${JSON.stringify(entry)};
+fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ bin: { agent: entry } }));
+fs.writeFileSync(path.join(pkg, entry), "", { mode: 0o700 });
 `,
     { mode: 0o700 },
   );
@@ -133,6 +137,14 @@ fs.writeFileSync(path.join(pkg, "index.js"), "");
     });
   return { directory, install, probe, attempts, official, mirror };
 }
+
+it("npm 包的原生 exe 入口直接运行，保留 ACP 参数", async () => {
+  const { directory, install } = await npmFixture("success", "codefree-o.exe");
+  expect(await install()).toEqual({
+    command: join(directory, "runtime/node_modules/@test/agent/codefree-o.exe"),
+    args: ["--acp"],
+  });
+});
 
 it.each(["success", "failure", "timeout"] as const)(
   "npm 优先使用较快的源，失败或子进程超时后清理暂存并切源：%s",

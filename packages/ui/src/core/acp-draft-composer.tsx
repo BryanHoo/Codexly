@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAcpDraft, type AcpDraftClient } from "./use-acp-draft.js";
+import { useEffect, useMemo, useState } from "react";
+import { useAcpDraft, useAcpModelOptions, type AcpDraftClient } from "./use-acp-draft.js";
 import { browserSetupStorage, useSelectedEngines } from "./engine-selection.js";
 import { readAcpDraftEngine, saveAcpDraftEngine } from "@codexly/frontend-core/acp-draft-engine";
 import {
@@ -54,23 +54,7 @@ export function useAcpDraftComposer(
     setSelection((current) => (current === selection ? { scope, engine } : current));
     void draft.setConfig(requested.id, requested.value);
   }, [selection, scope, engine, draft.preview, draft.isPending, draft.isSaving, draft.setConfig]);
-  const loadOptions = useCallback(
-    async (target: AgentEngine, signal: AbortSignal) => {
-      const result = await input.client.previewAcpConfig(
-        input.projectId,
-        target,
-        {
-          values: {},
-          ...(input.workspace && input.projectId !== "temporary"
-            ? { workspacePath: input.workspace }
-            : {}),
-        },
-        { signal },
-      );
-      return result.configOptions;
-    },
-    [input.client, input.projectId, input.workspace],
-  );
+  const loadOptions = useAcpModelOptions(input.client, input.projectId, input.workspace);
   const disabled = draft.isPending || draft.isSaving || engines.length === 0;
   const common = {
     engine,
@@ -117,6 +101,7 @@ export function useAcpDraftComposer(
         engine={engine}
         engines={engines}
         locked={draft.hasSubmission}
+        loadingCurrent={draft.isPending && !draft.isSaving && !draft.hasSubmission}
         loadOptions={loadOptions}
         onSelect={(next, id, value) => {
           if (next === engine) {

@@ -8,19 +8,17 @@ interface Client {
   getAcpAgent: (engine: AgentEngine) => Promise<AcpAgentProfile>;
 }
 
-/** 启用仅验证智能体握手；账号尚未配置时仍须允许打开认证与供应商界面。 */
+/** 仅为旧版无目录客户端保留准备流程。 */
 export function AcpEngineSettingsGate({
   client,
   engine,
   language,
   children,
-  prepareAgent,
 }: Readonly<{
   client: Partial<Client>;
   engine: AgentEngine;
   language: string;
   children: ReactNode;
-  prepareAgent?: (() => Promise<void>) | undefined;
 }>) {
   const cache = useQueryClient();
   const chinese = language.startsWith("zh");
@@ -38,7 +36,6 @@ export function AcpEngineSettingsGate({
       }}
       prepare={async (report) => {
         report(chinese ? "正在检查智能体…" : "Checking agent…");
-        await prepareAgent?.();
         const inspect = client.getAcpAgent;
         if (!inspect) throw new Error("ACP preparation is unavailable");
         const profile = await inspect.call(client, engine);

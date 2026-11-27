@@ -22,7 +22,6 @@ const busy = (error: unknown) => (error as NodeJS.ErrnoException).code === "EBUS
 /** 只管理可重放的展示正文；原厂会话、任务目录和应用独有附件不属于缓存。 */
 export class AcpHistoryCache {
   readonly #users = new Map<string, Promise<{ count: number; release: () => Promise<void> }>>();
-  #startup: Promise<void> | undefined;
   #disconnected = false;
   constructor(
     readonly directory: string,
@@ -60,15 +59,9 @@ export class AcpHistoryCache {
   }
   /** 持有到视图退订/运行结束，避免另一端回收分页、导出或正在执行的会话。 */
   async acquire(task: string): Promise<() => Promise<void>> {
-    // 首次使用先回收上次退出遗留的可重放缓存，不为应用启动增加后台计时器。
     if (this.#disconnected) throw new Error("ACP 历史缓存已关闭");
-    const startup = (this.#startup ??= this.prune());
-    try {
-      await startup;
-    } catch (error) {
-      if (this.#startup === startup) this.#startup = undefined;
-      throw error;
-    }
+    // 首屏只申请当前会话的租约。全目录的容量统计由释放后的维护路径执行，
+    // 避免先扫描其他任务，也避免在当前会话获得保护前淘汰它的正文。
     let pending = this.#users.get(task);
     if (!pending) {
       pending = this.#lease(this.#root(task)).then((release) => ({ count: 0, release }));
@@ -190,7 +183,7 @@ export class AcpHistoryCache {
     }
     return bytes;
   }
-  /** 仅在会话释放/宿主启动时扫描小策略和文件大小，绝不扫描聊天正文或逐 Token 维护。 */
+  /** 释放后的维护扫描小策略与文件大小，容量统计与单个会话的读取独立。 */
   async prune(): Promise<void> {
     if (this.#disconnected) return;
     try {

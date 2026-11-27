@@ -15,6 +15,7 @@ import type {
   AgentEngine,
 } from "@codexly/protocol";
 import type { AcpProviderConfig, AcpProviderPage } from "@codexly/protocol";
+import type { AgentTaskScope } from "./agent-task-scope.js";
 
 /** 两端共享 ACP 原生认证与默认设置；不暴露厂商账号、配置文件或私有 RPC。 */
 export interface AcpAgentSettingsService {
@@ -28,6 +29,7 @@ export interface AcpAgentSettingsService {
     cwd: string,
     input: AcpConfigPreviewRequest,
     signal?: AbortSignal,
+    scope?: AgentTaskScope,
   ): Promise<AcpConfigPreview>;
   inspect(): Promise<AcpAgentProfile>;
   authenticate(

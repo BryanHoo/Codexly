@@ -56,6 +56,28 @@ it("跨实例占用保护活动历史，释放后将超大闲置缓存回收", a
   await other.prune();
   expect((await history.read("task")).turns).toEqual([]);
 });
+
+it("冷启动先保护并读取当前会话，超额回收优先处理闲置会话", async () => {
+  const { root, history } = await fixture();
+  const cache = new AcpHistoryCache(root, undefined, 0);
+  for (const id of ["open", "idle"]) {
+    await history.append(id, turn);
+    await cache.setReplayable(id, true);
+  }
+
+  const release = await cache.acquire("open");
+  try {
+    expect((await history.read("open")).turns).toEqual([turn]);
+    expect(await cache.wasEvicted("idle")).toBe(false);
+    await cache.prune();
+    expect(await history.hasTurns("open")).toBe(true);
+    expect(await cache.wasEvicted("idle")).toBe(true);
+  } finally {
+    await release();
+  }
+  await cache.prune();
+  expect(await cache.wasEvicted("open")).toBe(true);
+});
 it("兼容能力在重启后保留，能力撤回后不再淘汰", async () => {
   const { root, history, cache } = await fixture();
   await history.append("task", turn);

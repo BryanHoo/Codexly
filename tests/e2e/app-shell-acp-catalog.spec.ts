@@ -46,7 +46,7 @@ test("Web ACP 目录显示真实安装进度并支持确认移除 @cross-browser
     await release.promise;
     progress = { operations: [] };
     await route.fulfill({
-      json: { agents: [{ ...gemini, installed: true, enabled: true, command: "/bin/gemini" }] },
+      json: { agents: [{ ...gemini, installed: true, enabled: false, command: "/bin/gemini" }] },
     });
   });
   await page.route("**/v1/acp/registry/remove", async (route) => {
@@ -59,7 +59,7 @@ test("Web ACP 目录显示真实安装进度并支持确认移除 @cross-browser
   const settings = page.getByRole("region", { name: "全局设置" });
   await settings.getByRole("button", { name: "ACP", exact: true }).click();
   await settings.getByRole("button", { name: "添加 Agent", exact: true }).click();
-  await page.getByRole("button", { name: "安装并启用", exact: true }).click();
+  await page.getByRole("button", { name: "安装", exact: true }).click();
   try {
     await expect(page.getByRole("progressbar", { name: "正在下载安装包" })).toHaveAttribute(
       "aria-valuenow",

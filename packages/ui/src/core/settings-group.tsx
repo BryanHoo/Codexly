@@ -27,16 +27,37 @@ export function SettingsGroup({
   children,
   title,
   description,
-}: Readonly<{ children: ReactNode; title: string; description?: string }>) {
+  headingAccessory,
+}: Readonly<{
+  children: ReactNode;
+  title: string;
+  description?: string;
+  headingAccessory?: ReactNode;
+}>) {
   const id = useId();
+  const headingSpacing = description === undefined ? "mb-2" : "mb-1";
+  const hasAccessory = headingAccessory !== undefined && headingAccessory !== null;
+  const heading = (
+    <h2
+      id={id}
+      className={cn(
+        "min-w-0 wrap-anywhere text-body font-semibold",
+        !hasAccessory && headingSpacing,
+      )}
+    >
+      {title}
+    </h2>
+  );
   return (
     <section aria-labelledby={id}>
-      <h2
-        id={id}
-        className={`${description === undefined ? "mb-2" : "mb-1"} text-body font-semibold`}
-      >
-        {title}
-      </h2>
+      {hasAccessory ? (
+        <div className={cn("flex min-w-0 items-center justify-between gap-3", headingSpacing)}>
+          {heading}
+          {headingAccessory}
+        </div>
+      ) : (
+        heading
+      )}
       {description === undefined ? null : (
         <p className="mb-3 text-body-small text-muted-foreground">{description}</p>
       )}

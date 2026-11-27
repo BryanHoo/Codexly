@@ -35,7 +35,44 @@ test("只为检测到的 CLI 自动安装适配器，原生 ACP 直接复用", a
   expect(page.agents.find((a) => a.engine === "acp-gemini")?.installed).toBe(true);
   expect(page.agents.find((a) => a.engine === "claude")?.installed).toBe(false);
   expect(install).toHaveBeenCalledTimes(1);
-  expect((await catalog.command("codex")).env).not.toHaveProperty("CODEX_PATH");
+  expect((await catalog.command("codex", true)).env).not.toHaveProperty("CODEX_PATH");
+});
+test("内置 CodeFree O 自动复用本机 CLI 和 ACP 子命令", async () => {
+  const { catalog, install } = await fixture(["codefree-o"]);
+  const engine = "acp-codefree-o";
+  expect((await catalog.list()).agents.find((agent) => agent.engine === engine)).toMatchObject({
+    name: "CodeFree O",
+    detected: true,
+    installed: true,
+    enabled: false,
+  });
+  expect(await catalog.command(engine, true)).toMatchObject({
+    command: "/bin/codefree-o",
+    args: ["acp"],
+  });
+  expect(install).not.toHaveBeenCalled();
+});
+test("未安装的 CodeFree O 按需安装固定版本，更新使用内置版本", async () => {
+  const { catalog, install } = await fixture();
+  const engine = "acp-codefree-o";
+  expect((await catalog.list()).agents.find((agent) => agent.engine === engine)).toMatchObject({
+    installed: false,
+  });
+  expect(install).not.toHaveBeenCalled();
+  await catalog.install(engine);
+  expect(install).toHaveBeenCalledWith(
+    expect.objectContaining({
+      distribution: { npx: { package: "@srdcloud/codefree-o@1.11.2", args: ["acp"] } },
+    }),
+    expect.any(String),
+    expect.any(AbortSignal),
+    expect.any(Function),
+  );
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  await catalog.update(engine);
+  expect(install).toHaveBeenCalledTimes(1);
+  expect(fetch).not.toHaveBeenCalled();
 });
 test.each([
   ["codex", "CODEX_PATH"],
@@ -43,7 +80,7 @@ test.each([
 ] as const)("托管 %s 忽略已失效的旧原生路径，保留私有环境与显式命令", async (engine, key) => {
   const { catalog, path } = await fixture();
   await catalog.install(engine);
-  const installed = await catalog.command(engine);
+  const installed = await catalog.command(engine, true);
   const executable = join(path, "old-binary");
   await catalog.configure({
     ...installed,
@@ -52,10 +89,10 @@ test.each([
     enabled: true,
     env: { [key]: executable, EXTRA: "keep" },
   });
-  expect(await catalog.command(engine)).toEqual({ ...installed, env: { EXTRA: "keep" } });
+  expect(await catalog.command(engine, true)).toEqual({ ...installed, env: { EXTRA: "keep" } });
   await writeFile(executable, "", { mode: 0o700 });
   const env = { [key]: executable, EXTRA: "keep" };
-  expect((await catalog.command(engine)).env).toEqual(env);
+  expect((await catalog.command(engine, true)).env).toEqual(env);
   await rm(executable);
   await catalog.configure({
     ...installed,
@@ -65,14 +102,14 @@ test.each([
     enabled: true,
     env,
   });
-  expect((await catalog.command(engine)).env).toEqual(env);
+  expect((await catalog.command(engine, true)).env).toEqual(env);
 });
 test("手动安装合并并发请求，重建后读取配置", async () => {
   const { catalog, install, path } = await fixture();
   await Promise.all([catalog.install("acp-gemini"), catalog.install("acp-gemini")]);
   expect(install).toHaveBeenCalledTimes(1);
   const next = new AcpAgentCatalog(path, { find: () => Promise.resolve(undefined), install });
-  expect((await next.command("acp-gemini")).command).toBe("/runtime/node");
+  expect((await next.command("acp-gemini", true)).command).toBe("/runtime/node");
 });
 test("安装失败保持未安装并允许重试", async () => {
   const { catalog, install } = await fixture();
@@ -91,9 +128,38 @@ test("支持自定义 Agent 参数与私有环境，公开列表不泄露凭据"
     env: { API_KEY: "secret" },
     enabled: true,
   });
-  expect((await catalog.command("acp-my-agent")).env).toEqual({ API_KEY: "secret" });
+  expect((await catalog.command("acp-my-agent", true)).env).toEqual({ API_KEY: "secret" });
   expect(JSON.stringify(await catalog.list())).not.toContain("secret");
   await expect(catalog.command("acp-unknown")).rejects.toThrow();
+});
+test("新登记和重复安装保持关闭，启用前核验当前连接", async () => {
+  const { path, install } = await fixture();
+  const connected = vi.fn().mockResolvedValue(false);
+  const catalog = new AcpAgentCatalog(path, {
+    find: () => Promise.resolve(undefined),
+    install,
+    connected,
+  });
+  const engine = "acp-gemini" as const;
+  await catalog.install(engine);
+  await catalog.install(engine);
+  const command = await catalog.command(engine, true);
+  const registration = { ...command, engine, name: "Gemini", enabled: true };
+  await expect(catalog.command(engine)).rejects.toThrow("启用");
+  await expect(catalog.configure(registration)).rejects.toThrow("请先登录账号或连接自定义 API");
+  expect(connected).toHaveBeenLastCalledWith(engine);
+  await expect(catalog.command(engine)).rejects.toThrow("启用");
+
+  connected.mockResolvedValue(true);
+  await catalog.configure(registration);
+  expect(await catalog.command(engine)).toEqual(command);
+  await catalog.configure({ ...registration, enabled: false });
+  await expect(catalog.command(engine)).rejects.toThrow("启用");
+  expect(connected).toHaveBeenCalledTimes(2);
+
+  await catalog.configure({ ...registration, command: "/different/agent" });
+  await expect(catalog.command(engine)).rejects.toThrow("启用");
+  expect(connected).toHaveBeenCalledTimes(2);
 });
 test("刷新只发现新增 CLI，保持用户停用与私有配置", async () => {
   const found: string[] = [];
@@ -101,7 +167,7 @@ test("刷新只发现新增 CLI，保持用户停用与私有配置", async () =
   await catalog.list();
   found.push("gemini");
   expect((await catalog.refresh()).agents.find((a) => a.engine === "acp-gemini")?.enabled).toBe(
-    true,
+    false,
   );
   await catalog.configure({
     engine: "acp-gemini",
@@ -229,7 +295,7 @@ async function setInstalledCodexVersion(path: string, version: string) {
 test("并行更新合并检查，目录不可达时保留安装", async () => {
   const { catalog, install } = await fixture();
   await catalog.install("codex");
-  const first = await catalog.command("codex");
+  const first = await catalog.command("codex", true);
   const checked = Promise.withResolvers<Response>();
   const entered = Promise.withResolvers<undefined>();
   const fetch = vi.fn(() => {
@@ -250,7 +316,7 @@ test("并行更新合并检查，目录不可达时保留安装", async () => {
 
   expect(fetch).toHaveBeenCalledOnce();
   expect(install).toHaveBeenCalledOnce();
-  expect(await catalog.command("codex")).toEqual(first);
+  expect(await catalog.command("codex", true)).toEqual(first);
   expect(catalog.progress().operations).toEqual([]);
 });
 
@@ -270,9 +336,9 @@ test("更新保留启用状态和私有环境，失败时保留原运行时", as
   });
   await catalog.install("codex");
   const installed = (await catalog.list(false)).agents.find((a) => a.engine === "codex");
-  const first = await catalog.command("codex");
+  const first = await catalog.command("codex", true);
   await expect(catalog.update("codex")).rejects.toThrow("offline");
-  expect(await catalog.command("codex")).toEqual(first);
+  expect(await catalog.command("codex", true)).toEqual(first);
   expect(await readFile(first.command, "utf8")).toBe("1");
   expect(
     (await catalog.list(false)).agents.find((a) => a.engine === "codex")?.installedVersion,
@@ -314,7 +380,7 @@ test("移除清理私有运行时但不删除本机命令，重新检测不会�
   });
   await catalog.list();
   await catalog.install("codex");
-  const { command } = await catalog.command("codex");
+  const { command } = await catalog.command("codex", true);
   await catalog.remove("codex");
   await catalog.remove("acp-gemini");
   await expect(readFile(command)).rejects.toMatchObject({ code: "ENOENT" });
@@ -325,5 +391,5 @@ test("移除清理私有运行时但不删除本机命令，重新检测不会�
   expect((await restarted.refresh()).agents.filter((a) => a.installed)).toEqual([]);
   await expect(restarted.command("acp-gemini")).rejects.toThrow("安装并启用");
   await catalog.install("acp-gemini");
-  expect((await catalog.command("acp-gemini")).command).not.toBe(native);
+  expect((await catalog.command("acp-gemini", true)).command).not.toBe(native);
 });

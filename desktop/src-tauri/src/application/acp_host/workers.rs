@@ -25,16 +25,18 @@ pub(super) async fn catalog_loop(
         let message = frame.message;
         let result = match message["operation"].as_str() {
             Some(
-                // ACP 标题自行通过共享运行时生成，只允许读取偏好及受令牌保护的目录写入。
+                // 普通聊天首发会保存预览，辅助生成发送提示词前会登记独立的后台会话。
                 operation @ ("task.read"
                 | "task.put"
                 | "task.patch"
+                | "task.preview"
                 | "task.list"
                 | "task.remove"
                 | "app.preferences.read"
                 | "app.preferences.patch"
                 | "acp.title.claim"
                 | "acp.title.finish"
+                | "acp.session.background"
                 | "acp.session.rebind"
                 | "acp.storage.read"
                 | "acp.storage.claim"
@@ -172,7 +174,7 @@ pub(super) async fn stderr_loop<R: AsyncRead + Unpin>(mut reader: R, tail: Stder
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn acp_titles_should_roundtrip_catalog_without_legacy_generation() {
+    async fn acp_application_catalog_should_support_auxiliary_generation_and_titles() {
         use super::super::transport::writer_loop;
         use tokio::io::{AsyncBufReadExt, BufReader};
         let root = tempfile::tempdir().unwrap();
@@ -186,7 +188,11 @@ mod tests {
         let (writer, reader) = tokio::io::duplex(8192);
         let writing = tokio::spawn(writer_loop(writer, outbound, Arc::clone(&transport)));
         let (sender, receiver) = mpsc::channel(1);
-        let serving = tokio::spawn(catalog_loop(receiver, catalog, Arc::clone(&transport)));
+        let serving = tokio::spawn(catalog_loop(
+            receiver,
+            catalog.clone(),
+            Arc::clone(&transport),
+        ));
         let mut lines = BufReader::new(reader).lines();
         for (operation, payload, expected) in [
             (
@@ -205,6 +211,12 @@ mod tests {
                 json!(true),
             ),
             ("app.preferences.read", json!({}), serde_json::Value::Null),
+            // 使用测试 Agent 隔离目录启动时从本机 Codex 索引恢复的后台会话。
+            (
+                "acp.session.background",
+                json!({"engine":"acp-test","sessionId":"helper"}),
+                serde_json::Value::Null,
+            ),
             (
                 "acp.title.claim",
                 json!({"id":"new","token":"one","engine":"codex","projectId":null}),
@@ -238,6 +250,13 @@ mod tests {
         drop(sender);
         serving.await.unwrap();
         writing.abort();
+        assert_eq!(
+            catalog
+                .call("acp.session.background.list", json!({"engine":"acp-test"}))
+                .await
+                .unwrap(),
+            json!(["helper"]),
+        );
     }
     #[tokio::test]
     async fn stderr_should_keep_only_bounded_redacted_error_codes() {

@@ -281,6 +281,9 @@ for (const platform of ["web", "desktop"] as const) {
       expect(f.client.getAcpDefaults).not.toHaveBeenCalled();
       await f.screen.getByRole("button", { name: "保存连接", exact: true }).click();
       await expect
+        .element(f.screen.getByRole("status", { name: "连接状态", exact: true }))
+        .toHaveTextContent(/^已连接$/u);
+      await expect
         .element(f.screen.getByRole("combobox", { name: "推理强度", exact: true }))
         .toHaveTextContent("高");
     } finally {
@@ -389,9 +392,9 @@ for (const platform of ["web", "desktop"] as const) {
       await expect.element(f.screen.getByRole("alert")).toHaveTextContent("连接未保存");
       expect(f.client.getAcpDefaults).not.toHaveBeenCalled();
       await f.screen.getByRole("button", { name: "在浏览器中登录", exact: true }).click();
-      await expect
-        .element(f.screen.getByText("ChatGPT Pro · user@example.com", { exact: true }))
-        .toBeVisible();
+      const status = f.screen.getByRole("status", { name: "连接状态", exact: true });
+      await expect.element(status).toHaveAttribute("title", "ChatGPT Pro · user@example.com");
+      await expect.element(status).toHaveTextContent(/^已连接$/u);
       expect(f.client.authenticateAcpAgent).toHaveBeenCalledTimes(2);
       await expect
         .element(f.screen.getByRole("combobox", { name: "推理强度", exact: true }))

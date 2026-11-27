@@ -1,5 +1,7 @@
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { QueryClientContext } from "@tanstack/react-query";
+import { readAcpPreview } from "./acp-preview-cache.js";
 import { v4 as createUuid } from "uuid";
 import {
   bindAcpDraft,
@@ -15,6 +17,33 @@ export interface AcpDraftClient extends AcpProfileClient {
     input: AcpConfigPreviewRequest,
     options: { signal: AbortSignal },
   ): Promise<AcpConfigPreview>;
+}
+
+export function useAcpModelOptions(
+  client: Partial<AcpDraftClient>,
+  projectId: string,
+  workspace: string,
+) {
+  const cache = useContext(QueryClientContext);
+  const preview = client.previewAcpConfig;
+  return useCallback(
+    async (engine: AgentEngine, signal: AbortSignal) => {
+      if (!preview) return [];
+      return (
+        await readAcpPreview(
+          cache,
+          engine,
+          projectId,
+          workspace,
+          { values: {} },
+          signal,
+          (input, readSignal) =>
+            preview.call(client, projectId, engine, input, { signal: readSignal }),
+        )
+      ).configOptions;
+    },
+    [cache, client, preview, projectId, workspace],
+  );
 }
 const pendingView: AcpDraftView = {
   preview: undefined,
@@ -55,6 +84,7 @@ export function useAcpDraft({
   draftId?: string;
   enabled?: boolean;
 }>) {
+  const cache = useContext(QueryClientContext);
   const storageKey = `codexly:acp-draft:v1:${JSON.stringify([projectId, draftId ?? "draft"])}`;
   const scope = useMemo(
     () => ({ binding: undefined as ReturnType<typeof bindAcpDraft> | undefined }),
@@ -67,15 +97,15 @@ export function useAcpDraft({
       identity: JSON.stringify([engine, workspace]),
       restored: storage.read(storageKey),
       preview: (request, signal) =>
-        client.previewAcpConfig(
-          projectId,
+        readAcpPreview(
+          cache,
           engine,
-          {
-            ...request,
-            includeCommands: true,
-            ...(workspace && projectId !== "temporary" ? { workspacePath: workspace } : {}),
-          },
-          { signal },
+          projectId,
+          workspace,
+          { ...request, includeCommands: true },
+          signal,
+          (input, readSignal) =>
+            client.previewAcpConfig(projectId, engine, input, { signal: readSignal }),
         ),
       save: (value) => {
         storage.write(storageKey, value);
@@ -91,7 +121,7 @@ export function useAcpDraft({
       scope.binding = undefined;
       binding.dispose();
     };
-  }, [scope, client, projectId, engine, workspace, storageKey, enabled]);
+  }, [scope, cache, client, projectId, engine, workspace, storageKey, enabled]);
   const setConfig = useCallback(
     (id: string, value: string | boolean) =>
       scope.binding?.setConfig(id, value) ?? Promise.resolve(false),

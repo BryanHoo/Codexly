@@ -35,20 +35,29 @@ it("确认前保持原文件，拒绝过时清单并原子替换启用 Agent 的
     await mkdir(codex);
     await writeFile(target, "旧内容");
     if (target !== codexFile) await symlink(target, codexFile);
-    await runtime.catalog.configure({
+    vi.spyOn(runtime.agents.codex, "inspect").mockResolvedValue({
       engine: "codex",
-      name: "Codex",
-      command: "codex-acp",
-      args: [],
-      enabled: true,
+      protocolVersion: 1,
+      authMethods: [],
+      authStatus: { kind: "account", label: "Codex" },
     });
-    await runtime.catalog.configure({
+    vi.spyOn(runtime.agents.claude, "inspect").mockResolvedValue({
       engine: "claude",
-      name: "Claude",
-      command: "claude-acp",
-      args: [],
-      enabled: true,
+      protocolVersion: 1,
+      authMethods: [],
+      authStatus: { kind: "account", label: "Claude" },
     });
+    for (const engine of ["codex", "claude"] as const) {
+      const registration = {
+        engine,
+        name: engine === "codex" ? "Codex" : "Claude",
+        command: engine + "-acp",
+        args: [],
+        enabled: false,
+      };
+      await runtime.catalog.configure(registration);
+      await runtime.catalog.configure({ ...registration, enabled: true });
+    }
     const first = await runtime.getAgentInstructionsTargets();
     expect(first.files).toEqual(
       [

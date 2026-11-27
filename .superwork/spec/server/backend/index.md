@@ -42,10 +42,10 @@
 
 ## ACP 模型预览取消与错误
 
-- 模型草稿预览与辅助生成共用响应流取消边界，正常 POST 正文结束不得取消；客户端响应连接关闭或超时才取消，处理结束释放监听和计时器。启用生产 handlerTimeout 的真实 HTTP 回归不能用关闭超时的 inject 测试替代。
+- 模型草稿预览、辅助生成和 ACP 登录共用响应流取消边界。客户端响应连接关闭或超时才取消，处理结束释放监听和计时器。启用生产 handlerTimeout 的真实 HTTP 回归覆盖 POST 正文正常结束后的调用和授权等待。
 - `/v1/temporary/acp/{codex|claude}/preview` 复用项目 ACP 授权和预览处理，不把客户端传入的任意路径交给 Agent。
 - 预览超时使用可重试 `PROVIDER_ERROR`；Protocol 的 mutation 错误枚举包含服务端兜底 `INTERNAL_ERROR`，客户端不能把正常结构的 HTTP 500 二次误报为协议不匹配。
-- 回归入口：`acp-preview.test.ts`（真实 HTTP、超时、断连、聊天/项目）、`temporary-task-routing.test.ts` 与客户端 `http-client-acp.test.ts`。
+- `acp-preview.test.ts` 覆盖预览、超时和断连，`acp-authentication.test.ts` 覆盖真实 HTTP 登录与回调等待。另见 `temporary-task-routing.test.ts` 和 `http-client-acp.test.ts`。
 
 ## 启动与调度锁隔离
 

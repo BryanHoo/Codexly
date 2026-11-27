@@ -1,4 +1,5 @@
 import { page, userEvent } from "vitest/browser";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   AcpModelSelector,
   AcpComposerLeading,
@@ -65,6 +66,71 @@ const client = {
     },
   ),
 };
+it("CodeFree O 模型未返回时仍可选择其他 Agent 的模型", async () => {
+  const resolve = vi.fn();
+  const screen = await render(
+    <AcpModelSelector
+      engine="acp-codefree-o"
+      engines={["acp-codefree-o", "codex"]}
+      options={[]}
+      disabled
+      loadingCurrent
+      label="CodeFree O / 选择模型"
+      error={null}
+      loadOptions={() => Promise.resolve(options)}
+      onSelect={resolve}
+    />,
+  );
+  await screen.getByRole("button", { name: "CodeFree O / 选择模型" }).click();
+  await screen.getByRole("tab", { name: "Codex", exact: true }).click();
+  const model = screen.getByRole("option", { name: /6\.1 Sol/ });
+  await expect.element(model).toHaveAttribute("aria-disabled", "false");
+  await model.click();
+  expect(resolve).toHaveBeenCalledWith("codex", "model", "sol");
+});
+
+it("重开模型浮层并切回 CodeFree O 时复用同工作区的查询", async () => {
+  const previewAcpConfig = vi.fn(async () => ({ values: { model: "sol" }, configOptions: options }));
+  const draftClient = { previewAcpConfig };
+  const cache = new QueryClient();
+  function CachedDraft({workspace}: {workspace: string}) {
+    return useAcpDraftComposer({
+      client: draftClient, projectId: "preview-cache", workspace,
+      initialEngine: "codex", configurationLabel: "配置", engineLabel: "Agent", retryLabel: "重试",
+    }).controls;
+  }
+  const view = (workspace: string) => (
+    <QueryClientProvider client={cache}>
+      <SelectedEnginesContext value={["codex", "acp-codefree-o"]}>
+        <CachedDraft workspace={workspace} />
+      </SelectedEnginesContext>
+    </QueryClientProvider>
+  );
+  const screen = await render(view("/work/a"));
+  const browse = async () => {
+    await screen.getByRole("button", { name: "Codex / 6.1 Sol", exact: true }).click();
+    await screen.getByRole("tab", { name: "codefree-o", exact: true }).click();
+    await expect.element(screen.getByRole("option", { name: /6.1 Sol/ })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+  };
+  try {
+    await browse();
+    await browse();
+    expect(previewAcpConfig).toHaveBeenCalledTimes(2);
+    await screen.rerender(view("/work/b"));
+    await browse();
+    expect(previewAcpConfig).toHaveBeenCalledTimes(4);
+    await screen.rerender(view("/work/a"));
+    await browse();
+    expect(previewAcpConfig).toHaveBeenCalledTimes(4);
+    await cache.invalidateQueries({ queryKey: ["acp-preview", "acp-codefree-o"] });
+    await browse();
+    expect(previewAcpConfig).toHaveBeenCalledTimes(5);
+  } finally {
+    await screen.unmount();
+    cache.clear();
+  }
+});
 it("合并 Agent 与模型入口，保留原始模型值并支持搜索和收藏", async () => {
   sessionStorage.clear();
   localStorage.removeItem("codexly:acp-model-favorites:v1");

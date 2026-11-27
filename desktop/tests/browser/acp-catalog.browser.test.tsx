@@ -40,7 +40,7 @@ for (const width of [390, 1280])
           {
             ...initial.agents[0]!,
             installed: true,
-            enabled: true,
+            enabled: false,
             command: "/bin/gemini",
             args: ["--acp"],
           },
@@ -52,7 +52,19 @@ for (const width of [390, 1280])
         { ...initial.agents[0]!, ...input, installed: true, detected: false, environmentKeys: [] },
       ],
     }));
+    let signedIn = false;
+    let baseUrl = "";
+    const providers = {
+      providers: [{ providerId: "openai", supported: ["openai"], required: false, current: null }],
+      restartRequired: false,
+    };
     const client = {
+      authenticateAcpAgent: async () => { signedIn = true; },
+      getAcpProviders: async () => providers,
+      configureAcpProvider: async (_engine: AgentEngine, config: { baseUrl: string }) => {
+        baseUrl = config.baseUrl;
+        return providers;
+      },
       getAcpAgentCatalog: vi.fn(async () => initial),
       getAcpAgentCatalogProgress: async (): Promise<AcpAgentCatalogProgress> => ({
         operations: [{
@@ -65,7 +77,9 @@ for (const width of [390, 1280])
       getAcpAgent: async (engine: AgentEngine) => ({
         engine,
         protocolVersion: 2,
-        authStatus: { kind: "none" as const, label: "Not signed in" },
+        providerConfiguration: true as const,
+        ...(baseUrl ? { connection: { source: "application" as const, baseUrl, apiType: "openai", hasCredentials: true } } : {}),
+        authStatus: { kind: signedIn ? ("account" as const) : ("none" as const), label: "Google" },
         authMethods: [{ id: "login", name: "Google" }],
       }),
       getAcpDefaults: vi.fn().mockRejectedValue(new Error("Authentication required")),
@@ -107,7 +121,7 @@ for (const width of [390, 1280])
       .toHaveFocus();
     await screen.getByRole("button", { name: "添加 Agent", exact: true }).click();
     expect(install).not.toHaveBeenCalled();
-    await page.getByRole("button", { name: "安装并启用" }).click();
+    await page.getByRole("button", { name: "安装" }).click();
     await expect.element(page.getByRole("progressbar", { name: "正在下载安装包" }))
       .toHaveAttribute("aria-valuenow", "50");
     await expect.element(close).toBeDisabled();
@@ -126,6 +140,24 @@ for (const width of [390, 1280])
       "acp-gemini",
       expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
+    const toggle = screen.getByRole("switch", { name: "启用 Gemini CLI" });
+    await expect.element(toggle).not.toBeChecked();
+    await expect.element(toggle).toBeDisabled();
+    if (width === 390) {
+      await screen.getByRole("button", { name: "在浏览器中登录" }).click();
+    } else {
+      await screen.getByRole("combobox", { name: "连接方式", exact: true }).click();
+      await page.getByRole("option", { name: "自定义 API", exact: true }).click();
+      await screen.getByRole("textbox", { name: "API 地址", exact: true }).fill("https://custom.example/v1");
+      await screen.getByRole("button", { name: "保存连接", exact: true }).click();
+    }
+    await expect.element(toggle).toBeEnabled();
+    await expect.element(toggle).not.toBeChecked();
+    await toggle.click();
+    await expect.element(toggle).toBeChecked();
+    await toggle.click();
+    await expect.element(toggle).not.toBeChecked();
+    configure.mockClear();
     await screen.getByRole("button", { name: "添加 Agent", exact: true }).click();
     await page.getByRole("button", { name: "配置自定义 Agent" }).click();
     await page.getByRole("textbox", { name: "名称", exact: true }).fill("本机助手");
@@ -137,7 +169,7 @@ for (const width of [390, 1280])
       name: "本机助手",
       command: "/path with spaces/agent",
       args: ["--acp", "a b"],
-      enabled: true,
+      enabled: false,
     });
     await screen.unmount();
   });

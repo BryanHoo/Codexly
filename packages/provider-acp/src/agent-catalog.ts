@@ -1,7 +1,18 @@
 import { findAgentExecutable, type AgentCommand } from "./agent-executable.js";
-import { lstat, mkdir, open, readFile, readdir, rename, rm, stat } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  stat,
+} from "node:fs/promises";
 import { basename, isAbsolute, join, relative, sep } from "node:path";
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
@@ -14,12 +25,13 @@ import {
   type AcpAgentOperation,
   type AgentEngine,
 } from "@codexly/protocol";
-import snapshot from "./registry-snapshot.json" with { type: "json" };
+import { codefreeAgent, findAgentUpdate, registry, registryAliases } from "./agent-registry.js";
 import type { AcpStorageLeases } from "./storage-lease.js";
 import { installRegistryAgent, type RegistryAgent } from "./agent-installer.js";
-import { findRegistryUpdate, isStableAgentVersion } from "./agent-registry-update.js";
+import { isStableAgentVersion } from "./agent-registry-update.js";
 interface Dependencies {
   find(name: string): Promise<string | undefined>;
+  connected?(engine: AgentEngine): Promise<boolean>;
   install(
     agent: RegistryAgent,
     directory: string,
@@ -55,26 +67,6 @@ type Installation = Static<typeof Installed>;
 type CatalogRecord = Static<typeof RecordSchema>;
 const registered = (record: CatalogRecord | undefined): Installation | undefined =>
   record && !("removed" in record) ? record : undefined;
-const registry = new Map(snapshot.agents.map((entry) => [engineOf(entry.id), entry]));
-const aliases: Record<string, string[]> = {
-  "codex-acp": ["codex"],
-  "claude-acp": ["claude"],
-  gemini: ["gemini"],
-  cursor: ["cursor-agent"],
-  "github-copilot-cli": ["copilot"],
-  "qwen-code": ["qwen"],
-  "mistral-vibe": ["vibe-acp"],
-  "codebuddy-code": ["codebuddy"],
-  "pi-acp": ["pi"],
-  "factory-droid": ["droid"],
-  "kimi-code": ["kimi-code"],
-  "fast-agent": ["fast-agent-acp"],
-  "grok-build": ["grok"],
-  "antigravity-acp": ["agy_acp_server"],
-};
-function engineOf(id: string): AgentEngine {
-  return id === "codex-acp" ? "codex" : id === "claude-acp" ? "claude" : `acp-${id}`;
-}
 /** 每个 Agent 独立原子记录；持锁后重读，多个 Web/桌面宿主不能覆盖彼此配置。 */
 export class AcpAgentCatalog {
   readonly #pending = new Map<AgentEngine, Promise<void>>();
@@ -218,7 +210,7 @@ export class AcpAgentCatalog {
     try {
       for (const [engine, entry] of registry) {
         this.#controller.signal.throwIfAborted();
-        const names = aliases[entry.id] ?? [entry.id];
+        const names = registryAliases[entry.id] ?? [entry.id];
         let found: string | undefined;
         for (const name of names) {
           found = await this.#dependencies.find(name);
@@ -237,9 +229,12 @@ export class AcpAgentCatalog {
           )
             await this.#install(engine, "automatic");
           else {
-            const distribution = entry.distribution as RegistryAgent["distribution"];
+            const distribution = entry.distribution;
             const binary = Object.values(distribution.binary ?? {})[0];
             const spec = distribution.npx ?? distribution.uvx ?? binary;
+            // CodeFree O 的 npm 入口可能位于 fnm 的临时 PATH 中，优先保存真实路径。
+            const command =
+              entry === codefreeAgent ? await realpath(found).catch(() => found) : found;
             await this.#operate(engine, entry.name, "automatic", async (report) => {
               report({ stage: "publishing" });
               await this.#write(engine, (current) =>
@@ -248,10 +243,10 @@ export class AcpAgentCatalog {
                   : {
                       engine,
                       name: entry.name,
-                      command: found,
+                      command,
                       args: spec?.args ?? [],
                       env: spec?.env ?? {},
-                      enabled: true,
+                      enabled: false,
                     },
               );
             });
@@ -358,7 +353,7 @@ export class AcpAgentCatalog {
     return this.#install(engine, "update");
   }
   #install(engine: AgentEngine, action: "automatic" | "install" | "update"): Promise<void> {
-    const entry = registry.get(engine) as RegistryAgent | undefined;
+    const entry = registry.get(engine);
     if (!entry) return Promise.reject(new Error("Agent 不在官方目录，请配置本机 ACP 启动命令"));
     return this.#operate(engine, entry.name, action, async (report) => {
       let staged: string | undefined;
@@ -368,21 +363,17 @@ export class AcpAgentCatalog {
         async (stored) => {
           if (action === "automatic" && stored) return;
           const record = registered(stored);
-          let release = entry;
+          let release: RegistryAgent = entry;
           if (action === "update") {
             if (!record || !this.#managed(record, entry))
               throw new Error("此 Agent 由本机管理，请通过原安装方式更新");
             report({ stage: "checking" });
             // 持安装锁重读本地版本，另一宿主已更新时只检查目录，不重复下载。
             const installedVersion = await this.#installedVersion(record, entry);
-            const update = await findRegistryUpdate(
-              entry,
-              installedVersion,
-              this.#controller.signal,
-            );
+            const update = await findAgentUpdate(entry, installedVersion, this.#controller.signal);
             if (!update) return;
             release = update;
-          } else if (record) return { ...record, enabled: true };
+          } else if (record) return;
           await this.#checkRuntimeParent(engine);
           // 每次安装使用新目录；更新失败或记录尚未发布时，旧路径仍然可用。
           const revision = `revision-${randomUUID()}`;
@@ -403,7 +394,7 @@ export class AcpAgentCatalog {
             engine,
             name: record?.name ?? entry.name,
             env,
-            enabled: record?.enabled ?? true,
+            enabled: record?.enabled ?? false,
             managed: { version: release.version, revision },
           };
         },
@@ -445,17 +436,20 @@ export class AcpAgentCatalog {
   }
   async configure(input: AcpAgentRegistration): Promise<void> {
     if (!Value.Check(AcpAgentRegistrationSchema, input)) throw new Error("ACP Agent 配置无效");
-    await this.#write(input.engine, (stored) => {
+    await this.#write(input.engine, async (stored) => {
       const current = registered(stored);
+      const env = input.env ?? current?.env;
+      const sameCommand =
+        current?.command === input.command && isDeepStrictEqual(current.args, input.args);
+      const enabled = input.enabled && sameCommand && isDeepStrictEqual(current.env, env);
+      // 先按关闭状态登记启动配置；启用时在锁内核验当前这份配置的连接。
+      if (enabled && !(await this.#dependencies.connected?.(input.engine)))
+        throw new Error("请先登录账号或连接自定义 API");
       return {
         ...input,
-        ...(input.env === undefined && current?.env ? { env: current.env } : {}),
-        ...(current?.managed &&
-        input.command === current.command &&
-        input.args.length === current.args.length &&
-        input.args.every((arg, index) => arg === current.args[index])
-          ? { managed: current.managed }
-          : {}),
+        enabled,
+        ...(env ? { env } : {}),
+        ...(sameCommand && current.managed ? { managed: current.managed } : {}),
       };
     });
     this.#errors.delete(input.engine);
@@ -464,9 +458,10 @@ export class AcpAgentCatalog {
     this.#controller.abort();
     await Promise.allSettled([this.#discovery, ...this.#pending.values()]);
   }
-  async command(engine: AgentEngine): Promise<AgentCommand> {
+  async command(engine: AgentEngine, allowDisabled = false): Promise<AgentCommand> {
     const record = registered(await this.#read(engine));
-    if (!record?.enabled) throw new Error("请先在 ACP 中安装并启用此 Agent");
+    if (!record || (!record.enabled && !allowDisabled))
+      throw new Error("请先在 ACP 中安装并启用此 Agent");
     let env = record.env;
     const executableKey =
       engine === "codex"

@@ -14,6 +14,8 @@ export class AcpProviderConnection {
   #instance: AcpConnection | undefined;
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
   #closed = false;
+  #previews = 0;
+  #warmedByPreview = false;
 
   constructor(
     private readonly connect: (callbacks: AcpClientCallbacks) => Promise<AcpConnection>,
@@ -24,6 +26,20 @@ export class AcpProviderConnection {
 
   get instance(): AcpConnection | undefined {
     return this.#instance;
+  }
+
+  async preview<T>(run: (connection: AcpConnection) => Promise<T>): Promise<T> {
+    this.#previews++;
+    this.#warmedByPreview = true;
+    this.#clearTimer();
+    try {
+      const connection = await this.get();
+      if (!connection.canCloseSessions) throw new Error("ACP Agent 无法释放预览会话");
+      return await run(connection);
+    } finally {
+      this.#previews--;
+      this.recycleIdle();
+    }
   }
 
   async deleteSession(taskId: string, sessionId: string | null): Promise<void> {
@@ -114,7 +130,9 @@ export class AcpProviderConnection {
   }
 
   get #allDetached(): boolean {
-    return this.detached.size > 0 && this.detached.size === this.sessions.size;
+    return (
+      (this.#warmedByPreview || this.detached.size > 0) && this.detached.size === this.sessions.size
+    );
   }
 
   recycleIdle(): void {
@@ -122,6 +140,7 @@ export class AcpProviderConnection {
     if (
       !agent ||
       this.#closed ||
+      this.#previews > 0 ||
       !this.isIdle() ||
       agent.hasBackgroundWork() ||
       this.subagents.hasWork()
@@ -135,7 +154,7 @@ export class AcpProviderConnection {
     // 全部绑定均为已结束的临时任务时，无需恢复能力也能整体回收。
     // 混有持久任务的连接仍保持保守策略，不能丢失无法恢复的上下文。
     const disposable = this.#allDetached && this.#disposable.size === this.sessions.size;
-    if (!agent.canRestoreSessions && !disposable) return;
+    if (this.sessions.size && !agent.canRestoreSessions && !disposable) return;
     if (this.detached.size && agent.atSessionCapacity) {
       this.#clear();
       agent.close();
@@ -144,6 +163,7 @@ export class AcpProviderConnection {
         this.#idleTimer = undefined;
         if (
           this.#instance === agent &&
+          this.#previews === 0 &&
           this.isIdle() &&
           this.#allDetached &&
           !agent.hasBackgroundWork() &&
@@ -168,6 +188,7 @@ export class AcpProviderConnection {
     this.#clearTimer();
     this.#pending = undefined;
     this.#instance = undefined;
+    this.#warmedByPreview = false;
     this.sessions.clear();
     this.subagents.clear();
     this.detached.clear();

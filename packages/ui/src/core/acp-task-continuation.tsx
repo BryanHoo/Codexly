@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { agentEngineName, type AcpConfigOption, type AgentEngine } from "@codexly/protocol";
+import { agentEngineName, type AgentEngine } from "@codexly/protocol";
 import { AcpModelSelector, type AcpModelSelectorProps } from "./acp-model-selector.js";
 import { Button } from "./button.js";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./dialog.js";
 import { useSelectedEngines } from "./engine-selection.js";
-import { useAcpDraft, type AcpDraftClient } from "./use-acp-draft.js";
+import { useAcpDraft, useAcpModelOptions, type AcpDraftClient } from "./use-acp-draft.js";
 
 export function useAcpTaskContinuation(
   input: AcpModelSelectorProps & {
@@ -70,23 +70,7 @@ export function useAcpTaskContinuation(
     taskId,
   ]);
 
-  const loadOptions = useCallback(
-    async (next: AgentEngine, signal: AbortSignal): Promise<readonly AcpConfigOption[]> => {
-      if (!preview) return [];
-      const config = await preview.call(
-        client,
-        projectId,
-        next,
-        {
-          values: {},
-          ...(projectId !== "temporary" && workspace ? { workspacePath: workspace } : {}),
-        },
-        { signal },
-      );
-      return config.configOptions;
-    },
-    [client, preview, projectId, workspace],
-  );
+  const loadOptions = useAcpModelOptions(client, projectId, workspace);
 
   const selectTarget = (next: AgentEngine, model?: { id: string; value: string }) => {
     if (input.disabled || draft.isSaving || draft.hasSubmission) return;

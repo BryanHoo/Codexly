@@ -142,6 +142,78 @@ async function fixture(nativeStatus?: () => Record<string, unknown>) {
   };
 }
 
+it("CodeFree O 复用已验证连接与草稿预览，凭据更新后重新读取", async () => {
+  const f = await fixture();
+  let revision = "first";
+  const service = new AcpAgentService(
+    "acp-codefree-o",
+    f.root,
+    f.store,
+    f.launch,
+    undefined,
+    undefined,
+    () => Promise.resolve(revision),
+  );
+  try {
+    expect((await service.inspect()).authStatus?.kind).toBe("account");
+    await service.inspect();
+    expect(f.launch).toHaveBeenCalledTimes(1);
+    await service.previewConfig(f.root, { values: {} });
+    await service.previewConfig(f.root, { values: {} });
+    expect(f.closed).toHaveBeenCalledTimes(1);
+    revision = "second";
+    await service.inspect();
+    expect(f.launch).toHaveBeenCalledTimes(2);
+    await service.previewConfig(f.root, { values: {} });
+    expect(f.closed).toHaveBeenCalledTimes(2);
+    revision = "";
+    expect((await service.inspect()).authStatus?.kind).toBe("none");
+  } finally {
+    await service.close();
+    await f.dispose();
+  }
+});
+
+it("CodeFree O 在浏览模型后沿用同一个项目进程建立聊天会话", async () => {
+  const f = await fixture();
+  const auth = join(f.root, ".codefree-o", ".local", "share");
+  const store = withStorageCatalog({
+    catalog: () => Promise.reject(new Error("测试不应写入任务目录")),
+  });
+  const runtime = new AcpRuntime(f.root, store, f.launch);
+  const scope = {
+    id: "temporary",
+    rootPath: f.root,
+    kind: "temporary" as const,
+    runtimeWorkspaceRoots: [f.root],
+  };
+  try {
+    await mkdir(auth, { recursive: true });
+    await writeFile(join(auth, "codefree.json"), "{}");
+    const engine = "acp-codefree-o";
+    await runtime.catalog.configure({
+      engine,
+      command: "codefree-o",
+      args: ["acp"],
+      name: "CodeFree O",
+      enabled: true,
+      env: { OPENCODE_TEST_HOME: f.root },
+    });
+    const agent = runtime.agents[engine];
+    if (!agent) throw new Error("缺少测试 Agent");
+    await agent.previewConfig(f.root, { values: {} }, undefined, scope);
+    const provider = runtime.forScope(scope);
+    const task = await provider.startTask({ engine, ephemeral: true });
+    await provider.readTask(task.id);
+    expect(f.launch).toHaveBeenCalledOnce();
+    expect(f.launch.mock.calls[0]?.[1]).toEqual(scope);
+    expect(f.closed).toHaveBeenCalledTimes(1);
+  } finally {
+    await runtime.close();
+    await f.dispose();
+  }
+});
+
 it("认证问卷只交给同一连接、同一 RPC 和发起认证的操作", async () => {
   const f = await fixture();
   const attemptId = "7f520c60-48ea-4546-91fb-54281741f75c";

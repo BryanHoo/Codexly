@@ -36,6 +36,7 @@ import {
   type AgentProviderTaskSnapshot,
 } from "@codexly/core";
 import type { AcpRuntime } from "./runtime.js";
+import { CODEFREE_ENGINE } from "./codefree-authorization.js";
 export const ACP_HOST_RESPONSE_SENT = Symbol("acpHostResponseSent");
 
 const Scope = Type.Object(
@@ -175,7 +176,10 @@ export async function dispatchAcpHost(
         if (!Value.Check(AcpConfigPreviewRequestSchema, input))
           throw new Error("Invalid preview input");
         signal.throwIfAborted();
-        return service.previewConfig(message["scope"].rootPath, input, signal);
+        const scope = message["scope"];
+        return engine === CODEFREE_ENGINE
+          ? service.previewConfig(scope.rootPath, input, signal, scope)
+          : service.previewConfig(scope.rootPath, input, signal);
       }
       case "settings.read":
         return service.readDefaults();
