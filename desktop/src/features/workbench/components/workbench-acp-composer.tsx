@@ -111,6 +111,7 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
       key={props.taskId}
       session={session.session}
       turnId={props.runtime?.activeTurnId ?? null}
+      taskFailed={props.runtime?.metadata?.status === "failed"}
       language={configuration.language}
     />
     <WorkbenchComposerBase

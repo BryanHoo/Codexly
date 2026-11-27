@@ -37,6 +37,10 @@ pub(super) async fn catalog_loop(
                 | "acp.title.claim"
                 | "acp.title.finish"
                 | "acp.session.background"
+                // 默认配置读取可能触发历史目录发现，需要项目、已有绑定和后台会话索引。
+                | "project.list"
+                | "task.bindings"
+                | "acp.session.background.list"
                 | "acp.session.rebind"
                 | "acp.storage.read"
                 | "acp.storage.claim"
@@ -174,7 +178,7 @@ pub(super) async fn stderr_loop<R: AsyncRead + Unpin>(mut reader: R, tail: Stder
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn acp_application_catalog_should_support_auxiliary_generation_and_titles() {
+    async fn acp_application_catalog_should_support_discovery_generation_and_titles() {
         use super::super::transport::writer_loop;
         use tokio::io::{AsyncBufReadExt, BufReader};
         let root = tempfile::tempdir().unwrap();
@@ -184,15 +188,15 @@ mod tests {
             .call("task.patch", json!({"id":"new","sessionId":"native"}))
             .await
             .unwrap();
+        let task = catalog
+            .call("task.read", json!({"id":"new"}))
+            .await
+            .unwrap();
         let (transport, outbound) = Transport::new();
         let (writer, reader) = tokio::io::duplex(8192);
         let writing = tokio::spawn(writer_loop(writer, outbound, Arc::clone(&transport)));
         let (sender, receiver) = mpsc::channel(1);
-        let serving = tokio::spawn(catalog_loop(
-            receiver,
-            catalog.clone(),
-            Arc::clone(&transport),
-        ));
+        let serving = tokio::spawn(catalog_loop(receiver, catalog, Arc::clone(&transport)));
         let mut lines = BufReader::new(reader).lines();
         for (operation, payload, expected) in [
             (
@@ -216,6 +220,14 @@ mod tests {
                 "acp.session.background",
                 json!({"engine":"acp-test","sessionId":"helper"}),
                 serde_json::Value::Null,
+            ),
+            // 常规 Rust 测试也经宿主桥接验证历史发现的三项查询，无需预先编译 sidecar。
+            ("project.list", serde_json::Value::Null, json!([])),
+            ("task.bindings", serde_json::Value::Null, json!([task])),
+            (
+                "acp.session.background.list",
+                json!({"engine":"acp-test"}),
+                json!(["helper"]),
             ),
             (
                 "acp.title.claim",
@@ -250,13 +262,6 @@ mod tests {
         drop(sender);
         serving.await.unwrap();
         writing.abort();
-        assert_eq!(
-            catalog
-                .call("acp.session.background.list", json!({"engine":"acp-test"}))
-                .await
-                .unwrap(),
-            json!(["helper"]),
-        );
     }
     #[tokio::test]
     async fn stderr_should_keep_only_bounded_redacted_error_codes() {

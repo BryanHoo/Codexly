@@ -17,6 +17,16 @@ it("回执不展示发送提示，后台工作由上下文区域展示", async (
   await expect.element(screen.getByText("等待操作")).toBeVisible();
 });
 
+it("任务失败后不继续显示旧的 ACP 前台运行状态", async () => {
+  const session: AcpSessionState = {
+    availableCommands: [], configOptions: [], foreground: "running",
+  };
+  const screen = await render(<AcpActivity language="zh-CN" session={session} />);
+  await expect.element(screen.getByText("任务正在运行")).toBeVisible();
+  await screen.rerender(<AcpActivity language="zh-CN" session={session} taskFailed />);
+  await expect.element(screen.getByText("任务正在运行")).not.toBeInTheDocument();
+});
+
 it.each([
   ["light", 260], ["light", 360], ["dark", 260], ["dark", 360],
 ] as const)("后台任务在 %s 主题、%spx 侧栏下保持紧凑且支持停止重试", async (theme, width) => {

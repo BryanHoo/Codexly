@@ -1,7 +1,7 @@
 use super::*;
 
 #[tokio::test]
-async fn compiled_acp_host_should_generate_with_the_native_catalog() {
+async fn compiled_acp_host_should_read_defaults_and_generate_with_the_native_catalog() {
     let Some(host) = std::env::var_os("CODEXLY_COMPILED_ACP_HOST") else {
         return;
     };
@@ -14,7 +14,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const { id, method, params } = JSON.parse(line);
   if (method === "initialize") {
     send({ id, result: { protocolVersion: 1, agentCapabilities: {
-      sessionCapabilities: { close: {} }, _meta: { authStatus: true },
+      sessionCapabilities: { close: {}, list: {} }, _meta: { authStatus: true },
     } } });
     send({ method: "_auth/status_update", params: { authStatus: { kind: "account", label: "Test" } } });
   }
@@ -23,6 +23,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     configOptions: [{ id: "model", name: "Model", category: "model", type: "select",
       currentValue: "test", options: [{ value: "test", name: "Test" }] }],
   } });
+  if (method === "session/list") send({ id, result: { sessions: [] } });
   if (method === "session/prompt") {
     const input = params.prompt.find((block) => block.type === "text").text;
     const text = input.includes('{"title":') ? '{"title":"自动任务标题"}'
@@ -101,6 +102,18 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     )
     .await
     .unwrap();
+    // 支持会话发现的 Agent 读取默认值时也会查询本地目录，必须通过真实的桌面桥接。
+    let defaults = transport
+        .request_acp(
+            "settings.read",
+            None,
+            json!({"engine":"codex"}),
+            Instant::now() + Duration::from_secs(10),
+        )
+        .await
+        .expect("历史目录读取成功后应返回会话默认配置");
+    assert_eq!(defaults["configOptions"][0]["currentValue"], "test");
+
     let preferences = &crate::infrastructure::local_catalog::application_preferences::contract()
         .unwrap()["defaults"];
     for (purpose, expected) in [

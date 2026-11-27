@@ -255,6 +255,40 @@ async fn queued_events_and_snapshots_should_preserve_barriers_and_bound_memory()
 }
 
 #[tokio::test]
+async fn event_burst_should_resume_after_queue_drains_and_preserve_order() {
+    let (transport, _writes) = Transport::new();
+    let (catalog, _catalogs, lanes, mut events) = routes();
+    let (reader, mut output) = tokio::io::duplex(32 * 1024);
+    let worker = tokio::spawn(reader_loop(reader, Arc::clone(&transport), catalog, lanes));
+    let capacity = events.max_capacity();
+    let count = capacity * 4;
+    for index in 0..count {
+        let frame = json!({"projectId":"p","event":{"type":"message.delta","index":index}});
+        output
+            .write_all(format!("{frame}\n").as_bytes())
+            .await
+            .unwrap();
+    }
+    // 等 reader 实际读到第一个溢出帧，再启动消费者，排除调度偶然避开满队列的情况。
+    let start = Instant::now();
+    while !transport.stopped.is_cancelled() && events.len() < capacity {
+        assert!(start.elapsed() < Duration::from_secs(2));
+        tokio::task::yield_now().await;
+    }
+    tokio::task::yield_now().await;
+    assert!(!transport.stopped.is_cancelled(), "事件积压不能中止宿主");
+    for index in 0..count {
+        let frame = timeout(Duration::from_secs(2), events.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(frame.message["event"]["index"], index);
+    }
+    assert_eq!(transport.inbound_budget.available_permits(), QUEUE_BYTES);
+    worker.abort();
+}
+
+#[tokio::test]
 async fn broken_pipe_should_wake_requests_and_allow_a_fresh_transport() {
     let (transport, writes) = Transport::new();
     let (writer, peer) = tokio::io::duplex(64);

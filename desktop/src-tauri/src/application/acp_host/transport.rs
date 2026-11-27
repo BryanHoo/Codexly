@@ -5,17 +5,19 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicU64, Ordering},
     },
+    time::Duration,
 };
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{OwnedSemaphorePermit, Semaphore, mpsc, oneshot},
-    time::{Instant, timeout_at},
+    time::{Instant, timeout, timeout_at},
 };
 use tokio_util::sync::CancellationToken;
 
 pub(super) const MAX_FRAME: usize = 8 * 1024 * 1024;
 pub(super) const QUEUE_BYTES: usize = 16 * 1024 * 1024;
 pub(super) const LANES: usize = 8;
+const EVENT_QUEUE_STALL: Duration = Duration::from_secs(3);
 /// 仅公布可安全撤销的 ACP 全局操作；配置写入不能据等待取消推断提交失败。
 pub(crate) fn cancellable_acp_request(method: &str) -> bool {
     matches!(
@@ -246,22 +248,41 @@ pub(super) async fn writer_loop<W: AsyncWrite + Unpin>(
     }
 }
 
-fn enqueue(
-    sender: &mpsc::Sender<Routed>,
+fn reserve_frame(
     message: Value,
     size: usize,
     transport: &Transport,
-) -> Result<(), &'static str> {
+) -> Result<Routed, &'static str> {
     let budget = Arc::clone(&transport.inbound_budget)
         .try_acquire_many_owned(size as u32)
         .map_err(|_| "ACP host inbound byte budget exceeded")?;
-    // reader 绝不等待慢消费者；关键帧不能静默丢弃，预算耗尽时显式断连恢复。
-    sender
-        .try_send(Routed {
-            message,
-            _budget: budget,
-        })
-        .map_err(|_| "ACP host inbound queue capacity exceeded")
+    Ok(Routed {
+        message,
+        _budget: budget,
+    })
+}
+
+async fn enqueue_event(
+    sender: &mpsc::Sender<Routed>,
+    frame: Routed,
+    stopped: &CancellationToken,
+) -> Result<(), &'static str> {
+    let frame = match sender.try_send(frame) {
+        Ok(()) => return Ok(()),
+        Err(mpsc::error::TrySendError::Full(frame)) => frame,
+        Err(mpsc::error::TrySendError::Closed(_)) => return Err("ACP host event consumer closed"),
+    };
+    // 事件突发时只保留一个已计入字节预算的待投递帧，通过管道背压等待队列短暂腾空。
+    // 项目内的事件和快照依次交付，消费者持续停滞才结束传输，避免无限阻塞后续请求。
+    tokio::select! {
+        biased;
+        _ = stopped.cancelled() => Err("ACP host stopped"),
+        result = timeout(EVENT_QUEUE_STALL, sender.send(frame)) => match result {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) => Err("ACP host event consumer closed"),
+            Err(_) => Err("ACP host event queue stalled"),
+        }
+    }
 }
 
 pub(super) async fn reader_loop<R: AsyncRead + Unpin>(
@@ -292,7 +313,9 @@ pub(super) async fn reader_loop<R: AsyncRead + Unpin>(
             let message: Value =
                 serde_json::from_slice(&line).map_err(|_| "ACP host invalid stdout JSON")?;
             if message["catalogId"].as_u64().is_some() {
-                enqueue(&catalog, message, size, &transport)?;
+                catalog
+                    .try_send(reserve_frame(message, size, &transport)?)
+                    .map_err(|_| "ACP host inbound catalog queue unavailable")?;
             } else if message["id"].as_u64().is_some() && message["snapshotProjectId"].is_null() {
                 transport.respond(message);
             } else if message["event"].is_object() || message["snapshotProjectId"].is_string() {
@@ -335,7 +358,8 @@ pub(super) async fn reader_loop<R: AsyncRead + Unpin>(
                         );
                     }
                 }
-                enqueue(&lanes[lane], message, size, &transport)?;
+                let frame = reserve_frame(message, size, &transport)?;
+                enqueue_event(&lanes[lane], frame, &transport.stopped).await?;
             } else {
                 return Err("ACP host invalid stdout envelope");
             }

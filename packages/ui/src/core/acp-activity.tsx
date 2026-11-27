@@ -19,12 +19,16 @@ type Work = NonNullable<AcpSessionState["background"]>[number];
 export const AcpActivity = memo(function AcpActivity({
   session,
   turnId,
+  taskFailed,
   language,
 }: Readonly<{
   session: AcpSessionState | undefined;
   turnId?: string | null;
+  taskFailed?: boolean;
   language: string;
 }>) {
+  // 宿主断连后，已投影的任务失败状态优先于断连前缓存的 ACP 前台状态。
+  if (taskFailed && !turnId) return null;
   const zh = language === "zh-CN";
   const foreground = session?.foreground;
   const status =
