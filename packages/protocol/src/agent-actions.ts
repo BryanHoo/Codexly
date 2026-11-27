@@ -378,6 +378,7 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("PET_DOWNLOAD_FAILED"),
   Type.Literal("SKILL_DIRECTORY_UNAVAILABLE"),
   Type.Literal("PROVIDER_ERROR"),
+  Type.Literal("ACP_AUTH_REQUIRED"),
   Type.Literal("GLOBAL_INSTRUCTIONS_CHANGED"),
   Type.Literal("TEXT_FILE_CONFLICT"),
   Type.Literal("TEXT_FILE_UNSUPPORTED"),

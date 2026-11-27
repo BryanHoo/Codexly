@@ -11,7 +11,7 @@ import {
   AcpComposerLeading,
   AcpComposerReasoning,
 } from "./acp-model-selector.js";
-import type { AgentEngine } from "@codexly/protocol";
+import type { AcpConfigOption, AgentEngine } from "@codexly/protocol";
 
 const defaultEngines: readonly AgentEngine[] = ["codex", "claude"];
 /** 两端共用引擎选择与原始草稿配置，只协商当前选中的 agent。 */
@@ -37,39 +37,86 @@ export function useAcpDraftComposer(
   const [selection, setSelection] = useState<{
     scope: string;
     engine: AgentEngine;
-    model?: { id: string; value: string };
+    model?: { id: string; value: string; workspace: string };
   }>(() => ({ scope, engine: inherited }));
   const selected = selection.scope === scope ? selection.engine : inherited;
   const engine = engines.includes(selected) ? selected : defaultAcpDraftEngine(engines);
   const draft = useAcpDraft({ ...input, engine, enabled: engines.length > 0 });
-  // 跨 Agent 选择先切换草稿归属，等待该引擎协商完成后再提交原始模型值。
-  // 每个选择只消费一次；旧 binding 的取消和结果隔离仍由 useAcpDraft 负责。
+  const requested =
+    selection.scope === scope &&
+    selection.engine === engine &&
+    selection.model?.workspace === input.workspace
+      ? selection.model
+      : undefined;
+  // 冷启动期间暂存模型选择，真实会话就绪后校验。切换工作目录时忽略旧目录的选择。
   useEffect(() => {
-    if (
-      selection.scope !== scope ||
-      selection.engine !== engine ||
-      !selection.model ||
-      !draft.preview ||
-      draft.isPending ||
-      draft.isSaving
-    )
-      return;
-    const requested = selection.model;
+    if (!requested || !draft.preview || draft.isPending || draft.isSaving) return;
     setSelection((current) => (current === selection ? { scope, engine } : current));
     void draft.setConfig(requested.id, requested.value);
-  }, [selection, scope, engine, draft.preview, draft.isPending, draft.isSaving, draft.setConfig]);
+  }, [
+    selection,
+    requested,
+    scope,
+    engine,
+    draft.preview,
+    draft.isPending,
+    draft.isSaving,
+    draft.setConfig,
+  ]);
   const loadOptions = useAcpModelOptions(input.client, input.projectId, input.workspace);
+  const [catalog, setCatalog] = useState<{
+    load: typeof loadOptions;
+    options: readonly AcpConfigOption[];
+  }>();
+  const useNativeCatalog = engine === "acp-codefree-o" && !draft.preview && !draft.hasSubmission;
+  const [catalogAttempt, retryCatalog] = useState(0);
+  useEffect(() => {
+    if (!useNativeCatalog) return;
+    // 模型目录独立于会话预热。预热失败时继续读取，直到切换工作区或得到 ACP 配置。
+    const controller = new AbortController();
+    void loadOptions(engine, controller.signal).then(
+      (options) => {
+        if (!controller.signal.aborted) setCatalog({ load: loadOptions, options });
+      },
+      () => undefined,
+    );
+    return () => {
+      controller.abort();
+    };
+  }, [engine, useNativeCatalog, loadOptions, catalogAttempt]);
+  const earlyOptions =
+    useNativeCatalog && catalog?.load === loadOptions && catalog.options.length
+      ? catalog.options
+      : undefined;
+  const modelOptions = earlyOptions ?? draft.preview?.configOptions ?? [];
   const disabled = draft.isPending || draft.isSaving || engines.length === 0;
+  const chinese = (input.language ?? "zh-CN") === "zh-CN";
+  let error = draft.error;
+  if (engine === "acp-codefree-o") {
+    if (error?.message === "ACP_AUTH_REQUIRED")
+      error = new Error(
+        chinese
+          ? "请在「配置 Agent」中登录 CodeFree O，再重试。"
+          : "Sign in to CodeFree O in Configure agents, then try again.",
+      );
+    else if (useNativeCatalog && error?.message === "ACP_HOST_REQUEST_FAILED")
+      error = new Error(
+        chinese
+          ? "CodeFree O 会话准备失败，请重试。"
+          : "Could not prepare the CodeFree O session. Try again.",
+      );
+  }
   const common = {
     engine,
     client: input.client,
     options: draft.preview?.configOptions ?? [],
     disabled,
-    error: draft.error,
+    error,
     ...(input.language ? { language: input.language } : {}),
     retry: {
       label: input.retryLabel,
       run: () => {
+        if (useNativeCatalog && !earlyOptions) retryCatalog((attempt) => attempt + 1);
         void draft.reload();
       },
     },
@@ -77,10 +124,7 @@ export function useAcpDraftComposer(
   return {
     ...draft,
     engine,
-    isBusy:
-      disabled ||
-      draft.error !== null ||
-      (selection.scope === scope && selection.engine === engine && selection.model !== undefined),
+    isBusy: disabled || draft.error !== null || requested !== undefined,
     trailingControls: (
       <AcpComposerReasoning
         {...common}
@@ -103,18 +147,28 @@ export function useAcpDraftComposer(
       <AcpModelSelector
         {...common}
         engine={engine}
+        options={
+          requested
+            ? modelOptions.map((option) =>
+                option.type === "select" && option.id === requested.id
+                  ? { ...option, currentValue: requested.value }
+                  : option,
+              )
+            : modelOptions
+        }
+        disabled={earlyOptions ? draft.isSaving : disabled}
         engines={engines}
         locked={draft.hasSubmission}
-        loadingCurrent={draft.isPending && !draft.isSaving && !draft.hasSubmission}
+        loadingCurrent={!earlyOptions && draft.isPending && !draft.isSaving && !draft.hasSubmission}
         loadOptions={loadOptions}
         onSelect={(next, id, value) => {
-          if (next === engine) {
+          if (next === engine && !useNativeCatalog) {
             void draft.setConfig(id, value);
             return;
           }
           if (!draft.canChangeScope() || !engines.includes(next)) return;
           saveAcpDraftEngine(browserSetupStorage, scope, next);
-          setSelection({ scope, engine: next, model: { id, value } });
+          setSelection({ scope, engine: next, model: { id, value, workspace: input.workspace } });
         }}
       />
     ),

@@ -30,7 +30,7 @@ import {
   type AgentEngine,
   type AcpConfigValues,
 } from "@codexly/protocol";
-import type { AcpAgentServices } from "@codexly/core";
+import { AcpAuthenticationRequiredError, type AcpAgentServices } from "@codexly/core";
 import type { FastifyPluginCallback, FastifySchema, FastifySchemaCompiler } from "fastify";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { resolveProjectRoot, ProjectRootScopeError } from "../project-root-scope.js";
@@ -228,9 +228,15 @@ export const registerAcpRoutes: FastifyPluginCallback<{
           }
           // 预览与首发共用根目录授权，不能把任意浏览器路径交给 agent。
           // POST 正文结束不代表离开；预览只在响应断连或实际超时时取消。
-          return request.params.engine === "acp-codefree-o"
-            ? agent.previewConfig(cwd, request.body, signal, project.scope)
-            : agent.previewConfig(cwd, request.body, signal);
+          try {
+            return await (request.params.engine === "acp-codefree-o"
+              ? agent.previewConfig(cwd, request.body, signal, project.scope)
+              : agent.previewConfig(cwd, request.body, signal));
+          } catch (error) {
+            if (error instanceof AcpAuthenticationRequiredError)
+              throw new MutationHttpError("ACP_AUTH_REQUIRED", "ACP_AUTH_REQUIRED", 409);
+            throw error;
+          }
         },
         "ACP model preview request timed out",
       ),

@@ -10,7 +10,8 @@
   --file-border: light-dark(#e1e4e8, #444c56);
   --file-accent: light-dark(#0366d6, #539bf5);
   --file-selection: light-dark(#0366d625, #539bf540);
-  --file-active-line: light-dark(#f6f8fa, #636e7b1a);
+  /* CodeMirror 在当前行下方绘制选区，两种主题的行背景都需要透出选区高亮。 */
+  --file-active-line: light-dark(#6688aa0f, #636e7b1a);
   --file-search-match: light-dark(#ffdf5d66, #eac55f40);
   --file-search-selected: light-dark(#ffdf5d, #966600);
   --file-bracket-match: light-dark(#34d05840, #57ab5a40);

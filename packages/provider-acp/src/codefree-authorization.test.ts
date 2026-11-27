@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
@@ -18,6 +18,53 @@ function authorization(state: string): string {
     code_challenge: "fixture",
   }).toString()}`;
 }
+
+it.each([false, true])("CodeFree O 草稿握手要求登录（凭据文件存在：%s）", async (hasFile) => {
+  const root = await mkdtemp(join(tmpdir(), "acp-codefree-expired-"));
+  const engine = "acp-codefree-o";
+  const runtime = new AcpRuntime(
+    root,
+    withStorageCatalog({
+      catalog: () => Promise.reject(new Error("Unexpected catalog operation")),
+    }),
+  );
+  try {
+    const url = authorization(
+      "http://127.0.0.1:4567/oauth2callback?from=codefree-o&randomCode=1234",
+    );
+    await mkdir(join(root, "agents"));
+    await writeFile(
+      join(root, "agents", `${engine}.json`),
+      JSON.stringify({
+        engine,
+        name: "CodeFree O",
+        enabled: true,
+        command: process.execPath,
+        args: ["-e", `console.error(${JSON.stringify(url)}); process.exitCode = 1`],
+        env: { OPENCODE_TEST_HOME: root },
+      }),
+    );
+    if (hasFile) {
+      const directory = join(root, ".codefree-o", ".local", "share");
+      await mkdir(directory, { recursive: true });
+      await writeFile(join(directory, "codefree.json"), "{}");
+    }
+    const scope = {
+      id: "temporary",
+      kind: "temporary" as const,
+      rootPath: root,
+      runtimeWorkspaceRoots: [root],
+    };
+    const service = runtime.agents[engine];
+    if (!service) throw new Error("Missing CodeFree O service");
+    await expect(
+      service.previewConfig(root, { values: {}, includeCommands: true }, undefined, scope),
+    ).rejects.toThrow("ACP_AUTH_REQUIRED");
+  } finally {
+    await runtime.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 it("仅转交授权码至厂商本次登录公布的环回端口", async () => {
   const request = Promise.withResolvers<URL>();

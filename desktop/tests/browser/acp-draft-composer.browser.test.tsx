@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
+import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
 import { WorkbenchComposer as WebComposer } from "../../../apps/web/src/features/workbench/components/workbench-composer.js";
 import { WorkbenchComposer as NativeComposer } from "../../src/features/workbench/components/workbench-composer.js";
 import { ComposerDraftProvider as WebDraft } from "../../../apps/web/src/features/workbench/composer-draft-context.js";
@@ -15,7 +16,8 @@ import { changeAppLanguage } from "../../../apps/web/src/i18n/i18n.js";
 import { i18n } from "../../src/i18n/i18n.js";
 import type { WorkbenchComposerProps as WebProps } from "../../../apps/web/src/features/workbench/components/workbench-composer-contracts.js";
 import type { WorkbenchComposerProps as NativeProps } from "../../src/features/workbench/components/workbench-composer-contracts.js";
-import type { AcpConfigPreview } from "@codexly/protocol";
+import type { AcpConfigOption, AcpConfigPreview } from "@codexly/protocol";
+import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
 import "../../src/shared/styles/globals.css";
 import "../../src/shared/styles/workbench.css";
 
@@ -23,6 +25,56 @@ vi.mock("../../../apps/web/src/features/access/access-context.js", async (origin
   ...(await original()),
   useAccess: () => ({ status: { role: "owner" } }),
 }));
+
+it.each([false, true])("CodeFree O 目录独立于预热失败（%s），会话就绪后校验选择", async (fails) => {
+  const ready = Promise.withResolvers<AcpConfigPreview>();
+  const catalog = Promise.withResolvers<AcpConfigPreview>();
+  const model: Extract<AcpConfigOption, { type: "select" }> = {
+    id: "model", name: "模型", type: "select", category: "model", currentValue: "codefree/a",
+    options: [{ value: "codefree/a", name: "Model A" }, { value: "codefree/b", name: "Model B" }],
+  };
+  const configOptions = [model];
+  const complete = { configOptions, values: { model: "codefree/a" } };
+  let warmups = 0;
+  const preview = vi.fn<AcpDraftClient["previewAcpConfig"]>(async (_project, _engine, request) => {
+    if (request.change) return {
+      configOptions: [{ ...model, currentValue: "codefree/b" }],
+      values: { model: "codefree/b" },
+    };
+    if (request.includeCommands) return ++warmups === 1 ? ready.promise : complete;
+    return catalog.promise;
+  });
+  const client = { previewAcpConfig: preview };
+  function Draft() {
+    const draft = useAcpDraftComposer({ client, projectId: "codefree-cold", workspace: "/work", configurationLabel: "配置", engineLabel: "Agent", retryLabel: "重试" });
+    return <>{draft.controls}<button disabled={draft.isBusy}>发送测试</button></>;
+  }
+  const screen = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <TooltipProvider><SelectedEnginesContext value={["acp-codefree-o"]}><Draft /></SelectedEnginesContext></TooltipProvider>
+    </QueryClientProvider>,
+  );
+  const trigger = screen.getByRole("button", { name: /codefree-o\s*\//i });
+  await trigger.click();
+  if (fails) {
+    ready.reject(new Error("ACP_AUTH_REQUIRED"));
+    await expect.element(screen.getByRole("alert")).toHaveTextContent("登录 CodeFree O");
+  }
+  catalog.resolve({ configOptions, values: {} });
+  await screen.getByRole("option", { name: /Model B/ }).click();
+  await expect.element(trigger).toHaveTextContent("Model B");
+  const send = screen.getByRole("button", { name: "发送测试" });
+  await expect.element(send).toBeDisabled();
+  expect(preview.mock.calls.map(([, , request]) => request.change)).toEqual([undefined, undefined]);
+  if (fails) {
+    await trigger.click();
+    await expect.element(screen.getByRole("alert")).toHaveTextContent("登录 CodeFree O");
+    await screen.getByRole("button", { name: "重试" }).click();
+  } else ready.resolve(complete);
+  await expect.element(send).toBeEnabled();
+  expect(preview.mock.calls.at(-1)?.[2].change).toEqual({ configId: "model", value: "codefree/b" });
+  await expect.element(trigger).toHaveTextContent("Model B");
+});
 it.each(["web", "native"] as const)(
   "%s 新建草稿协商原始配置并恢复失败的首次发送",
   async (platform) => {

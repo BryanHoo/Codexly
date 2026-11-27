@@ -3,7 +3,8 @@ import { get } from "node:http";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { AcpAgentProfile } from "@codexly/protocol";
-import type { AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
+import { AcpAuthenticationRequiredError } from "@codexly/core";
+import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
 import type { AcpElicitations } from "./elicitation.js";
 
 export const CODEFREE_ENGINE = "acp-codefree-o";
@@ -105,6 +106,30 @@ export function forwardCodefreeAuthorization(
       reject(new Error("CodeFree O 授权回调未完成", { cause: error }));
     });
   });
+}
+
+/** 普通预热只尝试握手，厂商要求重新授权时回收进程，由用户从设置发起登录。 */
+export async function launchSignedInCodefree(
+  env: NodeJS.ProcessEnv,
+  launch: (options: AcpAgentLaunchOptions) => Promise<AcpAgentHandle>,
+  options?: AcpAgentLaunchOptions,
+): Promise<AcpAgentHandle> {
+  options?.signal?.throwIfAborted();
+  if (!(await codefreeCredentialRevision(env))) throw new AcpAuthenticationRequiredError();
+  const login = new AbortController();
+  const signal = options?.signal ? AbortSignal.any([login.signal, options.signal]) : login.signal;
+  try {
+    return await launch({
+      ...options,
+      signal,
+      onStderrLine(line) {
+        if (parseCodefreeAuthorization(line)) login.abort(new AcpAuthenticationRequiredError());
+      },
+    });
+  } catch (error) {
+    signal.throwIfAborted();
+    throw error;
+  }
 }
 
 export async function authorizeCodefree(

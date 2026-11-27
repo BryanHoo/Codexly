@@ -15,7 +15,7 @@ import {
   type LocalCatalogStore,
 } from "@codexly/core";
 import type { AgentEngine, Project } from "@codexly/protocol";
-import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
+import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
 export type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 import { AcpAgentCatalog } from "./agent-catalog.js";
 import { AcpProcess } from "./process.js";
@@ -32,7 +32,12 @@ import { AcpStorageLeases } from "./storage-lease.js";
 import { searchAcpHistory } from "./history-search.js";
 import { AcpSessionInitialization } from "./session-initialization.js";
 import { exportTaskAttachment } from "@codexly/core/task-attachments";
-import { CODEFREE_ENGINE, codefreeCredentialRevision } from "./codefree-authorization.js";
+import {
+  CODEFREE_ENGINE,
+  codefreeCredentialRevision,
+  launchSignedInCodefree,
+} from "./codefree-authorization.js";
+import { readCodefreeModels } from "./codefree-models.js";
 interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
@@ -79,19 +84,25 @@ export class AcpRuntime {
       launch ??
       (async (engine, scope, callbacks, options) => {
         const command = await this.catalog.command(engine, options?.allowDisabled);
-        return AcpProcess.start(
-          {
-            ...command,
-            args:
-              engine === CODEFREE_ENGINE && options?.onStderrLine
-                ? [...command.args, "--print-logs"]
-                : command.args,
-            env: { ...snapshot, ...command.env },
-            cwd: scope.rootPath,
-          },
-          callbacks,
-          options,
-        );
+        const env = { ...snapshot, ...command.env };
+        const start = (launchOptions?: AcpAgentLaunchOptions) =>
+          AcpProcess.start(
+            {
+              ...command,
+              args:
+                engine === CODEFREE_ENGINE && options?.onStderrLine
+                  ? [...command.args, "--print-logs"]
+                  : command.args,
+              env,
+              cwd: scope.rootPath,
+            },
+            callbacks,
+            launchOptions,
+          );
+        // 设置登录与状态探测各自管理授权 stderr，普通项目连接只接受已登录状态。
+        return engine === CODEFREE_ENGINE && !options?.onStderrLine
+          ? launchSignedInCodefree(env, start, options)
+          : start(options);
       });
     launch = this.launch;
     this.#preferences = new ApplicationPreferencesService(store, readPreferences);
@@ -233,6 +244,9 @@ export class AcpRuntime {
                   if (!entry) throw new Error("ACP 项目运行时不可用");
                   return entry.provider(key).preview(run);
                 }
+              : undefined,
+            key === CODEFREE_ENGINE
+              ? async (cwd) => readCodefreeModels(await this.catalog.command(key), cwd, snapshot)
               : undefined,
           );
         }

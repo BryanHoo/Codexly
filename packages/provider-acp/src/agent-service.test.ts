@@ -10,7 +10,7 @@ import { AcpAgentService } from "./agent-service.js";
 import { AcpSettingsStore } from "./settings-store.js";
 import type { AcpAgentLauncher } from "./runtime.js";
 import { AcpRuntime } from "./runtime.js";
-import type { EngineProjectRouter } from "@codexly/core";
+import type { AgentTaskScope, EngineProjectRouter } from "@codexly/core";
 
 const initial: acp.SessionConfigOption[] = [
   {
@@ -210,6 +210,71 @@ it("CodeFree O 在浏览模型后沿用同一个项目进程建立聊天会话",
     expect(f.closed).toHaveBeenCalledTimes(1);
   } finally {
     await runtime.close();
+    await f.dispose();
+  }
+});
+
+it("CodeFree O 在项目 ACP 会话预热期间返回独立的模型列表", async () => {
+  const f = await fixture();
+  const ready = Promise.withResolvers<undefined>();
+  const started = vi.fn();
+  async function projectPreview<T>(
+    scope: AgentTaskScope,
+    run: (connection: AcpConnection) => Promise<T>,
+  ) {
+    started();
+    await ready.promise;
+    const handle = await f.launch("acp-codefree-o", scope, {});
+    try {
+      return await run(handle.connection);
+    } finally {
+      await handle.close();
+    }
+  }
+  const scope = {
+    id: "temporary",
+    kind: "temporary" as const,
+    rootPath: f.root,
+    runtimeWorkspaceRoots: [f.root],
+  };
+  const readModels = vi.fn(() => Promise.resolve([{ value: "codefree/b", name: "b" }]));
+  const service = new AcpAgentService(
+    "acp-codefree-o",
+    f.root,
+    f.store,
+    f.launch,
+    undefined,
+    undefined,
+    () => Promise.resolve("credential"),
+    projectPreview,
+    readModels,
+  );
+  try {
+    const warming = service.previewConfig(
+      f.root,
+      { values: {}, includeCommands: true },
+      undefined,
+      scope,
+    );
+    const catalog = service.previewConfig(f.root, { values: {} }, undefined, scope);
+    await vi.waitFor(() => {
+      expect(readModels).toHaveBeenCalledOnce();
+    });
+    await expect(catalog).resolves.toMatchObject({
+      configOptions: [
+        {
+          id: "model",
+          category: "model",
+          options: [{ value: "codefree/b", name: "b" }],
+        },
+      ],
+    });
+    expect(started).toHaveBeenCalledOnce();
+    ready.resolve(undefined);
+    await expect(warming).resolves.toMatchObject({ values: { model: "a", effort: "low" } });
+  } finally {
+    ready.resolve(undefined);
+    await service.close();
     await f.dispose();
   }
 });

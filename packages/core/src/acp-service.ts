@@ -17,6 +17,14 @@ import type {
 import type { AcpProviderConfig, AcpProviderPage } from "@codexly/protocol";
 import type { AgentTaskScope } from "./agent-task-scope.js";
 
+/** 厂商已确认启动需要用户登录，宿主只转发固定错误码。 */
+export class AcpAuthenticationRequiredError extends Error {
+  constructor() {
+    super("ACP_AUTH_REQUIRED");
+    this.name = "AcpAuthenticationRequiredError";
+  }
+}
+
 /** 两端共享 ACP 原生认证与默认设置；不暴露厂商账号、配置文件或私有 RPC。 */
 export interface AcpAgentSettingsService {
   readonly providers?: {

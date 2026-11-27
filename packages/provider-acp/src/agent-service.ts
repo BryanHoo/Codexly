@@ -4,9 +4,10 @@ import type {
   AcpAuthCredentials,
   AcpAuthElicitationRequest,
   AcpAuthElicitationResponse,
+  AcpConfigPreview,
+  AcpConfigPreviewRequest,
 } from "@codexly/protocol";
-import { AcpPreviewCache, previewAcpConfig, waitForAcpPreview } from "./config-preview.js";
-import type { AcpConfigPreviewRequest } from "@codexly/protocol";
+import { createAcpPreviewReader, previewAcpConfig, waitForAcpPreview } from "./config-preview.js";
 import type { AcpAgentSettingsService, AgentTaskScope } from "@codexly/core";
 import type { AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
@@ -25,6 +26,7 @@ import {
   codefreeSignedOutProfile,
   parseCodefreeAuthorization,
 } from "./codefree-authorization.js";
+import { previewCodefreeModels, type ReadCodefreeModels } from "./codefree-models.js";
 
 const SETTINGS_CLOSE_TIMEOUT_MS = 1_000;
 
@@ -43,7 +45,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
   #inspected = false;
   #auth: { attemptId: string; elicitations: AcpElicitations } | undefined;
   #codefreeLogin: AbortController | undefined;
-  readonly #previewCache = new AcpPreviewCache();
+  readonly #previewCached: ReturnType<typeof createAcpPreviewReader>;
   #verifiedCredential: string | undefined;
   constructor(
     readonly engine: AgentEngine,
@@ -58,7 +60,9 @@ export class AcpAgentService implements AcpAgentSettingsService {
       scope: AgentTaskScope,
       run: (connection: AcpConnection) => Promise<T>,
     ) => Promise<T>,
+    readonly readModels?: ReadCodefreeModels,
   ) {
+    this.#previewCached = createAcpPreviewReader(() => store.inspect(engine), codefreeRevision);
     const routing = new AcpProviderRouting(engine, store, this.readNative);
     this.providers = {
       list: () => this.#run(async () => routing.list(await this.#agent())),
@@ -301,13 +305,21 @@ export class AcpAgentService implements AcpAgentSettingsService {
     }
     return elicitations?.listWithExternalStatus(this.engine) ?? [];
   }
-  previewConfig(
+  async previewConfig(
     cwd: string,
     input: AcpConfigPreviewRequest,
     signal?: AbortSignal,
     scope?: AgentTaskScope,
-  ) {
+  ): Promise<AcpConfigPreview> {
     if (scope && this.projectPreview) {
+      if (this.readModels) {
+        const catalog = await previewCodefreeModels(cwd, input, signal, this.readModels, (load) =>
+          this.#previewCached(cwd, input, undefined, load),
+        );
+        // 原生读取失败时复用后台完整预览，共享同一个临时会话。
+        if (catalog === "fallback") input = { ...input, includeCommands: true };
+        else if (catalog) return catalog;
+      }
       // 浏览模型和新聊天共用项目内的暖连接，临时预览会话单独回收。
       const preview = this.projectPreview;
       return waitForAcpPreview(
@@ -346,26 +358,6 @@ export class AcpAgentService implements AcpAgentSettingsService {
         throw error;
       }
     });
-  }
-  async #previewCached(
-    cwd: string,
-    input: AcpConfigPreviewRequest,
-    signal: AbortSignal | undefined,
-    load: (
-      saved: Awaited<ReturnType<AcpSettingsStore["inspect"]>>,
-    ) => ReturnType<typeof previewAcpConfig>,
-  ) {
-    signal?.throwIfAborted();
-    const [saved, revision] = await Promise.all([
-      this.store.inspect(this.engine),
-      this.codefreeRevision?.(),
-    ]);
-    signal?.throwIfAborted();
-    const result = revision
-      ? await this.#previewCache.read(cwd, revision, saved, input, () => load(saved))
-      : await load(saved);
-    signal?.throwIfAborted();
-    return result;
   }
   readDefaults(): Promise<AcpDefaults> {
     return this.#run(() => this.#defaults());

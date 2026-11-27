@@ -3,6 +3,7 @@ import { AcpTaskSubscriptions } from "./task-subscriptions.js";
 import { StringDecoder } from "node:string_decoder";
 import type { Writable } from "node:stream";
 import {
+  AcpAuthenticationRequiredError,
   AgentTurnNotSubmittedError,
   HostOutput,
   type CatalogOperations,
@@ -174,6 +175,10 @@ export class AcpHost {
         },
         (error: unknown) => {
           const method = message["method"];
+          if (error instanceof AcpAuthenticationRequiredError && method === "settings.preview") {
+            this.#output.send({ id, error: "ACP_AUTH_REQUIRED" });
+            return;
+          }
           // 安装和更新只回传安装器生成的脱敏文案，原始异常及其 cause 不进入 IPC。
           if (
             (method === "agents.install" || method === "agents.update") &&

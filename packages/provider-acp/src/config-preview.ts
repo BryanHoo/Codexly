@@ -41,6 +41,29 @@ export class AcpPreviewCache {
   }
 }
 
+/** 设置和授权版本在读取前固定，避免把不同认证状态的结果写入同一预览条目。 */
+export function createAcpPreviewReader(
+  readSettings: () => Promise<AcpStoredSettings>,
+  readRevision?: () => Promise<string | undefined>,
+) {
+  const cache = new AcpPreviewCache();
+  return async (
+    cwd: string,
+    input: AcpConfigPreviewRequest,
+    signal: AbortSignal | undefined,
+    load: (saved: AcpStoredSettings, revision?: string) => Promise<AcpConfigPreview>,
+  ) => {
+    signal?.throwIfAborted();
+    const [saved, revision] = await Promise.all([readSettings(), readRevision?.()]);
+    signal?.throwIfAborted();
+    const result = revision
+      ? await cache.read(cwd, revision, saved, input, () => load(saved, revision))
+      : await load(saved);
+    signal?.throwIfAborted();
+    return result;
+  };
+}
+
 /** 视图离开后停止等待，已借出的项目会话继续走自己的关闭流程。 */
 export async function waitForAcpPreview<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
