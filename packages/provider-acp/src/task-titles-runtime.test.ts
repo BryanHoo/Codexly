@@ -6,6 +6,7 @@ import { PassThrough, Writable } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as acp from "@agentclientprotocol/sdk/unstable";
+import type { AgentEngine } from "@codexly/protocol";
 import {
   applicationPreferencesFromLegacy,
   type CatalogOperations,
@@ -17,7 +18,7 @@ import { AcpRuntime, type AcpAgentLauncher } from "./runtime.js";
 import { AcpConnection } from "./connection.js";
 import { runAcpHost } from "./host-entry.js";
 
-async function fixture() {
+async function fixture(engine: AgentEngine = "codex") {
   const root = await mkdtemp(join(tmpdir(), "acp-auto-title-"));
   const tasks = new Map<string, LocalTask>();
   const claims = new Map<string, string>();
@@ -41,8 +42,16 @@ async function fixture() {
           return p;
         case "task.read":
           return tasks.get(p.id) ?? null;
-        case "task.preview":
-          return null;
+        case "task.list":
+          return { data: [...tasks.values()], nextCursor: null };
+        case "task.preview": {
+          const previous = tasks.get(p.id);
+          if (!previous) throw new Error("未找到任务");
+          if (previous.preview || !p.preview) return previous;
+          const task = { ...previous, preview: p.preview };
+          tasks.set(p.id, task);
+          return task;
+        }
         case "task.patch": {
           const previous = tasks.get(p.id);
           if (!previous) throw new Error("未找到任务");
@@ -150,7 +159,7 @@ async function fixture() {
   provider.subscribeEvents((event) => {
     events.push(event);
   });
-  const task = await provider.startTask({ engine: "codex" });
+  const task = await provider.startTask({ engine });
   const input = {
     text: "修复状态更新覆盖手动名称",
     files: [],
@@ -215,6 +224,40 @@ it("首发真实 ACP 输出后才生成标题，主回合不等待辅助生成�
     expect(f.tasks.size).toBe(1);
     expect(f.closed).toHaveLength(1);
     expect(f.prompts).toHaveLength(2);
+  } finally {
+    await f.close();
+  }
+});
+
+it("CodeFree O 首发在辅助标题未生成时重新读取目录仍有标题", async () => {
+  const f = await fixture("acp-codefree-o");
+  try {
+    await f.provider.startConfiguredTurn?.(f.task.id, {
+      ...f.input,
+      text: "  修复侧栏标题\n保留会话正文  ",
+    });
+    await f.entered.promise;
+    expect((await f.provider.listTasks()).data[0]?.title).toBe("修复侧栏标题");
+  } finally {
+    await f.close();
+  }
+});
+
+it("重新打开旧 ACP 任务时从首条已保存消息恢复目录标题", async () => {
+  const f = await fixture("acp-codefree-o");
+  try {
+    await f.provider.startConfiguredTurn?.(f.task.id, f.input);
+    f.output.resolve(undefined);
+    f.finishMain.resolve(undefined);
+    await vi.waitFor(() => {
+      expect(f.events.some((event) => event.type === "turn.completed")).toBe(true);
+    });
+    const task = f.tasks.get(f.task.id);
+    if (!task) throw new Error("未找到任务");
+    delete task.preview;
+    expect((await f.provider.listTasks()).data[0]?.title).toBe("新聊天");
+    expect((await f.provider.readTask(f.task.id))?.title).toBe(f.input.text);
+    expect((await f.provider.listTasks()).data[0]?.title).toBe(f.input.text);
   } finally {
     await f.close();
   }

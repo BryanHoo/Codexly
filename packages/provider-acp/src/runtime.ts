@@ -27,6 +27,7 @@ import { prepareAcpDefaults } from "./configuration.js";
 import { AcpSettingsStore, type AcpLegacySettingsSource } from "./settings-store.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { AcpTaskTitles } from "./task-titles.js";
+import { persistAcpTaskPreview } from "./task-preview.js";
 import { AcpStorageLeases } from "./storage-lease.js";
 import { searchAcpHistory } from "./history-search.js";
 import { AcpSessionInitialization } from "./session-initialization.js";
@@ -208,7 +209,8 @@ export class AcpRuntime {
                   let entry = this.#entries.get(scope.id);
                   if (!entry) {
                     // 桌面首次进入临时工作区时，首发创建目录的步骤可能尚未执行。
-                    if (scope.kind === "temporary") await mkdir(scope.rootPath, { recursive: true });
+                    if (scope.kind === "temporary")
+                      await mkdir(scope.rootPath, { recursive: true });
                     const project =
                       scope.kind === "project"
                         ? await this.store.catalog("project.read", { id: scope.id })
@@ -410,7 +412,13 @@ export class AcpRuntime {
               provider.publishTaskTitle(id, title);
             },
           );
-          provider.prepareTaskTitle = (task, input) => scheduler.prepare(task, input);
+          provider.prepareTaskTitle = async (task, input) => {
+            // 辅助命名可能失败或尚未返回，先保存首条消息预览供两端目录刷新使用。
+            await persistAcpTaskPreview(this.store, this.#history, task, input).catch(
+              () => undefined,
+            );
+            await scheduler.prepare(task, input);
+          };
           provider.subscribeEvents((event) => {
             scheduler.receive(event);
           });

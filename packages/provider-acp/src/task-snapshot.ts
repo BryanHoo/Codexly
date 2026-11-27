@@ -1,6 +1,7 @@
 import { RequestError } from "@agentclientprotocol/sdk";
 import {
   localTaskMetadata,
+  type LocalCatalogStore,
   type LocalTask,
   type ReadAgentTaskInput,
   type AgentProviderTaskSnapshot,
@@ -11,6 +12,7 @@ import { AcpHistoryCorruptionError, type AcpHistory } from "./history.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpEventProjection } from "./event-projection.js";
 import type { AcpSubagentBackground } from "./subagent-background.js";
+import { persistAcpTaskPreview } from "./task-preview.js";
 
 /** 异步历史准备完成后同步读取活动投影并捕获边界，不在正文与 checkpoint 之间 await。 */
 export async function readAcpTaskSnapshot(
@@ -19,6 +21,8 @@ export async function readAcpTaskSnapshot(
   source: {
     engine: AgentEngine;
     history: AcpHistory;
+    store?: LocalCatalogStore;
+    onPreviewRestored?(title: string): void;
     load(repairHistory?: boolean): Promise<unknown>;
     active(): AcpEventProjection | undefined;
     background?: AcpSubagentBackground;
@@ -81,6 +85,17 @@ export async function readAcpTaskSnapshot(
     ) {
       external = !(await load());
       if (!external) page = await source.history.read(task.id);
+    }
+  }
+  // 只在打开缺少标题的历史会话时补齐目录，分页和侧栏刷新无需读取聊天正文。
+  if (source.store && !input.cursor && !task.title && !task.preview && page.turns.length > 0) {
+    input.signal?.throwIfAborted();
+    const restored = await persistAcpTaskPreview(source.store, source.history, task).catch(
+      () => undefined,
+    );
+    if (restored?.preview) {
+      task = restored;
+      source.onPreviewRestored?.(localTaskMetadata(restored).title);
     }
   }
   // 读旧游标期间，历史提交可能刚好移除活动投影；重新读一次才可捕获新 checkpoint。

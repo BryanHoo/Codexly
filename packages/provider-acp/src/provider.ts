@@ -194,6 +194,8 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       return taskSnapshot.readAcpTaskSnapshot(task, input, {
         engine: this.engine,
         history: this.history,
+        store: this.store,
+        onPreviewRestored: this.publishTaskTitle.bind(this, id),
         load: (repairHistory) => this.#load(task, false, repairHistory),
         active: () => this.#active.get(id),
         background: this.#background,
