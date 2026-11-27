@@ -1,4 +1,5 @@
 import type {
+  AgentQuotaView,
   AcpConfigPreview,
   AcpAgentCatalogPage,
   AcpAgentCatalogProgress,
@@ -84,6 +85,13 @@ export class TauriAcpClient extends TauriAcpTaskClient {
     return this.callCancellable(
       "acp_agent_request",
       { engine, method: "agent.inspect", params: {} },
+      options.signal,
+    );
+  }
+  getAgentQuota(engine:AgentEngine, options: ReadOptions = {}): Promise<AgentQuotaView> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine, method: "agent.quota", params: {} },
       options.signal,
     );
   }

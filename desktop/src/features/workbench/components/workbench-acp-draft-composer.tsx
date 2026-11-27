@@ -1,3 +1,4 @@
+import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
 import { useMemo } from "react";
 import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
 import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
@@ -44,6 +45,7 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
         availableCommands: draft.preview?.availableCommands ?? [],
         controls: draft.controls,
         leadingControls: draft.leadingControls,
+        quotaControl: <AgentQuotaControl engine={draft.engine} client={props.client} language={getCurrentLanguage()} />,
         trailingControls: draft.trailingControls,
         isBusy: draft.isBusy,
         queueClient,

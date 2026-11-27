@@ -120,9 +120,10 @@ export interface NativeCommand {
 export const commandList = async (server: CodefreeServer, cwd: string) => {
   const commands = await server.json<NativeCommand[]>("/command", cwd);
   return [
+    { name: "usage", description: "查询账号的周额度和 5 小时剩余额度" },
     { name: "compact", description: "压缩当前会话上下文" },
     ...commands
-      .filter((c) => c.name !== "compact")
+      .filter((c) => c.name !== "compact" && c.name !== "usage")
       .map((c) => ({
         name: c.name,
         description: c.description ?? c.name,

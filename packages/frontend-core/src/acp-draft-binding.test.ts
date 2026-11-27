@@ -21,7 +21,9 @@ it("预览失败后显式重试，恢复成功前不能发送", async () => {
 it("模型变更失败后重试同一选择，成功后按该模型提交", async () => {
   const f = fixture();
   const binding = f.create();
-  await vi.waitFor(() => expect(binding.getSnapshot().isPending).toBe(false));
+  await vi.waitFor(() => {
+    expect(binding.getSnapshot().isPending).toBe(false);
+  });
   const model = "codefree/DeepSeek-V4.1-Flash-1017";
   f.read.mockRejectedValueOnce(new Error("网络中断"));
   expect(await binding.setConfig("model", model)).toBe(false);

@@ -1,4 +1,5 @@
 import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
+import type { QuotaClient } from "@codexly/ui/core/agent-quota-control";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentAttachment,
@@ -74,6 +75,7 @@ export type WorkbenchComposerProps = Readonly<{
     availableCommands?: readonly AcpAvailableCommand[];
     controls: ReactNode;
     leadingControls?: ReactNode;
+    quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
     confirmContinuation?: () => Promise<boolean>;
@@ -86,7 +88,7 @@ export type WorkbenchComposerProps = Readonly<{
   engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
-  client: {
+  client: QuotaClient & {
     optimizePrompt?: (
       projectId: string,
       text: string,

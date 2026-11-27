@@ -87,10 +87,15 @@ export async function previewAcpConfig(
   saved: AcpStoredSettings,
   values: AcpConfigValues,
   change?: AcpConfigPreviewRequest["change"],
-  options?: { releaseSession?: (id: string) => Promise<void>; includeCommands?: boolean },
+  options?: {
+    registerSession?: (id: string) => Promise<void>;
+    releaseSession?: (id: string) => Promise<void>;
+    includeCommands?: boolean;
+  },
 ) {
   const session = await connection.newSession({ cwd, mcpServers: [] });
   try {
+    await options?.registerSession?.(session.sessionId);
     // 先恢复仍有效的默认值；草稿显式选择严格校验，不写全局默认设置。
     const current = await prepareAcpDefaults(
       connection,

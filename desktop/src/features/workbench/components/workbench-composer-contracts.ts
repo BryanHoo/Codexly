@@ -72,6 +72,7 @@ export type WorkbenchComposerProps = Readonly<{
     availableCommands?: readonly AcpAvailableCommand[];
     controls: ReactNode;
     leadingControls?: ReactNode;
+    quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
     confirmContinuation?: () => Promise<boolean>;
@@ -91,7 +92,7 @@ export type WorkbenchComposerProps = Readonly<{
   engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
-  client: import("@codexly/ui/core/acp-fast-mode-gate").AcpProfileClient & {
+  client: import("@codexly/ui/core/acp-fast-mode-gate").AcpProfileClient & import("@codexly/ui/core/agent-quota-control").QuotaClient & {
     optimizePrompt?: (
       projectId: string,
       text: string,

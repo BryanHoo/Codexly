@@ -42,6 +42,12 @@ Web、移动浏览器和桌面宿主共用 Codexly 的 CodeFree O 适配器。�
 
 能力表描述协议接口。聊天界面通过现有菜单和命令入口使用相应能力，MCP 和附加目录由创建或恢复会话的客户端传入。音频输入、SSE 类型的 MCP、指定消息位置的分支和 OpenCode 私有实验扩展不在此适配器公布的能力内。协议与实现参考 [ACP 能力协商](https://agentclientprotocol.com/protocol/initialization) 和 [OpenCode ACP](https://opencode.ai/docs/acp/)。
 
+## 账号额度
+
+Web 与桌面在输入框下方的「上下文」左侧显示仪表盘图标，点击可查看当前引擎的剩余额度。Codex、Claude 和 CodeFree O 在确认账号登录后显示图标。切换到自定义 API、API Key 或网关时，额度入口和已打开的额度面板会一起隐藏。Codex、Claude 和 CodeFree O 支持 5 小时与周窗口，Copilot 按账号返回月度配额，OpenCode 按其版本和账号返回 Go 窗口及预算。账号无订阅或未提供数据时显示对应状态。
+
+第三方 ACP v1 Agent 可在初始化响应的 `agentCapabilities._meta["codexly/account-quota"]` 声明数值 `1`，接入 Codexly 的只读扩展。宿主随后可用空参数调用 `_codexly/account/quota`。响应中的 `fiveHour`、`sevenDay` 为剩余百分比或 `null`，`reason` 为原因代码或 `null`。可选 `meters` 数组支持其他周期，每项包含 `label`、`remaining` 和可选布尔值 `unlimited`。查询无需创建会话。
+
 ## 任务、历史与附件
 
 在已完成回合的聊天中，打开模型菜单并选择另一个 Agent。发送时选择「创建并发送」，应用会新建任务，并将当前提示词与 `接续记录.md` 一起发送给目标 Agent。短对话直接随提示词发送。长对话会直接发送包含原始需求和近期回合的接续摘录，并附上可下载的 Markdown 聊天记录，方便 Agent 按需读取较早的消息。记录按顺序包含已保存的用户和 Agent 对话及回答续文。文件与本次发送的其他文件共享 50 MiB 额度，历史有缺口或达到额度时会标注，仍可通过「打开来源任务」回查。项目接续任务沿用来源的实际工作目录，桌面临时接续任务使用独立的临时目录。

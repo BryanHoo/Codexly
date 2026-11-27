@@ -2,6 +2,7 @@ import { withGenerationCancellation } from "./generation-cancellation.js";
 import { Type, type TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
+  AgentQuotaViewSchema,
   AcpConfigPreviewSchema,
   AcpAgentCatalogPageSchema,
   AcpAgentCatalogProgressSchema,
@@ -124,6 +125,17 @@ export const registerAcpRoutes: FastifyPluginCallback<{
           return catalog().list(false);
         },
       ),
+  );
+  app.get<{ Params: { engine: AgentEngine } }>(
+    "/v1/acp/agents/:engine/quota",
+    { validatorCompiler, schema: { params: Params, response: { 200: AgentQuotaViewSchema } } },
+    async (request, reply) => {
+      void reply.header("cache-control", "no-store");
+      const agent = service(request.params.engine);
+      const readQuota = agent.readQuota?.bind(agent);
+      if (!readQuota) throw new MutationHttpError("PROVIDER_ERROR", "Agent quota unavailable", 503);
+      return withGenerationCancellation(request, reply, readQuota, "Quota request timed out");
+    },
   );
   const providers = (engine: AgentEngine) => {
     const value = service(engine).providers;

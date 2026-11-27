@@ -9,7 +9,7 @@ export function taskPreview(text) {
 }
 
 export const TASK_PREVIEW_SELECT =
-  "SELECT managed_tasks.*, (SELECT preview FROM managed_task_previews WHERE task_id=managed_tasks.id) AS preview FROM visible_managed_tasks AS managed_tasks";
+  "SELECT managed_tasks.*, (SELECT preview FROM managed_task_previews WHERE task_id=managed_tasks.id) AS preview FROM visible_chat_tasks AS managed_tasks";
 
 export function writeTaskPreview(db, id, preview) {
   const bounded = taskPreview(preview);
@@ -78,5 +78,33 @@ export function recoverBackgroundSessions(db, databasePath) {
   const mark = db.prepare(schema.acpMarkBackgroundSql);
   db.transaction(() => {
     for (const id of sessions) mark.run("codex", id);
+  })();
+}
+
+export function recoverEmptyCodefreeSessions(db) {
+  let source;
+  let sessions;
+  try {
+    const path = join(
+      process.env.OPENCODE_TEST_HOME || homedir(),
+      ".codefree-o",
+      ".local",
+      "share",
+      "codefree.db",
+    );
+    // 只读取原生索引的身份和标题，用消息存在性确认空会话。
+    source = new Database(path, { readonly: true, fileMustExist: true, timeout: 100 });
+    sessions = source.prepare(schema.acpReadEmptyCodefreeSql).raw().all();
+  } catch {
+    // 离线时沿用已有证据，源库可以读取后再刷新。
+    return;
+  } finally {
+    source?.close();
+  }
+  const mark = db.prepare(schema.acpMarkEmptyCodefreeSql);
+  db.transaction(() => {
+    // 重新核验后原子替换投影，原空会话产生消息后可以重新出现在历史里。
+    db.prepare(schema.acpClearEmptyCodefreeSql).run();
+    for (const [id, title] of sessions) mark.run(id, title);
   })();
 }

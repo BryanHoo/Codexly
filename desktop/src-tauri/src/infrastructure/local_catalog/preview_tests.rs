@@ -41,6 +41,52 @@ async fn background_session_should_be_hidden_by_native_identity_after_reopening(
 }
 
 #[tokio::test]
+async fn empty_codefree_import_should_reappear_after_native_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = LocalCatalog::at(dir.path()).unwrap();
+    let source_path = dir.path().join("codefree.db");
+    let source = Connection::open(&source_path).unwrap();
+    let title = "New session - 2026-11-27T09:28:27.870Z";
+    source
+        .execute_batch(
+            "CREATE TABLE session (id TEXT PRIMARY KEY, title TEXT);
+             CREATE TABLE message (session_id TEXT);",
+        )
+        .unwrap();
+    let mut imported = sample();
+    imported["id"] = json!("acp-import-acp-codefree-o-empty");
+    imported["provider"] = json!("acp-codefree-o");
+    imported["title"] = json!(title);
+    store.call("task.put", imported).await.unwrap();
+    source
+        .execute("INSERT INTO session VALUES ('native-preview', ?)", [title])
+        .unwrap();
+    let schema = serde_json::from_str(include_str!(
+        "../../../../../packages/protocol/src/local-catalog-schema.json"
+    ))
+    .unwrap();
+    let refresh = || {
+        store
+            .with_database(|db| {
+                previews::recover_empty_codefree_sessions(db, &source_path, &schema)
+            })
+            .unwrap();
+    };
+    let input = || crate::domain::sidebar::ListTasksInput {
+        project_id: "temporary".into(),
+        ..Default::default()
+    };
+    refresh();
+    assert!(store.task_page(input()).await.unwrap().data.is_empty());
+    source
+        .execute("INSERT INTO message VALUES ('native-preview')", [])
+        .unwrap();
+    refresh();
+    let page = store.task_page(input()).await.unwrap();
+    assert_eq!(page.data[0].id, "acp-import-acp-codefree-o-empty");
+}
+
+#[tokio::test]
 async fn first_preview_should_survive_reopening_without_blocking_generated_names() {
     let dir = tempfile::tempdir().unwrap();
     let store = LocalCatalog::at(dir.path()).unwrap();

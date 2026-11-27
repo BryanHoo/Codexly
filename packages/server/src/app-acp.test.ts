@@ -475,3 +475,26 @@ it("Agent 目录支持任意 ACP 身份、严格配置和安装幂等", async ()
     enabled: true,
   });
 });
+
+it("底栏查询只读取 CodeFree O 账号额度，空值和零剩余额度可区分", async () => {
+  const view = { sevenDay: null, fiveHour: 0, reason: null };
+  const readQuota = vi.fn(() => Promise.resolve(view));
+  const service = {
+    readQuota,
+    inspect: () => Promise.resolve(profile),
+    readDefaults: () => Promise.resolve(defaults),
+    updateDefaults: () => Promise.resolve(defaults),
+    setDefaultConfig: () => Promise.resolve(defaults),
+    authenticate: () => Promise.resolve({}),
+  };
+  const app = await createCodexlyServer({
+    ...createServerOptions(createProvider().provider),
+    acpAgents: { codex: service, claude: service, "acp-codefree-o": service },
+  });
+  closeCallbacks.push(() => app.close());
+  const response = await app.inject({ method: "GET", url: "/v1/acp/agents/acp-codefree-o/quota" });
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toEqual(view);
+  expect(response.headers["cache-control"]).toBe("no-store");
+  expect(readQuota).toHaveBeenCalledOnce();
+});

@@ -13,6 +13,7 @@ import type {
   AcpConfigValues,
   AcpDefaults,
   AgentEngine,
+  AgentQuotaView,
 } from "@codexly/protocol";
 import type { AcpProviderConfig, AcpProviderPage } from "@codexly/protocol";
 import type { AgentTaskScope } from "./agent-task-scope.js";
@@ -47,6 +48,7 @@ export interface AcpAgentSettingsService {
     attemptId?: string,
   ): Promise<Record<string, never>>;
   authElicitation?(input: AcpAuthElicitationRequest): AcpAuthElicitationResponse;
+  readQuota?(signal?: AbortSignal): Promise<AgentQuotaView>;
   readDefaults(): Promise<AcpDefaults>;
   updateDefaults(values: AcpConfigValues): Promise<AcpDefaults>;
   setDefaultConfig(configId: string, value: string | boolean): Promise<AcpDefaults>;

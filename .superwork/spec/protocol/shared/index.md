@@ -13,6 +13,11 @@
 
 事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
 
+## ACP 辅助会话与历史可见性
+
+- 模型预览和全局默认配置使用的临时 ACP 会话，在创建后按引擎和原生会话 ID 登记为后台会话。目录发现沿用这份登记，即使 Agent 在关闭会话后仍列出该 ID。
+- Web 和桌面共用旧版 CodeFree O 空会话筛选规则。打开目录时只读核对原生消息是否存在。仅隐藏仍使用原生默认标题、没有消息、也没有本地预览或管理状态的导入任务。核验结果可随原生记录变化更新，原生会话和本地任务记录都保留。[共享目录 SQL](../../../../packages/protocol/src/local-catalog-schema.json)
+
 ## ACP Agent 更新进度
 
 - Web 和桌面共用 `AcpAgentCatalogProgress`。手动更新从 `checking` 开始，宿主持安装锁比较官方目录和已安装版本，仅在发现更高版本时进入安装。更新操作返回保存后的目录快照，界面从其中读取已安装版本。

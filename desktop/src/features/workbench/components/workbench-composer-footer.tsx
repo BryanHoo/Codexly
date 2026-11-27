@@ -33,6 +33,7 @@ export function WorkbenchComposerFooter({ props, rootControls, controls, collaps
     /> : null}
     <div className="ml-auto flex shrink-0 items-center gap-1">
       {props.captureMode ? null : <ProjectDraftList composerHasInput={props.hasComposerInput} drafts={props.projectDrafts} onDelete={props.onProjectDraftDelete} onRestore={(draftId) => { props.onProjectDraftRestore(draftId); revealComposer?.(); }} projectName={props.projectName} />}
+      {props.acp?.quotaControl}
       <Context maxTokens={props.contextUsage?.contextWindow} usedTokens={props.contextUsage?.usedTokens}><ContextTrigger /></Context>
       {controls}
     </div>

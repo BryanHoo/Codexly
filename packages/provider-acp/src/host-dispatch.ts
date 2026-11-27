@@ -144,6 +144,8 @@ export async function dispatchAcpHost(
       service = runtime.agents[engine];
     if (!service) throw new Error("Agent unavailable");
     switch (method) {
+      case "agent.quota":
+        return service.readQuota(signal);
       case "agent.inspect":
         return service.inspect();
       case "agent.authenticate": {

@@ -189,6 +189,29 @@ export const AcpSessionConfigRequestSchema = Type.Object(
 );
 
 /** 草稿值独立于全局默认设置；本次改动单独提交以处理模型依赖变化。 */
+// 百分比为账号窗口的剩余额度；原生窗口缺失时保留 null。
+const quotaPercent = Type.Union([Type.Number({ minimum: 0, maximum: 100 }), Type.Null()]);
+export const AgentQuotaViewSchema = Type.Object(
+  {
+    fiveHour: quotaPercent,
+    sevenDay: quotaPercent,
+    meters: Type.Optional(
+      Type.Array(
+        Type.Object({
+          label: Type.String({ maxLength: 128 }),
+          remaining: quotaPercent,
+          unlimited: Type.Optional(Type.Boolean()),
+        }),
+        { maxItems: 64 },
+      ),
+    ),
+    reason: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+export type AgentQuotaView = Static<typeof AgentQuotaViewSchema>;
+export type CodefreeQuotaView = AgentQuotaView;
+
 export const AcpConfigPreviewRequestSchema = Type.Object(
   {
     values: AcpConfigValuesSchema,

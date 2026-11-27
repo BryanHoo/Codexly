@@ -1,3 +1,4 @@
+import { readConnectedQuota } from "./account-quota.js";
 import { readNativeConnection, type NativeConnection } from "./native-connection.js";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import type {
@@ -9,12 +10,11 @@ import type {
 } from "@codexly/protocol";
 import { createAcpPreviewReader, previewAcpConfig, waitForAcpPreview } from "./config-preview.js";
 import type { AcpAgentSettingsService, AgentTaskScope } from "@codexly/core";
-import type { AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
+import type { AgentQuotaView, AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpSettingsStore } from "./settings-store.js";
-import { prepareAcpDefaults } from "./configuration.js";
-import { setAcpDefaultConfig } from "./default-config.js";
+import { readAcpDefaults, setAcpDefaultConfig } from "./default-config.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { importAcpCatalog } from "./catalog-import.js";
 import type { LocalCatalogStore } from "@codexly/core";
@@ -61,6 +61,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
       run: (connection: AcpConnection) => Promise<T>,
     ) => Promise<T>,
     readonly readModels?: ReadCodefreeModels,
+    readonly nativeQuota?: (signal?: AbortSignal) => Promise<AgentQuotaView>,
   ) {
     this.#previewCached = createAcpPreviewReader(() => store.inspect(engine), codefreeRevision);
     const routing = new AcpProviderRouting(engine, store, this.readNative);
@@ -126,6 +127,16 @@ export class AcpAgentService implements AcpAgentSettingsService {
         });
     }
     return (await this.#handle.ready).connection;
+  }
+  readQuota(signal?: AbortSignal) {
+    if (this.nativeQuota) return this.nativeQuota(signal);
+    return this.#run(async () => {
+      signal?.throwIfAborted();
+      await this.#agent(signal);
+      const handle = await this.#handle?.ready;
+      if (!handle) throw new Error("Agent 连接已关闭");
+      return readConnectedQuota(handle, signal);
+    });
   }
   inspect(): Promise<AcpAgentProfile> {
     return this.#run(async () => {
@@ -312,6 +323,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
     signal?: AbortSignal,
     scope?: AgentTaskScope,
   ): Promise<AcpConfigPreview> {
+    const registerSession = (id: string) => this.#registerBackground(id);
     if (scope && this.projectPreview) {
       if (this.readModels) {
         const catalog = await previewCodefreeModels(cwd, input, signal, this.readModels, (load) =>
@@ -321,18 +333,18 @@ export class AcpAgentService implements AcpAgentSettingsService {
         if (catalog === "fallback") input = { ...input, includeCommands: true };
         else if (catalog) return catalog;
       }
-      // 浏览模型和新聊天共用项目内的暖连接，临时预览会话单独回收。
       const preview = this.projectPreview;
+      const options = { ...input, registerSession };
       return waitForAcpPreview(
         this.#previewCached(cwd, input, signal, (saved) =>
           preview(scope, (connection) =>
-            previewAcpConfig(connection, cwd, saved, input.values, input.change, input),
+            previewAcpConfig(connection, cwd, saved, input.values, input.change, options),
           ),
         ),
         signal,
       );
     }
-    // 与认证和默认值共用串行连接，但只读取私有设置快照，不进行任何持久写入。
+    // 与认证和默认值共用串行连接，预览只读取私有设置快照。
     return this.#run(async () => {
       signal?.throwIfAborted();
       try {
@@ -343,7 +355,8 @@ export class AcpAgentService implements AcpAgentSettingsService {
           signal?.throwIfAborted();
           return previewAcpConfig(connection, cwd, settings, input.values, input.change, {
             releaseSession: (id) => this.#closeSession(connection, id),
-            ...(input.includeCommands ? { includeCommands: true } : {}),
+            ...input,
+            registerSession,
           });
         };
         const preview = this.codefreeRevision
@@ -384,31 +397,21 @@ export class AcpAgentService implements AcpAgentSettingsService {
         configId,
         value,
         (id) => this.#closeSession(connection, id),
+        (id) => this.#registerBackground(id),
       );
     });
   }
   async #defaults(values?: AcpConfigValues): Promise<AcpDefaults> {
     const connection = await this.#agent();
-    const session = await connection.newSession({ cwd: this.cwd, mcpServers: [] });
-    const validated = await (async () => {
-      try {
-        const current =
-          values === undefined
-            ? await this.store.inspect(this.engine)
-            : await this.store.read(this.engine);
-        const prepared = await prepareAcpDefaults(
-          connection,
-          session.sessionId,
-          session.configOptions,
-          current,
-          values,
-          values === undefined,
-        );
-        return { ...prepared, retainedValues: current.retainedValues };
-      } finally {
-        await this.#closeSession(connection, session.sessionId);
-      }
-    })();
+    const validated = await readAcpDefaults(
+      connection,
+      this.store,
+      this.engine,
+      this.cwd,
+      values,
+      (id) => this.#closeSession(connection, id),
+      (id) => this.#registerBackground(id),
+    );
     const { configOptions, defaults, migration, invalidDefaults } = validated;
     await this.#discover(connection);
     // agent 拒绝、连接或关闭失败时不会写默认值；legacy 只在私有记录中留存。
@@ -450,6 +453,10 @@ export class AcpAgentService implements AcpAgentSettingsService {
     // 先关闭传输以解除认证等待，再等待串行操作退场。
     await this.#closeHandle();
     await this.#queue.catch(() => undefined);
+  }
+  async #registerBackground(sessionId: string): Promise<void> {
+    // 关闭只释放 ACP 连接上的会话。原生目录可能继续返回同一 ID，需先登记用途。
+    await this.catalogStore?.catalog("acp.session.background", { engine: this.engine, sessionId });
   }
   async #closeSession(connection: AcpConnection, sessionId: string): Promise<void> {
     // 设置服务独占连接；最小 v1 Agent 没有 close 时直接回收进程释放临时会话。

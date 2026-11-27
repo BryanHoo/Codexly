@@ -1,3 +1,4 @@
+import { quotaView, type CodefreeQuotaSnapshot } from "./codefree-quota.js";
 import { realpath } from "node:fs/promises";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import { AcpConnection, type AcpClientCallbacks } from "./connection.js";
@@ -265,11 +266,13 @@ export async function startCodefreeAdapter(
   };
   let compaction = false;
   let formElicitation = false;
+  let notices = false;
   const methods = acp.methods.agent.session;
   const agent = acp
     .agent({ name: "codexly-codefree-o" })
     .onRequest(acp.methods.agent.initialize, ({ params }) => {
       formElicitation = !!params.clientCapabilities?.elicitation?.form;
+      notices = !!params.clientCapabilities?.session?.notices;
       compaction = !!params.clientCapabilities?.session?.compaction;
       return {
         protocolVersion: 1,
@@ -361,6 +364,7 @@ export async function startCodefreeAdapter(
           value("thought_level"),
           compaction,
           formElicitation,
+          notices,
         );
       } finally {
         turns.delete(params.sessionId);
@@ -395,7 +399,19 @@ export async function startCodefreeAdapter(
       options,
     );
     void connection.closed.then(close, close).catch(() => undefined);
-    return { connection, close };
+    return {
+      connection,
+      close,
+      readCodefreeQuota: async (signal?: AbortSignal) =>
+        quotaView(
+          await server.json<CodefreeQuotaSnapshot>(
+            "/api/aebackend/quota/v1/me",
+            spec.cwd,
+            undefined,
+            signal,
+          ),
+        ),
+    };
   } catch (error) {
     await close();
     throw error;

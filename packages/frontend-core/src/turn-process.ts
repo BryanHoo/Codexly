@@ -9,6 +9,16 @@ type ProcessMessage = Readonly<{
 
 type TimelineActivity = Extract<AgentItem, { type: "activity" }>;
 
+/** 压缩和瞬时活动在回合完成后归入执行过程，即使迟到或没有最终答复。 */
+export function isCompactionOrTransientActivity(
+  item: Readonly<{
+    type: string;
+    transient?: boolean;
+  }>,
+): boolean {
+  return item.type === "compaction" || (item.type === "activity" && item.transient === true);
+}
+
 /** 瞬时活动运行期间只显示当前阶段；回合结束后在折叠过程中恢复，并以回合终态消除残留转圈。 */
 export function resolveTimelineActivityStatus(
   item: Pick<TimelineActivity, "status" | "transient">,

@@ -187,7 +187,7 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         "project.remove" => {
             let active = db
                 .query_row(
-                    "SELECT 1 FROM visible_managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
+                    "SELECT 1 FROM visible_chat_tasks WHERE project_id=? AND status='active' LIMIT 1",
                     [string(p, "id")?],
                     |r| r.get::<_, i64>(0),
                 )

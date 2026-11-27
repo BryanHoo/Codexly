@@ -1,3 +1,4 @@
+import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
 import { AcpActivity } from "@codexly/ui/core/acp-activity";
 import { useMemo } from "react";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
@@ -54,6 +55,7 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     // 接续发送归属目标 Agent，命令也必须出自目标草稿的协商结果。
     availableCommands: (continuation.target ? continuation.preview : session.session)?.availableCommands ?? [],
     isBusy: continuation.target ? continuation.busy : session.isPending || session.isSaving || session.error !== null,
+    quotaControl: <AgentQuotaControl engine={continuation.target ?? configuration.engine} client={props.client} language={getCurrentLanguage()} />,
     trailingControls: (
       <AcpComposerReasoning
         {...configuration}

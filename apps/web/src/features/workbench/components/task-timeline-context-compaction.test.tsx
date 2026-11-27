@@ -76,7 +76,17 @@ describe("completed context compaction", () => {
   );
 });
 
-it("在 ACP 时间线原位显示压缩状态", () => {
+it("完成回合默认折叠 ACP 压缩条目，并保留最终答复", () => {
+  const compaction = {
+    id: "compaction",
+    type: "compaction",
+    status: "completed",
+    summary: "保留摘要",
+  } as const;
+  // 压缩事件也可能晚于最终答复到达，或是该回合唯一的条目。
+  for (const items of [[compaction, answer], [answer, compaction], [compaction]]) {
+    expect(resolveCompletedTurnProcessItemIds(items, "completed")).toEqual([compaction.id]);
+  }
   const markup = renderToStaticMarkup(
     <TaskSnapshotTimeline
       snapshot={{
@@ -84,15 +94,13 @@ it("在 ACP 时间线原位显示压缩状态", () => {
         turns: [
           {
             ...completedTurn,
-            items: [
-              { id: "compaction", type: "compaction", status: "completed", summary: "保留摘要" },
-              answer,
-            ],
+            items: [compaction, answer],
           },
         ],
       }}
     />,
   );
-  expect(markup).toContain("上下文压缩完成");
-  expect(markup.indexOf("上下文压缩完成")).toBeLessThan(markup.indexOf("处理完成。"));
+  expect(markup).toContain('aria-label="展开执行过程"');
+  expect(markup).toContain("处理完成。");
+  expect(markup).not.toContain("上下文压缩完成");
 });

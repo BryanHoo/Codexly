@@ -37,6 +37,7 @@ import {
   codefreeCredentialRevision,
   launchSignedInCodefree,
 } from "./codefree-authorization.js";
+import { nativeQuotaReader } from "./account-quota.js";
 import { readCodefreeModels } from "./codefree-models.js";
 interface Entry {
   scope: AgentTaskScope;
@@ -245,6 +246,7 @@ export class AcpRuntime {
             key === CODEFREE_ENGINE
               ? async (cwd) => readCodefreeModels(await this.catalog.command(key), cwd, snapshot)
               : undefined,
+            nativeQuotaReader(key, this.catalog, snapshot, directory),
           );
         }
         return Reflect.get(target, key, receiver) as unknown;

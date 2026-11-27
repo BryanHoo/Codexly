@@ -32,6 +32,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   acp?: Readonly<{
     controls: ReactNode;
     leadingControls?: ReactNode;
+    quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
   }>;

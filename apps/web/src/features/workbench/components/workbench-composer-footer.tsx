@@ -63,6 +63,7 @@ export function WorkbenchComposerFooter({
             todos={props.projectTodos}
           />
         ) : null}
+        {props.acp?.quotaControl}
         <Context
           maxTokens={props.contextUsage?.contextWindow}
           usedTokens={props.contextUsage?.usedTokens}

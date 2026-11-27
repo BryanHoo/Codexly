@@ -30,6 +30,7 @@ fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, A
         || !matches!(
             method,
             "agent.inspect"
+                | "agent.quota"
                 | "agents.list"
                 | "agents.progress"
                 | "agents.install"

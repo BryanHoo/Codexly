@@ -156,6 +156,11 @@ impl LocalCatalog {
                 .map_err(db_error)?;
             db.execute_batch(string(&schema, "acpBackgroundSchemaSql")?)
                 .map_err(db_error)?;
+            db.execute_batch(string(&schema, "acpEmptyCodefreeSchemaSql")?)
+                .map_err(db_error)?;
+            if let Some(source) = previews::codefree_source() {
+                previews::recover_empty_codefree_sessions(&mut db, &source, &schema)?;
+            }
             if let Some(source) = previews::default_source() {
                 previews::recover_background_sessions(&mut db, &source, &schema)?;
                 previews::recover(&mut db, &source)?;

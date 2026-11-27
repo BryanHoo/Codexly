@@ -11,6 +11,7 @@ import { terminateAcpProcess, type AcpProcessCommand } from "./process.js";
 export async function startCodefreeServer(
   spec: AcpProcessCommand,
   options: AcpAgentLaunchOptions,
+  variant: "codefree" | "opencode" = "codefree",
 ): Promise<CodefreeServer> {
   options.signal?.throwIfAborted();
   const password = randomBytes(32).toString("hex");
@@ -51,13 +52,14 @@ export async function startCodefreeServer(
     const match = /listening on (http:\/\/127\.0\.0\.1:\d+)\s*$/i.exec(line);
     if (match?.[1]) ready.resolve(match[1]);
   });
-  const dispatcher = new Agent();
+  // Bun 宿主的 undici 兼容对象没有 destroy；环回请求交由 Bun 直连，Node 使用独立连接池。
+  const dispatcher = process.versions["bun"] ? undefined : new Agent();
   let closing: Promise<void> | undefined;
   const close = () => {
     life.abort();
     return (closing ??= Promise.all([
       terminateAcpProcess(child, exited),
-      dispatcher.destroy(),
+      dispatcher?.destroy(),
     ]).then(() => undefined));
   };
   const deadline = AbortSignal.timeout(options.handshakeTimeoutMs ?? 30_000);
@@ -82,7 +84,7 @@ export async function startCodefreeServer(
       const url = new URL(path, base);
       if (cwd) url.searchParams.set("directory", cwd);
       const response = await fetch(url, {
-        dispatcher,
+        ...(dispatcher ? { dispatcher } : { proxy: "" }),
         redirect: "error",
         method,
         headers: { authorization, "content-type": "application/json" },
@@ -99,6 +101,8 @@ export async function startCodefreeServer(
     const json = async <T>(path: string, cwd: string, body?: unknown, signal?: AbortSignal) =>
       (await (await request(path, cwd, body, signal)).json()) as T;
     const health = await json<{ version: string }>("/global/health", spec.cwd, undefined, startup);
+    const server = { request, json, version: health.version, close, exited, signal: life.signal };
+    if (variant === "opencode") return server;
     interface Status {
       authenticated: boolean;
       login?: { state: string; authUrl?: string };
@@ -113,7 +117,7 @@ export async function startCodefreeServer(
       }
     }
     if (!auth.authenticated) throw new AcpAuthenticationRequiredError();
-    return { request, json, version: health.version, close, exited, signal: life.signal };
+    return server;
   } catch (error) {
     await close();
     throw error;

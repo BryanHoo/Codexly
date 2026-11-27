@@ -1,4 +1,4 @@
-import type { AgentEngine } from "@codexly/protocol";
+import type { AcpConfigValues, AgentEngine } from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
 import type { AcpSettingsStore, AcpStoredSettings } from "./settings-store.js";
 import { applyAcpConfig, prepareAcpDefaults } from "./configuration.js";
@@ -14,6 +14,34 @@ function baseline(settings: AcpStoredSettings): string {
   ]);
 }
 
+/** 读取或校验全局默认值时借用辅助会话，在关闭成功后才交回配置。 */
+export async function readAcpDefaults(
+  connection: AcpConnection,
+  store: AcpSettingsStore,
+  engine: AgentEngine,
+  cwd: string,
+  values: AcpConfigValues | undefined,
+  closeSession: (sessionId: string) => Promise<void>,
+  registerSession: (sessionId: string) => Promise<void>,
+) {
+  const session = await connection.newSession({ cwd, mcpServers: [] });
+  try {
+    await registerSession(session.sessionId);
+    const current = values === undefined ? await store.inspect(engine) : await store.read(engine);
+    const prepared = await prepareAcpDefaults(
+      connection,
+      session.sessionId,
+      session.configOptions,
+      current,
+      values,
+      values === undefined,
+    );
+    return { ...prepared, retainedValues: current.retainedValues };
+  } finally {
+    await closeSession(session.sessionId);
+  }
+}
+
 /** 单项设置先恢复当前默认值，再按 agent 完整响应收敛；不重送已失效的依赖值。 */
 export async function setAcpDefaultConfig(
   connection: AcpConnection,
@@ -23,10 +51,12 @@ export async function setAcpDefaultConfig(
   configId: string,
   value: string | boolean,
   closeSession: (sessionId: string) => Promise<void>,
+  registerSession: (sessionId: string) => Promise<void>,
 ) {
   const session = await connection.newSession({ cwd, mcpServers: [] });
   const result = await (async () => {
     try {
+      await registerSession(session.sessionId);
       const saved = await store.read(engine);
       const current = await prepareAcpDefaults(
         connection,

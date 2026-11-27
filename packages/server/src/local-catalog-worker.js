@@ -19,6 +19,7 @@ import {
   writeTaskPreview,
   recoverTaskPreviews,
   recoverBackgroundSessions,
+  recoverEmptyCodefreeSessions,
   defaultCodexStateDatabase,
 } from "./local-catalog-previews.js";
 
@@ -58,6 +59,8 @@ export function createLocalCatalogOperations(db) {
     // 幂等增量建表兼容 Web 与桌面先后升级，不修改原领域表的列顺序或迁移版本。
     db.exec(schema.previewSql);
     db.exec(schema.acpBackgroundSchemaSql);
+    db.exec(schema.acpEmptyCodefreeSchemaSql);
+    recoverEmptyCodefreeSessions(db);
     const source = defaultCodexStateDatabase();
     recoverBackgroundSessions(db, source);
     recoverTaskPreviews(db, source);
@@ -129,9 +132,7 @@ export function createLocalCatalogOperations(db) {
     }),
     "project.remove": db.transaction(({ id }) => {
       const active = db
-        .prepare(
-          "SELECT 1 FROM visible_managed_tasks WHERE project_id=? AND status='active' LIMIT 1",
-        )
+        .prepare("SELECT 1 FROM visible_chat_tasks WHERE project_id=? AND status='active' LIMIT 1")
         .get(id);
       if (active) throw new Error("Cannot remove a project with a running task");
       const removed = Boolean(

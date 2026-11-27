@@ -1,3 +1,9 @@
+import {
+  codefreeQuotaNotice,
+  quotaSummary,
+  type CodefreeQuotaSnapshot,
+  type CodefreeQuotaFields,
+} from "./codefree-quota.js";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import * as acp from "@agentclientprotocol/sdk/unstable";
@@ -175,7 +181,7 @@ export function promptPart(block: acp.ContentBlock) {
 
 interface NativeEvent {
   type: string;
-  properties: {
+  properties: CodefreeQuotaFields & {
     sessionID: string;
     messageID: string;
     info?: {
@@ -235,6 +241,7 @@ export async function runCodefreeTurn(
   variant?: string,
   compaction = false,
   formElicitation = false,
+  notices = false,
 ) {
   const { sessionId } = params;
   const isCancelled = () => turn.cancel.signal.aborted;
@@ -243,6 +250,7 @@ export async function runCodefreeTurn(
   const notify = (update: acp.SessionUpdate) =>
     client.notify(acp.methods.client.session.update, { sessionId, update });
   const output = new CodefreeOutput(notify, cwd);
+  const quotaEvents = new Set<string>();
   const assistants = new Set<string>();
   let finish: string | undefined;
   try {
@@ -253,6 +261,22 @@ export async function runCodefreeTurn(
       .join("\n")
       .trim();
     const slash = /^\/(\S+)(?:\s+([\s\S]*))?$/.exec(text);
+    // 主动查询复用已认证的 serve 连接，无需创建模型消息或订阅事件流。
+    if (parts.length === 1 && parts[0]?.type === "text" && text === "/usage") {
+      const snapshot = await server.json<CodefreeQuotaSnapshot>(
+        "/api/aebackend/quota/v1/me",
+        cwd,
+        undefined,
+        turn.cancel.signal,
+      );
+      const description = quotaSummary(snapshot);
+      await notify(
+        notices
+          ? { sessionUpdate: "notice", severity: "info", title: "CodeFree O 剩余额度", description }
+          : { sessionUpdate: "agent_message_chunk", content: { type: "text", text: description } },
+      );
+      return { stopReason: "end_turn" as const };
+    }
     if (slash?.[1] === "compact") {
       const compactionId = randomUUID();
       if (isCancelled()) return { stopReason: "cancelled" as const };
@@ -289,7 +313,8 @@ export async function runCodefreeTurn(
     const response = await server.request("/event", cwd, undefined, stream.signal);
     if (!response.body) throw new Error("CodeFree O 未返回事件流");
     if (isCancelled()) return { stopReason: "cancelled" as const };
-    const command = slash && (await commands).some((c) => c.name === slash[1]);
+    const command =
+      slash && slash[1] !== "usage" && (await commands).some((c) => c.name === slash[1]);
     if (isCancelled()) return { stopReason: "cancelled" as const };
     if (command) {
       // command 接口等待整轮完成；并行消费 SSE 才能在执行中处理权限交互。
@@ -329,6 +354,16 @@ export async function runCodefreeTurn(
       if (!line.startsWith("data:")) continue;
       const { type, properties: p } = JSON.parse(line.slice(5)) as NativeEvent;
       if (p.sessionID !== sessionId) continue;
+      if (notices && (type === "codefree.quota.warning" || type === "codefree.quota.exhausted")) {
+        const id = p.notification?.eventId;
+        if (id && quotaEvents.has(id)) continue;
+        const notice = codefreeQuotaNotice(type, p);
+        if (notice) {
+          if (id) quotaEvents.add(id);
+          await notify(notice);
+        }
+        continue;
+      }
       if (type === "message.updated" && p.info?.role === "assistant") {
         assistants.add(p.info.id);
         finish = p.info.finish;

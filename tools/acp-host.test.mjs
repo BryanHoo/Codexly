@@ -38,7 +38,8 @@ test(
     child.stderr.resume();
     const exited = once(child, "exit");
     const lines = createInterface({ input: child.stdout });
-    const storage = storageCallbacks(child);
+    const backgroundSessions = [];
+    const storage = storageCallbacks(child, backgroundSessions);
     const scope = { id: "p", kind: "project", rootPath: root, runtimeWorkspaceRoots: [root] };
     let next = 0;
     async function request(method, params) {
@@ -74,6 +75,7 @@ test(
       assert.deepEqual(preview.availableCommands, [
         { name: "check", description: "检查", input: { hint: "范围" } },
       ]);
+      assert.deepEqual(backgroundSessions, [{ engine: "acp-test", sessionId: "s" }]);
       child.stdin.end();
       assert.equal((await exited)[0], 0);
     } finally {
@@ -86,13 +88,16 @@ test(
 );
 
 // 宿主已将设置写入协调交给原生目录；此处模拟精确锁端口，完整 SQLite 桥接另有集成测试。
-function storageCallbacks(child) {
+function storageCallbacks(child, backgroundSessions) {
   const owners = new Map();
   return (frame) => {
     if (!frame.catalogId) return false;
     const { key, owner, expectedOwner } = frame.payload;
     let result;
-    if (frame.operation === "acp.storage.read") result = owners.get(key) ?? null;
+    if (frame.operation === "acp.session.background" && backgroundSessions) {
+      backgroundSessions.push(frame.payload);
+      result = null;
+    } else if (frame.operation === "acp.storage.read") result = owners.get(key) ?? null;
     else if (frame.operation === "acp.storage.claim") {
       result = (owners.get(key)?.owner ?? null) === expectedOwner;
       if (result) owners.set(key, frame.payload);

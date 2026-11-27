@@ -117,4 +117,24 @@ test("shows ACP notices and expands streamed compaction summaries in a narrow co
   await expect.element(view.getByText("最终摘要")).toBeVisible();
   await view.getByRole("button", { name: "关闭会话通知" }).click();
   await expect.element(view.getByText("Agent 提示")).not.toBeInTheDocument();
+
+  // 压缩先于回合完成。回合结束时，已经展开的压缩摘要也应随执行过程收起。
+  store.getState().applyEvents([{
+    ...envelope, sequence: 5, turnId: turn.id, type: "turn.completed",
+    payload: { turn: {
+      ...turn, status: "completed", completedAt: envelope.timestamp,
+      items: [
+        { ...item, status: "completed", summary: "最终摘要" },
+        { id: "answer", type: "message", role: "assistant", phase: "final_answer", text: "处理完成。" },
+      ],
+    } },
+  }]);
+  const compaction = view.getByRole("button", { name: /上下文压缩完成/ });
+  await expect.element(view.getByText("处理完成。")).toBeVisible();
+  await expect.element(compaction).not.toBeInTheDocument();
+  await view.getByRole("button", { name: "展开执行过程" }).click();
+  await compaction.click();
+  await expect.element(view.getByText("最终摘要")).toBeVisible();
+  await view.getByRole("button", { name: "收起执行过程" }).click();
+  await expect.element(compaction).not.toBeInTheDocument();
 });

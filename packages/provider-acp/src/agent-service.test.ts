@@ -33,7 +33,7 @@ const initial: acp.SessionConfigOption[] = [
     options: [{ value: "low", name: "低" }],
   },
 ];
-async function fixture(nativeStatus?: () => Record<string, unknown>) {
+async function fixture(nativeStatus?: () => Record<string, unknown>, quotaExtension = false) {
   const root = await mkdtemp(join(tmpdir(), "acp-settings-"));
   const authenticate = vi.fn<
     (
@@ -72,10 +72,16 @@ async function fixture(nativeStatus?: () => Record<string, unknown>) {
             loadSession: true,
             sessionCapabilities: { resume: {}, close: {}, list: {} },
             providers: {},
+            ...(quotaExtension ? { _meta: { "codexly/account-quota": 1 } } : {}),
             ...(nativeStatus ? { _meta: { authStatus: {} } } : {}),
           },
         };
       })
+      .onRequest(
+        "_codexly/account/quota",
+        (value) => value,
+        () => ({ fiveHour: 5, sevenDay: 80, reason: null }),
+      )
       .onRequest(acp.methods.agent.authenticate, authenticate)
       .onRequest(acp.methods.agent.providers.list, () => ({
         providers: [{ providerId: "main", supported: ["openai"], required: false, current: null }],
@@ -923,6 +929,17 @@ it("读取与联动预览不落盘，只有显式保存才创建用户配置", a
       configured: true,
       values: { model: "b" },
     });
+  } finally {
+    await f.dispose();
+  }
+});
+
+it.each([true, false])("第三方额度仅使用握手声明的读取能力（%s）", async (enabled) => {
+  const f = await fixture(undefined, enabled);
+  try {
+    expect(await f.service.readQuota()).toMatchObject(
+      enabled ? { fiveHour: 5, sevenDay: 80 } : { reason: "UNSUPPORTED" },
+    );
   } finally {
     await f.dispose();
   }

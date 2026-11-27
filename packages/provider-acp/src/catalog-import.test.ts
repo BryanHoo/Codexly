@@ -11,7 +11,7 @@ import { AcpAgentService } from "./agent-service.js";
 import { AcpSettingsStore } from "./settings-store.js";
 import { withStorageCatalog } from "./storage-catalog.test-support.js";
 
-async function fixture() {
+async function fixture(retainSettingsSession = false) {
   const tasks = new Map<string, LocalTask>();
   tasks.set("old-id", {
     id: "old-id",
@@ -58,10 +58,20 @@ async function fixture() {
             ],
           }
         : {
-            sessions: [{ sessionId: "native", cwd: "/project", title: "agent 标题" }],
+            sessions: [
+              { sessionId: "native", cwd: "/project", title: "agent 标题" },
+              ...(retainSettingsSession
+                ? ["settings-1", "settings-2"].map((sessionId) => ({
+                    sessionId,
+                    cwd: "/project",
+                    title: "配置辅助会话",
+                  }))
+                : []),
+            ],
             nextCursor: "page-2",
           },
   );
+  let settingsSessions = 0;
   const peer = acp
     .agent({ name: "test" })
     .onRequest(acp.methods.agent.initialize, () => ({
@@ -73,7 +83,10 @@ async function fixture() {
       },
     }))
     .onRequest(acp.methods.agent.session.list, list)
-    .onRequest(acp.methods.agent.session.new, () => ({ sessionId: "settings", configOptions: [] }))
+    .onRequest(acp.methods.agent.session.new, () => ({
+      sessionId: `settings-${String(++settingsSessions)}`,
+      configOptions: [],
+    }))
     .onRequest(acp.methods.agent.session.close, () => ({}))
     .connect({ readable: a.readable, writable: b.writable });
   const connection = await AcpConnection.connect({ readable: b.readable, writable: a.writable });
@@ -127,7 +140,7 @@ it("历史重新导入跳过已登记的后台会话，并保留其他引擎的�
 });
 
 it("首次成功读取 ACP 配置后自动发现目录，后续读取不重复扫描且不创建应用任务", async () => {
-  const f = await fixture();
+  const f = await fixture(true);
   const root = await mkdtemp(join(tmpdir(), "acp-ready-catalog-"));
   const service = new AcpAgentService(
     "claude",
@@ -144,8 +157,13 @@ it("首次成功读取 ACP 配置后自动发现目录，后续读取不重复�
     f.store,
   );
   try {
+    await service.previewConfig(root, { values: {} });
     await service.readDefaults();
     expect(f.tasks.size).toBe(3);
+    expect(await f.store.catalog("acp.session.background.list", { engine: "claude" })).toEqual([
+      "settings-1",
+      "settings-2",
+    ]);
     expect(f.list).toHaveBeenCalledTimes(2);
     await service.readDefaults();
     expect(f.list).toHaveBeenCalledTimes(2);

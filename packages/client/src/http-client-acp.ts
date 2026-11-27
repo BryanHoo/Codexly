@@ -1,5 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import {
+  AgentQuotaViewSchema,
   AcpConfigPreviewSchema,
   type AcpBackgroundTarget,
   AcpAgentCatalogPageSchema,
@@ -171,6 +172,13 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
   }
   getAcpAgent(engine: AgentEngine, options: ReadOptions = {}) {
     return this.read(`/v1/acp/agents/${engine}`, AcpAgentProfileSchema, options);
+  }
+  getAgentQuota(engine: AgentEngine, options: ReadOptions = {}) {
+    return this.read(
+      `/v1/acp/agents/${encodeURIComponent(engine)}/quota`,
+      AgentQuotaViewSchema,
+      options,
+    );
   }
   getAcpDefaults(engine: AgentEngine, options: ReadOptions = {}) {
     return this.read(`/v1/acp/agents/${engine}/defaults`, AcpDefaultsSchema, options);

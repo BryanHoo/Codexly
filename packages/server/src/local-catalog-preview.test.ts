@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import {
@@ -22,6 +23,56 @@ const task = {
   archived: false,
   status: "idle",
 };
+
+it("hides verified empty CodeFree imports and shows them again after native activity", async () => {
+  const root = await createWorkspace();
+  const path = join(root, ".codefree-o", ".local", "share");
+  await mkdir(path, { recursive: true });
+  const source = new Database(join(path, "codefree.db"));
+  const title = "New session - 2026-11-27T09:28:27.870Z";
+  source.exec(
+    "CREATE TABLE session (id TEXT PRIMARY KEY, title TEXT); CREATE TABLE message (session_id TEXT)",
+  );
+  const insert = source.prepare("INSERT INTO session VALUES (?, ?)");
+  for (const id of ["empty", "with-message", "managed", "pinned"]) insert.run(id, title);
+  const addMessage = source.prepare("INSERT INTO message VALUES (?)");
+  addMessage.run("with-message");
+  vi.stubEnv("OPENCODE_TEST_HOME", root);
+  try {
+    const store = await openRepository(root);
+    for (const sessionId of ["empty", "with-message", "managed", "pinned", "unknown"]) {
+      await store.catalog("task.put", {
+        ...task,
+        id: sessionId === "managed" ? "user-managed" : `acp-import-acp-codefree-o-${sessionId}`,
+        provider: "acp-codefree-o",
+        sessionId,
+        title,
+        pinned: sessionId === "pinned",
+      });
+    }
+    const list = async (repository: typeof store) =>
+      (await repository.catalog("task.list", {})).data.map((entry) => entry.sessionId).sort();
+    expect(await list(store)).toEqual(["managed", "pinned", "unknown", "with-message"]);
+    expect(await store.catalog("task.read", { id: "acp-import-acp-codefree-o-empty" })).toBeNull();
+    await store.close();
+    addMessage.run("empty");
+    const reopened = await openRepository(root);
+    try {
+      expect(await list(reopened)).toEqual([
+        "empty",
+        "managed",
+        "pinned",
+        "unknown",
+        "with-message",
+      ]);
+    } finally {
+      await reopened.close();
+    }
+  } finally {
+    source.close();
+    vi.unstubAllEnvs();
+  }
+});
 
 it("keeps ACP background identities out of the chat catalog after reopening", async () => {
   const root = await createWorkspace();
