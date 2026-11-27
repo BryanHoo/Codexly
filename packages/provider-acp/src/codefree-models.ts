@@ -10,7 +10,7 @@ const execute = promisify(execFile);
 
 export async function readCodefreeModels(spec: AgentCommand, cwd: string, env: NodeJS.ProcessEnv) {
   // 仅原生入口支持 models 子命令。自定义启动器继续通过 ACP 提供模型。
-  if (!/^codefree-o(?:\.exe)?$/i.test(basename(spec.command)) || spec.args.join(" ") !== "acp")
+  if (!/^codefree-o(?:\.exe)?$/i.test(basename(spec.command)) || spec.args.join(" ") !== "serve")
     return [];
   const { stdout } = await execute(spec.command, ["models"], {
     cwd,

@@ -152,6 +152,7 @@ export async function authorizeCodefree(
     allowDisabled: true,
     signal: lifetime,
     handshakeTimeoutMs: LOGIN_TIMEOUT_MS,
+    codefreeLogin: true,
     onStderrLine(line) {
       if (offered || lifetime.aborted) return;
       const authorization = parseCodefreeAuthorization(line);

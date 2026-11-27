@@ -487,7 +487,13 @@ export class AcpAgentCatalog {
     }
     return {
       command: record.command,
-      args: record.args,
+      // 旧安装记录在实际启动处迁移；手工配置的第三方 ACP 包装器保留原参数。
+      args:
+        engine === "acp-codefree-o" &&
+        /^codefree-o(?:\.exe)?$/i.test(basename(record.command)) &&
+        record.args.join(" ") === "acp"
+          ? ["serve"]
+          : record.args,
       ...(env ? { env } : {}),
     };
   }

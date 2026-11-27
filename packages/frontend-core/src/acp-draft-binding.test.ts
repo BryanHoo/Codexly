@@ -18,6 +18,24 @@ it("预览失败后显式重试，恢复成功前不能发送", async () => {
   expect(binding.getSnapshot().error).toBeNull();
   binding.dispose();
 });
+it("模型变更失败后重试同一选择，成功后按该模型提交", async () => {
+  const f = fixture();
+  const binding = f.create();
+  await vi.waitFor(() => expect(binding.getSnapshot().isPending).toBe(false));
+  const model = "codefree/DeepSeek-V4.1-Flash-1017";
+  f.read.mockRejectedValueOnce(new Error("网络中断"));
+  expect(await binding.setConfig("model", model)).toBe(false);
+  f.read.mockResolvedValueOnce({ configOptions: [], values: { model } });
+  expect(await binding.reload()).toBe(true);
+  expect(f.read).toHaveBeenLastCalledWith(
+    { values: preview.values, change: { configId: "model", value: model } },
+    expect.any(AbortSignal),
+  );
+  const execute = vi.fn(() => Promise.resolve("ok"));
+  await binding.submit({ text: "你好" }, "first", execute);
+  expect(execute).toHaveBeenCalledWith(expect.objectContaining({ values: { model } }));
+  binding.dispose();
+});
 it("重启后新聊天使用当前 Agent 默认值，忽略旧版未提交草稿的整套配置", async () => {
   const oldValues = {
     mode: "agent",

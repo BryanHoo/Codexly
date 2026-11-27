@@ -368,6 +368,50 @@ async fn deadline_should_include_queue_wait_and_cancelled_requests_should_releas
 }
 
 #[tokio::test]
+async fn model_preview_should_read_project_through_catalog_bridge() {
+    use crate::infrastructure::local_catalog::LocalCatalog;
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = LocalCatalog::at(directory.path()).unwrap();
+    catalog
+        .call(
+            "project.put",
+            json!({"id":"p","name":"test","path":"/workspace","createdAt":"2026-10-17"}),
+        )
+        .await
+        .unwrap();
+    let (transport, writes) = Transport::new();
+    let (writer, reader) = tokio::io::duplex(4096);
+    let writer = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
+    let (sender, receiver) = mpsc::channel(1);
+    let worker = tokio::spawn(super::workers::catalog_loop(
+        receiver,
+        catalog,
+        Arc::clone(&transport),
+    ));
+    sender
+        .send(Routed {
+            message: json!({"catalogId":1,"operation":"project.read","payload":{"id":"p"}}),
+            _budget: Arc::clone(&transport.inbound_budget)
+                .acquire_owned()
+                .await
+                .unwrap(),
+        })
+        .await
+        .unwrap();
+    let reply = BufReader::new(reader)
+        .lines()
+        .next_line()
+        .await
+        .unwrap()
+        .unwrap();
+    let frame: serde_json::Value = serde_json::from_str(&reply).unwrap();
+    assert_eq!(frame["result"]["path"], "/workspace", "{frame}");
+    drop(sender);
+    worker.await.unwrap();
+    writer.abort();
+}
+
+#[tokio::test]
 async fn real_slow_catalog_write_should_not_delay_response_delivery() {
     use crate::infrastructure::local_catalog::LocalCatalog;
     let directory = tempfile::tempdir().unwrap();

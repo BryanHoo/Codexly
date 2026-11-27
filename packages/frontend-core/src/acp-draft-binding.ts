@@ -121,16 +121,20 @@ export function bindAcpDraft(
       throw new Error("ACP 草稿恢复记录超过容量限制");
     input.save(saved);
   };
+  // 重试要重新校验用户刚选的模型，成功前仍以最后一次确认的值为准。
+  let failedChange: AcpConfigPreviewRequest["change"];
   const negotiate = async (change?: AcpConfigPreviewRequest["change"]) => {
     try {
       const result = await input.preview({ values, ...(change ? { change } : {}) }, abort.signal);
       if (closed) return false;
+      failedChange = undefined;
       values = result.values;
       // 确认值在当前草稿内连续使用，只为已开始的提交保留跨重启恢复记录。
       if (attempt) persist(attempt);
       update({ preview: result, error: null });
       return true;
     } catch (error) {
+      failedChange = change;
       update({ error: error instanceof Error ? error : new Error(String(error)) });
       return false;
     } finally {
@@ -158,7 +162,7 @@ export function bindAcpDraft(
     reload(): Promise<boolean> {
       if (closed || !canNegotiate || view.isPending || view.isSaving) return Promise.resolve(false);
       update({ isSaving: true });
-      return negotiate();
+      return negotiate(failedChange);
     },
     async setConfig(configId: string, value: string | boolean): Promise<boolean> {
       if (closed || view.isPending || view.isSaving || !view.preview) return false;

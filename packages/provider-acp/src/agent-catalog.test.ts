@@ -37,7 +37,7 @@ test("只为检测到的 CLI 自动安装适配器，原生 ACP 直接复用", a
   expect(install).toHaveBeenCalledTimes(1);
   expect((await catalog.command("codex", true)).env).not.toHaveProperty("CODEX_PATH");
 });
-test("内置 CodeFree O 自动复用本机 CLI 和 ACP 子命令", async () => {
+test("内置 CodeFree O 自动通过本机 CLI 启动无界面服务", async () => {
   const { catalog, install } = await fixture(["codefree-o"]);
   const engine = "acp-codefree-o";
   expect((await catalog.list()).agents.find((agent) => agent.engine === engine)).toMatchObject({
@@ -48,9 +48,23 @@ test("内置 CodeFree O 自动复用本机 CLI 和 ACP 子命令", async () => {
   });
   expect(await catalog.command(engine, true)).toMatchObject({
     command: "/bin/codefree-o",
-    args: ["acp"],
+    args: ["serve"],
   });
   expect(install).not.toHaveBeenCalled();
+});
+test("旧 CodeFree O 安装记录自动使用新适配器", async () => {
+  const { catalog } = await fixture();
+  await catalog.configure({
+    engine: "acp-codefree-o",
+    name: "CodeFree O",
+    command: "/bin/codefree-o.exe",
+    args: ["acp"],
+    enabled: true,
+  });
+  expect(await catalog.command("acp-codefree-o", true)).toMatchObject({
+    command: "/bin/codefree-o.exe",
+    args: ["serve"],
+  });
 });
 test("未安装的 CodeFree O 按需安装固定版本，更新使用内置版本", async () => {
   const { catalog, install } = await fixture();
@@ -62,7 +76,7 @@ test("未安装的 CodeFree O 按需安装固定版本，更新使用内置版�
   await catalog.install(engine);
   expect(install).toHaveBeenCalledWith(
     expect.objectContaining({
-      distribution: { npx: { package: "@srdcloud/codefree-o@1.11.2", args: ["acp"] } },
+      distribution: { npx: { package: "@srdcloud/codefree-o@1.11.2", args: ["serve"] } },
     }),
     expect.any(String),
     expect.any(AbortSignal),

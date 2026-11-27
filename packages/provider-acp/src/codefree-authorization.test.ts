@@ -29,8 +29,16 @@ it.each([false, true])("CodeFree O 草稿握手要求登录（凭据文件存在
     }),
   );
   try {
-    const url = authorization(
-      "http://127.0.0.1:4567/oauth2callback?from=codefree-o&randomCode=1234",
+    // 测试替身只实现 serve 的健康与认证接口；若误走厂商 ACP 子命令，启动立即失败。
+    const fixture = join(root, "cli.cjs");
+    await writeFile(
+      fixture,
+      `if(process.argv[2]!=="serve") process.exit(1);
+const server=require("node:http").createServer((req,res)=>{
+  res.setHeader("content-type","application/json");
+  res.end(JSON.stringify(req.url.startsWith("/global/health")?{version:"test"}:{authenticated:false}));
+});
+server.listen(0,"127.0.0.1",()=>console.log("server listening on http://127.0.0.1:"+server.address().port));`,
     );
     await mkdir(join(root, "agents"));
     await writeFile(
@@ -40,7 +48,7 @@ it.each([false, true])("CodeFree O 草稿握手要求登录（凭据文件存在
         name: "CodeFree O",
         enabled: true,
         command: process.execPath,
-        args: ["-e", `console.error(${JSON.stringify(url)}); process.exitCode = 1`],
+        args: [fixture, "acp"],
         env: { OPENCODE_TEST_HOME: root },
       }),
     );
@@ -128,36 +136,36 @@ it.each(["browser", "code", "browser-then-code", "cancel"] as const)(
         peer,
         `
 import { createServer } from "node:http";
-import { createInterface } from "node:readline";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
+if (process.argv[2] !== "serve") process.exit(1);
 const authFile = join(process.env.OPENCODE_TEST_HOME, ".codefree-o", ".local", "share", "codefree.json");
-createInterface({ input: process.stdin }).on("line", (line) => {
-  const { id, method } = JSON.parse(line);
-  if (method !== "initialize") return;
-  const finish = () => console.log(JSON.stringify({ id, jsonrpc: "2.0", result: { protocolVersion: 1, agentInfo: { name: "fixture", version: "1.11.2" } } }));
-  if (existsSync(authFile)) return finish();
-  const server = createServer((req, res) => {
-    const url = new URL(req.url, "http://127.0.0.1");
-    if (url.pathname !== "/oauth2callback" || url.searchParams.get("randomCode") !== "1234" || url.searchParams.get("code") !== ${JSON.stringify(expectedCode)}) {
-      res.writeHead(400).end();
-      return;
-    }
-    mkdirSync(dirname(authFile), { recursive: true });
-    writeFileSync(authFile, "{}");
-    res.end();
-    server.close();
-    if (${JSON.stringify(route)} === "browser-then-code") setTimeout(finish, 500);
-    else finish();
-  });
-  server.listen(0, "127.0.0.1", () => {
-    const callback = "http://127.0.0.1:" + server.address().port + "/oauth2callback?from=codefree-o&randomCode=1234";
+let authUrl;
+let confirmed = existsSync(authFile);
+const api = createServer(async (req, res) => {
+  const path = new URL(req.url, "http://127.0.0.1").pathname;
+  res.setHeader("content-type","application/json");
+  if(path === "/global/health") return res.end(JSON.stringify({version:"1.11.2"}));
+  if(path === "/codefree/auth/login") {
+    const callback = createServer((req,res)=>{
+      const url = new URL(req.url,"http://127.0.0.1");
+      if(url.pathname!=="/oauth2callback" || url.searchParams.get("code")!==${JSON.stringify(expectedCode)}){
+        res.writeHead(400).end(); return;
+      }
+      mkdirSync(dirname(authFile),{recursive:true});
+      writeFileSync(authFile,"{}");
+      res.end();
+      callback.close();
+      setTimeout(()=>{confirmed=true;},${JSON.stringify(route)}==="browser-then-code"?500:0);
+    });
+    await new Promise(resolve=>callback.listen(0,"127.0.0.1",resolve));
     const url = new URL(${JSON.stringify(authorization("fixture"))});
-    url.searchParams.set("state", Buffer.from(callback).toString("base64"));
-    process.stderr.write(url.href.slice(0, 25));
-    process.stderr.write(url.href.slice(25) + "\\n");
-  });
-});`,
+    url.searchParams.set("state",Buffer.from("http://127.0.0.1:"+callback.address().port+"/oauth2callback?from=codefree-o&randomCode=1234").toString("base64"));
+    authUrl=url.href;
+  }
+  res.end(JSON.stringify({authenticated:confirmed,login:{state:authUrl?"running":"idle",authUrl}}));
+});
+api.listen(0,"127.0.0.1",()=>console.log("server listening on http://127.0.0.1:"+api.address().port));`,
       );
       const registration = {
         engine: "acp-codefree-o" as const,

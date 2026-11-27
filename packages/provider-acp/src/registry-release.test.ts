@@ -30,7 +30,7 @@ describe.skipIf(process.env["CODEXLY_REGISTRY_RELEASE_TEST"] !== "1")("目录发
       // 厂商安装脚本会配置用户运行时。测试将运行时隔离，首次登录留给真实账号流程。
       const env = { ...process.env, OPENCODE_TEST_HOME: root };
       const installed = await installRegistryAgent(codefreeAgent, join(root, "runtime"), env);
-      expect(installed.args).toEqual(["acp"]);
+      expect(installed.args).toEqual(["serve"]);
       const result = await promisify(execFile)(installed.command, ["--version"], {
         env,
         cwd: root,

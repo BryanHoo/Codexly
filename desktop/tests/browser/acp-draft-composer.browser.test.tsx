@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@codexly/ui/core/toaster";
 import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
 import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
@@ -51,15 +52,15 @@ it.each([false, true])("CodeFree O 目录独立于预热失败（%s），会话�
   }
   const screen = await render(
     <QueryClientProvider client={new QueryClient()}>
-      <TooltipProvider><SelectedEnginesContext value={["acp-codefree-o"]}><Draft /></SelectedEnginesContext></TooltipProvider>
+      <Toaster><TooltipProvider><SelectedEnginesContext value={["acp-codefree-o"]}><Draft /></SelectedEnginesContext></TooltipProvider></Toaster>
     </QueryClientProvider>,
   );
   const trigger = screen.getByRole("button", { name: /codefree-o\s*\//i });
-  await trigger.click();
   if (fails) {
     ready.reject(new Error("ACP_AUTH_REQUIRED"));
-    await expect.element(screen.getByRole("alert")).toHaveTextContent("登录 CodeFree O");
+    await expect.element(screen.getByText(/登录 CodeFree O/)).toBeVisible();
   }
+  await trigger.click();
   catalog.resolve({ configOptions, values: {} });
   await screen.getByRole("option", { name: /Model B/ }).click();
   await expect.element(trigger).toHaveTextContent("Model B");
@@ -67,8 +68,8 @@ it.each([false, true])("CodeFree O 目录独立于预热失败（%s），会话�
   await expect.element(send).toBeDisabled();
   expect(preview.mock.calls.map(([, , request]) => request.change)).toEqual([undefined, undefined]);
   if (fails) {
-    await trigger.click();
-    await expect.element(screen.getByRole("alert")).toHaveTextContent("登录 CodeFree O");
+    // 菜单关闭后可直接在通用通知内重试，并沿用已选模型。
+    await expect.element(screen.getByText(/登录 CodeFree O/)).toBeVisible();
     await screen.getByRole("button", { name: "重试" }).click();
   } else ready.resolve(complete);
   await expect.element(send).toBeEnabled();

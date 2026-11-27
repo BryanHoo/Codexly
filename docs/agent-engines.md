@@ -28,6 +28,20 @@ Agent 程序、认证和原生配置均位于服务电脑。手机或其他电�
 
 首次会话初始化先保存冻结的配置意图，再绑定原厂会话并应用默认值。配置应用或目录写入失败后，重启沿原会话恢复，不创建替代会话，也不因另一端改变全局默认值而丢失原意图。初始化完成即移除日志内的配置快照。
 
+## CodeFree O 的 ACP v1 能力
+
+Web、移动浏览器和桌面宿主共用 Codexly 的 CodeFree O 适配器。宿主启动本机 `codefree-o serve`，通过带随机凭据的环回 HTTP 连接调用 CLI，并将原生事件转换为 ACP 更新。普通会话复用连接，带有客户端指定 MCP 服务的会话使用独立进程，关闭时释放。
+
+| 能力       | CodeFree O 的处理方式                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 会话       | 新建、按工作目录分页列出、加载并重放、恢复、完整分支、关闭和删除。关闭保留原生历史。                                     |
+| 模型与模式 | 从 CLI 获取可用模型、模式和模型支持的推理档位，选择写入原生会话。                                                        |
+| 消息与工具 | 支持文本、图片、嵌入资源和资源链接，流式转发回答、推理、工具状态、文件位置和编辑差异。支持取消回合、工具审批和交互提问。 |
+| 会话更新   | 转发计划、标题和上下文用量，公布原生命令，支持 `/compact`。客户端声明压缩通知能力时可接收压缩状态。                      |
+| 会话环境   | ACP 客户端可在请求中传入附加工作目录、stdio MCP 和 HTTP MCP。文件与终端工具由运行 CLI 的服务电脑执行。                   |
+
+能力表描述协议接口。聊天界面通过现有菜单和命令入口使用相应能力，MCP 和附加目录由创建或恢复会话的客户端传入。音频输入、SSE 类型的 MCP、指定消息位置的分支和 OpenCode 私有实验扩展不在此适配器公布的能力内。协议与实现参考 [ACP 能力协商](https://agentclientprotocol.com/protocol/initialization) 和 [OpenCode ACP](https://opencode.ai/docs/acp/)。
+
 ## 任务、历史与附件
 
 在已完成回合的聊天中，打开模型菜单并选择另一个 Agent。发送时选择「创建并发送」，应用会新建任务，并将当前提示词与 `接续记录.md` 一起发送给目标 Agent。短对话直接随提示词发送。长对话会直接发送包含原始需求和近期回合的接续摘录，并附上可下载的 Markdown 聊天记录，方便 Agent 按需读取较早的消息。记录按顺序包含已保存的用户和 Agent 对话及回答续文。文件与本次发送的其他文件共享 50 MiB 额度，历史有缺口或达到额度时会标注，仍可通过「打开来源任务」回查。项目接续任务沿用来源的实际工作目录，桌面临时接续任务使用独立的临时目录。
@@ -60,6 +74,7 @@ Windows 便携版需保留主程序、`acp-host.exe` 和 `runtime` 元数据。m
 
 ## 验证入口
 
+- `CODEXLY_CODEFREE_LIVE=1 pnpm exec vitest run packages/provider-acp/src/codefree-adapter.test.ts` 使用本机已登录的 CodeFree O 验证模型发送、命令、压缩、历史和 MCP，会消耗模型额度。
 - `pnpm test:acp-host`：编译真实 ACP 宿主并验证传输、配置、目录与事件协议。
 - `pnpm build:desktop-runtime` 后执行 `node --test tools/desktop-runtime-bundle.test.mjs`：核对目标资源、sidecar 单份布局和本机程序版本。
 - `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-acp/src/official-agents.test.ts`：隔离环境下验证官方 adapter 握手。

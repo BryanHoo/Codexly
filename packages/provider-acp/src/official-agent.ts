@@ -2,7 +2,7 @@ import { AcpAgentCatalog } from "./agent-catalog.js";
 import type { AgentEngine } from "@codexly/protocol";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { AcpProcess } from "./process.js";
+import { launchCatalogAgent } from "./codefree-adapter.js";
 
 function agentCatalog(environment: NodeJS.ProcessEnv) {
   return new AcpAgentCatalog(
@@ -26,7 +26,7 @@ export async function inspectOfficialAcpAgents(environment: NodeJS.ProcessEnv) {
     (agent) => agent.installed && agent.enabled,
   )) {
     const cwd = homedir();
-    const handle = await AcpProcess.start({
+    const handle = await launchCatalogAgent(engine, {
       ...(await catalog.command(engine)),
       cwd,
       env: environment,

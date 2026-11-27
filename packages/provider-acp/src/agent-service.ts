@@ -18,7 +18,7 @@ import { setAcpDefaultConfig } from "./default-config.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { importAcpCatalog } from "./catalog-import.js";
 import type { LocalCatalogStore } from "@codexly/core";
-import { PendingRequestResolutionError } from "@codexly/core";
+import { AcpAuthenticationRequiredError, PendingRequestResolutionError } from "@codexly/core";
 import { AcpElicitations } from "./elicitation.js";
 import {
   authorizeCodefree,
@@ -146,7 +146,8 @@ export class AcpAgentService implements AcpAgentSettingsService {
             },
           });
         } catch (error) {
-          if (pendingLogin.signal.aborted) return codefreeSignedOutProfile;
+          if (pendingLogin.signal.aborted || error instanceof AcpAuthenticationRequiredError)
+            return codefreeSignedOutProfile;
           throw error;
         }
       } else connection = await this.#agent();

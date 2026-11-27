@@ -89,7 +89,7 @@ export class AcpProcess {
         : await connecting;
       return new AcpProcess(connection, child, exited);
     } catch (error) {
-      await terminate(child, exited);
+      await terminateAcpProcess(child, exited);
       throw startupError ?? error;
     } finally {
       options.signal?.removeEventListener("abort", stop);
@@ -103,14 +103,14 @@ export class AcpProcess {
   close(): Promise<void> {
     if (!this.#closing) {
       this.connection.close();
-      this.#closing = terminate(this.child, this.exited);
+      this.#closing = terminateAcpProcess(this.child, this.exited);
     }
     return this.#closing;
   }
 }
 
 /** 关闭使用有界等待并等待 close 排空管道；SIGTERM 无响应时强制回收，重复关闭复用同一 Promise。 */
-async function terminate(
+export async function terminateAcpProcess(
   child: ChildProcessWithoutNullStreams,
   exited: Promise<void>,
 ): Promise<void> {

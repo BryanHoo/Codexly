@@ -38,6 +38,8 @@ pub(super) async fn catalog_loop(
                 | "acp.title.finish"
                 | "acp.session.background"
                 // 默认配置读取可能触发历史目录发现，需要项目、已有绑定和后台会话索引。
+                // 项目首次预览模型时，宿主按 ID 读取已登记的主目录来复用聊天连接。
+                | "project.read"
                 | "project.list"
                 | "task.bindings"
                 | "acp.session.background.list"

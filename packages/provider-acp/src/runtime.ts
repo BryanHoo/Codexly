@@ -18,7 +18,7 @@ import type { AgentEngine, Project } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
 export type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 import { AcpAgentCatalog } from "./agent-catalog.js";
-import { AcpProcess } from "./process.js";
+import { launchCatalogAgent } from "./codefree-adapter.js";
 import { hasAcpAgentConnection, isAgentEngine } from "@codexly/protocol";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
@@ -86,13 +86,10 @@ export class AcpRuntime {
         const command = await this.catalog.command(engine, options?.allowDisabled);
         const env = { ...snapshot, ...command.env };
         const start = (launchOptions?: AcpAgentLaunchOptions) =>
-          AcpProcess.start(
+          launchCatalogAgent(
+            engine,
             {
               ...command,
-              args:
-                engine === CODEFREE_ENGINE && options?.onStderrLine
-                  ? [...command.args, "--print-logs"]
-                  : command.args,
               env,
               cwd: scope.rootPath,
             },

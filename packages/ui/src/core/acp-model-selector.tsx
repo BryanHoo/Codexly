@@ -1,10 +1,11 @@
 import { agentEngineName, isAgentEngine } from "@codexly/protocol";
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useEffectEvent, useState } from "react";
 import * as Popover from "radix-ui/popover";
 import * as Tabs from "radix-ui/tabs";
 import { Check, ChevronDown, LoaderCircle, Settings, Star } from "lucide-react";
 import type { AcpConfigOption, AgentEngine } from "@codexly/protocol";
+import { toast } from "./notifications.js";
 import { Button } from "./button.js";
 import { AgentEngineIcon } from "./agent-engine-icon.js";
 import { AcpComposerConfiguration } from "./acp-composer-configuration.js";
@@ -105,6 +106,21 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
       window.removeEventListener(favoriteKey, refresh);
     };
   }, []);
+  const reportFailure = useEffectEvent((failure: Error) => {
+    const retry = props.retry;
+    return toast.error(
+      failure.message,
+      retry ? { duration: 0, action: { label: retry.label, onClick: retry.run } } : {},
+    );
+  });
+  // 即使选择菜单已经关闭，阻塞发送的错误也立即可见；切换作用域时一并撤销旧重试入口。
+  useEffect(() => {
+    if (!error) return;
+    const id = reportFailure(error);
+    return () => {
+      toast.dismiss(id);
+    };
+  }, [engine, error]);
   const load = props.loadOptions;
   useEffect(() => {
     if (
@@ -123,11 +139,10 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
         if (!controller.signal.aborted) setRemote({ engine: target, options: result });
       },
       (reason: unknown) => {
-        if (!controller.signal.aborted)
-          setRemote({
-            engine: target,
-            error: reason instanceof Error ? reason : new Error(String(reason)),
-          });
+        if (controller.signal.aborted) return;
+        const failure = reason instanceof Error ? reason : new Error(String(reason));
+        setRemote({ engine: target, error: failure });
+        toast.error(failure.message);
       },
     );
     return () => {
@@ -272,15 +287,10 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
                     <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
                     {zh ? "正在加载模型…" : "Loading models…"}
                   </div>
-                ) : failure ? (
-                  <div role="alert" className="p-3 text-caption text-danger">
-                    {failure.message}
-                    {props.retry && target === engine ? (
-                      <Button type="button" variant="ghost" onClick={props.retry.run}>
-                        {props.retry.label}
-                      </Button>
-                    ) : null}
-                  </div>
+                ) : failure && props.retry && target === engine ? (
+                  <Button type="button" variant="ghost" onClick={props.retry.run}>
+                    {props.retry.label}
+                  </Button>
                 ) : null}
                 <ModelSelectorList>
                   {!loading && !failure ? (

@@ -3,14 +3,14 @@ import type { RegistryAgent } from "./agent-installer.js";
 import { findRegistryUpdate } from "./agent-registry-update.js";
 import snapshot from "./registry-snapshot.json" with { type: "json" };
 
-// CodeFree O 由 Codexly 补充到内置目录，固定为已验证支持 ACP v1 的 npm 版本。
+// CodeFree O 由 Codexly 补充到内置目录，固定为已验证无界面服务接口的 npm 版本。
 export const codefreeAgent: RegistryAgent & { description: string } = {
   id: "codefree-o",
   name: "CodeFree O",
   version: "1.11.2",
   description: "CodeFree O coding agent",
   distribution: {
-    npx: { package: "@srdcloud/codefree-o@1.11.2", args: ["acp"] },
+    npx: { package: "@srdcloud/codefree-o@1.11.2", args: ["serve"] },
   },
 };
 

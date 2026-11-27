@@ -91,21 +91,22 @@ export function useAcpDraftComposer(
   const modelOptions = earlyOptions ?? draft.preview?.configOptions ?? [];
   const disabled = draft.isPending || draft.isSaving || engines.length === 0;
   const chinese = (input.language ?? "zh-CN") === "zh-CN";
-  let error = draft.error;
-  if (engine === "acp-codefree-o") {
-    if (error?.message === "ACP_AUTH_REQUIRED")
-      error = new Error(
+  const error = useMemo(() => {
+    if (engine !== "acp-codefree-o") return draft.error;
+    if (draft.error?.message === "ACP_AUTH_REQUIRED")
+      return new Error(
         chinese
           ? "请在「配置 Agent」中登录 CodeFree O，再重试。"
           : "Sign in to CodeFree O in Configure agents, then try again.",
       );
-    else if (useNativeCatalog && error?.message === "ACP_HOST_REQUEST_FAILED")
-      error = new Error(
+    if (draft.error?.message === "ACP_HOST_REQUEST_FAILED")
+      return new Error(
         chinese
           ? "CodeFree O 会话准备失败，请重试。"
           : "Could not prepare the CodeFree O session. Try again.",
       );
-  }
+    return draft.error;
+  }, [engine, draft.error, chinese]);
   const common = {
     engine,
     client: input.client,

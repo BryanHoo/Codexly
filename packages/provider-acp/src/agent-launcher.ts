@@ -10,6 +10,7 @@ export interface AcpAgentHandle {
 export interface AcpAgentLaunchOptions {
   /** 全局设置进程可在 Agent 未启用时检测连接、登录和配置 API。 */
   allowDisabled?: boolean;
+  codefreeLogin?: boolean;
   signal?: AbortSignal;
   handshakeTimeoutMs?: number;
   onStderrLine?: (line: string) => void;
