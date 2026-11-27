@@ -16,13 +16,13 @@ import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import type { AcpAgentCatalogPage, AcpAgentCatalogProgress, AcpAgentRegistration } from "@codexly/protocol";
 import "../../src/shared/styles/globals.css";
 for (const width of [390, 1280])
-  it(`ACP 目录在 ${width}px 支持安装其他 Agent 和自定义命令`, async () => {
+  it(`ACP 目录在 ${width}px 支持安装指定 Agent 且不开放自定义命令`, async () => {
     await page.viewport(width, 900);
     const initial: AcpAgentCatalogPage = {
       agents: [
         {
-          engine: "acp-gemini",
-          name: "Gemini CLI",
+          engine: "acp-antigravity-acp",
+          name: "Google Antigravity",
           description: "Google agent",
           version: "1.0.0",
           installed: false,
@@ -41,7 +41,7 @@ for (const width of [390, 1280])
             ...initial.agents[0]!,
             installed: true,
             enabled: false,
-            command: "/bin/gemini",
+            command: "/bin/antigravity",
             args: ["--acp"],
           },
         ],
@@ -68,7 +68,7 @@ for (const width of [390, 1280])
       getAcpAgentCatalog: vi.fn(async () => initial),
       getAcpAgentCatalogProgress: async (): Promise<AcpAgentCatalogProgress> => ({
         operations: [{
-          engine: "acp-gemini", name: "Gemini CLI", action: "install",
+          engine: "acp-antigravity-acp", name: "Google Antigravity", action: "install",
           progress: { stage: "downloading", received: 50, total: 100 },
         }],
       }),
@@ -98,7 +98,7 @@ for (const width of [390, 1280])
       </QueryClientProvider>,
     );
     await screen.getByRole("button", { name: "添加 Agent", exact: true }).click();
-    await expect.element(page.getByRole("heading", { name: "Gemini CLI" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Google Antigravity" })).toBeVisible();
     const search = page.getByLabelText("搜索 Agent", { exact: true });
     await expect.element(search).toHaveFocus();
     const searchBounds = search.element().getBoundingClientRect();
@@ -129,7 +129,7 @@ for (const width of [390, 1280])
     await expect.element(page.getByRole("dialog")).toBeVisible();
     installation.resolve();
     await expect
-      .element(screen.getByRole("button", { name: "Gemini CLI", exact: true }))
+      .element(screen.getByRole("button", { name: "Google Antigravity", exact: true }))
       .toBeVisible();
     await expect.element(screen.getByText("未登录", { exact: true })).toBeVisible();
     expect(client.getAcpDefaults).not.toHaveBeenCalled();
@@ -137,10 +137,10 @@ for (const width of [390, 1280])
       .element(screen.getByRole("heading", { name: "会话默认配置", exact: true }))
       .not.toBeInTheDocument();
     expect(install).toHaveBeenCalledExactlyOnceWith(
-      "acp-gemini",
+      "acp-antigravity-acp",
       expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
-    const toggle = screen.getByRole("switch", { name: "启用 Gemini CLI" });
+    const toggle = screen.getByRole("switch", { name: "启用 Google Antigravity" });
     await expect.element(toggle).not.toBeChecked();
     await expect.element(toggle).toBeDisabled();
     if (width === 390) {
@@ -159,18 +159,8 @@ for (const width of [390, 1280])
     await expect.element(toggle).not.toBeChecked();
     configure.mockClear();
     await screen.getByRole("button", { name: "添加 Agent", exact: true }).click();
-    await page.getByRole("button", { name: "配置自定义 Agent" }).click();
-    await page.getByRole("textbox", { name: "名称", exact: true }).fill("本机助手");
-    await page.getByRole("textbox", { name: "可执行程序路径" }).fill("/path with spaces/agent");
-    await page.getByRole("textbox", { name: "参数（JSON 数组）" }).fill('["--acp", "a b"]');
-    await page.getByRole("button", { name: "保存配置" }).click();
-    await expect.poll(() => configure.mock.calls.length).toBe(1);
-    expect(configure.mock.calls[0]?.[0]).toMatchObject({
-      name: "本机助手",
-      command: "/path with spaces/agent",
-      args: ["--acp", "a b"],
-      enabled: false,
-    });
+    await expect.element(page.getByRole("button", { name: "配置自定义 Agent" })).not.toBeInTheDocument();
+    expect(configure).not.toHaveBeenCalled();
     await screen.unmount();
   });
 it("检测到的其他 Agent 自动进入工作区，未启动账号或模型探测", async () => {
@@ -469,5 +459,27 @@ it("目录模式保留左右配置布局，添加按钮固定在 Agent 栏底部
   await expect
     .element(page.getByRole("dialog").getByRole("heading", { name: "添加 Agent", exact: true }))
     .toBeVisible();
+  await screen.unmount();
+});
+
+it("添加列表仅展示指定五个 Agent，并按产品顺序排列", async () => {
+  const { AcpAgentPicker } = await import("@codexly/ui/core/acp-catalog-settings");
+  const agents = [
+    ["acp-opencode", "OpenCode"], ["acp-codefree-o", "CodeFree O"], ["acp-gemini", "Gemini CLI"],
+    ["acp-antigravity-acp", "Google Antigravity"], ["claude", "Claude"], ["codex", "Codex"],
+  ].map(([engine, name]) => ({ engine: engine as AgentEngine, name: name!, description: "",
+    installed: false, enabled: false, detected: false, environmentKeys: [] }));
+  const screen = await render(<QueryClientProvider client={new QueryClient()}>
+    <SettingsSaveFeedbackProvider><AcpAgentPicker language="zh-CN" client={{
+      getAcpAgentCatalog: async () => ({ agents }),
+    }} onAdded={() => {}} onPendingChange={() => {}} /></SettingsSaveFeedbackProvider>
+  </QueryClientProvider>);
+  await expect.element(page.getByRole("heading", { name: /Codex/ })).toBeVisible();
+  expect([...document.querySelectorAll("h3")].map(n => n.lastChild?.textContent?.trim())).toEqual([
+    "Codex", "Claude", "Google Antigravity", "CodeFree O", "OpenCode",
+  ]);
+  await expect.element(page.getByRole("button", { name: "配置自定义 Agent" })).not.toBeInTheDocument();
+  await page.getByRole("searchbox", { name: "搜索 Agent" }).fill("Google");
+  expect([...document.querySelectorAll("h3")].map(n => n.lastChild?.textContent?.trim())).toEqual(["Google Antigravity"]);
   await screen.unmount();
 });

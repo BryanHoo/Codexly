@@ -161,8 +161,14 @@
 
 ## ACP 设置布局与添加入口
 
-- ACP 设置保留 Agent 列表与认证、供应商、会话默认配置的分区。添加按钮固定在 Agent 栏底部，不随列表滚动，仍通过独立弹窗安装或添加自定义 Agent。
+- ACP 设置保留 Agent 列表与认证、供应商、会话默认配置的分区。添加按钮固定在 Agent 栏底部，不随列表滚动，仍通过独立弹窗安装 Agent。
 - 添加完成后更新左侧列表并选择新增 Agent；右侧继续复用原有配置组件及保存屏障。添加流程不展示平台原理、发现机制等解释段落，保留必要的字段、状态和错误反馈。
 - 添加弹窗的搜索框不放入列表滚动容器，宽窄屏均保留完整边框和聚焦描边。
 - 更新与移除使用带提示和可访问名称的图标按钮，依次紧邻版本号右侧；进度或错误另占一行，不挤压标题和图标。安装和更新显示真实阶段及已知下载进度；移除必须二次确认，成功后同步工作区可用列表，允许目录为空。
-- `acp-catalog.browser.test.tsx` 验证添加按钮归属左栏、原配置区保留、弹窗安装及自定义配置；`acp-settings-panel.browser.test.tsx` 继续覆盖原有保存和布局。
+- `acp-catalog.browser.test.tsx` 验证添加按钮归属左栏、原配置区保留、弹窗安装、指定目录及自定义添加入口关闭；`acp-settings-panel.browser.test.tsx` 继续覆盖原有保存和布局。
+
+## ACP 可添加目录与未选择时的默认值
+
+- Web、移动浏览器与桌面共用添加弹窗；只允许展示 Codex、Claude、Google Antigravity（`acp-antigravity-acp`）、CodeFree O（`acp-codefree-o`）、OpenCode（`acp-opencode`），按此顺序排列。搜索和已安装过滤不能改变其相对顺序；不开放自定义 Agent 添加入口。
+- 未保存 Agent 选择时，优先使用已启用的 Codex；Codex 不可用时使用当前已启用列表首项，空目录继续禁止提交。用户明确保存的选择、接续来源及历史会话身份优先，不因默认值变化改写。
+- 回归入口：`packages/frontend-core/src/acp-draft-engine.test.ts` 和 `desktop/tests/browser/acp-catalog.browser.test.tsx`，后者覆盖乱序目录、额外 Agent 排除、搜索、安装及 Chromium/WebKit 宽窄屏。

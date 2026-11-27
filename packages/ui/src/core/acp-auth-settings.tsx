@@ -236,7 +236,7 @@ function ConnectionStatus({
       : identity?.kind === "none"
         ? copy.signedOut
         : copy.unknown;
-  // 标题只展示连接结论，账号和生效的 API 路由作为补充提示。
+  // 标题以纯文字展示连接结论，已连接使用主题色；账号和 API 路由保留为补充提示。
   const details = [
     identity?.kind === "account" ? identity.label : undefined,
     identity?.kind === "account" ? identity.account?.email : undefined,
@@ -250,13 +250,10 @@ function ConnectionStatus({
       role="status"
       aria-label={chinese ? "连接状态" : "Connection status"}
       title={details || undefined}
-      className={`inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-meta font-medium ${
-        connected
-          ? "border-task-completed/20 bg-task-completed/10 text-task-completed"
-          : "border-separator bg-control text-muted-foreground"
+      className={`shrink-0 whitespace-nowrap text-meta font-medium ${
+        connected ? "text-brand" : "text-muted-foreground"
       }`}
     >
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
       {label}
     </span>
   );

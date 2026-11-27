@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAcpDraft, useAcpModelOptions, type AcpDraftClient } from "./use-acp-draft.js";
 import { browserSetupStorage, useSelectedEngines } from "./engine-selection.js";
-import { readAcpDraftEngine, saveAcpDraftEngine } from "@codexly/frontend-core/acp-draft-engine";
+import {
+  defaultAcpDraftEngine,
+  readAcpDraftEngine,
+  saveAcpDraftEngine,
+} from "@codexly/frontend-core/acp-draft-engine";
 import {
   AcpModelSelector,
   AcpComposerLeading,
@@ -36,7 +40,7 @@ export function useAcpDraftComposer(
     model?: { id: string; value: string };
   }>(() => ({ scope, engine: inherited }));
   const selected = selection.scope === scope ? selection.engine : inherited;
-  const engine = engines.includes(selected) ? selected : (engines[0] ?? "codex");
+  const engine = engines.includes(selected) ? selected : defaultAcpDraftEngine(engines);
   const draft = useAcpDraft({ ...input, engine, enabled: engines.length > 0 });
   // 跨 Agent 选择先切换草稿归属，等待该引擎协商完成后再提交原始模型值。
   // 每个选择只消费一次；旧 binding 的取消和结果隔离仍由 useAcpDraft 负责。

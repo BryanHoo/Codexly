@@ -22,5 +22,15 @@ it("单引擎跳过记忆读取，损坏或已禁用的选择回退到已启用�
   const storage = { getItem: vi.fn(() => "unknown"), setItem: vi.fn() };
   expect(readAcpDraftEngine(storage, "scope", ["claude"])).toBe("claude");
   expect(storage.getItem).not.toHaveBeenCalled();
-  expect(readAcpDraftEngine(storage, "scope", ["claude", "codex"])).toBe("claude");
+  expect(readAcpDraftEngine(storage, "scope", ["claude", "codex"])).toBe("codex");
+});
+
+it("未选择时优先 Codex；保留明确选择，且不使用已禁用的 Codex", () => {
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: vi.fn() };
+  const engines = ["acp-antigravity-acp", "claude", "codex", "acp-codefree-o"] as const;
+  expect(readAcpDraftEngine(storage, "new", engines)).toBe("codex");
+  values.set("codexly:acp-engine-draft:v1:new", "acp-codefree-o");
+  expect(readAcpDraftEngine(storage, "new", engines)).toBe("acp-codefree-o");
+  expect(readAcpDraftEngine(storage, "empty", ["claude", "acp-codefree-o"])).toBe("claude");
 });

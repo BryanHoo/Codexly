@@ -5,13 +5,17 @@ type StoragePort = Readonly<{
   setItem(key: string, value: string): void;
 }>;
 const prefix = "codexly:acp-engine-draft:v1:";
+/** 未保存选择时优先使用已启用的 Codex；单 Agent 和空目录保持原有可用性边界。 */
+export function defaultAcpDraftEngine(engines: readonly AgentEngine[]): AgentEngine {
+  return engines.includes("codex") ? "codex" : (engines[0] ?? "codex");
+}
 /** 旧选择只读导入；私有偏好继续使用原始引擎身份，不存储厂商模型或权限枚举。 */
 export function readAcpDraftEngine(
   storage: StoragePort,
   scope: string,
   engines: readonly AgentEngine[],
 ): AgentEngine {
-  const fallback = engines[0] ?? "codex";
+  const fallback = defaultAcpDraftEngine(engines);
   if (engines.length < 2) return fallback;
   try {
     const saved =
