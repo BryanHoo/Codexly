@@ -1,0 +1,89 @@
+/* 复用历史定时任务的列表、编辑器和主题样式，补齐 ACP 表单和运行记录的布局。 */
+.scheduled-tasks.acp-plan-workspace {
+  min-width: 0;
+  grid-template-columns: clamp(280px, 29%, 380px) minmax(0, 1fr);
+}
+
+.acp-plan-workspace .scheduled-task-list {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.acp-plan-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--ui-color-separator);
+}
+
+.acp-plan-workspace .scheduled-task-editor {
+  min-width: 0;
+}
+
+.acp-plan-workspace .scheduled-task-editor__toolbar {
+  height: auto;
+  min-height: 64px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 8px;
+}
+
+.acp-plan-workspace .scheduled-task-editor__actions {
+  flex-wrap: wrap;
+}
+
+.acp-plan-workspace .acp-plan-fields > label {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+}
+
+.acp-plan-workspace .acp-plan-fields select {
+  max-width: min(100%, 240px);
+}
+
+.acp-plan-workspace .acp-plan-run {
+  grid-template-columns: minmax(68px, auto) minmax(0, 1fr) auto;
+  padding-block: 8px;
+}
+
+.acp-plan-run-error {
+  grid-column: 1 / -1;
+  color: var(--ui-color-danger);
+}
+
+.acp-plan-legacy {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: auto;
+}
+
+@media (max-width: 1000px) {
+  .scheduled-tasks.acp-plan-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(240px, 38%) minmax(0, 1fr);
+  }
+
+  .acp-plan-workspace .scheduled-task-list {
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--ui-color-separator);
+  }
+
+  .acp-plan-workspace .scheduled-task-list__header {
+    height: 56px;
+  }
+
+  .acp-plan-workspace .scheduled-task-editor__toolbar {
+    padding-inline: 16px;
+  }
+
+  .acp-plan-workspace .scheduled-task-editor__body {
+    padding-inline: 16px;
+  }
+
+  .acp-plan-workspace .scheduled-task-row__menu {
+    opacity: 1;
+  }
+}

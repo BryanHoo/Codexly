@@ -136,6 +136,7 @@ export function createComposerSubmission({
     }> = {},
   ): Promise<boolean> => {
     const requestScope = routeScope;
+    const captureMode = onCaptureSubmission !== undefined || acp?.capture !== undefined;
     // 直接提交读取编辑器实时快照，避免 React 隐藏字段尚未提交时丢失 Windows 换行。
     const livePromptContent =
       promptSkills === undefined
@@ -172,7 +173,7 @@ export function createComposerSubmission({
       !hasInput ||
       (acp ? acp.isBusy : selectedModel === undefined || selectedReasoningEffort === undefined) ||
       turnControlsDisabled ||
-      (onCaptureSubmission === undefined && action !== "steer" && !canSubmit) ||
+      (!captureMode && action !== "steer" && !canSubmit) ||
       (action === "steer" &&
         (!canSteer || activeTaskId === undefined || activeTurnId === undefined))
     ) {
@@ -189,7 +190,7 @@ export function createComposerSubmission({
     // 排队项由调用方关闭置底请求，只有用户当前发出的即时消息改变阅读位置。
     if (
       !continuation &&
-      onCaptureSubmission === undefined &&
+      !captureMode &&
       action !== "queue" &&
       options.requestTimelineScroll !== false
     ) {
@@ -200,13 +201,11 @@ export function createComposerSubmission({
       );
     }
     // 捕获模式只保存配置，不应为尚未运行的任务申请通知权限。
-    if (onCaptureSubmission === undefined) onRequestNotificationPermission();
+    if (!captureMode) onRequestNotificationPermission();
     setIsSubmitting(true);
     setMutationError(null);
     const clearedForStart =
-      action === "start" &&
-      onCaptureSubmission === undefined &&
-      options.clearInputOnSuccess !== false;
+      action === "start" && !captureMode && options.clearInputOnSuccess !== false;
     if (clearedForStart && isCurrentScope(requestScope)) clearComposerInput();
     const rejectPreview = () => {
       onSubmissionFailed?.();
@@ -268,10 +267,13 @@ export function createComposerSubmission({
             requestedComposerMode,
             fastMode,
           );
-    if (onCaptureSubmission !== undefined) {
-      if (turnOptions === undefined) return false;
+    if (captureMode) {
       try {
-        await onCaptureSubmission(input, turnOptions, messageAttachments);
+        // 定时任务只捕获 ACP 配置和已上传附件，交给计划编辑事务保存。
+        if (acp?.capture) await acp.capture(input, messageAttachments);
+        else if (turnOptions && onCaptureSubmission)
+          await onCaptureSubmission(input, turnOptions, messageAttachments);
+        else return false;
         return true;
       } catch (error) {
         if (isCurrentScope(requestScope)) {

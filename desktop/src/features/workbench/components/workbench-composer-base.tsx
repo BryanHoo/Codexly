@@ -291,7 +291,7 @@ export function WorkbenchComposerBase({
     uploadAttempts,
     uploadedAttachments,
   });
-  useImperativeHandle(composerRef, () => createComposerHandle({
+  useImperativeHandle(composerRef, () => ({ ...createComposerHandle({
     disabled: turnControlsDisabled,
     activeTurnId,
     ...createComposerDraftActions(session, skills),
@@ -304,6 +304,8 @@ export function WorkbenchComposerBase({
         files: attachments,
         text: promptSubmission.text,
       }),
+  }), hasDraftChanges: () => acp?.captureConfigChanged === true ||
+      (initialDraft !== undefined && (promptContent !== initialDraft.content || attachments !== initialDraft.attachments)),
   }));
   const {
     executePromptCommand,
@@ -372,7 +374,7 @@ export function WorkbenchComposerBase({
       canInterrupt={canInterrupt}
       canSteer={canSteer}
       canSubmit={canSubmit}
-      captureMode={onCaptureSubmission !== undefined}
+      captureMode={onCaptureSubmission !== undefined || acp?.capture !== undefined}
       captureSubmitVisible={captureSubmitVisible}
       {...(captureSubmitLabel === undefined ? {} : { captureSubmitLabel })}
       commandMenuId={commandMenuId}

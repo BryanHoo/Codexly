@@ -80,3 +80,43 @@ async fn acp_plan_state_should_rollback_cursor_for_corrupt_definition() {
     assert_eq!(state["revision"], 1);
     assert_eq!(state["nextRunAt"], 10);
 }
+
+#[tokio::test]
+async fn manual_run_should_preserve_schedule_and_replay_identity() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LocalCatalog::at(root.path()).unwrap();
+    let definition: Value = serde_json::from_str(include_str!(
+        "../../../../../tests/fixtures/acp-scheduled-plan-definition.json"
+    ))
+    .unwrap();
+    store.call("acp.plan.set", json!({"source":"desktop","scheduleId":"manual","definition":definition,"expectedRevision":0})).await.unwrap();
+    store.call("acp.plan.arm", json!({"source":"desktop","scheduleId":"manual","expectedRevision":1,"expectedStateRevision":0,"nextRunAt":100})).await.unwrap();
+    let mut claim = json!({"source":"desktop","scheduleId":"manual","expectedRevision":1,"expectedStateRevision":1,"runId":"manual-run","now":10,"nextRunAt":null,"manual":true});
+    for _ in 0..2 {
+        assert_eq!(
+            store
+                .call("acp.plan.claimRef", claim.clone())
+                .await
+                .unwrap()["runId"],
+            "manual-run"
+        );
+    }
+    claim["runId"] = json!("second");
+    claim["expectedStateRevision"] = json!(1);
+    assert!(
+        store
+            .call("acp.plan.claimRef", claim)
+            .await
+            .unwrap()
+            .is_null()
+    );
+    let state = store
+        .call(
+            "acp.plan.readState",
+            json!({"source":"desktop","scheduleId":"manual"}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(state["nextRunAt"], 100);
+    assert_eq!(state["revision"], 1);
+}

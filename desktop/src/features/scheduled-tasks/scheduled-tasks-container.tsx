@@ -1,3 +1,4 @@
+import { AcpPlanPromptComposer } from "./acp-plan-prompt-composer.js";
 import {AcpPlanWorkspace} from "@codexly/ui/core/acp-plan-workspace";
 import {AcpPlanScheduleFieldAdapter} from "./acp-plan-schedule-field.js";
 import {useTranslation} from "../../i18n/i18n.js";
@@ -239,8 +240,10 @@ function ExistingScheduledTasksContainer({
 export function ScheduledTasksContainer(props:Parameters<typeof ExistingScheduledTasksContainer>[0]) {
  const {i18n}=useTranslation("workbench");
  const queryClient=useQueryClient();
+ const {client}=props.context;
+ const preview=useCallback((schedule:ScheduledTaskSchedule)=>client.previewScheduledTask(schedule),[client]);
  if(props.context.capabilities?.runtime!=="acp")return <ExistingScheduledTasksContainer {...props}/>;
- return <AcpPlanWorkspace client={props.context.client} projectId={props.projectId} projects={props.context.projects} language={i18n.resolvedLanguage??"zh-CN"} ScheduleField={AcpPlanScheduleFieldAdapter} onOpenTask={async(runProjectId,taskId,signal)=>{
+ return <AcpPlanWorkspace client={props.context.client} projectId={props.projectId} projects={props.context.projects} language={i18n.resolvedLanguage??"zh-CN"} ScheduleField={AcpPlanScheduleFieldAdapter} preview={preview} renderPrompt={prompt=><AcpPlanPromptComposer key={prompt.id} currentProjectId={props.projectId} context={props.context} {...prompt}/>} onOpenTask={async(runProjectId,taskId,signal)=>{
   const response=await readScheduledTaskRun(props.context.client,runProjectId,taskId);
   if(signal.aborted)return;
   if(response===null)throw new Error(props.context.t("scheduledTasks.runUnavailable"));

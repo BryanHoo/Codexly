@@ -6,6 +6,96 @@ import type {
 import type { WebSocketRoute } from "@playwright/test";
 
 import { expect, test } from "./fixtures/app-shell.js";
+import { installedAcpCodex, mockAcpWorkspace } from "./fixtures/acp-defaults.js";
+import { parseRequestRecord } from "./fixtures/app-shell-request.js";
+
+test("ACP 定时任务恢复双栏，窄屏可使用已启用的 Agent 保存计划 @cross-browser", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const engine = "acp-antigravity";
+  await mockAcpWorkspace(page, [
+    { ...installedAcpCodex, engine, name: "Antigravity", command: "/bin/antigravity" },
+  ]);
+  await page.route("**/v1/capabilities", (route) =>
+    route.fulfill({
+      json: {
+        runtime: "acp",
+        provider: "codex",
+        feedback: { upload: false },
+        goals: { clear: false, read: false, update: false },
+        skills: { list: false, use: false },
+        tasks: { fork: false, list: true, read: true, start: true },
+        turns: { compact: false, interrupt: true, review: false, start: true, steer: false },
+      },
+    }),
+  );
+  await page.route("**/v1/acp/agents/acp-antigravity/config-cache", (route) =>
+    route.fulfill({ json: null }),
+  );
+  await page.routeWebSocket("**/v1/acp/plans/events", (socket) => {
+    socket.send(JSON.stringify({ type: "acp-plans.changed" }));
+  });
+  let saved: Record<string, unknown> | undefined;
+  let savedId: string | undefined;
+  let run: Record<string, unknown> | undefined;
+  await page.route("**/v1/acp/plans?*", (route) =>
+    route.fulfill({ json: { data: [], nextCursor: null } }),
+  );
+  await page.route(/\/v1\/acp\/plans\/[^/]+\/history$/u, (route) =>
+    route.fulfill({ json: { projectId: "codexly", data: [] } }),
+  );
+  await page.route(/\/v1\/acp\/plans\/[^/]+\/run$/u, (route) => {
+    run = parseRequestRecord(route.request().postData());
+    return route.fulfill({ json: { runId: run["runId"] } });
+  });
+  await page.route(/\/v1\/acp\/plans\/[^/]+$/u, async (route) => {
+    if (route.request().method() === "PUT") {
+      saved = parseRequestRecord(route.request().postData());
+      savedId = new URL(route.request().url()).pathname.split("/").at(-1);
+    }
+    await route.fulfill({
+      json: {
+        source: "web",
+        scheduleId: savedId,
+        revision: 1,
+        definition: saved?.["definition"],
+        state: { revision: 1, definitionRevision: 1, nextRunAt: null },
+        canEdit: true,
+        resources: [],
+      },
+    });
+  });
+  await page.goto("/p/codexly/scheduled");
+  await page.getByRole("button", { name: "新建计划", exact: true }).click();
+  const list = page.locator(".acp-plan-workspace .scheduled-task-list");
+  const editor = page.getByRole("region", { name: "新建计划" });
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole("textbox", { name: "任务输入" })).toBeVisible({
+    timeout: 3000,
+  });
+  await expect
+    .poll(async () => ((await editor.boundingBox())?.x ?? 0) - ((await list.boundingBox())?.x ?? 0))
+    .toBeGreaterThan(200);
+
+  // 使用生产构建的样式验证窄屏换行与保存能力。
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(async () => ((await editor.boundingBox())?.y ?? 0) - ((await list.boundingBox())?.y ?? 0))
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => editor.evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBeLessThanOrEqual(1);
+  await editor.getByRole("textbox", { name: "计划名称" }).fill("每天巡检");
+  await editor.getByRole("textbox", { name: "任务输入" }).fill("检查项目");
+  await expect(editor.locator("[data-acp-model-trigger]")).toBeVisible();
+  await editor.getByRole("button", { name: "保存计划" }).click();
+  await expect
+    .poll(() => saved?.["definition"])
+    .toMatchObject({ engine, name: "每天巡检", prompt: { text: "检查项目" } });
+  await page.getByRole("button", { name: "立即运行", exact: true }).click();
+  await expect
+    .poll(() => run)
+    .toMatchObject({ expectedRevision: 1, expectedStateRevision: 1, runId: expect.any(String) });
+});
 
 test("preserves custom recurrence on rename and refreshes an automatic run", async ({ page }) => {
   const now = Date.now();

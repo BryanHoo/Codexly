@@ -111,7 +111,7 @@ export type NativeMutationClient = Pick<
   | "updateTaskGoal"
 >;
 export type NativePendingRequestClient = Pick<NativeClient, "resolvePendingRequest">;
-export type NativeWorkbenchClient = Partial<Pick<NativeClient, "cancelAcpBackground">> & Pick<NativeClient, "subscribeAcpPlans" | "readAcpPlanHistory" | "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment"> & NativeReadClient &
+export type NativeWorkbenchClient = Partial<Pick<NativeClient, "cancelAcpBackground">> & Pick<NativeClient, "subscribeAcpPlans" | "readAcpPlanHistory" | "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "runAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment"> & NativeReadClient &
   NativeScheduledTaskClient &
   NativeBackgroundTerminalClient &
   NativeGitStatusClient &

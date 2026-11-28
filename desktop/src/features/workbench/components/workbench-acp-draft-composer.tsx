@@ -8,13 +8,15 @@ import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 
 export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
+  const capture = props.scheduledCapture;
   const queueClient = useMemo(() => createAcpComposerQueueClient(props.client), [props.client]);
   const draft = useAcpDraftComposer({
     client: props.client,
     projectId: props.projectId,
     workspace: props.projectPath,
     ...(props.composerDraftId ? { draftId: props.composerDraftId } : {}),
-    ...(props.initialEngine ? { initialEngine: props.initialEngine } : {}),
+    ...(capture?.initialConfig.engine ? { initialEngine: capture.initialConfig.engine } : props.initialEngine ? { initialEngine: props.initialEngine } : {}),
+    ...(capture ? { planConfig: capture.initialConfig } : {}),
     configurationLabel: t("composer.settingsTitle"),
     engineLabel: t("engine.select"),
     retryLabel: t("actions.retry"),
@@ -30,6 +32,13 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
       settings={undefined}
       acp={{
         availableCommands: draft.preview.availableCommands ?? [],
+        ...(capture ? {
+          capture: (input, attachments) => capture.onCapture(input, attachments, draft.engine, draft.preview.values),
+          captureConfigChanged: !draft.isPending && (
+            (capture.initialConfig.engine !== undefined && capture.initialConfig.engine !== draft.engine) ||
+            JSON.stringify(capture.initialConfig.values) !== JSON.stringify(draft.preview.values)
+          ),
+        } : {}),
         controls: draft.controls,
         leadingControls: draft.leadingControls,
         quotaControl: <AgentQuotaControl engine={draft.engine} client={props.client} language={getCurrentLanguage()} />,

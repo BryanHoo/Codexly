@@ -161,6 +161,7 @@ export type CodexlyWorkbenchClient = Partial<Pick<CodexlyClient, "cancelAcpBackg
     | "listAcpPlans"
     | "readAcpPlan"
     | "saveAcpPlan"
+    | "runAcpPlan"
     | "deleteAcpPlan"
     | "stageAcpPlanAttachment"
     | "getTaskActivities"

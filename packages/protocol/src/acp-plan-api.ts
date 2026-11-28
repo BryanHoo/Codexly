@@ -41,6 +41,12 @@ export const DeleteAcpPlanResponseSchema = Type.Object(
   { deleted: Type.Boolean() },
   { additionalProperties: false },
 );
+export const RunAcpPlanSchema = Type.Object(
+  { expectedRevision: Positive, expectedStateRevision: Positive, runId: Id },
+  { additionalProperties: false },
+);
+export type RunAcpPlan = Static<typeof RunAcpPlanSchema>;
+export const RunAcpPlanResponseSchema = Type.Object({ runId: Id }, { additionalProperties: false });
 export const StageAcpPlanResourceSchema = Type.Object(
   { projectId: Type.String({ minLength: 1, maxLength: 128 }), uploadId: Id },
   { additionalProperties: false },

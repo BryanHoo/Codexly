@@ -1,3 +1,4 @@
+import type { ComposerDraft } from "../composer-draft-context.js";
 import { createElement } from "react";
 import { PromptOptimizationButton } from "@codexly/ui/core/prompt-optimization-button";
 import {
@@ -41,8 +42,16 @@ function createMessageEdit(
 export function createComposerDraftActions(
   session: ReturnType<typeof useComposerSession>,
   skills: readonly AgentSkill[],
+  initialDraft?: ComposerDraft,
+  configChanged?: boolean,
 ) {
   return {
+    hasDraftChanges: () =>
+      configChanged === true ||
+      (initialDraft !== undefined &&
+        (session.promptContent !== initialDraft.content ||
+          session.attachments !== initialDraft.attachments)),
+
     insertFollowup: createComposerFollowup(session),
     editMessage: createMessageEdit(session, skills),
   };

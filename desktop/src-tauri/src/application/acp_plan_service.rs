@@ -219,6 +219,52 @@ impl AcpPlanService {
         (self.wake)();
         Ok(saved)
     }
+    pub async fn run_now(
+        &self,
+        id: &str,
+        revision: u64,
+        state_revision: u64,
+        run_id: &str,
+        cancel: &CancellationToken,
+    ) -> Result<Value, AppError> {
+        let view = self.read(id).await?;
+        if view.is_null() {
+            return Err(AppError::ScheduledTaskNotFound);
+        }
+        let prompt = &view["definition"]["prompt"];
+        if (prompt["text"]
+            .as_str()
+            .is_none_or(|text| text.trim().is_empty())
+            && prompt["attachments"].as_array().is_none_or(Vec::is_empty))
+            || prompt["skills"]
+                .as_array()
+                .is_none_or(|skills| !skills.is_empty())
+        {
+            return Err(AppError::ScheduledTaskInvalid);
+        }
+        let project = view["definition"]["projectId"]
+            .as_str()
+            .ok_or(AppError::ScheduledTaskInvalid)?;
+        self.project_root(project).await?;
+        check_cancelled(cancel)?;
+        // 将手动领取交给常规恢复循环，IPC 结束后也能继续执行。
+        let run = self
+            .catalog
+            .call(
+                "acp.plan.claimRef",
+                json!({
+                    "source": "desktop", "scheduleId": id, "runId": run_id,
+                    "expectedRevision": revision, "expectedStateRevision": state_revision,
+                    "nextRunAt": null, "now": chrono::Utc::now().timestamp_millis(), "manual": true,
+                }),
+            )
+            .await?;
+        if run.is_null() {
+            return Err(AppError::ScheduledTaskConfigConflict);
+        }
+        (self.wake)();
+        Ok(json!({"runId":run_id}))
+    }
     pub async fn delete(&self, id: &str, revision: u64) -> Result<bool, AppError> {
         let mut request = key(id)?;
         request["expectedRevision"] = json!(revision);

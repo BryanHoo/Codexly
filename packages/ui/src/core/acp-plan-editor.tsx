@@ -1,7 +1,16 @@
 import { v4 as createUuid } from "uuid";
-import { useEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
-import type { AgentEngine, ScheduledTaskSchedule } from "@codexly/protocol";
-import type { AcpPlanView } from "@codexly/protocol/acp-plan-api";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+  type ComponentProps,
+} from "react";
+import { TEMPORARY_TASK_SCOPE_ID, type ScheduledTaskSchedule } from "@codexly/protocol";
+import { CalendarClock, Play, Save, SlidersHorizontal } from "lucide-react";
+import type { AcpPlanView, RunAcpPlan } from "@codexly/protocol/acp-plan-api";
 import { AcpPlanEditorSession } from "@codexly/frontend-core/acp-plan-editor";
 import { Button } from "./button.js";
 import { Input } from "./input.js";
@@ -15,31 +24,20 @@ import {
   DialogDescription,
   DialogFooter,
 } from "./dialog.js";
-import { overlayAcpConfig, useAcpPreviewCatalog } from "./acp-preview-cache.js";
-import { AcpConfigOptions } from "./acp-config-options.js";
-import type { AcpPlanUiClient, AcpPlanScheduleField, PlanLabels } from "./acp-plan-contract.js";
-const Field = ({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description?: string;
-  children: ReactNode;
-}) => (
-  <label className="flex min-w-0 flex-col gap-1 text-label">
-    <span className="break-words">{label}</span>
-    {children}
-    {description ? <span className="text-caption text-muted-foreground">{description}</span> : null}
-  </label>
-);
-const Select = (props: SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className="h-9 w-full min-w-0 rounded-control border border-separator bg-panel px-2 text-label"
-  />
-);
+import type {
+  AcpPlanUiClient,
+  AcpPlanScheduleField,
+  AcpPlanPromptHandle,
+  AcpPlanPromptProps,
+  PlanLabels,
+} from "./acp-plan-contract.js";
+
+export interface AcpPlanEditorHandle {
+  leave: (next: () => void) => void;
+}
+
 export interface AcpPlanEditorProps {
+  ref?: Ref<AcpPlanEditorHandle>;
   id: string;
   projectId: string;
   view?: AcpPlanView;
@@ -48,11 +46,14 @@ export interface AcpPlanEditorProps {
   labels: PlanLabels;
   ScheduleField: AcpPlanScheduleField;
   onClose: () => void;
+  runHistory?: ReactNode;
+  preview: ComponentProps<AcpPlanScheduleField>["preview"];
+  renderPrompt: (props: AcpPlanPromptProps) => ReactNode;
   onSaved: (view: AcpPlanView) => void;
 }
-/** 配置、资源和提交共用会话；弹窗按计划身份挂载，后台列表刷新不会替换草稿。 */
+/** 配置、资源和提交共用会话；右栏按计划身份挂载，后台列表刷新不会替换草稿。 */
 export function AcpPlanEditor(props: AcpPlanEditorProps) {
-  const { client, labels: l, ScheduleField } = props;
+  const { client, labels: l, ScheduleField, renderPrompt } = props;
   const [session] = useState(() =>
     props.view
       ? AcpPlanEditorSession.edit(props.view, client, () => createUuid())
@@ -72,23 +73,32 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
         ),
   );
   const [state, setState] = useState(() => session.snapshot);
-  const [engine, setEngine] = useState<AgentEngine | "">(props.view?.definition.engine ?? "");
-  const catalog = useAcpPreviewCatalog();
-  const cached = engine ? catalog[engine] : undefined;
-  const shownOptions = cached && overlayAcpConfig(cached.configOptions, state.definition.values);
+  const [promptSeed, setPromptSeed] = useState(() => ({
+    prompt: state.definition.prompt,
+    attachments: state.resources.map((resource) => resource.attachment),
+    initialConfig: {
+      ...(props.view ? { engine: props.view.definition.engine } : {}),
+      values: state.definition.values,
+    },
+  }));
+  const composer = useRef<AcpPlanPromptHandle>(null);
+  const manualRequest = useRef<RunAcpPlan | undefined>(undefined);
+  const stagedIds = useRef(new Map<string, string>());
+  const [hasInput, setHasInput] = useState(false);
   const [pending, setPending] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [validSchedule, setValidSchedule] = useState(true);
   const [scheduleGeneration, setScheduleGeneration] = useState(0);
-  const [confirm, setConfirm] = useState<"close" | "reload">();
+  const [promptGeneration, setPromptGeneration] = useState(0);
+  const [confirm, setConfirm] = useState<{ kind: "close" | "reload"; proceed: () => void }>();
   const active = useRef(true);
   const request = useRef<AbortController | undefined>(undefined);
   const lock = useRef(false);
   useEffect(() => {
     active.current = true;
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (session.snapshot.dirty) {
+      if (session.snapshot.dirty || composer.current?.hasDraftChanges?.()) {
         event.preventDefault();
         // oxlint-disable-next-line typescript/no-deprecated -- 兼容项目最低 Chromium 116 的离页确认。
         event.returnValue = "";
@@ -117,29 +127,15 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
   };
   const busy = state.busy || pending || working;
   const blocked = state.view?.canEdit === false;
-  const action = async (fn: () => Promise<unknown>) => {
-    if (lock.current) return;
-    lock.current = true;
-    setWorking(true);
-    setError("");
-    try {
-      const pending = fn();
-      sync();
-      await pending;
-      sync();
-    } catch (cause) {
-      fail(cause);
-    } finally {
-      lock.current = false;
-      if (active.current) setWorking(false);
-      sync();
-    }
+  const dirty = () =>
+    session.snapshot.dirty || !validSchedule || composer.current?.hasDraftChanges?.() === true;
+  // 离开右栏前统一确认未保存修改，切换计划与关闭按钮共用同一处保护。
+  const leave = (next: () => void) => {
+    if (lock.current || working || confirm) return;
+    if (dirty()) setConfirm({ kind: "close", proceed: next });
+    else next();
   };
-  const close = () => {
-    if (lock.current) return;
-    if (session.snapshot.dirty) setConfirm("close");
-    else props.onClose();
-  };
+  useImperativeHandle(props.ref, () => ({ leave }));
   const reload = async () => {
     if (lock.current) return;
     lock.current = true;
@@ -153,7 +149,14 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
         session.load(view);
         // 明确重读必须重置日历本地草稿，即使服务端规则与上次读取相同。
         setScheduleGeneration((value) => value + 1);
-        setEngine(view.definition.engine);
+        setPromptGeneration((value) => value + 1);
+        manualRequest.current = undefined;
+        stagedIds.current.clear();
+        setPromptSeed({
+          prompt: view.definition.prompt,
+          attachments: view.resources.map((resource) => resource.attachment),
+          initialConfig: { engine: view.definition.engine, values: view.definition.values },
+        });
         setValidSchedule(true);
         setError("");
         sync();
@@ -165,230 +168,271 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
       if (active.current) setPending(false);
     }
   };
-  const submit = () =>
-    action(async () => {
+  const runNow = async () => {
+    if (lock.current || working || !state.view) return;
+    lock.current = true;
+    setPending(true);
+    setError("");
+    const controller = new AbortController();
+    request.current = controller;
+    try {
+      const current = await client.readAcpPlan(props.id, { signal: controller.signal });
+      if (current.revision !== state.view.revision || !current.state)
+        throw new Error(l.reloadTitle);
+      const input = manualRequest.current ?? {
+        expectedRevision: current.revision,
+        expectedStateRevision: current.state.revision,
+        runId: createUuid(),
+      };
+      manualRequest.current = input;
+      await client.runAcpPlan(props.id, input, {
+        signal: controller.signal,
+        idempotencyKey: input.runId,
+      });
+      manualRequest.current = undefined;
+    } catch (cause) {
+      if (!controller.signal.aborted) fail(cause);
+    } finally {
+      lock.current = false;
+      if (active.current) setPending(false);
+    }
+  };
+  const capture: AcpPlanPromptProps["onCapture"] = async (input, attachments, engine, values) => {
+    if (lock.current || blocked) return;
+    // 输入框的键盘提交也走同一校验，不能绕过右栏保存按钮的状态。
+    if (!state.definition.name.trim() || !validSchedule) {
+      const cause = new Error(!validSchedule ? l.invalidSchedule : l.name);
+      fail(cause);
+      throw cause;
+    }
+    lock.current = true;
+    setError("");
+    try {
+      // 中栏负责上传，计划事务负责私有化；重试复用已暂存的资源，避免重复复制附件。
+      const ids = new Set(session.snapshot.resources.map((resource) => resource.attachment.id));
+      const keep = new Set<string>();
+      for (const attachment of attachments) {
+        const mapped = stagedIds.current.get(attachment.id) ?? attachment.id;
+        if (ids.has(mapped)) {
+          keep.add(mapped);
+          continue;
+        }
+        await session.stage(attachment);
+        if (!active.current) return;
+        const resource = session.snapshot.resources.at(-1);
+        if (!resource) return;
+        stagedIds.current.set(attachment.id, resource.attachment.id);
+        keep.add(resource.attachment.id);
+      }
+      for (const id of ids) {
+        if (!keep.has(id)) session.removeAttachment(id);
+      }
+      const definition = session.snapshot.definition;
+      session.update({
+        ...definition,
+        engine,
+        values,
+        prompt: { ...input, attachments: definition.prompt.attachments },
+      });
       const view = await session.save();
       if (view && active.current) {
+        // 保存成功后以服务端私有资源快照重新建立输入基线，后续切换不误报草稿。
+        manualRequest.current = undefined;
+        stagedIds.current.clear();
+        setPromptSeed({
+          prompt: view.definition.prompt,
+          attachments: view.resources.map((resource) => resource.attachment),
+          initialConfig: { engine: view.definition.engine, values: view.definition.values },
+        });
+        setPromptGeneration((value) => value + 1);
         props.onSaved(view);
-        // 保存回执交给全局通知，编辑器可继续操作已保存的计划。
         toast.success(l.saved);
       }
-    });
-  const upload = async (file: File) =>
-    action(async () => {
-      const controller = new AbortController();
-      request.current = controller;
-      const kind = ["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)
-        ? "image"
-        : "file";
-      const result = await client.uploadAttachment(
-        session.snapshot.definition.projectId,
-        { kind, name: file.name, content: file },
-        { signal: controller.signal },
-      );
-      if (active.current && !controller.signal.aborted) await session.stage(result.attachment);
-    });
+    } catch (cause) {
+      fail(cause);
+      throw cause;
+    } finally {
+      lock.current = false;
+      sync();
+    }
+  };
   return (
     <>
-      <Dialog
-        open
-        onOpenChange={(open) => {
-          if (!open) close();
-        }}
-      >
-        <DialogContent
-          closeLabel={l.close}
-          closeDisabled={state.busy || working}
-          className="flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden"
-        >
-          <DialogHeader>
-            <DialogTitle>{state.view ? l.edit : l.create}</DialogTitle>
-            <DialogDescription className="break-words">
-              {state.definition.name || l.title}
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1"
-            onSubmit={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (!busy && !blocked && engine && validSchedule) void submit();
-            }}
-          >
-            {blocked ? <p role="status">{l.blocked}</p> : null}
-            <fieldset disabled={busy || blocked} className="flex min-w-0 flex-col gap-4">
-              <Field label={l.name}>
-                <Input
-                  aria-label={l.name}
-                  maxLength={120}
-                  value={state.definition.name}
-                  onChange={(e) => {
-                    patch({ name: e.currentTarget.value });
-                  }}
-                />
-              </Field>
-              <Field label={l.project}>
-                <Select
-                  aria-label={l.project}
-                  disabled={!!state.view || state.resources.length > 0}
-                  value={state.definition.projectId}
-                  onChange={(e) => {
-                    patch({ projectId: e.currentTarget.value });
-                  }}
-                >
-                  <option value="temporary">{l.temporary}</option>
-                  {!props.projects.some((p) => p.id === state.definition.projectId) &&
-                  state.definition.projectId !== "temporary" ? (
-                    <option value={state.definition.projectId}>{state.definition.projectId}</option>
-                  ) : null}
-                  {props.projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={l.agent}>
-                <Select
-                  aria-label={l.agent}
-                  value={engine}
-                  onChange={(e) => {
-                    const next = e.currentTarget.value as AgentEngine;
-                    setEngine(next);
-                    patch({ engine: next, values: {} });
-                  }}
-                >
-                  <option value="" disabled>
-                    {l.choose}
-                  </option>
-                  <option value="codex">Codex</option>
-                  <option value="claude">Claude</option>
-                </Select>
-              </Field>
-              {shownOptions ? (
-                <AcpConfigOptions
-                  engine={engine || undefined}
-                  client={client}
-                  options={shownOptions}
-                  Field={Field}
-                  Select={Select}
-                  onChange={(id, value) => {
-                    // 保存时宿主校验显式选项；编辑期间只使用缓存，不创建临时会话。
-                    patch({ values: { ...state.definition.values, [id]: value } });
-                  }}
-                />
-              ) : state.view ? (
-                <p className="text-caption text-muted-foreground">{l.settingsSaved}</p>
-              ) : null}
-              <Field label={l.prompt}>
-                <textarea
-                  aria-label={l.prompt}
-                  maxLength={100000}
-                  rows={6}
-                  className="w-full resize-y rounded-control border border-separator bg-panel p-2 text-body"
-                  value={state.definition.prompt.text}
-                  onChange={(e) => {
-                    patch({ prompt: { ...state.definition.prompt, text: e.currentTarget.value } });
-                  }}
-                />
-              </Field>
-              <div className="flex flex-col gap-2">
-                <label className="text-label">
-                  {l.attach}
-                  <input
-                    aria-label={l.attach}
-                    type="file"
-                    className="mt-1 block max-w-full text-caption"
-                    onChange={(e) => {
-                      const file = e.currentTarget.files?.[0];
-                      e.currentTarget.value = "";
-                      if (file) void upload(file);
-                    }}
-                  />
-                </label>
-                {state.resources.map((r) => (
-                  <div key={r.token} className="flex min-w-0 items-center gap-2">
-                    <span className="min-w-0 flex-1 break-words text-caption">
-                      {r.attachment.name}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      aria-label={`${l.removeAttachment}: ${r.attachment.name}`}
-                      onClick={() => {
-                        session.removeAttachment(r.attachment.id);
-                        sync();
-                      }}
-                    >
-                      {l.removeAttachment}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div className="mb-2 text-label">{l.schedule}</div>
-                <ScheduleField
-                  key={`${String(scheduleGeneration)}:${JSON.stringify(state.view?.definition.schedule ?? null)}`}
-                  value={state.definition.schedule}
-                  disabled={busy || blocked}
-                  onChange={(value: ScheduledTaskSchedule | undefined) => {
-                    setValidSchedule(!!value);
-                    if (value) patch({ schedule: value });
-                  }}
-                />
-                {!validSchedule ? <p role="alert">{l.invalidSchedule}</p> : null}
-              </div>
-              <label className="flex items-center gap-2 text-label">
-                <Checkbox
-                  aria-label={l.enabled}
-                  checked={state.definition.enabled}
-                  onCheckedChange={(value) => {
-                    if (typeof value === "boolean") patch({ enabled: value });
-                  }}
-                />
-                {l.enabled}
-              </label>
-            </fieldset>
-            {pending ? <p role="status">{l.loading}</p> : null}
-            {error ? (
-              <p role="alert" className="break-words text-destructive">
-                {error}
-              </p>
-            ) : null}
-            <DialogFooter>
+      <section aria-label={state.view ? l.edit : l.create} className="scheduled-task-editor">
+        <div className="scheduled-task-editor__toolbar">
+          <span className="scheduled-task-status" data-enabled={state.definition.enabled}>
+            <span aria-hidden="true" />
+            {state.view ? (state.view.definition.enabled ? l.active : l.inactive) : l.create}
+          </span>
+          <div className="scheduled-task-editor__actions">
+            {state.view ? (
               <Button
                 type="button"
-                variant="ghost"
-                disabled={state.busy || working}
-                onClick={close}
-              >
-                {l.cancel}
-              </Button>
-              {state.view || error ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => {
-                    if (state.dirty) setConfirm("reload");
-                    else void reload();
-                  }}
-                >
-                  {l.reload}
-                </Button>
-              ) : null}
-              <Button
-                type="submit"
+                size="sm"
+                variant="outline"
                 disabled={
-                  busy || blocked || !engine || !validSchedule || !state.definition.name.trim()
+                  busy ||
+                  blocked ||
+                  !state.view.state ||
+                  (!state.view.definition.prompt.text.trim() &&
+                    !state.view.definition.prompt.attachments.length)
                 }
+                onClick={() => {
+                  void runNow();
+                }}
               >
-                {l.save}
+                <Play aria-hidden="true" />
+                {l.runNow}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                leave(props.onClose);
+              }}
+            >
+              {l.cancel}
+            </Button>
+            {state.view || error ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  if (dirty())
+                    setConfirm({
+                      kind: "reload",
+                      proceed: () => {
+                        void reload();
+                      },
+                    });
+                  else void reload();
+                }}
+              >
+                {l.reload}
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              type="button"
+              onClick={() => {
+                void composer.current?.submitCurrent();
+              }}
+              disabled={
+                busy || blocked || !hasInput || !validSchedule || !state.definition.name.trim()
+              }
+            >
+              <Save aria-hidden="true" />
+              {l.save}
+            </Button>
+          </div>
+        </div>
+        <div className="scheduled-task-editor__body">
+          {blocked ? <p role="status">{l.blocked}</p> : null}
+          <label className="scheduled-task-title">
+            <Input
+              aria-label={l.name}
+              placeholder={l.name}
+              maxLength={120}
+              value={state.definition.name}
+              disabled={busy || blocked}
+              onChange={(event) => {
+                patch({ name: event.currentTarget.value });
+              }}
+            />
+          </label>
+          <div className="scheduled-task-prompt">
+            <h3>{l.prompt}</h3>
+            <fieldset disabled={pending || blocked}>
+              {renderPrompt({
+                ...promptSeed,
+                composerRef: composer,
+                id: `${props.id}:${String(promptGeneration)}`,
+                projectId: state.definition.projectId,
+                onCapture: capture,
+                onInputStateChange: setHasInput,
+                onSubmissionStateChange: setWorking,
+              })}
+            </fieldset>
+          </div>
+          <fieldset disabled={busy || blocked}>
+            <section className="scheduled-task-section">
+              <h3>
+                <SlidersHorizontal aria-hidden="true" />
+                {l.details}
+              </h3>
+              <div className="scheduled-task-fields">
+                <label>
+                  <span>{l.project}</span>
+                  <select
+                    aria-label={l.project}
+                    disabled={!!state.view || state.resources.length > 0 || hasInput}
+                    value={state.definition.projectId}
+                    onChange={(event) => {
+                      patch({ projectId: event.currentTarget.value });
+                    }}
+                  >
+                    <option value={TEMPORARY_TASK_SCOPE_ID}>{l.temporary}</option>
+                    {!props.projects.some((project) => project.id === state.definition.projectId) &&
+                    state.definition.projectId !== TEMPORARY_TASK_SCOPE_ID ? (
+                      <option value={state.definition.projectId}>
+                        {state.definition.projectId}
+                      </option>
+                    ) : null}
+                    {props.projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="scheduled-task-info">
+                  <span>{l.runIn}</span>
+                  <span>{l.newChat}</span>
+                </div>
+                <div className="scheduled-task-info">
+                  <span>{l.enabled}</span>
+                  <Checkbox
+                    aria-label={l.enabled}
+                    checked={state.definition.enabled}
+                    onCheckedChange={(value) => {
+                      if (typeof value === "boolean") patch({ enabled: value });
+                    }}
+                  />
+                </div>
+              </div>
+            </section>
+            <section className="scheduled-task-section">
+              <h3>
+                <CalendarClock aria-hidden="true" />
+                {l.schedule}
+              </h3>
+              <ScheduleField
+                key={`${String(scheduleGeneration)}:${JSON.stringify(state.view?.definition.schedule ?? null)}`}
+                value={state.definition.schedule}
+                preview={props.preview}
+                disabled={busy || blocked}
+                onChange={(value: ScheduledTaskSchedule | undefined) => {
+                  setValidSchedule(!!value);
+                  if (value) patch({ schedule: value });
+                }}
+              />
+              {!validSchedule ? <p role="alert">{l.invalidSchedule}</p> : null}
+            </section>
+          </fieldset>
+          {props.runHistory}
+          {pending ? <p role="status">{l.loading}</p> : null}
+          {error ? (
+            <p role="alert" className="break-words text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </section>
       <Dialog
         open={!!confirm}
         onOpenChange={(open) => {
@@ -397,7 +441,7 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
       >
         <DialogContent closeLabel={l.close}>
           <DialogHeader>
-            <DialogTitle>{confirm === "reload" ? l.reloadTitle : l.discardTitle}</DialogTitle>
+            <DialogTitle>{confirm?.kind === "reload" ? l.reloadTitle : l.discardTitle}</DialogTitle>
             <DialogDescription>{l.discardHint}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -411,10 +455,8 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
             <Button
               variant="destructive"
               onClick={() => {
-                const next = confirm;
                 setConfirm(undefined);
-                if (next === "reload") void reload();
-                else props.onClose();
+                confirm?.proceed();
               }}
             >
               {l.discard}

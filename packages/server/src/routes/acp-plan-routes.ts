@@ -8,6 +8,9 @@ import {
   AcpPlanViewSchema,
   AcpPlanResourceSchema,
   SaveAcpPlanSchema,
+  RunAcpPlanSchema,
+  RunAcpPlanResponseSchema,
+  type RunAcpPlan,
   ListAcpPlansSchema,
   DeleteAcpPlanSchema,
   DeleteAcpPlanResponseSchema,
@@ -26,7 +29,7 @@ const serializerCompiler =
     return JSON.stringify(data);
   };
 export interface AcpPlanRoutePorts {
-  service: Pick<AcpPlanService, "read" | "save" | "delete" | "stage">;
+  service: Pick<AcpPlanService, "read" | "save" | "delete" | "stage" | "runNow">;
   catalog: LocalCatalogStore;
   runIdempotent: RunIdempotent;
 }
@@ -54,6 +57,8 @@ const validatorCompiler: FastifySchemaCompiler<FastifySchema> =
       : { error: new Error("Invalid ACP plan request") };
   };
 function mapError(error: unknown): never {
+  if (error instanceof AcpPlanServiceError && error.code === "not-found")
+    throw new MutationHttpError("TASK_NOT_FOUND", error.message, 404);
   if (error instanceof AcpPlanServiceError)
     throw new MutationHttpError(
       error.code === "conflict"
@@ -132,6 +137,23 @@ export const registerAcpPlanRoutes: FastifyPluginCallback<AcpPlanRoutePorts> = (
       if (!view) throw new MutationHttpError("TASK_NOT_FOUND", "ACP plan not found", 404);
       return view;
     },
+  );
+  app.post<{ Params: { id: string }; Body: RunAcpPlan; Headers: { "idempotency-key": string } }>(
+    "/v1/acp/plans/:id/run",
+    {
+      validatorCompiler,
+      serializerCompiler,
+      schema: {
+        params: Params,
+        body: RunAcpPlanSchema,
+        headers: Headers,
+        response: { 200: RunAcpPlanResponseSchema },
+      },
+    },
+    (request) =>
+      mutate("run", request.params.id, request.headers["idempotency-key"], request.body, () =>
+        service.runNow(request.params.id, request.body, request.signal),
+      ),
   );
   app.put<{ Params: { id: string }; Body: SaveAcpPlan; Headers: { "idempotency-key": string } }>(
     "/v1/acp/plans/:id",

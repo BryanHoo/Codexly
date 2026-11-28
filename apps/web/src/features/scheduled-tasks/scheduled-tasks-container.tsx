@@ -1,3 +1,4 @@
+import { AcpPlanPromptComposer } from "./acp-plan-prompt-composer.js";
 import { AcpPlanWorkspace } from "@codexly/ui/core/acp-plan-workspace";
 import { AcpPlanScheduleFieldAdapter } from "./acp-plan-schedule-field.js";
 import { useTranslation } from "../../i18n/i18n.js";
@@ -203,6 +204,11 @@ export function ScheduledTasksContainer(
 ) {
   const { i18n } = useTranslation("workbench");
   const queryClient = useQueryClient();
+  const { client } = props.context;
+  const preview = useCallback(
+    (schedule: ScheduledTaskSchedule) => client.previewScheduledTask(schedule),
+    [client],
+  );
   if (props.context.capabilities?.runtime !== "acp")
     return <ExistingScheduledTasksContainer {...props} />;
   return (
@@ -212,6 +218,15 @@ export function ScheduledTasksContainer(
       projects={props.context.projects}
       language={i18n.resolvedLanguage ?? "zh-CN"}
       ScheduleField={AcpPlanScheduleFieldAdapter}
+      preview={preview}
+      renderPrompt={(prompt) => (
+        <AcpPlanPromptComposer
+          key={prompt.id}
+          currentProjectId={props.projectId}
+          context={props.context}
+          {...prompt}
+        />
+      )}
       onOpenTask={async (runProjectId, taskId, signal) => {
         const response = await props.context.client.readNavigableTask(runProjectId, taskId, {
           signal,

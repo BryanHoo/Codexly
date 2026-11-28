@@ -246,3 +246,37 @@ it("损坏定义不能变成执行快照，领取失败保留游标", async () =
     db.close();
   }
 });
+
+it("手动运行保留触发时间，重复请求复用同一次运行", async () => {
+  const store = await openRepository(await createWorkspace());
+  const key = { source: "web", scheduleId: "manual" } as const;
+  await store.catalog("acp.plan.set", { ...key, definition, expectedRevision: 0 });
+  await store.catalog("acp.plan.arm", {
+    ...key,
+    expectedRevision: 1,
+    expectedStateRevision: 0,
+    nextRunAt: 100,
+  });
+  const claim = {
+    ...key,
+    expectedRevision: 1,
+    expectedStateRevision: 1,
+    now: 10,
+    nextRunAt: null,
+    runId: "manual-run",
+    manual: true,
+  };
+  expect(await store.catalog("acp.plan.claimRef", claim)).toMatchObject({ runId: "manual-run" });
+  expect(await store.catalog("acp.plan.claimRef", claim)).toMatchObject({ runId: "manual-run" });
+  expect(
+    await store.catalog("acp.plan.claimRef", {
+      ...claim,
+      runId: "second",
+      expectedStateRevision: 1,
+    }),
+  ).toBeNull();
+  expect(await store.catalog("acp.plan.readState", key)).toMatchObject({
+    nextRunAt: 100,
+    revision: 1,
+  });
+});

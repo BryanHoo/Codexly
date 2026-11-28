@@ -42,14 +42,21 @@ export function createAcpPlanStateOperations(db) {
     const now = integer(p.now, -Number.MAX_SAFE_INTEGER),
       next = time(p.nextRunAt);
     if (next !== null && next <= now) throw new Error("Next ACP plan time must advance");
-    const state = read("claimCursor", [
-      next,
+    const revisions = [
       source,
       id,
       integer(p.expectedStateRevision, 1),
       integer(p.expectedRevision, 1),
-      now,
-    ]);
+    ];
+    // 手动领取保留定时游标，重复的请求身份直接复用原运行记录。
+    if (p.manual === true) {
+      const existing = read("readRun", [source, id, runId]);
+      if (existing) return existing;
+    }
+    const state =
+      p.manual === true
+        ? read("claimManualCursor", revisions)
+        : read("claimCursor", [next, ...revisions, now]);
     if (!state) return null;
     db.prepare(sql.prune).run(source, id);
     // 唯一身份冲突等任何错误都回滚游标和裁剪，不能消耗一轮执行却没有运行记录。

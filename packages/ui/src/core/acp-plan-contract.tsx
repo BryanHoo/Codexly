@@ -1,10 +1,13 @@
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
-import type { ComponentType } from "react";
+import type { ComponentType, RefObject } from "react";
 import type {
   AcpConfigPreview,
   AcpConfigPreviewRequest,
   AgentEngine,
   AgentMessageAttachment,
+  AgentPromptInput,
+  AcpConfigValues,
+  ScheduledTaskPreview,
   ScheduledTaskSchedule,
 } from "@codexly/protocol";
 import type {
@@ -12,6 +15,7 @@ import type {
   AcpPlanPage,
   AcpPlanView,
   ListAcpPlans,
+  RunAcpPlan,
 } from "@codexly/protocol/acp-plan-api";
 import type { AcpPlanEditorPorts } from "@codexly/frontend-core/acp-plan-editor";
 export interface AcpPlanUiClient extends AcpPlanEditorPorts, AcpProfileClient {
@@ -19,6 +23,11 @@ export interface AcpPlanUiClient extends AcpPlanEditorPorts, AcpProfileClient {
   listAcpPlans(query?: ListAcpPlans, options?: { signal?: AbortSignal }): Promise<AcpPlanPage>;
   readAcpPlan(id: string, options?: { signal?: AbortSignal }): Promise<AcpPlanView>;
   readAcpPlanHistory(id: string, options?: { signal?: AbortSignal }): Promise<AcpPlanHistory>;
+  runAcpPlan(
+    id: string,
+    input: RunAcpPlan,
+    options?: { signal?: AbortSignal; idempotencyKey?: string },
+  ): Promise<{ runId: string }>;
   deleteAcpPlan(
     id: string,
     revision: number,
@@ -36,24 +45,59 @@ export interface AcpPlanUiClient extends AcpPlanEditorPorts, AcpProfileClient {
     options?: { signal?: AbortSignal },
   ): Promise<{ attachment: AgentMessageAttachment }>;
 }
+export interface AcpPlanPromptHandle {
+  submitCurrent: () => Promise<boolean>;
+  hasDraftChanges?: () => boolean;
+}
+export interface AcpPlanPromptProps {
+  composerRef: RefObject<AcpPlanPromptHandle | null>;
+  id: string;
+  projectId: string;
+  prompt: AgentPromptInput;
+  attachments: readonly AgentMessageAttachment[];
+  initialConfig: Readonly<{ engine?: AgentEngine; values: AcpConfigValues }>;
+  onCapture: (
+    input: AgentPromptInput,
+    attachments: readonly AgentMessageAttachment[],
+    engine: AgentEngine,
+    values: AcpConfigValues,
+  ) => Promise<void>;
+  onInputStateChange: (hasInput: boolean) => void;
+  onSubmissionStateChange: (submitting: boolean) => void;
+}
 export type AcpPlanScheduleField = ComponentType<{
   value: ScheduledTaskSchedule;
   disabled: boolean;
+  preview: (schedule: ScheduledTaskSchedule) => Promise<ScheduledTaskPreview>;
   onChange: (value: ScheduledTaskSchedule | undefined) => void;
 }>;
 export const planLabels = {
   "zh-CN": {
-    title: "定时计划",
+    title: "定时任务",
+    welcome: "定时任务",
+    welcomeHint: "选择左侧任务查看详情，或新建一个定时计划。",
+    filter: "筛选定时任务",
+    all: "全部",
+    active: "已启用",
+    inactive: "已停用",
+    search: "搜索定时任务",
+    noMatches: "没有匹配的定时任务",
+    actions: "任务操作",
+    back: "返回定时计划",
     create: "新建计划",
     edit: "编辑计划",
     name: "计划名称",
     project: "项目",
+    details: "执行配置",
+    runIn: "运行方式",
+    newChat: "每次运行开启新对话",
     temporary: "普通聊天",
     agent: "智能体",
     choose: "选择智能体",
     prompt: "提示词",
     enabled: "启用计划",
     save: "保存计划",
+    runNow: "立即运行",
     cancel: "取消",
     close: "关闭",
     preview: "读取智能体配置",
@@ -75,7 +119,7 @@ export const planLabels = {
     removeAttachment: "移除附件",
     blocked: "计划有运行中或待确认的记录，暂时无法编辑。",
     old: "原有计划与运行记录",
-    schedule: "运行时间",
+    schedule: "执行计划",
     invalidSchedule: "请选择有效的运行时间。",
     saved: "计划已保存",
     previewNeeded: "启用前请读取并确认智能体配置。",
@@ -93,17 +137,31 @@ export const planLabels = {
     definitionRevision: "计划修订",
   },
   en: {
-    title: "Schedules",
+    title: "Scheduled tasks",
+    welcome: "Scheduled tasks",
+    welcomeHint: "Select a task to view its details or create a schedule.",
+    filter: "Filter scheduled tasks",
+    all: "All",
+    active: "Enabled",
+    inactive: "Disabled",
+    search: "Search scheduled tasks",
+    noMatches: "No matching scheduled tasks",
+    actions: "Task actions",
+    back: "Back to schedules",
     create: "New schedule",
     edit: "Edit schedule",
     name: "Schedule name",
     project: "Project",
+    details: "Details",
+    runIn: "Run in",
+    newChat: "New chat",
     temporary: "Chat",
     agent: "Agent",
     choose: "Choose an agent",
     prompt: "Prompt",
     enabled: "Enable schedule",
     save: "Save schedule",
+    runNow: "Run now",
     cancel: "Cancel",
     close: "Close",
     preview: "Read agent configuration",

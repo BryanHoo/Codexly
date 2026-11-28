@@ -6,6 +6,8 @@ import {
   AcpPlanResourceSchema,
   DeleteAcpPlanResponseSchema,
   type SaveAcpPlan,
+  type RunAcpPlan,
+  RunAcpPlanResponseSchema,
   type StageAcpPlanResource,
   type ListAcpPlans,
 } from "@codexly/protocol/acp-plan-api";
@@ -57,6 +59,9 @@ export class AcpPlanHttpClient extends AcpHttpClient {
   }
   saveAcpPlan(id: string, input: SaveAcpPlan, options: MutationOptions = {}) {
     return this.mutation(path(id), input, AcpPlanViewSchema, options, "PUT", 150_000);
+  }
+  runAcpPlan(id: string, input: RunAcpPlan, options: MutationOptions = {}) {
+    return this.mutation(`${path(id)}/run`, input, RunAcpPlanResponseSchema, options);
   }
   deleteAcpPlan(id: string, expectedRevision: number, options: MutationOptions = {}) {
     return this.mutation(

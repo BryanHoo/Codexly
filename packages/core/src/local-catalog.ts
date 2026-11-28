@@ -203,6 +203,7 @@ export interface CatalogOperations {
       nextRunAt: number | null;
       now: number;
       runId: string;
+      manual?: boolean;
     },
     AcpPlanRun | null,
   ];

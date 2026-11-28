@@ -70,7 +70,8 @@ for (const [name, Container] of [
       </QueryClientProvider>,
     );
     expect(h.client.readAcpPlanHistory).not.toHaveBeenCalled();
-    await screen.getByRole("button", { name: "运行记录", exact: true }).click();
+    await screen.getByRole("button", { name: "任务操作 · 巡检", exact: true }).click();
+    await screen.getByRole("menuitem", { name: "运行记录", exact: true }).click();
     await expect.element(screen.getByText("待确认", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("已启动", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("准备启动", { exact: true })).toBeVisible();
@@ -81,9 +82,9 @@ for (const [name, Container] of [
       "plan/id",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    const dialog = screen.getByRole("dialog");
+    const panel = screen.getByRole("region", { name: "运行记录" });
     await expect
-      .poll(() => dialog.element().scrollWidth - dialog.element().clientWidth)
+      .poll(() => panel.element().scrollWidth - panel.element().clientWidth)
       .toBeLessThanOrEqual(1);
     await screen.getByRole("button", { name: "打开任务", exact: true }).click();
     await expect.poll(() => h.navigate.mock.calls.length).toBe(1);
@@ -106,7 +107,8 @@ for (const [name, Container] of [
         <Container {...({ context: h.context, projectId: "p", temporary: false } as never)} />
       </QueryClientProvider>,
     );
-    await screen.getByRole("button", { name: "运行记录", exact: true }).click();
+    await screen.getByRole("button", { name: "任务操作 · 巡检", exact: true }).click();
+    await screen.getByRole("menuitem", { name: "运行记录", exact: true }).click();
     await screen.getByRole("button", { name: "打开任务", exact: true }).click();
     await expect.element(screen.getByRole("alert")).toHaveTextContent("任务已不可用");
     expect(h.navigate).not.toHaveBeenCalled();
@@ -123,7 +125,8 @@ for (const [name, Container] of [
     await screen.getByRole("button", { name: "刷新记录", exact: true }).click();
     await screen.getByRole("button", { name: "关闭", exact: true }).click();
     release({ projectId: "p", data: [run("late", "started", "late")] } as never);
-    await screen.getByRole("button", { name: "运行记录", exact: true }).click();
+    await screen.getByRole("button", { name: "任务操作 · 巡检", exact: true }).click();
+    await screen.getByRole("menuitem", { name: "运行记录", exact: true }).click();
     await expect.element(screen.getByText("无法确认", { exact: true })).toBeVisible();
     expect(screen.getByText("late", { exact: true }).elements()).toHaveLength(0);
     await screen.unmount();
@@ -150,7 +153,8 @@ for (const [name, Container] of [
         <Container {...({ context: h.context, projectId: "p", temporary: false } as never)} />
       </QueryClientProvider>,
     );
-    await screen.getByRole("button", { name: "运行记录", exact: true }).click();
+    await screen.getByRole("button", { name: "任务操作 · 巡检", exact: true }).click();
+    await screen.getByRole("menuitem", { name: "运行记录", exact: true }).click();
     await expect.element(screen.getByText("待确认", { exact: true })).toBeVisible();
     h.client.readAcpPlanHistory.mockResolvedValue({
       projectId: "p",
@@ -193,7 +197,8 @@ for (const [name, Container] of [
         <Container {...({ context: h.context, projectId: "p", temporary: false } as never)} />
       </QueryClientProvider>,
     );
-    await screen.getByRole("button", { name: "运行记录", exact: true }).click();
+    await screen.getByRole("button", { name: "任务操作 · 巡检", exact: true }).click();
+    await screen.getByRole("menuitem", { name: "运行记录", exact: true }).click();
     await screen.getByRole("button", { name: "打开任务", exact: true }).click();
     await screen.getByRole("button", { name: "关闭", exact: true }).click();
     resolveTask(
@@ -201,7 +206,8 @@ for (const [name, Container] of [
         ? { task: { id: "task/id", projectId: "p" } }
         : { id: "task/id", projectId: "p" }) as never,
     );
-    await screen.getByRole("button", { name: "运行记录", exact: true }).click();
+    await screen.getByRole("button", { name: "任务操作 · 巡检", exact: true }).click();
+    await screen.getByRole("menuitem", { name: "运行记录", exact: true }).click();
     await expect.element(screen.getByText("待确认", { exact: true })).toBeVisible();
     expect(h.navigate).not.toHaveBeenCalled();
     await screen.unmount();

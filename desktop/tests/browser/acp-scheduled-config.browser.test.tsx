@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
 import type { AcpConfigPreviewRequest, AcpScheduledConfigView, ScheduledTask, SetAcpScheduledConfig } from "@codexly/protocol";
 import { ScheduledTaskEditor as WebEditor } from "../../../apps/web/src/features/scheduled-tasks/components/scheduled-task-editor.js";
 import { ScheduledTaskEditor as NativeEditor } from "../../src/features/scheduled-tasks/scheduled-task-editor.js";
@@ -159,12 +160,14 @@ for (const [platform, Editor] of [["Web", WebEditor], ["Native", NativeEditor]] 
       onPreview: vi.fn(async () => ({ dates: [] })), projectId: "p", projects: [], skills: [],
     };
     const screen = await render(<QueryClientProvider client={new QueryClient()}>
-      <Editor {...props as never} />
+      <SelectedEnginesContext value={["acp-antigravity"]}>
+        <Editor {...props as never} />
+      </SelectedEnginesContext>
     </QueryClientProvider>);
     await screen.getByRole("button", { name: "配置智能体", exact: true }).click();
     expect(legacy).not.toHaveBeenCalled();
     expect(client.previewAcpConfig).not.toHaveBeenCalled();
-    await screen.getByRole("combobox", { name: "智能体", exact: true }).selectOptions("claude");
+    await screen.getByRole("combobox", { name: "智能体", exact: true }).selectOptions("acp-antigravity");
     const model = screen.getByRole("combobox", { name: "原生模型" });
     await expect.element(model).toHaveValue("a");
     await model.selectOptions("b");
@@ -178,7 +181,7 @@ for (const [platform, Editor] of [["Web", WebEditor], ["Native", NativeEditor]] 
     await save.click();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(client.setAcpScheduledConfig).toHaveBeenCalledWith("plan", {
-      projectId: "p", engine: "claude", expectedRevision: 0, confirmMigration: true,
+      projectId: "p", engine: "acp-antigravity", expectedRevision: 0, confirmMigration: true,
       values: { model: "b", allow: false },
     }, expect.objectContaining({ idempotencyKey: expect.any(String) }));
     const calls = client.setAcpScheduledConfig.mock.calls;

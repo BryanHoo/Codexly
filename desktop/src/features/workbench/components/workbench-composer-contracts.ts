@@ -1,3 +1,4 @@
+import type { AcpPlanPromptProps } from "@codexly/ui/core/acp-plan-contract";
 import type { AcpConfigValues } from "@codexly/protocol";
 import type {
   AcpComposerClient,
@@ -66,6 +67,7 @@ export type WorkbenchComposerHandle = Readonly<{
   answerQuestions: (text: string) => Promise<boolean>;
   referenceProjectPath: (file: ProjectFileSearchEntry) => void;
   submitCurrent: () => Promise<boolean>;
+  hasDraftChanges?: () => boolean;
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
@@ -76,6 +78,8 @@ export type WorkbenchComposerProps = Readonly<{
     quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
+    capture?: (input: AgentPromptInput, attachments: readonly AgentMessageAttachment[]) => Promise<void>;
+    captureConfigChanged?: boolean;
     configurationIntent?: AcpConfigValues | undefined;
     confirmContinuation?: () => Promise<boolean>;
     queueClient: AcpComposerQueueClient;
@@ -129,6 +133,7 @@ export type WorkbenchComposerProps = Readonly<{
   workspace?: ComposerWorkspace;
   onDirectSubmission?: (prompt?: PendingPrompt) => void;
   onSubmissionFailed?: () => void;
+  scheduledCapture?: Pick<AcpPlanPromptProps, "initialConfig" | "onCapture">;
   onCaptureSubmission?: (
     input: AgentPromptInput,
     options: AgentTurnOptions,

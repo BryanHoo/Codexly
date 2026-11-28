@@ -12,7 +12,7 @@ import {
   AcpComposerLeading,
   AcpComposerReasoning,
 } from "./acp-model-selector.js";
-import type { AgentEngine } from "@codexly/protocol";
+import type { AcpConfigValues, AgentEngine } from "@codexly/protocol";
 
 const defaultEngines: readonly AgentEngine[] = ["codex", "claude"];
 /** 两端共用引擎选择与原始草稿配置，从应用启动缓存展示选项。 */
@@ -23,17 +23,31 @@ export function useAcpDraftComposer(
     workspace: string;
     draftId?: string;
     initialEngine?: AgentEngine;
+    planConfig?: Readonly<{ engine?: AgentEngine; values: AcpConfigValues }>;
     configurationLabel: string;
     engineLabel: string;
     retryLabel: string;
     language?: string;
   }>,
 ) {
-  const engines = useSelectedEngines() ?? defaultEngines;
+  const enabledEngines = useSelectedEngines() ?? defaultEngines;
+  const savedEngine = input.planConfig?.engine;
+  // 已保存计划回显原 Agent，目录变化不能改写计划执行身份。
+  const engines = useMemo(
+    () =>
+      savedEngine && !enabledEngines.includes(savedEngine)
+        ? [...enabledEngines, savedEngine]
+        : enabledEngines,
+    [enabledEngines, savedEngine],
+  );
   const scope = JSON.stringify([input.projectId, input.draftId ?? "draft"]);
   const inherited = useMemo(
-    () => input.initialEngine ?? readAcpDraftEngine(browserSetupStorage, scope, engines),
-    [scope, engines, input.initialEngine],
+    () =>
+      input.initialEngine ??
+      (input.planConfig
+        ? defaultAcpDraftEngine(engines)
+        : readAcpDraftEngine(browserSetupStorage, scope, engines)),
+    [scope, engines, input.initialEngine, input.planConfig],
   );
   const [selection, setSelection] = useState<{
     scope: string;
@@ -46,7 +60,7 @@ export function useAcpDraftComposer(
     ...input,
     engine,
     enabled: engines.length > 0,
-    allowDefaultSubmit: true,
+    allowDefaultSubmit: !input.planConfig,
   });
   const requested =
     selection.scope === scope &&
@@ -64,7 +78,7 @@ export function useAcpDraftComposer(
   const disabled = draft.isPending || draft.isSaving || engines.length === 0;
   const selectEngine = (next: AgentEngine, model?: { id: string; value: string }) => {
     if (!draft.canChangeScope() || !engines.includes(next)) return;
-    saveAcpDraftEngine(browserSetupStorage, scope, next);
+    if (!input.planConfig) saveAcpDraftEngine(browserSetupStorage, scope, next);
     setSelection({
       scope,
       engine: next,

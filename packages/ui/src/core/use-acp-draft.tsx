@@ -14,7 +14,12 @@ import {
   type AcpDraftView,
   type AcpDraftDelivery,
 } from "@codexly/frontend-core/acp-draft-binding";
-import type { AcpConfigPreview, AcpConfigPreviewRequest, AgentEngine } from "@codexly/protocol";
+import type {
+  AcpConfigPreview,
+  AcpConfigPreviewRequest,
+  AcpConfigValues,
+  AgentEngine,
+} from "@codexly/protocol";
 
 export interface AcpDraftClient extends AcpProfileClient {
   previewAcpConfig(
@@ -57,6 +62,7 @@ export function useAcpDraft({
   draftId,
   enabled = true,
   allowDefaultSubmit = false,
+  planConfig,
 }: Readonly<{
   projectId: string;
   engine: AgentEngine;
@@ -64,6 +70,7 @@ export function useAcpDraft({
   draftId?: string;
   enabled?: boolean;
   allowDefaultSubmit?: boolean;
+  planConfig?: Readonly<{ engine?: AgentEngine; values: AcpConfigValues }> | undefined;
 }>) {
   const catalog = useAcpPreviewCatalog();
   const queryCache = useContext(QueryClientContext);
@@ -71,14 +78,15 @@ export function useAcpDraft({
   const storageKey = `codexly:acp-draft:v1:${JSON.stringify([projectId, draftId ?? "draft"])}`;
   const scope = useMemo(
     () => ({ binding: undefined as ReturnType<typeof bindAcpDraft> | undefined }),
-    [projectId, engine, workspace, storageKey, enabled, allowDefaultSubmit],
+    [projectId, engine, workspace, storageKey, enabled, allowDefaultSubmit, planConfig],
   );
   const [state, setState] = useState<{ scope: object; view: AcpDraftView }>();
   useEffect(() => {
     if (!enabled) return;
     const binding = bindAcpDraft({
       identity: JSON.stringify([engine, workspace]),
-      restored: storage.read(storageKey),
+      restored: planConfig ? undefined : storage.read(storageKey),
+      ...(planConfig?.engine === engine ? { initialValues: planConfig.values } : {}),
       allowDefaultSubmit,
       useOverrides: true,
       preview: ({ values, change }) => {
@@ -101,7 +109,7 @@ export function useAcpDraft({
         });
       },
       save: (value) => {
-        storage.write(storageKey, value);
+        if (!planConfig) storage.write(storageKey, value);
       },
       createKey: createUuid,
       onChange: (view) => {
@@ -114,7 +122,17 @@ export function useAcpDraft({
       scope.binding = undefined;
       binding.dispose();
     };
-  }, [scope, projectId, engine, workspace, storageKey, enabled, allowDefaultSubmit, queryCache]);
+  }, [
+    scope,
+    projectId,
+    engine,
+    workspace,
+    storageKey,
+    enabled,
+    allowDefaultSubmit,
+    queryCache,
+    planConfig,
+  ]);
   const setConfig = useCallback(
     (id: string, value: string | boolean) =>
       scope.binding?.setConfig(id, value) ?? Promise.resolve(false),

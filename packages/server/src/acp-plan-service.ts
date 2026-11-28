@@ -1,14 +1,14 @@
 import { Value } from "@sinclair/typebox/value";
 import type { AcpAgentSettingsService, AcpPlanView, LocalCatalogStore } from "@codexly/core";
 import type { AgentEngine, ScheduledTaskSchedule } from "@codexly/protocol";
-import { SaveAcpPlanSchema } from "@codexly/protocol/acp-plan-api";
+import { SaveAcpPlanSchema, type RunAcpPlan } from "@codexly/protocol/acp-plan-api";
 import type { ProjectContextResolver } from "./routes/context.js";
 import type { AcpPlanResourceManager } from "./acp-plan-resource-transfer.js";
 import { previewScheduledTask } from "./scheduled-task-recurrence.js";
 
 export class AcpPlanServiceError extends Error {
   constructor(
-    public readonly code: "invalid" | "conflict" | "busy" | "unavailable",
+    public readonly code: "invalid" | "conflict" | "busy" | "unavailable" | "not-found",
     message: string,
   ) {
     super(message);
@@ -65,6 +65,28 @@ export class AcpPlanService {
     } catch {
       /* 保留已成功提交的结果。 */
     }
+  }
+  async runNow(id: string, input: RunAcpPlan, signal?: AbortSignal) {
+    const key = this.key(id);
+    signal?.throwIfAborted();
+    const view = await this.read(id);
+    if (!view) fail("not-found", "ACP plan not found");
+    const prompt = view.definition.prompt;
+    if ((!prompt.text.trim() && !prompt.attachments.length) || prompt.skills.length)
+      fail("invalid", "Persistent ACP plan input is unavailable");
+    await this.project(view.definition.projectId);
+    signal?.throwIfAborted();
+    // 领取后交给调度器的恢复阶段执行，HTTP 断开也保留同一次运行。
+    const run = await this.ports.catalog.catalog("acp.plan.claimRef", {
+      ...key,
+      ...input,
+      manual: true,
+      nextRunAt: null,
+      now: (this.ports.now ?? Date.now)(),
+    });
+    if (!run) fail("conflict", "ACP plan changed or has an unresolved run");
+    this.wake();
+    return { runId: run.runId };
   }
   async save(id: string, input: unknown, signal?: AbortSignal): Promise<AcpPlanView> {
     const key = this.key(id);

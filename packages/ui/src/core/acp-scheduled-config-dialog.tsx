@@ -7,12 +7,13 @@ import {
   type SelectHTMLAttributes,
 } from "react";
 import { v4 as createUuid } from "uuid";
-import type {
-  AcpConfigPreview,
-  AcpConfigPreviewRequest,
-  AcpConfigValues,
-  AcpScheduledConfigView,
-  AgentEngine,
+import {
+  isAgentEngine,
+  type AcpConfigPreview,
+  type AcpConfigPreviewRequest,
+  type AcpConfigValues,
+  type AcpScheduledConfigView,
+  type AgentEngine,
 } from "@codexly/protocol";
 import {
   AcpStartupCacheContext,
@@ -20,6 +21,7 @@ import {
   useAcpPreviewCatalog,
 } from "./acp-preview-cache.js";
 import { AcpConfigOptions } from "./acp-config-options.js";
+import { AcpScheduledAgentOptions } from "./acp-scheduled-agent-options.js";
 import { Button } from "./button.js";
 import { Checkbox } from "./checkbox.js";
 import {
@@ -199,7 +201,7 @@ export function AcpScheduledConfigDialog({
                 disabled={saving || pending}
                 onChange={(event) => {
                   const selected = event.currentTarget.value;
-                  if (selected !== "codex" && selected !== "claude") return;
+                  if (!isAgentEngine(selected)) return;
                   setEngine(selected);
                   setDirty(true);
                   setConfirmed(false);
@@ -208,11 +210,7 @@ export function AcpScheduledConfigDialog({
                   if (!useStartupCache) void load(selected, { values: {} });
                 }}
               >
-                <option value="" disabled>
-                  {labels.choose}
-                </option>
-                <option value="codex">Codex</option>
-                <option value="claude">Claude</option>
+                <AcpScheduledAgentOptions engine={engine} placeholder={labels.choose} />
               </Select>
             </Field>
             {pending ? <p role="status">{labels.preview}</p> : null}

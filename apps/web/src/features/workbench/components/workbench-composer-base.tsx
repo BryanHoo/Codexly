@@ -251,7 +251,7 @@ export function WorkbenchComposerBase({
     turnControlsDisabled,
   });
   useImperativeHandle(composerRef, () => ({
-    ...draft.createComposerDraftActions(session, skills),
+    ...draft.createComposerDraftActions(session, skills, initialDraft, acp?.captureConfigChanged),
     buildPlan: () => {
       setComposerModeState(undefined); // 避免后续 Turn 再次请求生成计划。
       return submitPrompt({ files: [], text: t("composer.buildPlanPrompt") }, [], {
@@ -361,7 +361,7 @@ export function WorkbenchComposerBase({
       canInterrupt={canInterrupt}
       canSteer={canSteer}
       canSubmit={canSubmit}
-      captureMode={onCaptureSubmission !== undefined}
+      captureMode={onCaptureSubmission !== undefined || acp?.capture !== undefined}
       captureSubmitVisible={captureSubmitVisible}
       commandMenuId={commandMenuId}
       commandMenuOpen={commandMenuOpen}

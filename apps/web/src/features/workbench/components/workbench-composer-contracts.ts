@@ -1,3 +1,4 @@
+import type { AcpPlanPromptProps } from "@codexly/ui/core/acp-plan-contract";
 import type { AcpConfigValues } from "@codexly/protocol";
 import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
 import type { QuotaClient } from "@codexly/ui/core/agent-quota-control";
@@ -69,6 +70,7 @@ export type WorkbenchComposerHandle = Readonly<{
   editMessage: (message: EditableUserMessage) => void;
   referenceProjectPath: (file: ProjectFileSearchEntry) => void;
   submitCurrent: () => Promise<boolean>;
+  hasDraftChanges?: () => boolean;
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
@@ -79,6 +81,11 @@ export type WorkbenchComposerProps = Readonly<{
     quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
+    capture?: (
+      input: AgentPromptInput,
+      attachments: readonly AgentMessageAttachment[],
+    ) => Promise<void>;
+    captureConfigChanged?: boolean;
     configurationIntent?: AcpConfigValues | undefined;
     confirmContinuation?: () => Promise<boolean>;
     submit: (
@@ -134,6 +141,7 @@ export type WorkbenchComposerProps = Readonly<{
   workspace?: ComposerWorkspace;
   onDirectSubmission?: (prompt?: PendingPrompt) => void;
   onSubmissionFailed?: () => void;
+  scheduledCapture?: Pick<AcpPlanPromptProps, "initialConfig" | "onCapture">;
   onCaptureSubmission?: (
     input: AgentPromptInput,
     options: AgentTurnOptions,

@@ -9,6 +9,8 @@ import {
   AcpPlanResourceSchema,
   DeleteAcpPlanResponseSchema,
   type SaveAcpPlan,
+  type RunAcpPlan,
+  RunAcpPlanResponseSchema,
   type ListAcpPlans,
 } from "@codexly/protocol/acp-plan-api";
 import { TauriAcpClient } from "./acp-client.js";
@@ -85,6 +87,9 @@ export class TauriAcpPlanClient extends TauriAcpClient {
   }
   saveAcpPlan(planId: string, input: SaveAcpPlan, options: MutationOptions = {}) {
     return this.plan({ type: "save", planId, input }, AcpPlanViewSchema, options);
+  }
+  runAcpPlan(planId: string, input: RunAcpPlan, options: MutationOptions = {}) {
+    return this.plan({ type: "run", planId, ...input }, RunAcpPlanResponseSchema, options);
   }
   deleteAcpPlan(planId: string, expectedRevision: number, options: MutationOptions = {}) {
     return this.plan(

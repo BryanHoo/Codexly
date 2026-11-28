@@ -118,11 +118,27 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             let tx = db
                 .transaction_with_behavior(TransactionBehavior::Immediate)
                 .map_err(db_error)?;
-            let updated = read(
-                &tx,
-                "claimCursor",
-                params![next, source, id, state, revision, now],
-            )?;
+            // 手动领取沿用双修订和运行锁，同时保留已有定时游标。
+            let manual = p["manual"].as_bool() == Some(true);
+            if manual {
+                let existing = read(&tx, "readRun", params![source, id, run])?;
+                if !existing.is_null() {
+                    return Ok(serde_json::json!({"scheduleId":id,"runId":run}));
+                }
+            }
+            let updated = if manual {
+                read(
+                    &tx,
+                    "claimManualCursor",
+                    params![source, id, state, revision],
+                )?
+            } else {
+                read(
+                    &tx,
+                    "claimCursor",
+                    params![next, source, id, state, revision, now],
+                )?
+            };
             if updated.is_null() {
                 return Ok(Value::Null);
             }

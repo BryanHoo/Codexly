@@ -99,6 +99,7 @@ export function bindAcpDraft(
   input: Readonly<{
     identity?: string;
     restored?: unknown;
+    initialValues?: AcpConfigValues;
     allowDefaultSubmit?: boolean;
     useOverrides?: boolean;
     preview: (request: AcpConfigPreviewRequest, signal: AbortSignal) => Promise<AcpConfigPreview>;
@@ -112,7 +113,7 @@ export function bindAcpDraft(
   let canNegotiate = true;
   const isActive = () => !closed;
   let attempt: Attempt | undefined;
-  let values: AcpConfigValues = {};
+  let values: AcpConfigValues = input.initialValues ?? {};
   let useDefaults = false;
   const identity = input.identity ?? "";
   let view: Omit<AcpDraftView, "canSubmit"> = {

@@ -1,5 +1,22 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { v4 as createUuid } from "uuid";
+import { CalendarClock, Plus, Search } from "lucide-react";
+import { agentEngineName, TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
+import { Input } from "./input.js";
+import { LoadingSkeleton } from "./loading-skeleton.js";
+import { AcpPlanListRow } from "./acp-plan-list-row.js";
+import type { AcpPlanEditorHandle } from "./acp-plan-editor.js";
+import "./acp-plan-workspace.css";
 import type { AcpPlanPage, AcpPlanView } from "@codexly/protocol/acp-plan-api";
 import { Button } from "./button.js";
 import type { OpenAcpPlanTask } from "./acp-plan-history.js";
@@ -15,6 +32,7 @@ import {
   planLabels,
   type AcpPlanUiClient,
   type AcpPlanScheduleField,
+  type AcpPlanPromptProps,
 } from "./acp-plan-contract.js";
 // 表单、配置控件和编辑会话只在用户打开计划后加载。
 const AcpPlanEditor = lazy(() =>
@@ -23,12 +41,16 @@ const AcpPlanEditor = lazy(() =>
 const AcpPlanHistory = lazy(() =>
   import("./acp-plan-history.js").then((module) => ({ default: module.AcpPlanHistory })),
 );
+const filters = ["all", "active", "inactive"] as const;
+
 interface Props {
   client: AcpPlanUiClient;
   projectId: string;
   projects: readonly { id: string; name: string }[];
   language?: string;
   ScheduleField: AcpPlanScheduleField;
+  preview: ComponentProps<AcpPlanScheduleField>["preview"];
+  renderPrompt: (props: AcpPlanPromptProps) => ReactNode;
   onOpenTask: OpenAcpPlanTask;
   children?: ReactNode;
 }
@@ -39,10 +61,12 @@ export function AcpPlanWorkspace({
   projects,
   language,
   ScheduleField,
+  preview,
+  renderPrompt,
   onOpenTask,
   children,
 }: Props) {
-  const l = language === "en" ? planLabels.en : planLabels["zh-CN"];
+  const l = language?.startsWith("en") ? planLabels.en : planLabels["zh-CN"];
   const [page, setPage] = useState<AcpPlanPage>({ data: [], nextCursor: null });
   const [listPending, setListPending] = useState(false);
   const [operationPending, setOperationPending] = useState(false);
@@ -52,6 +76,9 @@ export function AcpPlanWorkspace({
   const [editor, setEditor] = useState<{ id: string; view?: AcpPlanView }>();
   const [removing, setRemoving] = useState<AcpPlanPage["data"][number]>();
   const [old, setOld] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<(typeof filters)[number]>("all");
+  const editorHandle = useRef<AcpPlanEditorHandle>(null);
   const [history, setHistory] = useState<{ id: string; name: string }>();
   const controller = useRef<AbortController | undefined>(undefined);
   const listController = useRef<AbortController | undefined>(undefined);
@@ -123,6 +150,9 @@ export function AcpPlanWorkspace({
   const edit = async (id: string) => {
     if (lock.current) return;
     lock.current = true;
+    // 离开确认通过后卸载旧详情，防止新详情加载期间继续修改即将替换的草稿。
+    setEditor(undefined);
+    setHistory(undefined);
     controller.current?.abort();
     const request = new AbortController();
     controller.current = request;
@@ -130,7 +160,9 @@ export function AcpPlanWorkspace({
     setError("");
     try {
       const view = await client.readAcpPlan(id, { signal: request.signal });
-      if (active.current && !request.signal.aborted) setEditor({ id, view });
+      if (active.current && !request.signal.aborted) {
+        setEditor({ id, view });
+      }
     } catch (cause) {
       if (active.current && !request.signal.aborted)
         setError(cause instanceof Error ? cause.message : String(cause));
@@ -152,6 +184,8 @@ export function AcpPlanWorkspace({
       });
       if (active.current) {
         setRemoving(undefined);
+        if (editor?.id === removing.scheduleId) setEditor(undefined);
+        if (history?.id === removing.scheduleId) setHistory(undefined);
         await load();
       }
     } catch (cause) {
@@ -164,128 +198,224 @@ export function AcpPlanWorkspace({
       if (active.current) setOperationPending(false);
     }
   };
-  const names = new Map(projects.map((project) => [project.id, project.name]));
-  return (
-    <section className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4">
-      <header className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto text-body font-semibold">{l.title}</h2>
-        <Button
-          variant="ghost"
-          disabled={pending}
-          onClick={() => {
-            void load();
-          }}
-        >
-          {l.refresh}
-        </Button>
-        <Button
-          disabled={pending}
-          onClick={() => {
-            setEditor({ id: createUuid() });
-          }}
-        >
-          {l.create}
-        </Button>
-      </header>
-      {pending ? <p role="status">{l.loading}</p> : null}
-      {error || listError ? (
-        <p role="alert" className="break-words text-destructive">
-          {error || listError}
-        </p>
-      ) : null}
-      {!pending && !page.data.length ? (
-        <p className="text-label text-muted-foreground">{l.empty}</p>
-      ) : null}
-      <div className="flex flex-col divide-y divide-separator">
-        {page.data.map((row) => (
-          <article key={row.scheduleId} className="flex min-w-0 flex-wrap items-center gap-2 py-3">
-            <button
-              type="button"
-              disabled={pending}
-              className="min-w-0 flex-1 text-left"
-              onClick={() => {
-                void edit(row.scheduleId);
-              }}
-            >
-              <span className="block break-words text-label font-medium">{row.name}</span>
-              <span className="block break-words text-caption text-muted-foreground">
-                {row.projectId === "temporary"
-                  ? l.temporary
-                  : (names.get(row.projectId) ?? row.projectId)}{" "}
-                · {row.engine} ·{" "}
-                {row.nextRunAt === null
-                  ? l.ended
-                  : new Date(row.nextRunAt).toLocaleString(language)}
-              </span>
-            </button>
-            <Button
-              variant="ghost"
-              disabled={pending}
-              onClick={() => {
-                setHistory({ id: row.scheduleId, name: row.name });
-              }}
-            >
-              {l.history}
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={pending}
-              onClick={() => {
-                setRemoving(row);
-              }}
-            >
-              {l.remove}
-            </Button>
-          </article>
-        ))}
-      </div>
-      {page.nextCursor ? (
-        <Button
-          variant="ghost"
-          disabled={pending}
-          onClick={() => {
-            if (page.nextCursor) void load(page.nextCursor);
-          }}
-        >
-          {l.more}
-        </Button>
-      ) : null}
-      {children ? (
-        <>
+  const names = useMemo(
+    () => new Map(projects.map((project) => [project.id, project.name])),
+    [projects],
+  );
+  const projectName = (id: string) =>
+    id === TEMPORARY_TASK_SCOPE_ID ? l.temporary : (names.get(id) ?? id);
+  const term = search.trim().toLocaleLowerCase();
+  const rows = page.data.filter(
+    (row) =>
+      (filter === "all" || row.enabled === (filter === "active")) &&
+      (!term ||
+        `${row.name} ${projectName(row.projectId)} ${agentEngineName(row.engine)}`
+          .toLocaleLowerCase()
+          .includes(term)),
+  );
+  // 列表切换、查看历史和旧计划入口统一交给右栏处理草稿取舍。
+  const leaveEditor = (next: () => void) => {
+    if (editorHandle.current) editorHandle.current.leave(next);
+    else next();
+  };
+  const showHistory = (id: string, name: string) => {
+    leaveEditor(() => {
+      setEditor(undefined);
+      setHistory({ id, name });
+    });
+  };
+
+  const selectedView = editor?.view;
+  if (old && children) {
+    return (
+      <div className="acp-plan-legacy">
+        <div className="scheduled-task-editor__toolbar">
           <Button
-            variant="ghost"
-            aria-expanded={old}
+            variant="outline"
             onClick={() => {
-              setOld((value) => !value);
+              setOld(false);
             }}
           >
-            {l.old}
+            {l.back}
           </Button>
-          {old ? <div className="min-h-[30rem] border-t border-separator">{children}</div> : null}
-        </>
-      ) : null}
-      {editor ? (
-        <Suspense fallback={<p role="status">{l.loading}</p>}>
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <section className="scheduled-tasks acp-plan-workspace" aria-label={l.title}>
+      <aside className="scheduled-task-list">
+        <div className="scheduled-task-list__header">
+          <div>
+            <h2>{l.title}</h2>
+            <span>{page.data.length}</span>
+          </div>
+          <Button
+            aria-label={l.create}
+            size="icon-toolbar"
+            disabled={operationPending}
+            onClick={() => {
+              leaveEditor(() => {
+                setHistory(undefined);
+                setEditor({ id: createUuid() });
+              });
+            }}
+          >
+            <Plus aria-hidden="true" />
+          </Button>
+        </div>
+        <div className="scheduled-task-filters" role="group" aria-label={l.filter}>
+          {filters.map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              onClick={() => {
+                setFilter(value);
+              }}
+            >
+              {l[value]}
+            </button>
+          ))}
+        </div>
+        <div className="scheduled-task-search">
+          <Search aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label={l.search}
+            placeholder={l.search}
+            value={search}
+            onChange={(event) => {
+              setSearch(event.currentTarget.value);
+            }}
+          />
+        </div>
+        <div className="scheduled-task-list__items">
+          {error || listError ? (
+            <p role="alert" className="break-words px-2 text-destructive">
+              {error || listError}
+            </p>
+          ) : null}
+          {listPending && page.data.length === 0 ? <LoadingSkeleton label={l.loading} /> : null}
+          {!listPending && !listError && rows.length === 0 ? (
+            <div className="scheduled-task-list__empty">
+              <CalendarClock aria-hidden="true" />
+              <span>{term || filter !== "all" ? l.noMatches : l.empty}</span>
+            </div>
+          ) : null}
+          {rows.map((row) => (
+            <AcpPlanListRow
+              key={row.scheduleId}
+              row={row}
+              selected={row.scheduleId === (editor?.id ?? history?.id)}
+              disabled={operationPending}
+              projectName={projectName(row.projectId)}
+              language={language}
+              labels={l}
+              onEdit={() => {
+                if (editor?.id !== row.scheduleId)
+                  leaveEditor(() => {
+                    void edit(row.scheduleId);
+                  });
+              }}
+              onHistory={() => {
+                showHistory(row.scheduleId, row.name);
+              }}
+              onRemove={() => {
+                if (editor?.id === row.scheduleId)
+                  leaveEditor(() => {
+                    setRemoving(row);
+                  });
+                else setRemoving(row);
+              }}
+            />
+          ))}
+          {page.nextCursor ? (
+            <Button
+              variant="ghost"
+              disabled={pending}
+              onClick={() => {
+                if (page.nextCursor) void load(page.nextCursor);
+              }}
+            >
+              {l.more}
+            </Button>
+          ) : null}
+        </div>
+        <div className="acp-plan-list-actions">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() => {
+              void load();
+            }}
+          >
+            {l.refresh}
+          </Button>
+          {children ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={operationPending}
+              onClick={() => {
+                leaveEditor(() => {
+                  setEditor(undefined);
+                  setHistory(undefined);
+                  setOld(true);
+                });
+              }}
+            >
+              {l.old}
+            </Button>
+          ) : null}
+        </div>
+      </aside>
+      <Suspense
+        fallback={
+          <div className="scheduled-task-welcome" role="status">
+            {l.loading}
+          </div>
+        }
+      >
+        {editor ? (
           <AcpPlanEditor
             key={editor.id}
+            ref={editorHandle}
             id={editor.id}
-            {...(editor.view ? { view: editor.view } : {})}
+            {...(selectedView
+              ? {
+                  view: selectedView,
+                  runHistory: (
+                    <AcpPlanHistory
+                      client={client}
+                      id={editor.id}
+                      name={selectedView.definition.name}
+                      labels={l}
+                      {...(language === undefined ? {} : { language })}
+                      onOpenTask={onOpenTask}
+                    />
+                  ),
+                }
+              : {})}
             projectId={projectId}
             projects={projects}
             client={client}
             labels={l}
             ScheduleField={ScheduleField}
+            preview={preview}
+            renderPrompt={renderPrompt}
             onClose={() => {
               setEditor(undefined);
             }}
-            onSaved={() => {
-              void load();
+            onSaved={(view) => {
+              setEditor({ id: editor.id, view });
+              void load(undefined, true);
             }}
           />
-        </Suspense>
-      ) : null}
-      {history ? (
-        <Suspense fallback={<p role="status">{l.loading}</p>}>
+        ) : history ? (
           <AcpPlanHistory
             key={history.id}
             client={client}
@@ -298,8 +428,18 @@ export function AcpPlanWorkspace({
               setHistory(undefined);
             }}
           />
-        </Suspense>
-      ) : null}
+        ) : operationPending ? (
+          <div className="scheduled-task-welcome" role="status">
+            {l.loading}
+          </div>
+        ) : (
+          <div className="scheduled-task-welcome">
+            <CalendarClock aria-hidden="true" />
+            <h2>{l.welcome}</h2>
+            <p>{l.welcomeHint}</p>
+          </div>
+        )}
+      </Suspense>
       <Dialog
         open={!!removing}
         onOpenChange={(open) => {

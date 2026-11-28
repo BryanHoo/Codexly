@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AcpPlanHistory as History } from "@codexly/protocol/acp-plan-api";
 import type { AcpPlanUiClient, PlanLabels } from "./acp-plan-contract.js";
 import { Button } from "./button.js";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./dialog.js";
+import { History as HistoryIcon } from "lucide-react";
 export type OpenAcpPlanTask = (
   projectId: string,
   taskId: string,
@@ -15,7 +15,7 @@ interface Props {
   labels: PlanLabels;
   language?: string;
   onOpenTask: OpenAcpPlanTask;
-  onClose: () => void;
+  onClose?: () => void;
 }
 /** 只在用户打开时读取有限运行摘要；关闭取消读取，不能借未知状态发起新任务。 */
 export function AcpPlanHistory({
@@ -98,60 +98,73 @@ export function AcpPlanHistory({
       }
     }
   };
-  return (
-    <Dialog
-      open
-      onOpenChange={(value) => {
-        if (!value) onClose();
+  const refresh = (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={loading || opening}
+      onClick={() => {
+        void load();
       }}
     >
-      <DialogContent closeLabel={l.close} className="flex max-h-[85dvh] flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{l.history}</DialogTitle>
-          <DialogDescription className="break-words">{name}</DialogDescription>
-        </DialogHeader>
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
-          <Button
-            variant="ghost"
-            disabled={loading || opening}
-            onClick={() => {
-              void load();
-            }}
-          >
-            {l.refreshHistory}
+      {l.refreshHistory}
+    </Button>
+  );
+  const content = (
+    <div className="scheduled-task-runs">
+      <h3>
+        <HistoryIcon aria-hidden="true" />
+        {l.history}
+        {history ? <span>{history.data.length}</span> : null}
+      </h3>
+      {onClose ? null : refresh}
+      {loading ? <p role="status">{l.loading}</p> : null}
+      {error ? (
+        <p role="alert" className="break-words text-destructive">
+          {error}
+        </p>
+      ) : null}
+      {history && !history.data.length ? <p>{l.noRuns}</p> : null}
+      <ol>
+        {history?.data.map((run) => (
+          <li key={run.runId} className="scheduled-task-run acp-plan-run" data-status={run.status}>
+            <span className="font-medium">{l[run.status]}</span>
+            <time className="min-w-0 break-words text-caption">
+              {new Date(run.claimedAt).toLocaleString(language)} · {l.definitionRevision}{" "}
+              {run.definitionRevision}
+            </time>
+            {run.taskId ? (
+              <Button
+                variant="ghost"
+                disabled={opening}
+                onClick={() => {
+                  if (run.taskId) void open(run.taskId);
+                }}
+              >
+                {l.openTask}
+              </Button>
+            ) : null}
+            {run.error ? (
+              <p className="acp-plan-run-error whitespace-pre-wrap break-words">{run.error}</p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+  if (!onClose) return content;
+  return (
+    <section className="scheduled-task-editor" aria-label={l.history}>
+      <div className="scheduled-task-editor__toolbar">
+        <h2 className="min-w-0 break-words text-body-small font-semibold">{name}</h2>
+        <div className="scheduled-task-editor__actions">
+          {refresh}
+          <Button size="sm" variant="outline" onClick={onClose}>
+            {l.close}
           </Button>
-          {loading ? <p role="status">{l.loading}</p> : null}
-          {error ? (
-            <p role="alert" className="break-words text-destructive">
-              {error}
-            </p>
-          ) : null}
-          {history && !history.data.length ? <p>{l.noRuns}</p> : null}
-          <ol className="flex flex-col divide-y divide-separator">
-            {history?.data.map((run) => (
-              <li key={run.runId} className="flex min-w-0 flex-col gap-1 py-3 text-label">
-                <span className="font-medium">{l[run.status]}</span>
-                <span className="text-caption text-muted-foreground">
-                  {new Date(run.claimedAt).toLocaleString(language)} · {l.definitionRevision}{" "}
-                  {run.definitionRevision}
-                </span>
-                {run.error ? <p className="whitespace-pre-wrap break-words">{run.error}</p> : null}
-                {run.taskId ? (
-                  <Button
-                    variant="ghost"
-                    disabled={opening}
-                    onClick={() => {
-                      if (run.taskId) void open(run.taskId);
-                    }}
-                  >
-                    {l.openTask}
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ol>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+      <div className="scheduled-task-editor__body">{content}</div>
+    </section>
   );
 }

@@ -24,6 +24,12 @@ enum Request {
     History {
         plan_id: String,
     },
+    Run {
+        plan_id: String,
+        expected_revision: u64,
+        expected_state_revision: u64,
+        run_id: String,
+    },
     Save {
         plan_id: String,
         input: Value,
@@ -105,6 +111,29 @@ where
                 return Err(AppError::ScheduledTaskNotFound);
             }
             Ok(history)
+        }
+        Request::Run {
+            plan_id,
+            expected_revision,
+            expected_state_revision,
+            run_id,
+        } => {
+            identity(&plan_id)?;
+            identity(&run_id)?;
+            if !(1..=9_007_199_254_740_991).contains(&expected_revision)
+                || !(1..=9_007_199_254_740_991).contains(&expected_state_revision)
+            {
+                return Err(AppError::ScheduledTaskInvalid);
+            }
+            service
+                .run_now(
+                    &plan_id,
+                    expected_revision,
+                    expected_state_revision,
+                    &run_id,
+                    cancel,
+                )
+                .await
         }
         Request::Save { plan_id, input } => {
             identity(&plan_id)?;
