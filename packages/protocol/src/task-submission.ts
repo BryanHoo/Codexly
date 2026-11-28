@@ -7,18 +7,40 @@ import { EventCheckpointSchema } from "./event-checkpoint.js";
 import { ProjectRootPathSchema } from "./project-root.js";
 import { AgentEngineSchema } from "./agent-engine.js";
 
+const acpFirstPromptFields = {
+  type: Type.Literal("acp-prompt"),
+  engine: Type.Optional(AgentEngineSchema),
+  workspacePath: Type.Optional(ProjectRootPathSchema),
+  input: AgentPromptInputSchema,
+  taskId: Type.Optional(Type.Never()),
+  recoveryKey: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+};
+
 export const SubmitTaskRequestSchema = Type.Union([
   // 预览配置仅用于创建任务的首发意图，不能覆盖已有任务的权威会话。
   Type.Object(
     {
-      type: Type.Literal("acp-prompt"),
-      engine: Type.Optional(AgentEngineSchema),
-      workspacePath: Type.Optional(ProjectRootPathSchema),
-      input: AgentPromptInputSchema,
-      taskId: Type.Optional(Type.Never()),
+      ...acpFirstPromptFields,
       initialConfig: AcpConfigValuesSchema,
       continuationSourceTaskId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
-      recoveryKey: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+    },
+    { additionalProperties: false },
+  ),
+  // 普通新聊天可由宿主在真实会话内应用保存的默认值，仍使用首发的幂等恢复契约。
+  Type.Object(
+    {
+      ...acpFirstPromptFields,
+      initialConfig: Type.Null(),
+      configOverrides: Type.Optional(AcpConfigValuesSchema),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      ...acpFirstPromptFields,
+      initialConfig: Type.Null(),
+      continuationSourceTaskId: Type.String({ minLength: 1, maxLength: 256 }),
+      configOverrides: AcpConfigValuesSchema,
     },
     { additionalProperties: false },
   ),
@@ -30,6 +52,7 @@ export const SubmitTaskRequestSchema = Type.Union([
       workspacePath: Type.Optional(ProjectRootPathSchema),
       taskId: Type.Optional(Type.String({ minLength: 1 })),
       input: AgentPromptInputSchema,
+      configOverrides: Type.Optional(AcpConfigValuesSchema),
     },
     { additionalProperties: false },
   ),

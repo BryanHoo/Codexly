@@ -1,7 +1,11 @@
 import { SettingsActions } from "./settings-group.js";
-import { invalidateAcpPreviews } from "./acp-preview-cache.js";
+import {
+  AcpStartupCacheContext,
+  updateAcpPreviewOptions,
+  useAcpPreviewCatalog,
+} from "./acp-preview-cache.js";
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
 import type { AcpDefaults, AgentEngine } from "@codexly/protocol";
@@ -60,6 +64,8 @@ export function AcpDefaultSettings({
 }> &
   Pick<AcpConfigOptionsProps, "Field" | "Select">) {
   const queryClient = useQueryClient();
+  const cached = useAcpPreviewCatalog()[engine];
+  const useStartupCache = useContext(AcpStartupCacheContext);
   const queryKey = ["acp-defaults", engine] as const;
   const scope = useMemo(
     () => ({
@@ -72,10 +78,12 @@ export function AcpDefaultSettings({
   const [draft, setDraft] = useState<{ scope: object; id: string; value: string | boolean }>();
   const query = useQuery({
     queryKey,
+    enabled: !useStartupCache,
     queryFn: ({ signal }) => client.getAcpDefaults(engine, { signal }),
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const options = query.data?.configOptions ?? cached?.configOptions;
   const mutation = useMutation({
     mutationFn: async (input: {
       engine: AgentEngine;
@@ -91,7 +99,7 @@ export function AcpDefaultSettings({
     },
     onSuccess: (data, input) => {
       queryClient.setQueryData(["acp-defaults", input.engine], data);
-      return invalidateAcpPreviews(queryClient, input.engine);
+      updateAcpPreviewOptions(queryClient, input.engine, data.configOptions);
     },
     meta: { actionNotification: false },
   });
@@ -131,7 +139,7 @@ export function AcpDefaultSettings({
           : "idle";
   const retry = () => {
     if (scope.attempt) void run(scope.attempt.id, scope.attempt.value);
-    else void query.refetch();
+    else if (!useStartupCache) void query.refetch();
   };
   return (
     <>
@@ -156,12 +164,12 @@ export function AcpDefaultSettings({
           </SettingsActions>
         </div>
       ) : null}
-      {query.data ? (
+      {options ? (
         <>
           <AcpConfigOptions
             engine={engine}
             client={client}
-            options={query.data.configOptions.map((option) =>
+            options={options.map((option) =>
               draft?.scope === scope && draft.id === option.id
                 ? { ...option, currentValue: draft.value }
                 : option,
@@ -180,22 +188,24 @@ export function AcpDefaultSettings({
               // 新编辑取代失败的旧提交；回到已保存值后，重试不能再次写入已放弃的值。
               scope.attempt = undefined;
               mutation.reset();
-              const baseline = query.data.configOptions.find(
-                (option) => option.id === id,
-              )?.currentValue;
+              const baseline = options.find((option) => option.id === id)?.currentValue;
               scope.draft = baseline === value ? undefined : { id, value };
               setDraft(scope.draft ? { scope, ...scope.draft } : undefined);
             }}
           />
-          {query.data.configOptions.length === 0 ? (
+          {options.length === 0 ? (
             <p role="status" className="text-label text-muted-foreground">
               {labels.empty}
             </p>
           ) : null}
         </>
-      ) : query.isPending ? (
+      ) : !useStartupCache && query.isPending ? (
         <LoadingSkeleton variant="settings-fields" label={labels.loading} className="px-0 py-1" />
-      ) : null}
+      ) : (
+        <p role="status" className="text-label text-muted-foreground">
+          {labels.empty}
+        </p>
+      )}
     </>
   );
 }

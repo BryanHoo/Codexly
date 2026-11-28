@@ -169,6 +169,8 @@ export type AgentProviderTurnInput = Readonly<{
   submissionKey?: string;
   /** 接续来源仅由两端可信的首发交付层传入。 */
   continuationSourceTaskId?: string;
+  /** 仅包含用户明确选择的 ACP 配置，真实会话发送前在任务锁内应用。 */
+  acpConfigOverrides?: AcpConfigValues;
   files: readonly Readonly<{
     continuationSourceTaskId?: string;
     mediaType: string;

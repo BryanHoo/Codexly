@@ -70,9 +70,15 @@
 - 压缩条目保留在时间线首次出现的位置。后续状态更新和摘要分块按原 ID 原位应用，摘要显式清空和省略遵循 ACP 的补丁语义。完成后条目仍可见，摘要默认折叠。两端共用 [会话更新组件](../../../../packages/ui/src/agent/acp-session-updates.tsx)。
 - 摘要以文本增量传输，只唤醒所属条目。历史使用原有回合匹配锚点，重放可补回压缩条目而保留应用侧回合身份。回归覆盖 [ACP 回放](../../../../packages/provider-acp/src/replay.test.ts) 与 [桌面浏览器时间线](../../../../desktop/src/features/workbench/components/task-timeline-context-compaction.browser.test.tsx)。协议依据为 [Session Notices](https://agentclientprotocol.com/rfds/session-notices) 与 [Session Compaction](https://agentclientprotocol.com/rfds/session-compaction)。
 
+## ACP 新聊天首发
+
+- Web 与桌面启动时并行读取已启用 Agent 的宿主持久快照，再按顺序后台刷新。单个请求失败或在 8 秒内未完成时继续下一个。快照按 Agent 跨项目、分屏和应用重启复用，登录和连接设置保存等显式变动可刷新对应 Agent。
+- 同一 Agent 的真实发送可立即取消独立刷新连接。真实会话上报的思考、速度等配置按模型补入快照。用户切换模型时重新选择该模型的参数，权限和模式继续沿用当前选择。
+- 草稿读取启动快照，已有会话优先展示会话状态，两者均本地切换模型、思考和权限。真实发送在任务锁内应用用户明确改过的配置，未改动的值沿用真实会话设置。失败重试保留配置意图和请求身份，用户改选后仍复用原任务。回归覆盖 [启动顺序与超时](../../../../packages/ui/src/core/acp-preview-cache.test.ts)、[双端草稿](../../../../desktop/tests/browser/acp-draft-composer.browser.test.tsx) 和 [宿主应用配置](../../../../packages/provider-acp/src/initial-config.test.ts)。
+
 ## ACP 斜杠命令
 
-- 输入框使用当前 Agent 会话上报的完整命令清单，空清单清除旧建议。已有任务与模式设置共用会话状态，新草稿和跨 Agent 接续从各自的配置预览取得清单。预览仅在输入框请求命令时短暂等待异步公告，到期后仍允许输入与提交。项目初始化沿用应用入口，Agent 公布同名命令时选择原生命令。
+- 输入框使用当前 Agent 会话上报的完整命令清单，空清单清除旧建议。新草稿及跨 Agent 接续读取应用启动缓存中的命令。项目初始化沿用应用入口，Agent 公布同名命令时选择原生命令。
 - 保留 Agent 发布的命令名称、描述和参数提示。选择命令后按普通 `session/prompt` 提交原始文本与附件，输出沿用现有聊天增量、会话配置和结构化事件。回归入口为 [双端草稿浏览器测试](../../../../desktop/tests/browser/acp-draft-composer.browser.test.tsx)、[共享连接测试](../../../../packages/provider-acp/src/connection.test.ts) 和 [编译宿主测试](../../../../tools/acp-host.test.mjs)。协议依据为 [ACP v1 Slash Commands](https://agentclientprotocol.com/protocol/v1/slash-commands)。
 
 ## 对话 JSON 导出

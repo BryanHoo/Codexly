@@ -1,3 +1,4 @@
+import type { AcpConfigValues } from "@codexly/protocol";
 import type {
   AcpComposerClient,
   AcpComposerQueueClient,
@@ -75,6 +76,7 @@ export type WorkbenchComposerProps = Readonly<{
     quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
+    configurationIntent?: AcpConfigValues | undefined;
     confirmContinuation?: () => Promise<boolean>;
     queueClient: AcpComposerQueueClient;
     submit: (

@@ -2,6 +2,7 @@ import { Type } from "@sinclair/typebox";
 import {
   AgentQuotaViewSchema,
   AcpConfigPreviewSchema,
+  AcpConfigCacheSchema,
   type AcpBackgroundTarget,
   AcpAgentCatalogPageSchema,
   AcpAgentCatalogProgressSchema,
@@ -27,7 +28,9 @@ import { projectPath, type MutationOptions, type ReadOptions } from "./http-clie
 
 /** ACP 设置与认证统一复用配对、错误解码、取消和幂等传输。 */
 export class AcpHttpClient extends AsyncQuestionHttpClient {
-  getAcpAgentCatalog(options: ReadOptions & { refresh?: boolean } = {}) {
+  getAcpAgentCatalog(options: ReadOptions & { refresh?: boolean; cached?: boolean } = {}) {
+    if (options.cached)
+      return this.read("/v1/acp/registry?cached=true", AcpAgentCatalogPageSchema, options);
     return this.request(
       `/v1/acp/registry${options.refresh ? "?refresh=true" : ""}`,
       AcpAgentCatalogPageSchema,
@@ -92,6 +95,18 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
       AcpScheduledConfigViewSchema,
       options,
       "PUT",
+    );
+  }
+  getAcpConfigCache(engine: AgentEngine, options: ReadOptions = {}) {
+    return this.read(`/v1/acp/agents/${engine}/config-cache`, AcpConfigCacheSchema, options);
+  }
+  refreshAcpConfigCache(engine: AgentEngine, options: MutationOptions = {}) {
+    return this.mutation(
+      `/v1/acp/agents/${engine}/config-cache`,
+      {},
+      AcpConfigCacheSchema,
+      options,
+      "POST",
     );
   }
   previewAcpConfig(

@@ -64,4 +64,8 @@ export interface AcpAgentCatalogService {
 }
 export type AcpAgentServices = Readonly<Record<AgentEngine, AcpAgentSettingsService>> & {
   readonly catalog?: AcpAgentCatalogService;
+  readonly startupConfig?: {
+    read(engine: AgentEngine): Promise<AcpConfigPreview | null>;
+    refresh(engine: AgentEngine, signal?: AbortSignal): Promise<AcpConfigPreview | null>;
+  };
 };

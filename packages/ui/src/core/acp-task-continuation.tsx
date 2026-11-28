@@ -4,7 +4,7 @@ import { AcpModelSelector, type AcpModelSelectorProps } from "./acp-model-select
 import { Button } from "./button.js";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./dialog.js";
 import { useSelectedEngines } from "./engine-selection.js";
-import { useAcpDraft, useAcpModelOptions, type AcpDraftClient } from "./use-acp-draft.js";
+import { useAcpDraft, type AcpDraftClient } from "./use-acp-draft.js";
 
 export function useAcpTaskContinuation(
   input: AcpModelSelectorProps & {
@@ -27,7 +27,6 @@ export function useAcpTaskContinuation(
   const targetEngine = target?.engine ?? engine;
   const preview = client.previewAcpConfig;
   const draft = useAcpDraft({
-    client: client as AcpDraftClient,
     projectId,
     // 以来源任务和目标 Agent 恢复首发身份，普通新聊天拥有自己的草稿。
     draftId: JSON.stringify(["continuation", taskId, targetEngine]),
@@ -54,23 +53,11 @@ export function useAcpTaskContinuation(
   );
 
   useEffect(() => {
-    if (!target?.model || !draft.preview || draft.isPending || draft.isSaving || draft.error)
-      return;
+    if (!target?.model || draft.isPending || draft.isSaving || draft.error) return;
     const { id, value } = target.model;
     select((current) => (current === target ? { taskId, engine: targetEngine } : current));
     void draft.setConfig(id, value);
-  }, [
-    draft.error,
-    draft.isPending,
-    draft.isSaving,
-    draft.preview,
-    draft.setConfig,
-    target,
-    targetEngine,
-    taskId,
-  ]);
-
-  const loadOptions = useAcpModelOptions(client, projectId, workspace);
+  }, [draft.error, draft.isPending, draft.isSaving, draft.setConfig, target, targetEngine, taskId]);
 
   const selectTarget = (next: AgentEngine, model?: { id: string; value: string }) => {
     if (input.disabled || draft.isSaving || draft.hasSubmission) return;
@@ -102,7 +89,7 @@ export function useAcpTaskContinuation(
           engines={preview ? engines : [engine]}
           disabled={input.disabled || draft.isSaving || draft.hasSubmission}
           label={target && (zh ? `接续到 ${targetName}` : `Continue with ${targetName}`)}
-          loadOptions={loadOptions}
+          catalog={draft.catalog}
           selectDefaultEngine={selectTarget}
           onSelect={(next, id, value) => {
             selectTarget(next, { id, value });

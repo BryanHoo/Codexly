@@ -1,3 +1,4 @@
+import { warmAcpPreviews } from "../../../packages/ui/src/core/acp-preview-cache.js";
 import {StrictMode} from "react";
 import {beforeEach,expect,it,vi} from "vitest";
 import {page} from "vitest/browser";
@@ -18,7 +19,10 @@ beforeEach(async()=>{await page.viewport(1100,850);await webLanguage("zh-CN");aw
 for(const [name,Container] of [["Web",Web],["Native",Native]] as const){
  it(`${name} 新建计划只保存 ACP 定义，失败保留草稿和请求身份`,async()=>{
   const h=fixture();h.save.mockRejectedValueOnce(new Error("network"));
-  const screen=await render(<QueryClientProvider client={new QueryClient()}><Toaster /><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
+  const cache=new QueryClient();
+  await warmAcpPreviews(cache, ["claude"], h.client.previewAcpConfig);
+  h.client.previewAcpConfig.mockClear();
+  const screen=await render(<QueryClientProvider client={cache}><Toaster /><Container {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider>);
   await screen.getByRole("button",{name:"新建计划",exact:true}).click();
   await screen.getByRole("textbox",{name:"计划名称",exact:true}).fill("每日巡检");await screen.getByRole("textbox",{name:"提示词",exact:true}).fill("检查项目");
   await screen.getByRole("combobox",{name:"智能体",exact:true}).selectOptions("claude");
@@ -27,8 +31,10 @@ for(const [name,Container] of [["Web",Web],["Native",Native]] as const){
   await expect.element(screen.getByRole("textbox",{name:"提示词",exact:true})).toHaveValue("检查项目");
   await screen.getByRole("button",{name:"保存计划",exact:true}).click();await expect.element(page.getByText("计划已保存",{exact:true})).toBeVisible();
   expect(document.querySelector('[data-slot="toast-title"]')?.textContent).toBe("计划已保存");
-  expect(h.save.mock.calls[0]?.[0]).toBe(h.save.mock.calls[1]?.[0]);expect(h.save.mock.calls[0]?.[1]).toMatchObject({definition:{name:"每日巡检",engine:"claude",values:{flag:false},projectId:"p",enabled:false,prompt:{text:"检查项目"}},expectedRevision:0,expectedStateRevision:0,resources:[]});
+  expect(h.save.mock.calls[0]?.[0]).toBe(h.save.mock.calls[1]?.[0]);expect(h.save.mock.calls[0]?.[1]).toMatchObject({definition:{name:"每日巡检",engine:"claude",values:{},projectId:"p",enabled:false,prompt:{text:"检查项目"}},expectedRevision:0,expectedStateRevision:0,resources:[]});
   expect(h.save.mock.calls[0]?.[1]).not.toHaveProperty("turnOptions");
+  expect(h.client.previewAcpConfig).not.toHaveBeenCalled();
+  cache.clear();
   await screen.unmount();
  });
 }
@@ -84,14 +90,16 @@ it("附件先上传和暂存，保存只携带私有资源引用，提交期间�
  await expect.poll(()=>h.save.mock.calls.length).toBe(1);expect(h.save.mock.calls[0]?.[1]).toMatchObject({resources:["token"],definition:{prompt:{attachments:[{id:"private"}]}}});await screen.unmount();
 });
 
-it("StrictMode 与英文界面保持编辑会话可用，关闭后迟到预览不能污染重开草稿",async()=>{
- await nativeLanguage("en");const h=fixture();let resolve!:(value:never)=>void;h.client.previewAcpConfig.mockImplementationOnce(()=>new Promise(done=>{resolve=done}));
- const screen=await render(<StrictMode><QueryClientProvider client={new QueryClient()}><Native {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider></StrictMode>);
+it("StrictMode 与英文界面保持编辑会话可用，关闭后迟到的启动缓存不能污染重开草稿",async()=>{
+ await nativeLanguage("en");const h=fixture();const cache=new QueryClient();const startup=Promise.withResolvers<Awaited<ReturnType<typeof h.client.previewAcpConfig>>>();
+ const warm=warmAcpPreviews(cache, ["claude"], () => startup.promise);
+ const screen=await render(<StrictMode><QueryClientProvider client={cache}><Native {...{context:h.context,projectId:"p",temporary:false} as never}/></QueryClientProvider></StrictMode>);
  await screen.getByRole("button",{name:"New schedule",exact:true}).click();await screen.getByRole("textbox",{name:"Schedule name",exact:true}).fill("Draft");await screen.getByRole("combobox",{name:"Agent",exact:true}).selectOptions("claude");
  await screen.getByRole("button",{name:"Cancel",exact:true}).click();await screen.getByRole("button",{name:"Discard changes",exact:true}).click();
- resolve({values:{flag:true},configOptions:[]} as never);
+ startup.resolve({values:{flag:true},configOptions:[]});
+ await warm;
  await screen.getByRole("button",{name:"New schedule",exact:true}).click();await expect.element(screen.getByRole("textbox",{name:"Schedule name",exact:true})).toHaveValue("");
- await expect.element(screen.getByRole("combobox",{name:"Agent",exact:true})).toHaveValue("");await screen.unmount();
+ await expect.element(screen.getByRole("combobox",{name:"Agent",exact:true})).toHaveValue("");await screen.unmount();cache.clear();
 });
 
 for(const [name,Container] of [["Web",Web],["Native",Native]] as const){

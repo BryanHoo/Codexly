@@ -26,4 +26,13 @@ it("新任务可携带 ACP 首发配置，已有任务不能覆盖权威会话",
   };
   expect(Value.Check(SubmitTaskRequestSchema, input)).toBe(true);
   expect(Value.Check(SubmitTaskRequestSchema, { ...input, taskId: "existing" })).toBe(false);
+  const useDefaults = { ...input, initialConfig: null, recoveryKey: "previous" };
+  expect(Value.Check(SubmitTaskRequestSchema, useDefaults)).toBe(true);
+  expect(
+    Value.Check(SubmitTaskRequestSchema, { ...useDefaults, configOverrides: { enabled: false } }),
+  ).toBe(true);
+  expect(Value.Check(SubmitTaskRequestSchema, { ...useDefaults, taskId: "existing" })).toBe(false);
+  expect(
+    Value.Check(SubmitTaskRequestSchema, { ...useDefaults, continuationSourceTaskId: "source" }),
+  ).toBe(false);
 });

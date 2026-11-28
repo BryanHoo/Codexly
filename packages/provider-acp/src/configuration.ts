@@ -12,11 +12,16 @@ import type { AcpSessionInitialization } from "./session-initialization.js";
 export async function configureAcpTurn(
   connection: AcpConnection,
   sessionId: string,
-  options: Partial<Pick<AgentTurnOptions, "model" | "reasoningEffort">>,
+  options: Partial<Pick<AgentTurnOptions, "model" | "reasoningEffort">> & {
+    overrides?: AcpConfigValues | undefined;
+  },
   task: LocalTask,
   initialization?: AcpSessionInitialization,
 ): Promise<void> {
-  const current = connection.readSessionState(sessionId).configOptions;
+  let current = connection.readSessionState(sessionId).configOptions;
+  // 真实会话应用宿主默认值后，显式选项在本次发送的任务锁内生效。
+  if (options.overrides)
+    current = await applyAcpConfig(connection, sessionId, current, options.overrides);
   const selected = migrateAcpSettings(
     {
       ...(options.model ? { model: options.model } : {}),

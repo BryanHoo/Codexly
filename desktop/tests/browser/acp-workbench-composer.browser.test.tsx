@@ -1,3 +1,4 @@
+import { warmAcpPreviews } from "../../../packages/ui/src/core/acp-preview-cache.js";
 import { createRef } from "react";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
@@ -54,13 +55,7 @@ async function renderComposer(fromCapability: boolean, continuation = false) {
   const response = createResponse({ acpSession: initial });
   const { settings: _legacySettings, ...snapshot } = response.snapshot;
   store.getState().hydrate({ ...response, snapshot: { ...snapshot, runtime: "acp" } });
-  let resolve!: (options: AcpSessionState["configOptions"]) => void;
-  const config = vi.fn(
-    () =>
-      new Promise<AcpSessionState["configOptions"]>((done) => {
-        resolve = done;
-      }),
-  );
+  const config = vi.fn();
   const submit = vi.fn(() =>
     Promise.resolve({
       taskId: continuation ? "continuation-1" : "task-1",
@@ -151,6 +146,7 @@ async function renderComposer(fromCapability: boolean, continuation = false) {
     },
   };
   const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (client.previewAcpConfig) await warmAcpPreviews(query, ["claude"], (engine) => client.previewAcpConfig("temporary", engine, { values: {} }));
   const screen = await render(
     <QueryClientProvider client={query}>
       <TooltipProvider>
@@ -162,11 +158,11 @@ async function renderComposer(fromCapability: boolean, continuation = false) {
       </TooltipProvider>
     </QueryClientProvider>,
   );
-  return { screen, query, ref, props, store, config, submit, profile, legacySettings, initial, resolveConfig: (options: AcpSessionState["configOptions"]) => { resolve(options); } };
+  return { screen, query, ref, props, store, config, submit, profile, legacySettings, initial };
 }
 
 it.each([false, true])("实际输入框按任务元数据或运行时能力接入 ACP：%s", async (fromCapability) => {
-  const { screen, query, ref, store, submit, profile, legacySettings, initial, resolveConfig } =
+  const { screen, query, ref, store, submit, profile, legacySettings, initial, config } =
     await renderComposer(fromCapability);
   const editor = screen.getByRole("textbox");
   await expect.element(editor).toHaveValue("未发送的草稿");
@@ -208,13 +204,8 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
     .element(screen.getByRole("tab", { name: "Claude", exact: true }))
     .not.toBeInTheDocument();
   await screen.getByRole("option", { name: /模型二/ }).click();
-  await expect(ref.current?.submitCurrent()).resolves.toBe(false);
-  expect(submit).not.toHaveBeenCalled();
-  resolveConfig([{ ...initial.configOptions[0]!, currentValue: "two" }]);
+  expect(config).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("button", { name: / \/ 模型二$/ })).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "原生布尔", exact: true }))
-    .not.toBeInTheDocument();
   expect(editor.element()).toBe(node);
   await expect.element(editor).toHaveValue("未发送的草稿");
   await expect(ref.current?.submitCurrent()).resolves.toBe(true);
@@ -223,6 +214,7 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
     {
       type: "acp-prompt",
       taskId: "task-1",
+      configOverrides: { "native-model": "two" },
       input: { type: "prompt", text: "未发送的草稿", attachments: [], skills: [] },
     },
     { idempotencyKey: expect.any(String) },
@@ -252,7 +244,7 @@ it("跨 Agent 发送需确认，取消保留草稿，确认打开新任务", asy
   await expect(confirmed).resolves.toBe(true);
   expect(submit).toHaveBeenCalledExactlyOnceWith("project-1", expect.objectContaining({
     type: "acp-prompt", engine: "claude", continuationSourceTaskId: "task-1",
-    initialConfig: { "target-model": "sonnet" },
+    initialConfig: null, configOverrides: { "target-model": "sonnet" },
     input: { type: "prompt", text: "未发送的草稿", attachments: [], skills: [] },
   }), { idempotencyKey: expect.any(String) });
   expect(config).not.toHaveBeenCalled();

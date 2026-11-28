@@ -1,6 +1,7 @@
 import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
 import { AcpActivity } from "@codexly/ui/core/acp-activity";
 import { useMemo } from "react";
+import { useAcpSessionConfigOptions } from "@codexly/ui/core/use-acp-session";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
 import { AcpComposerLeading, AcpComposerReasoning } from "@codexly/ui/core/acp-model-selector";
 import { useAcpTaskContinuation } from "@codexly/ui/core/acp-task-continuation";
@@ -22,18 +23,22 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     }),
     [props.client],
   );
+  const engine =
+    props.runtime?.metadata?.engine ??
+    (props.capabilities?.provider === "claude" ? ("claude" as const) : ("codex" as const));
   const session = useAcpSession({
     client,
+    engine,
     projectId: props.projectId,
     taskId: props.taskId,
+    deferConfiguration: true,
     ...(props.runtime?.store ? { source: props.runtime.store } : {}),
   });
+  const options = useAcpSessionConfigOptions(engine, session);
   const configuration = {
-    engine:
-      props.runtime?.metadata?.engine ??
-      (props.capabilities?.provider === "claude" ? ("claude" as const) : ("codex" as const)),
+    engine,
     client: props.client,
-    options: session.session?.configOptions ?? [],
+    options,
     disabled: session.isPending || session.isSaving || !!props.runtime?.activeTurnId,
     error: session.error,
     language: getCurrentLanguage(),
@@ -47,6 +52,10 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
       void session.setConfig(id, value);
     },
   });
+  const controlConfiguration = continuation.target
+    ? { ...configuration, engine: continuation.target, options: continuation.preview.configOptions }
+    : configuration;
+  const changeConfig = continuation.target ? continuation.setConfig : session.setConfig;
   const acp = {
     // 接续发送归属目标 Agent，命令也必须出自目标草稿的协商结果。
     availableCommands:
@@ -63,23 +72,24 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     ),
     trailingControls: (
       <AcpComposerReasoning
-        {...configuration}
+        {...controlConfiguration}
         label={t("composer.settingsTitle")}
         onChange={(id, value) => {
-          void session.setConfig(id, value);
+          void changeConfig(id, value);
         }}
       />
     ),
     leadingControls: (
       <AcpComposerLeading
-        {...configuration}
+        {...controlConfiguration}
         label={t("composer.settingsTitle")}
         onChange={(id, value) => {
-          void session.setConfig(id, value);
+          void changeConfig(id, value);
         }}
       />
     ),
     controls: continuation.controls,
+    configurationIntent: session.overrides,
     ...(continuation.target ? { confirmContinuation: continuation.confirm } : {}),
     submit: (input: AgentPromptInput, key: string) => {
       const target = continuation.target;
@@ -93,7 +103,9 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
               type: "acp-prompt",
               engine: target,
               input,
-              initialConfig: delivery.values,
+              ...(delivery.overrides
+                ? { initialConfig: null, configOverrides: delivery.values ?? {} }
+                : { initialConfig: delivery.values ?? {} }),
               continuationSourceTaskId: props.taskId,
               ...(delivery.recoveryKey ? { recoveryKey: delivery.recoveryKey } : {}),
             },
@@ -108,10 +120,15 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
             throw new Error("ACP 接续任务快照归属不匹配");
           return { ...result, acpSnapshot };
         });
-      return session.runConfigured(() =>
+      return session.runConfigured((overrides) =>
         props.client.submitTask(
           props.projectId,
-          { type: "acp-prompt", taskId: props.taskId, input },
+          {
+            type: "acp-prompt",
+            taskId: props.taskId,
+            input,
+            ...(overrides ? { configOverrides: overrides } : {}),
+          },
           { idempotencyKey: key },
         ),
       );

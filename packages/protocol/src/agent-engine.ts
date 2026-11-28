@@ -109,5 +109,8 @@ export function isAgentEngine(value: unknown): value is AgentEngine {
   );
 }
 export function agentEngineName(engine: AgentEngine): string {
-  return engine === "codex" ? "Codex" : engine === "claude" ? "Claude" : engine.slice(4);
+  if (engine === "codex") return "Codex";
+  if (engine === "claude") return "Claude";
+  // 前缀与末尾的适配器标记属于引擎标识，展示时仅保留名称。
+  return engine.slice(4).replace(/-acp$/u, "");
 }

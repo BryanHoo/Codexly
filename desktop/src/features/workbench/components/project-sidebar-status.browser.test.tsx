@@ -137,7 +137,7 @@ it("shows the historical task's ACP icon when only Codex is enabled", async () =
     <SelectedEnginesContext value={["codex"]}>{view(true, [task])}</SelectedEnginesContext>,
   );
   const row = screen.getByTestId("project-tree-scroll").getByRole("link", { name: /历史任务/u });
-  const icon = row.getByRole("img", { name: "antigravity-acp" });
+  const icon = row.getByRole("img", { name: "antigravity", exact: true });
   await expect.element(icon).toBeVisible();
   const glyph = icon.element().querySelector("use");
   expect(glyph?.getAttribute("href")).toMatch(/#antigravity$/u);

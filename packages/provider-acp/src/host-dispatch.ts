@@ -99,7 +99,9 @@ export async function dispatchAcpHost(
   const params = hostRecord(message["params"] ?? {}),
     method = text(message, "method");
   if (method === "agents.list")
-    return params["refresh"] === true ? runtime.catalog.refresh() : runtime.catalog.list();
+    return params["refresh"] === true
+      ? runtime.catalog.refresh()
+      : runtime.catalog.list(params["cached"] !== true);
   if (method === "agents.progress") return runtime.catalog.progress();
   if (method === "agents.install" || method === "agents.update" || method === "agents.remove") {
     if (!Value.Check(AgentEngineSchema, params["engine"])) throw new Error("Invalid engine");
@@ -160,6 +162,14 @@ export async function dispatchAcpHost(
           throw new Error("Invalid authentication elicitation");
         return service.authElicitation(input);
       }
+      case "settings.cache.read":
+      case "settings.cache.refresh":
+        if (Object.keys(params).length !== 1) throw new Error("Invalid ACP cache parameters");
+        return method === "settings.cache.read"
+          ? runtime.agents.startupConfig.read(engine)
+          : runtime.agents.startupConfig
+              .refresh(engine, signal)
+              .catch(() => runtime.agents.startupConfig.read(engine));
       case "settings.preview": {
         if (
           Object.keys(params).some(
@@ -275,12 +285,15 @@ export async function dispatchAcpHost(
         throw new AgentTurnNotSubmittedError("ACP 配置会话执行端口不可用");
       const key = params["idempotencyKey"];
       const continuation = params["continuationSourceTaskId"];
+      const overrides = params["configOverrides"];
+      if (overrides !== undefined && !Value.Check(AcpConfigValuesSchema, overrides))
+        throw new AgentTurnNotSubmittedError("无效的 ACP 回合配置");
       if (
         continuation !== undefined &&
         (typeof continuation !== "string" ||
           !continuation.trim() ||
           continuation.length > 256 ||
-          params["initialConfig"] === undefined)
+          (params["initialConfig"] === undefined && overrides === undefined))
       )
         throw new AgentTurnNotSubmittedError("无效的接续任务首发请求");
       const input = {
@@ -289,6 +302,7 @@ export async function dispatchAcpHost(
           ? { submissionKey: key }
           : {}),
         ...(typeof continuation === "string" ? { continuationSourceTaskId: continuation } : {}),
+        ...(overrides === undefined ? {} : { acpConfigOverrides: overrides }),
       };
       if (params["initialConfig"] !== undefined) {
         if (!Value.Check(AcpConfigValuesSchema, params["initialConfig"]))

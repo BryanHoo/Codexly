@@ -17,7 +17,9 @@ describe("server scheduled tasks", () => {
   }) => {
     // 固定创建请求期间的时间，等服务确认写入后再推进到期时钟。
     vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
-    onTestFinished(() => vi.useRealTimers());
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const { provider } = createProvider();
     const app = await createCodexlyServer(createServerOptions(provider));
     closeCallbacks.push(() => app.close());

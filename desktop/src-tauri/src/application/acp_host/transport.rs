@@ -29,6 +29,8 @@ pub(crate) fn cancellable_acp_request(method: &str) -> bool {
             | "agents.progress"
             | "settings.read"
             | "settings.preview"
+            | "settings.cache.read"
+            | "settings.cache.refresh"
             | "providers.list"
             | "application.generate"
     )

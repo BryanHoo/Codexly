@@ -198,9 +198,10 @@ export async function executeTaskSubmission(
             ...prepared.providerInput,
             submissionKey: key,
             ...(sourceId === undefined ? {} : { continuationSourceTaskId: sourceId }),
+            ...("configOverrides" in input ? { acpConfigOverrides: input.configOverrides } : {}),
           };
           const turn =
-            "initialConfig" in input
+            "initialConfig" in input && input.initialConfig !== null
               ? await runtime.provider.startConfiguredTurn(
                   taskId,
                   providerInput,

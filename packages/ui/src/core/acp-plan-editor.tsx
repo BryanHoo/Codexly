@@ -1,11 +1,6 @@
 import { v4 as createUuid } from "uuid";
 import { useEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
-import type {
-  AcpConfigPreview,
-  AcpConfigPreviewRequest,
-  AgentEngine,
-  ScheduledTaskSchedule,
-} from "@codexly/protocol";
+import type { AgentEngine, ScheduledTaskSchedule } from "@codexly/protocol";
 import type { AcpPlanView } from "@codexly/protocol/acp-plan-api";
 import { AcpPlanEditorSession } from "@codexly/frontend-core/acp-plan-editor";
 import { Button } from "./button.js";
@@ -20,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "./dialog.js";
+import { overlayAcpConfig, useAcpPreviewCatalog } from "./acp-preview-cache.js";
 import { AcpConfigOptions } from "./acp-config-options.js";
 import type { AcpPlanUiClient, AcpPlanScheduleField, PlanLabels } from "./acp-plan-contract.js";
 const Field = ({
@@ -77,7 +73,9 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
   );
   const [state, setState] = useState(() => session.snapshot);
   const [engine, setEngine] = useState<AgentEngine | "">(props.view?.definition.engine ?? "");
-  const [preview, setPreview] = useState<AcpConfigPreview>();
+  const catalog = useAcpPreviewCatalog();
+  const cached = engine ? catalog[engine] : undefined;
+  const shownOptions = cached && overlayAcpConfig(cached.configOptions, state.definition.values);
   const [pending, setPending] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
@@ -119,30 +117,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
   };
   const busy = state.busy || pending || working;
   const blocked = state.view?.canEdit === false;
-  const load = async (selected: AgentEngine, input: AcpConfigPreviewRequest) => {
-    if (lock.current) return;
-    request.current?.abort();
-    const controller = new AbortController();
-    request.current = controller;
-    setPending(true);
-    setError("");
-    try {
-      const result = await client.previewAcpConfig(
-        session.snapshot.definition.projectId,
-        selected,
-        input,
-        { signal: controller.signal },
-      );
-      if (active.current && request.current === controller && !controller.signal.aborted) {
-        setPreview(result);
-        patch({ values: result.values });
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted) fail(cause);
-    } finally {
-      if (active.current && request.current === controller) setPending(false);
-    }
-  };
   const action = async (fn: () => Promise<unknown>) => {
     if (lock.current) return;
     lock.current = true;
@@ -180,7 +154,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
         // 明确重读必须重置日历本地草稿，即使服务端规则与上次读取相同。
         setScheduleGeneration((value) => value + 1);
         setEngine(view.definition.engine);
-        setPreview(undefined);
         setValidSchedule(true);
         setError("");
         sync();
@@ -215,11 +188,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
       );
       if (active.current && !controller.signal.aborted) await session.stage(result.attachment);
     });
-  const configReady =
-    !!preview ||
-    (state.view?.definition.enabled &&
-      state.view.definition.engine === engine &&
-      JSON.stringify(state.view.definition.values) === JSON.stringify(state.definition.values));
   return (
     <>
       <Dialog
@@ -244,14 +212,7 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
             onSubmit={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              if (
-                !busy &&
-                !blocked &&
-                engine &&
-                validSchedule &&
-                (!state.definition.enabled || configReady)
-              )
-                void submit();
+              if (!busy && !blocked && engine && validSchedule) void submit();
             }}
           >
             {blocked ? <p role="status">{l.blocked}</p> : null}
@@ -272,7 +233,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
                   disabled={!!state.view || state.resources.length > 0}
                   value={state.definition.projectId}
                   onChange={(e) => {
-                    setPreview(undefined);
                     patch({ projectId: e.currentTarget.value });
                   }}
                 >
@@ -295,9 +255,7 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
                   onChange={(e) => {
                     const next = e.currentTarget.value as AgentEngine;
                     setEngine(next);
-                    setPreview(undefined);
                     patch({ engine: next, values: {} });
-                    void load(next, { values: {} });
                   }}
                 >
                   <option value="" disabled>
@@ -307,28 +265,16 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
                   <option value="claude">Claude</option>
                 </Select>
               </Field>
-              <Button
-                type="button"
-                disabled={!engine}
-                onClick={() => {
-                  if (engine) void load(engine, { values: state.definition.values });
-                }}
-              >
-                {l.preview}
-              </Button>
-              {preview ? (
+              {shownOptions ? (
                 <AcpConfigOptions
                   engine={engine || undefined}
                   client={client}
-                  options={preview.configOptions}
+                  options={shownOptions}
                   Field={Field}
                   Select={Select}
                   onChange={(id, value) => {
-                    if (engine)
-                      void load(engine, {
-                        values: state.definition.values,
-                        change: { configId: id, value },
-                      });
+                    // 保存时宿主校验显式选项；编辑期间只使用缓存，不创建临时会话。
+                    patch({ values: { ...state.definition.values, [id]: value } });
                   }}
                 />
               ) : state.view ? (
@@ -404,7 +350,6 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
               </label>
             </fieldset>
             {pending ? <p role="status">{l.loading}</p> : null}
-            {state.definition.enabled && !configReady ? <p>{l.previewNeeded}</p> : null}
             {error ? (
               <p role="alert" className="break-words text-destructive">
                 {error}
@@ -435,12 +380,7 @@ export function AcpPlanEditor(props: AcpPlanEditorProps) {
               <Button
                 type="submit"
                 disabled={
-                  busy ||
-                  blocked ||
-                  !engine ||
-                  !validSchedule ||
-                  !state.definition.name.trim() ||
-                  (state.definition.enabled && !configReady)
+                  busy || blocked || !engine || !validSchedule || !state.definition.name.trim()
                 }
               >
                 {l.save}

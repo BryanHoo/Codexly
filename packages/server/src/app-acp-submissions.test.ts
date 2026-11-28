@@ -231,31 +231,40 @@ it("首发配置失败后跨服务重启沿用已创建任务和配置", { timeo
   );
 });
 
-it("修改首发配置通过恢复键复用任务，旧请求此后禁止再次执行", async () => {
-  const h = await fixture();
-  const payload = {
-    type: "acp-prompt",
-    engine: "claude",
-    input: request.payload.input,
-    initialConfig: { enabled: false },
-  };
-  h.startConfiguredTurn.mockRejectedValueOnce(new AgentTurnNotSubmittedError("配置失败"));
-  expect((await h.app.inject({ ...request, payload })).statusCode).toBe(502);
-  const recovered = await h.app.inject({
-    ...request,
-    headers: { "idempotency-key": "changed" },
-    payload: { ...payload, initialConfig: { enabled: true }, recoveryKey: "acp-prompt-once" },
-  });
-  expect(recovered.statusCode, recovered.body).toBe(201);
-  expect(h.startTask).toHaveBeenCalledOnce();
-  expect(h.startConfiguredTurn).toHaveBeenLastCalledWith(
-    "task-1",
-    expect.objectContaining({ text: "继续旧会话" }),
-    { enabled: true },
-  );
-  expect((await h.app.inject({ ...request, payload })).statusCode).toBe(409);
-  expect(h.startConfiguredTurn).toHaveBeenCalledTimes(2);
-});
+it.each([null, { enabled: false }])(
+  "修改首发配置 %j 时复用任务，旧请求此后禁止再次执行",
+  async (initialConfig) => {
+    const h = await fixture();
+    const payload = {
+      type: "acp-prompt",
+      engine: "claude",
+      input: request.payload.input,
+      initialConfig,
+    };
+    h.startConfiguredTurn.mockRejectedValueOnce(new AgentTurnNotSubmittedError("配置失败"));
+    expect((await h.app.inject({ ...request, payload })).statusCode).toBe(502);
+    const defaultArgs = ["task-1", expect.objectContaining({ text: "继续旧会话" })] as const;
+    expect(h.startConfiguredTurn).toHaveBeenNthCalledWith(
+      1,
+      ...defaultArgs,
+      ...(initialConfig === null ? [] : [initialConfig]),
+    );
+    const recovered = await h.app.inject({
+      ...request,
+      headers: { "idempotency-key": "changed" },
+      payload: { ...payload, initialConfig: { enabled: true }, recoveryKey: "acp-prompt-once" },
+    });
+    expect(recovered.statusCode, recovered.body).toBe(201);
+    expect(h.startTask).toHaveBeenCalledOnce();
+    expect(h.startConfiguredTurn).toHaveBeenLastCalledWith(
+      "task-1",
+      expect.objectContaining({ text: "继续旧会话" }),
+      { enabled: true },
+    );
+    expect((await h.app.inject({ ...request, payload })).statusCode).toBe(409);
+    expect(h.startConfiguredTurn).toHaveBeenCalledTimes(2);
+  },
+);
 
 it("服务重启后修改配置仍原子恢复到同一任务", { timeout: 15000 }, async () => {
   const root = await createWorkspace();

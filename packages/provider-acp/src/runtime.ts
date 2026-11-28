@@ -9,6 +9,7 @@ import {
   checkSearchCancellation,
   ApplicationPreferencesService,
   generateApplicationText,
+  type AcpAgentServices,
   type AgentProvider,
   type AgentProviderTurnInput,
   type AgentTaskScope,
@@ -23,7 +24,6 @@ import { hasAcpAgentConnection, isAgentEngine } from "@codexly/protocol";
 import { AcpHistory } from "./history.js";
 import { AcpAgentProvider } from "./provider.js";
 import { AcpAgentService } from "./agent-service.js";
-import { prepareAcpDefaults } from "./configuration.js";
 import { AcpSettingsStore, type AcpLegacySettingsSource } from "./settings-store.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { AcpTaskTitles } from "./task-titles.js";
@@ -39,6 +39,12 @@ import {
 } from "./codefree-authorization.js";
 import { nativeQuotaReader } from "./account-quota.js";
 import { readCodefreeModels } from "./codefree-models.js";
+import {
+  createAcpStartupConfig,
+  initializeStartupAwareSession,
+  startupAwareAcpConnector,
+} from "./startup-config-runtime.js";
+import type { AcpStartupConfig } from "./startup-config.js";
 interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
@@ -53,7 +59,9 @@ export class AcpRuntime {
   readonly settings: AcpSettingsStore;
   readonly agents: Readonly<Record<AgentEngine, AcpAgentService>> & {
     readonly catalog: AcpAgentCatalog;
+    readonly startupConfig: NonNullable<AcpAgentServices["startupConfig"]>;
   };
+  readonly #startupConfig: AcpStartupConfig;
   readonly catalog: AcpAgentCatalog;
   readonly launch: AcpAgentLauncher;
   readonly #entries = new Map<string, Entry>();
@@ -108,6 +116,8 @@ export class AcpRuntime {
     this.#leases = leases;
     this.#history = new AcpHistory(join(directory, "history"), leases);
     this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource, leases);
+    const startup = createAcpStartupConfig(this, leases, snapshot);
+    this.#startupConfig = startup.cache;
     this.#initialization = new AcpSessionInitialization(
       join(directory, "session-initialization"),
       this.settings,
@@ -192,9 +202,11 @@ export class AcpRuntime {
         await this.#history.cache.prune();
       }
     });
-    const services = { catalog: this.catalog } as Record<AgentEngine, AcpAgentService> & {
-      catalog: AcpAgentCatalog;
-    };
+    const services = {
+      catalog: this.catalog,
+      startupConfig: startup,
+    } as unknown as Record<AgentEngine, AcpAgentService> &
+      Pick<AcpRuntime["agents"], "startupConfig" | "catalog">;
     this.agents = new Proxy(services, {
       get: (target, key, receiver) => {
         if (isAgentEngine(key) && !Object.hasOwn(target, key)) {
@@ -371,33 +383,10 @@ export class AcpRuntime {
         scope,
         this.store,
         this.#history,
-        async (callbacks) => {
-          // 协议流关闭不代表子进程已退出。重连前先回收旧进程，避免两个 Agent 同时占用原会话。
-          await reapByEngine.get(engine);
-          const handle = await this.launch(engine, scope, callbacks);
-          // 在会话创建/恢复前恢复 ACP 路由；失败回收本次连接，不回退到默认供应商。
-          try {
-            await new AcpProviderRouting(engine, this.settings).restore(handle.connection);
-          } catch (error) {
-            await handle.close();
-            throw error;
-          }
-          handles.add(handle);
-          const reaped = handle.connection.closed.then(() => handle.close());
-          reapByEngine.set(engine, reaped);
-          void reaped
-            .finally(() => {
-              handles.delete(handle);
-              if (reapByEngine.get(engine) === reaped) reapByEngine.delete(engine);
-            })
-            .catch(() => undefined);
-          return handle.connection;
-        },
-        async (connection, sessionId, options, frozen) => {
-          const saved = frozen ?? (await this.settings.read(engine));
-          return (await prepareAcpDefaults(connection, sessionId, options, saved)).configOptions;
-        },
+        startupAwareAcpConnector(this, scope, engine, this.#startupConfig, handles, reapByEngine),
+        initializeStartupAwareSession(this.#startupConfig, this.settings, engine),
         this.#initialization,
+        () => this.#startupConfig.foreground(engine),
       );
     const providers: AcpAgentProvider[] = [];
     const titles: AcpTaskTitles[] = [];
@@ -476,6 +465,7 @@ export class AcpRuntime {
   }
   async close(catalogDisconnected = false): Promise<void> {
     this.#closed = true;
+    this.#startupConfig.close();
     // stdio 已结束时不可再发反向 RPC；存储 owner 不按时间释放，等待进程死亡证明。
     if (catalogDisconnected) this.#history.cache.disconnect();
     for (const stop of this.#searches.values()) stop();

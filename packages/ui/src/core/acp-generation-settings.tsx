@@ -1,3 +1,5 @@
+import { useContext } from "react";
+import { AcpStartupCacheContext, useAcpPreviewCatalog } from "./acp-preview-cache.js";
 import { SettingsActions } from "./settings-group.js";
 import { isAgentEngine, agentEngineName } from "@codexly/protocol";
 import { useQuery } from "@tanstack/react-query";
@@ -28,20 +30,23 @@ export function AcpGenerationSettings({
     engine = settings.defaultAgent;
   const enabled = engine !== undefined && engines.includes(engine),
     zh = language.startsWith("zh");
+  const useStartupCache = useContext(AcpStartupCacheContext);
+  const catalog = useAcpPreviewCatalog();
+  const cached = engine ? catalog[engine] : undefined;
   const query = useQuery({
     queryKey: ["acp-defaults", engine ?? "unselected"],
     queryFn: ({ signal }) => {
       if (!engine) throw new Error("No generation agent selected");
       return client.getAcpDefaults(engine, { signal });
     },
-    enabled,
+    enabled: enabled && !useStartupCache,
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const modelOptions =
-    query.data?.configOptions
-      .filter(isAcpConfigOption)
-      .filter((option) => option.category === "model" && option.type === "select") ?? [];
+  const configOptions = useStartupCache ? cached?.configOptions : query.data?.configOptions;
+  const modelOptions = (configOptions ?? [])
+    .filter(isAcpConfigOption)
+    .filter((option) => option.category === "model" && option.type === "select");
   const model = modelOptions.length === 1 ? modelOptions[0] : undefined;
   const raw =
     model?.type === "select"
@@ -121,7 +126,7 @@ export function AcpGenerationSettings({
             ? "请选择已启用的智能体；已保存的选择会保留。"
             : "Choose an enabled agent; the saved selection is retained."}
         </p>
-      ) : query.error ? (
+      ) : !useStartupCache && query.error ? (
         <div role="alert" className="text-label text-danger">
           {query.error.message}
           <SettingsActions>
@@ -130,7 +135,7 @@ export function AcpGenerationSettings({
             </Button>
           </SettingsActions>
         </div>
-      ) : !query.isPending && !model ? (
+      ) : (useStartupCache || !query.isPending) && !model ? (
         <p role="status" className="text-label text-muted-foreground">
           {zh
             ? "智能体未提供可选模型，可沿用其默认值。"

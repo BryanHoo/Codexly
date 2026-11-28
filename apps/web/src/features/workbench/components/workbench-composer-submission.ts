@@ -363,6 +363,7 @@ export function createComposerSubmission({
         taskId: activeTaskId,
         input,
         options: turnOptions,
+        acpConfig: acp?.configurationIntent,
       }),
     );
     startTurnAttempt.current = turnAttempt;

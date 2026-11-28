@@ -40,6 +40,8 @@ fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, A
                 | "agent.authenticate"
                 | "agent.authElicitation"
                 | "settings.preview"
+                | "settings.cache.read"
+                | "settings.cache.refresh"
                 | "settings.read"
                 | "settings.write"
                 | "settings.config.write"

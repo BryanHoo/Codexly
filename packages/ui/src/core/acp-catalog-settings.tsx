@@ -22,6 +22,7 @@ export interface AcpCatalogClient extends AcpCatalogProgressReader {
   getAcpAgentCatalog(options?: {
     signal?: AbortSignal;
     refresh?: boolean;
+    cached?: boolean;
   }): Promise<AcpAgentCatalogPage>;
   installAcpAgent: CatalogMutation;
   updateAcpAgent: CatalogMutation;

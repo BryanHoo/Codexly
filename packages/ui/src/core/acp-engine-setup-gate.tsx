@@ -14,13 +14,20 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { AcpDefaults, AgentEngine } from "@codexly/protocol";
+import {
+  TEMPORARY_TASK_SCOPE_ID,
+  type AcpConfigPreview,
+  type AcpDefaults,
+  type AgentEngine,
+} from "@codexly/protocol";
+import { AcpStartupCacheContext, warmAcpPreviews } from "./acp-preview-cache.js";
+import type { AcpDraftClient } from "./use-acp-draft.js";
 import { ENGINE_SETUP_KEY, readEngineSetup } from "@codexly/frontend-core/engine-setup";
 import { createAcpEngineSetupStorage } from "@codexly/frontend-core/acp-engine-setup";
 import type { AcpAuthClient } from "./acp-auth-settings.js";
 import { EngineSetupGate } from "./engine-setup-gate.js";
 import { EngineSelectionProvider } from "./engine-selection-provider.js";
-import { browserSetupStorage, type SetupStorage } from "./engine-selection.js";
+import { browserSetupStorage, useSelectedEngines, type SetupStorage } from "./engine-selection.js";
 import { Button } from "./button.js";
 
 const AuthSettings = lazy(() =>
@@ -28,6 +35,55 @@ const AuthSettings = lazy(() =>
 );
 export interface AcpEngineSetupClient extends AcpAuthClient {
   getAcpDefaults: (engine: AgentEngine) => Promise<AcpDefaults>;
+  previewAcpConfig?: AcpDraftClient["previewAcpConfig"];
+  getAcpConfigCache?: (
+    engine: AgentEngine,
+    options: { signal: AbortSignal },
+  ) => Promise<AcpConfigPreview | null>;
+  refreshAcpConfigCache?: (
+    engine: AgentEngine,
+    options: { signal: AbortSignal },
+  ) => Promise<AcpConfigPreview | null>;
+}
+
+function AcpStartupPreview({
+  client,
+  children,
+}: Readonly<{ client: AcpEngineSetupClient; children: ReactNode }>) {
+  const cache = useQueryClient();
+  const engines = useSelectedEngines();
+  useEffect(() => {
+    if (!engines?.length) return;
+    if (client.getAcpConfigCache && client.refreshAcpConfigCache) {
+      const read = client.getAcpConfigCache.bind(client);
+      const refresh = client.refreshAcpConfigCache.bind(client);
+      void warmAcpPreviews(
+        cache,
+        engines,
+        (engine, signal) => refresh(engine, { signal }),
+        undefined,
+        (engine, signal) => read(engine, { signal }),
+      );
+      return;
+    }
+    const preview = client.previewAcpConfig;
+    if (!preview) return;
+    // 使用普通聊天的宿主作用域预取，项目切换和分屏共用此应用级菜单快照。
+    void warmAcpPreviews(cache, engines, (engine, signal) =>
+      preview.call(
+        client,
+        TEMPORARY_TASK_SCOPE_ID,
+        engine,
+        { values: {}, includeCommands: true },
+        { signal },
+      ),
+    );
+  }, [cache, client, engines]);
+  return (
+    <AcpStartupCacheContext value={client.previewAcpConfig !== undefined}>
+      {children}
+    </AcpStartupCacheContext>
+  );
 }
 
 function LegacyAcpEngineSetupGate({
@@ -51,7 +107,7 @@ function LegacyAcpEngineSetupGate({
   if (saved?.complete && engines?.length)
     return (
       <EngineSelectionProvider engines={engines} storage={privateStorage}>
-        {children}
+        <AcpStartupPreview client={client}>{children}</AcpStartupPreview>
       </EngineSelectionProvider>
     );
   return (
@@ -89,7 +145,7 @@ function LegacyAcpEngineSetupGate({
         </Suspense>
       )}
     >
-      {children}
+      <AcpStartupPreview client={client}>{children}</AcpStartupPreview>
     </EngineSetupGate>
   );
 }
@@ -107,6 +163,15 @@ function CatalogSetup({
   initialized.current ??=
     readEngineSetup(privateStorage.getItem(ENGINE_SETUP_KEY))?.complete === true;
   const refreshing = useRef(false);
+  const savedCatalog = useQuery({
+    queryKey: ["acp-agent-catalog-at-startup"],
+    queryFn: ({ signal }) =>
+      client.getAcpAgentCatalog?.({ signal, cached: true }) ??
+      Promise.reject(new Error("ACP catalog unavailable")),
+    enabled: client.getAcpConfigCache !== undefined,
+    retry: false,
+    staleTime: Infinity,
+  });
   const query = useQuery({
     queryKey: ["acp-agent-catalog"],
     queryFn: ({ signal }) =>
@@ -116,12 +181,13 @@ function CatalogSetup({
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
+  const catalog = query.data ?? savedCatalog.data;
   const engines = useMemo(
     () =>
-      query.data?.agents
+      catalog?.agents
         .filter((agent) => agent.installed && agent.enabled)
         .map((agent) => agent.engine) ?? [],
-    [query.data],
+    [catalog],
   );
   const progress = useAcpCatalogProgress(client, query.isFetching);
   const notificationId = `acp-discovery-${useId()}`;
@@ -245,7 +311,7 @@ function CatalogSetup({
   );
   return (
     <EngineSelectionProvider engines={engines} synchronize storage={privateStorage}>
-      {children}
+      <AcpStartupPreview client={client}>{children}</AcpStartupPreview>
     </EngineSelectionProvider>
   );
 }

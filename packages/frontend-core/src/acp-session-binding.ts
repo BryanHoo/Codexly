@@ -1,4 +1,4 @@
-import type { AcpConfigOption, AcpSessionState } from "@codexly/protocol";
+import type { AcpConfigOption, AcpConfigValues, AcpSessionState } from "@codexly/protocol";
 import { AcpSessionStateController } from "./acp-session-state.js";
 
 /** 仅消费任务元数据，不读取正文，也不依赖平台 Store 实现。 */
@@ -15,6 +15,8 @@ export interface AcpSessionView {
   readonly isPending: boolean;
   readonly isSaving: boolean;
   readonly error: Error | null;
+  readonly overrides?: AcpConfigValues | undefined;
+  readonly displayedOverrides?: AcpConfigValues | undefined;
 }
 
 export function bindAcpSessionState(
@@ -22,6 +24,12 @@ export function bindAcpSessionState(
     projectId: string;
     taskId: string;
     source?: AcpSessionSource;
+    deferConfiguration?: boolean;
+    prepareOverrides?: (
+      view: AcpSessionView,
+      id: string,
+      value: string | boolean,
+    ) => AcpConfigValues;
     read: (signal: AbortSignal) => Promise<AcpSessionState>;
     write: (
       id: string,
@@ -36,7 +44,12 @@ export function bindAcpSessionState(
   let closed = false;
   const isActive = () => !closed;
   let previous: AcpSessionState | undefined;
-  let view: AcpSessionView = { session: undefined, isPending: true, isSaving: false, error: null };
+  let view: AcpSessionView = {
+    session: undefined,
+    isPending: !input.deferConfiguration,
+    isSaving: false,
+    error: null,
+  };
   const update = (patch: Partial<AcpSessionView>) => {
     if (closed) return;
     const next = { ...view, ...patch };
@@ -44,14 +57,21 @@ export function bindAcpSessionState(
       next.session === view.session &&
       next.isPending === view.isPending &&
       next.isSaving === view.isSaving &&
-      next.error === view.error
+      next.error === view.error &&
+      next.overrides === view.overrides &&
+      next.displayedOverrides === view.displayedOverrides
     )
       return;
     view = next;
     input.onChange(view);
   };
   const unsubscribeController = controller.subscribe(() => {
-    update({ session: controller.getSnapshot(), isPending: false, error: null });
+    update({
+      session: controller.getSnapshot(),
+      isPending: false,
+      error: null,
+      displayedOverrides: undefined,
+    });
   });
   const receiveSource = () => {
     const state = input.source?.getState();
@@ -65,7 +85,7 @@ export function bindAcpSessionState(
   };
   const unsubscribeSource = input.source?.subscribe(receiveSource);
   receiveSource();
-  if (controller.getSnapshot() === undefined) {
+  if (!input.deferConfiguration && controller.getSnapshot() === undefined) {
     const token = controller.capture();
     void (async () => {
       try {
@@ -82,19 +102,42 @@ export function bindAcpSessionState(
   }
   return {
     getSnapshot: () => view,
-    async runConfigured<T>(execute: () => Promise<T>): Promise<T> {
+    async runConfigured<T>(execute: (overrides?: AcpConfigValues) => Promise<T>): Promise<T> {
       // 配置和发送共用同步锁；键盘事件不能抢在 React 的禁用状态更新之前提交。
-      if (closed || view.isPending || view.isSaving || view.error || !view.session)
+      if (
+        closed ||
+        view.isPending ||
+        view.isSaving ||
+        view.error ||
+        (!view.session && !input.deferConfiguration)
+      )
         throw new Error("ACP 会话配置尚不可用于发送");
       update({ isSaving: true });
       try {
-        return await execute();
+        const session = view.session;
+        const overrides = view.overrides;
+        const result = await execute(overrides);
+        // 首发回执可能早于会话更新事件。界面继续显示已提交值，直到收到 Agent 的完整状态。
+        if (overrides)
+          update({
+            overrides: undefined,
+            ...(view.session === session
+              ? { displayedOverrides: { ...view.displayedOverrides, ...overrides } }
+              : {}),
+          });
+        return result;
       } finally {
         update({ isSaving: false });
       }
     },
     async setConfig(id: string, value: string | boolean): Promise<boolean> {
-      if (closed || view.isSaving || controller.getSnapshot() === undefined) return false;
+      if (closed || view.isSaving) return false;
+      if (input.deferConfiguration) {
+        const current = input.prepareOverrides?.(view, id, value) ?? view.overrides;
+        update({ overrides: { ...current, [id]: value } });
+        return true;
+      }
+      if (controller.getSnapshot() === undefined) return false;
       update({ isSaving: true, error: null });
       const token = controller.capture();
       try {

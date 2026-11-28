@@ -3,10 +3,8 @@ import { userEvent } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@codexly/ui/core/toaster";
 import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
-import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
 import { WorkbenchComposer as WebComposer } from "../../../apps/web/src/features/workbench/components/workbench-composer.js";
 import { WorkbenchComposer as NativeComposer } from "../../src/features/workbench/components/workbench-composer.js";
 import { ComposerDraftProvider as WebDraft } from "../../../apps/web/src/features/workbench/composer-draft-context.js";
@@ -17,8 +15,8 @@ import { changeAppLanguage } from "../../../apps/web/src/i18n/i18n.js";
 import { i18n } from "../../src/i18n/i18n.js";
 import type { WorkbenchComposerProps as WebProps } from "../../../apps/web/src/features/workbench/components/workbench-composer-contracts.js";
 import type { WorkbenchComposerProps as NativeProps } from "../../src/features/workbench/components/workbench-composer-contracts.js";
-import type { AcpConfigOption, AcpConfigPreview } from "@codexly/protocol";
-import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
+import type { AcpConfigPreview } from "@codexly/protocol";
+import { warmAcpPreviews } from "../../../packages/ui/src/core/acp-preview-cache.js";
 import "../../src/shared/styles/globals.css";
 import "../../src/shared/styles/workbench.css";
 
@@ -27,54 +25,6 @@ vi.mock("../../../apps/web/src/features/access/access-context.js", async (origin
   useAccess: () => ({ status: { role: "owner" } }),
 }));
 
-it.each([false, true])("CodeFree O 目录独立于预热失败（%s），会话就绪后校验选择", async (fails) => {
-  const ready = Promise.withResolvers<AcpConfigPreview>();
-  const catalog = Promise.withResolvers<AcpConfigPreview>();
-  const model: Extract<AcpConfigOption, { type: "select" }> = {
-    id: "model", name: "模型", type: "select", category: "model", currentValue: "codefree/a",
-    options: [{ value: "codefree/a", name: "Model A" }, { value: "codefree/b", name: "Model B" }],
-  };
-  const configOptions = [model];
-  const complete = { configOptions, values: { model: "codefree/a" } };
-  let warmups = 0;
-  const preview = vi.fn<AcpDraftClient["previewAcpConfig"]>(async (_project, _engine, request) => {
-    if (request.change) return {
-      configOptions: [{ ...model, currentValue: "codefree/b" }],
-      values: { model: "codefree/b" },
-    };
-    if (request.includeCommands) return ++warmups === 1 ? ready.promise : complete;
-    return catalog.promise;
-  });
-  const client = { previewAcpConfig: preview };
-  function Draft() {
-    const draft = useAcpDraftComposer({ client, projectId: "codefree-cold", workspace: "/work", configurationLabel: "配置", engineLabel: "Agent", retryLabel: "重试" });
-    return <>{draft.controls}<button disabled={draft.isBusy}>发送测试</button></>;
-  }
-  const screen = await render(
-    <QueryClientProvider client={new QueryClient()}>
-      <Toaster><TooltipProvider><SelectedEnginesContext value={["acp-codefree-o"]}><Draft /></SelectedEnginesContext></TooltipProvider></Toaster>
-    </QueryClientProvider>,
-  );
-  const trigger = screen.getByRole("button", { name: /codefree-o\s*\//i });
-  const loginNotice = screen.getByText(/登录 CodeFree O/);
-  if (fails) ready.reject(new Error("ACP_AUTH_REQUIRED"));
-  await expect.poll(() => loginNotice.query()?.checkVisibility() ?? false).toBe(fails);
-  await trigger.click();
-  catalog.resolve({ configOptions, values: {} });
-  await screen.getByRole("option", { name: /Model B/ }).click();
-  await expect.element(trigger).toHaveTextContent("Model B");
-  const send = screen.getByRole("button", { name: "发送测试" });
-  await expect.element(send).toBeDisabled();
-  expect(preview.mock.calls.map(([, , request]) => request.change)).toEqual([undefined, undefined]);
-  await expect.poll(() => loginNotice.query()?.checkVisibility() ?? false).toBe(fails);
-  if (fails) {
-    // 菜单关闭后可直接在通用通知内重试，并沿用已选模型。
-    await screen.getByRole("button", { name: "重试" }).click();
-  } else ready.resolve(complete);
-  await expect.element(send).toBeEnabled();
-  expect(preview.mock.calls.at(-1)?.[2].change).toEqual({ configId: "model", value: "codefree/b" });
-  await expect.element(trigger).toHaveTextContent("Model B");
-});
 it.each(["web", "native"] as const)(
   "%s 新建草稿协商原始配置并恢复失败的首次发送",
   async (platform) => {
@@ -82,25 +32,13 @@ it.each(["web", "native"] as const)(
     await i18n.changeLanguage("zh-CN");
     const projectId = `acp-new-${platform}`;
     sessionStorage.removeItem(`codexly:acp-draft:v1:${JSON.stringify([projectId, "draft"])}`);
-    let finish!: (value: AcpConfigPreview) => void;
+    const pendingPreview = Promise.withResolvers<AcpConfigPreview>();
     const initial: AcpConfigPreview = {
       values: { raw: false },
       configOptions: [{ id: "raw", name: "原始开关", type: "boolean", currentValue: false }],
       availableCommands: [{ name: "goal", description: "Agent 目标", input: { hint: "目标内容" } }],
     };
-    const preview = vi
-      .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve;
-          }),
-      )
-      .mockResolvedValue({
-        values: { raw: true },
-        configOptions: [{ ...initial.configOptions[0]!, currentValue: true }],
-        availableCommands: [{ name: "goal", description: "Agent 目标", input: { hint: "目标内容" } }],
-      });
+    const preview = vi.fn(() => pendingPreview.promise);
     const turn = {
       id: "turn-new",
       status: "running",
@@ -212,6 +150,7 @@ it.each(["web", "native"] as const)(
       },
     };
     const query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const warming = warmAcpPreviews(query, ["claude"], preview);
     const screen = await render(
       <QueryClientProvider client={query}>
         <TooltipProvider>
@@ -233,13 +172,19 @@ it.each(["web", "native"] as const)(
         </TooltipProvider>
       </QueryClientProvider>,
     );
-    // 先等待输入框懒加载完成，再验证挂载时发起的配置协商。
+    // 预览仍未返回时就提交正文，验证两端会立即请求真实会话并使用宿主默认值。
     const editor = screen.getByRole("textbox");
     await expect.element(editor, { timeout: 15_000 }).toBeVisible();
     await expect.poll(() => preview.mock.calls.length).toBe(1);
     expect(created).not.toHaveBeenCalled();
     await expect(ref.current?.submitCurrent()).resolves.toBe(false);
-    finish(initial);
+    expect(submit).toHaveBeenCalledTimes(1);
+    const coldSubmission = submit.mock.calls[0];
+    const coldConfig = platform === "web" ? coldSubmission?.[1]?.initialConfig : coldSubmission?.[4];
+    expect(coldConfig).toBe(platform === "web" ? null : undefined);
+    await expect.element(editor).toHaveValue("首次输入");
+    pendingPreview.resolve(initial);
+    await warming;
     await expect.element(editor).toHaveValue("首次输入");
     await expect
       .element(screen.getByRole("button", { name: "原始开关", exact: true }))
@@ -251,8 +196,6 @@ it.each(["web", "native"] as const)(
     await userEvent.keyboard("{Enter}");
     await expect.element(editor).toHaveValue("/goal ");
     await editor.fill("首次输入");
-    await expect(ref.current?.submitCurrent()).resolves.toBe(false);
-    await expect.element(editor).toHaveValue("首次输入");
     await screen.getByRole("button", { name: "原始开关", exact: true }).click();
     await screen.getByRole("menuitemradio", { name: "开启", exact: true }).click();
     await expect
@@ -279,13 +222,14 @@ it.each(["web", "native"] as const)(
               type: "acp-prompt",
               engine: "claude",
               workspacePath: "/work",
-              initialConfig: { raw: true },
+              initialConfig: null,
+              configOverrides: { raw: true },
               recoveryKey: firstKey,
               input,
             },
             { idempotencyKey: nextKey },
           ]
-        : [projectId, "task-new", input, nextKey, { raw: true }, firstKey];
+        : [projectId, "task-new", input, nextKey, undefined, firstKey, undefined, { raw: true }];
     expect(submit.mock.calls[1]).toEqual(expected);
     expect(submit.mock.calls[2]).toEqual(expected);
     const creationArgs = [
@@ -310,6 +254,7 @@ it.each(["web", "native"] as const)(
     expect(read).toHaveBeenCalledTimes(2);
     expect(read).toHaveBeenLastCalledWith(projectId, "task-new");
     expect(legacy).not.toHaveBeenCalled();
+    expect(preview).toHaveBeenCalledTimes(1);
     await screen.unmount();
     query.clear();
   },

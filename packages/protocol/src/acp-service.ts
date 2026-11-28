@@ -171,6 +171,15 @@ export const AcpAuthElicitationResponseSchema = Type.Array(McpElicitationPending
 export type AcpAuthElicitationRequest = Static<typeof AcpAuthElicitationRequestSchema>;
 export type AcpAuthElicitationResponse = Static<typeof AcpAuthElicitationResponseSchema>;
 export type AcpConfigOption = Static<typeof AcpConfigOptionSchema>;
+/** 按 ACP 语义分类，同时兼容未填 category 的旧适配器。 */
+export function isAcpModelScopedOption(option: AcpConfigOption): boolean {
+  return (
+    option.category === "thought_level" ||
+    option.category === "model_config" ||
+    option.category === "speed" ||
+    /^(thinking|reasoning_effort|thought_level)$/u.test(option.id)
+  );
+}
 export type AcpConfigValues = Static<typeof AcpConfigValuesSchema>;
 export type AcpDefaults = Static<typeof AcpDefaultsSchema>;
 export type AcpAgentProfile = Static<typeof AcpAgentProfileSchema>;
@@ -221,14 +230,24 @@ export const AcpConfigPreviewRequestSchema = Type.Object(
   },
   { additionalProperties: false },
 );
+export const AcpModelConfigSnapshotSchema = Type.Object(
+  {
+    modelId: Type.String({ minLength: 1, maxLength: 16384 }),
+    configOptions: AcpSessionConfigSchema,
+  },
+  { additionalProperties: false },
+);
+
 export const AcpConfigPreviewSchema = Type.Object(
   {
     configOptions: AcpSessionConfigSchema,
     values: AcpConfigValuesSchema,
     availableCommands: Type.Optional(Type.Array(AcpAvailableCommandSchema)),
+    modelOptions: Type.Optional(Type.Array(AcpModelConfigSnapshotSchema, { maxItems: 128 })),
   },
   { additionalProperties: false },
 );
 export type AcpConfigPreviewRequest = Static<typeof AcpConfigPreviewRequestSchema>;
 export type AcpConfigPreview = Static<typeof AcpConfigPreviewSchema>;
+export const AcpConfigCacheSchema = Type.Union([AcpConfigPreviewSchema, Type.Null()]);
 export * from "./acp-agent-catalog.js";

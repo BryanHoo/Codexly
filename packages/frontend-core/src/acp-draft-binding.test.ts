@@ -67,7 +67,7 @@ it("重启后新聊天使用当前 Agent 默认值，忽略旧版未提交草稿
   binding.dispose();
 });
 
-function fixture(restored?: unknown) {
+function fixture(restored?: unknown, allowDefaultSubmit = false) {
   let persisted: unknown = restored;
   const save = vi.fn((value: unknown) => {
     persisted = value;
@@ -80,6 +80,7 @@ function fixture(restored?: unknown) {
   const create = () =>
     bindAcpDraft({
       restored: persisted,
+      allowDefaultSubmit,
       preview: read,
       save,
       onChange: change,
@@ -87,6 +88,43 @@ function fixture(restored?: unknown) {
     });
   return { create, save, read, change };
 }
+it("冷启动首发无需预览，迟到的配置保留提交锁与默认配置的重试身份", async () => {
+  const f = fixture(undefined, true);
+  const pendingPreview = Promise.withResolvers<AcpConfigPreview>();
+  const pendingSend = Promise.withResolvers<string>();
+  f.read.mockReturnValueOnce(pendingPreview.promise);
+  let binding = f.create();
+  const send = vi.fn(() => pendingSend.promise);
+  const request = { text: "冷启动" };
+  const first = binding.submit(request, "first", send).catch((error: unknown) => error);
+  expect(send).toHaveBeenCalledWith({ values: null, key: "first", creationKey: "first" });
+  pendingPreview.resolve(preview);
+  await vi.waitFor(() => {
+    expect(binding.getSnapshot().preview).toEqual(preview);
+  });
+  await expect(binding.submit(request, "duplicate", send)).rejects.toThrow();
+  pendingSend.reject(new Error("提交失败"));
+  expect(await first).toEqual(new Error("提交失败"));
+  binding.dispose();
+
+  binding = f.create();
+  await vi.waitFor(() => {
+    expect(binding.getSnapshot().isPending).toBe(false);
+  });
+  await expect(binding.submit(request, "retry", send)).rejects.toThrow("提交失败");
+  expect(send).toHaveBeenLastCalledWith({ values: null, key: "first", creationKey: "first" });
+  f.read.mockResolvedValueOnce({ ...preview, values: { enabled: true } });
+  await binding.setConfig("enabled", true);
+  const configured = vi.fn(() => Promise.resolve("ok"));
+  await expect(binding.submit(request, "retry", configured)).resolves.toBe("ok");
+  expect(configured).toHaveBeenCalledWith({
+    values: { enabled: true },
+    key: "next-1",
+    creationKey: "first",
+    recoveryKey: "first",
+  });
+  binding.dispose();
+});
 it("首次协商之前禁止发送，单项变化与发送共用同步锁且保留 false", async () => {
   const f = fixture();
   let resolve!: (value: AcpConfigPreview) => void;

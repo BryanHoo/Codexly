@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -10,7 +10,7 @@ import { once } from "node:events";
 const binary = process.env.CODEXLY_COMPILED_ACP_HOST;
 
 test(
-  "compiled ACP host returns commands advertised after session creation",
+  "compiled ACP host returns commands from session preview and startup configuration cache",
   {
     skip: !binary,
     timeout: 15_000,
@@ -33,6 +33,7 @@ test(
         } } }), 25);
       }
       if (method === "session/close") send({ id, result: {} });
+      if (method === "session/prompt") process.exit(7);
     });`;
     const child = spawn(binary, [root], { stdio: ["pipe", "pipe", "pipe"] });
     child.stderr.resume();
@@ -58,15 +59,19 @@ test(
       return result;
     }
     try {
-      await request("agents.configure", {
-        registration: {
+      const agents = join(root, "agents");
+      await mkdir(agents);
+      // 写入已启用的测试 Agent，模拟用户此前完成的连接和启用。
+      await writeFile(
+        join(agents, "acp-test.json"),
+        JSON.stringify({
           engine: "acp-test",
           name: "Test",
           enabled: true,
           command: process.execPath,
           args: ["-e", peer],
-        },
-      });
+        }),
+      );
       const preview = await request("settings.preview", {
         engine: "acp-test",
         values: {},
@@ -76,6 +81,11 @@ test(
         { name: "check", description: "检查", input: { hint: "范围" } },
       ]);
       assert.deepEqual(backgroundSessions, [{ engine: "acp-test", sessionId: "s" }]);
+      assert.equal(await request("settings.cache.read", { engine: "acp-test" }), null);
+      const refreshed = await request("settings.cache.refresh", { engine: "acp-test" });
+      assert.deepEqual(refreshed.availableCommands, preview.availableCommands);
+      assert.deepEqual(await request("settings.cache.read", { engine: "acp-test" }), refreshed);
+      assert.equal(backgroundSessions.length, 2);
       child.stdin.end();
       assert.equal((await exited)[0], 0);
     } finally {

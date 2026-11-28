@@ -1,3 +1,4 @@
+import { warmAcpPreviews, invalidateAcpPreviews } from "../../../packages/ui/src/core/acp-preview-cache.js";
 import { page, userEvent } from "vitest/browser";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -39,7 +40,6 @@ const options: AcpConfigOption[] = [
 ];
 function Draft() {
   const draft = useAcpDraftComposer({
-    client,
     projectId: "selector-proof",
     workspace: "/work",
     initialEngine: "codex",
@@ -89,13 +89,12 @@ it("CodeFree O 模型未返回时仍可选择其他 Agent 的模型", async () =
   expect(resolve).toHaveBeenCalledWith("codex", "model", "sol");
 });
 
-it("重开模型浮层并切回 CodeFree O 时复用同工作区的查询", async () => {
+it("重开模型浮层并切回 CodeFree O 时跨工作区复用启动读取", async () => {
   const previewAcpConfig = vi.fn(async () => ({ values: { model: "sol" }, configOptions: options }));
-  const draftClient = { previewAcpConfig };
   const cache = new QueryClient();
   function CachedDraft({workspace}: {workspace: string}) {
     return useAcpDraftComposer({
-      client: draftClient, projectId: "preview-cache", workspace,
+      projectId: "preview-cache", workspace,
       initialEngine: "codex", configurationLabel: "配置", engineLabel: "Agent", retryLabel: "重试",
     }).controls;
   }
@@ -106,6 +105,7 @@ it("重开模型浮层并切回 CodeFree O 时复用同工作区的查询", asyn
       </SelectedEnginesContext>
     </QueryClientProvider>
   );
+  await warmAcpPreviews(cache, ["codex", "acp-codefree-o"], previewAcpConfig);
   const screen = await render(view("/work/a"));
   const browse = async () => {
     await screen.getByRole("button", { name: "Codex / 6.1 Sol", exact: true }).click();
@@ -119,13 +119,13 @@ it("重开模型浮层并切回 CodeFree O 时复用同工作区的查询", asyn
     expect(previewAcpConfig).toHaveBeenCalledTimes(2);
     await screen.rerender(view("/work/b"));
     await browse();
-    expect(previewAcpConfig).toHaveBeenCalledTimes(4);
+    expect(previewAcpConfig).toHaveBeenCalledTimes(2);
     await screen.rerender(view("/work/a"));
     await browse();
-    expect(previewAcpConfig).toHaveBeenCalledTimes(4);
-    await cache.invalidateQueries({ queryKey: ["acp-preview", "acp-codefree-o"] });
+    expect(previewAcpConfig).toHaveBeenCalledTimes(2);
+    await invalidateAcpPreviews(cache, "acp-codefree-o");
     await browse();
-    expect(previewAcpConfig).toHaveBeenCalledTimes(5);
+    await expect.poll(() => previewAcpConfig.mock.calls.length).toBe(3);
   } finally {
     await screen.unmount();
     cache.clear();
@@ -134,10 +134,14 @@ it("重开模型浮层并切回 CodeFree O 时复用同工作区的查询", asyn
 it("合并 Agent 与模型入口，保留原始模型值并支持搜索和收藏", async () => {
   sessionStorage.clear();
   localStorage.removeItem("codexly:acp-model-favorites:v1");
+  const cache = new QueryClient();
+  await warmAcpPreviews(cache, ["codex", "claude"], (engine) => client.previewAcpConfig("temporary", engine, { values: {} }));
   const screen = await render(
+    <QueryClientProvider client={cache}>
     <SelectedEnginesContext value={["codex", "claude"]}>
       <Draft />
-    </SelectedEnginesContext>,
+    </SelectedEnginesContext>
+    </QueryClientProvider>,
   );
   await expect
     .element(screen.getByRole("button", { name: "Codex / 6.1 Sol", exact: true }))
@@ -158,6 +162,7 @@ it("合并 Agent 与模型入口，保留原始模型值并支持搜索和收藏
     .element(screen.getByRole("button", { name: "Claude / Opus", exact: true }))
     .toBeVisible();
   await screen.unmount();
+  cache.clear();
 });
 
 it("历史会话锁定 Agent，搜索支持键盘选取，配置入口打开 ACP 设置", async () => {
@@ -303,16 +308,11 @@ it("浏览其他 Agent 仅按需读取，关闭浮层取消请求并忽略迟到
   await screen.unmount();
 });
 
-it("跨 Agent 协商未完成时切换项目，不让旧选择锁住新项目草稿", async () => {
-  let claudeReads = 0;
-  const preview = vi.fn(async (_project: string, engine: AgentEngine) => {
-    if (engine === "claude" && ++claudeReads > 1) return new Promise<never>(() => {});
-    return { values: { model: "sol" }, configOptions: options };
-  });
-  const scopedClient = { previewAcpConfig: preview };
+it("切换缓存中的 Agent 后仍可提交，项目切换隔离选择", async () => {
+  const cache = new QueryClient();
+  await warmAcpPreviews(cache, ["codex", "claude"], () => Promise.resolve({ values: { model: "sol" }, configOptions: options }));
   function ScopedDraft({ projectId }: { projectId: string }) {
     const draft = useAcpDraftComposer({
-      client: scopedClient,
       projectId,
       workspace: "/work",
       initialEngine: "codex",
@@ -328,22 +328,23 @@ it("跨 Agent 协商未完成时切换项目，不让旧选择锁住新项目草
     );
   }
   const renderDraft = (projectId: string) => (
-    <SelectedEnginesContext value={["codex", "claude"]}>
+    <QueryClientProvider client={cache}><SelectedEnginesContext value={["codex", "claude"]}>
       <ScopedDraft projectId={projectId} />
-    </SelectedEnginesContext>
+    </SelectedEnginesContext></QueryClientProvider>
   );
   const screen = await render(renderDraft("pending-scope-a"));
   await expect.element(screen.getByTestId("busy")).toHaveTextContent("false");
   await screen.getByRole("button", { name: "Codex / 6.1 Sol", exact: true }).click();
   await screen.getByRole("tab", { name: "Claude", exact: true }).click();
   await screen.getByRole("option", { name: /6.1 Sol/ }).click();
-  await expect.element(screen.getByTestId("busy")).toHaveTextContent("true");
+  await expect.element(screen.getByTestId("busy")).toHaveTextContent("false");
   await screen.rerender(renderDraft("pending-scope-b"));
   await expect.element(screen.getByTestId("busy")).toHaveTextContent("false");
   await expect
     .element(screen.getByRole("button", { name: "Codex / 6.1 Sol", exact: true }))
     .toBeVisible();
   await screen.unmount();
+  cache.clear();
 });
 
 it.each([360, 1280])("%s px 配置工具栏保持紧凑且收起后仍可选择", async (width) => {

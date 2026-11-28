@@ -40,6 +40,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
     initialConfig?: AcpConfigValues,
     recoveryKey?: string,
     continuationSourceTaskId?: string,
+    configOverrides?: AcpConfigValues,
   ): Promise<NativeAgentTurn> {
     return this.mutateAcpTask(
       projectId,
@@ -51,6 +52,7 @@ export class TauriAcpTaskClient extends TauriWorkspaceClient {
         ...(initialConfig === undefined ? {} : { initialConfig }),
         ...(recoveryKey === undefined ? {} : { recoveryKey }),
         ...(continuationSourceTaskId === undefined ? {} : { continuationSourceTaskId }),
+        ...(configOverrides === undefined ? {} : { configOverrides }),
       },
       {},
     );

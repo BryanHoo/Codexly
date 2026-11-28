@@ -1,11 +1,24 @@
-import { useEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
+import {
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from "react";
 import { v4 as createUuid } from "uuid";
 import type {
   AcpConfigPreview,
   AcpConfigPreviewRequest,
+  AcpConfigValues,
   AcpScheduledConfigView,
   AgentEngine,
 } from "@codexly/protocol";
+import {
+  AcpStartupCacheContext,
+  overlayAcpConfig,
+  useAcpPreviewCatalog,
+} from "./acp-preview-cache.js";
 import { AcpConfigOptions } from "./acp-config-options.js";
 import { Button } from "./button.js";
 import { Checkbox } from "./checkbox.js";
@@ -61,6 +74,15 @@ export function AcpScheduledConfigDialog({
 }>) {
   const [engine, setEngine] = useState<AgentEngine | "">(initial.config?.engine ?? "");
   const [preview, setPreview] = useState<AcpConfigPreview>();
+  const [values, setValues] = useState<AcpConfigValues>(() => initial.config?.values ?? {});
+  const useStartupCache = useContext(AcpStartupCacheContext);
+  const catalog = useAcpPreviewCatalog();
+  const cached = engine ? catalog[engine] : undefined;
+  const shown =
+    useStartupCache && engine
+      ? { values, configOptions: overlayAcpConfig(cached?.configOptions ?? [], values) }
+      : preview;
+
   const [pending, setPending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -106,7 +128,8 @@ export function AcpScheduledConfigDialog({
   };
   useEffect(() => {
     active.current = true;
-    if (initial.config) void load(initial.config.engine, { values: initial.config.values });
+    if (!useStartupCache && initial.config)
+      void load(initial.config.engine, { values: initial.config.values });
     return () => {
       active.current = false;
       controller.current?.abort();
@@ -123,7 +146,7 @@ export function AcpScheduledConfigDialog({
       busy.current ||
       previewBusy.current ||
       !engine ||
-      !preview ||
+      !shown ||
       previewFailed ||
       (!initial.config && !confirmed)
     )
@@ -131,7 +154,7 @@ export function AcpScheduledConfigDialog({
     const input = {
       projectId: initial.projectId,
       engine,
-      values: preview.values,
+      values: shown.values,
       expectedRevision: initial.config?.revision ?? 0,
       ...(!initial.config ? { confirmMigration: true } : {}),
     };
@@ -181,7 +204,8 @@ export function AcpScheduledConfigDialog({
                   setDirty(true);
                   setConfirmed(false);
                   setPreview(undefined);
-                  void load(selected, { values: {} });
+                  setValues({});
+                  if (!useStartupCache) void load(selected, { values: {} });
                 }}
               >
                 <option value="" disabled>
@@ -192,27 +216,28 @@ export function AcpScheduledConfigDialog({
               </Select>
             </Field>
             {pending ? <p role="status">{labels.preview}</p> : null}
-            {preview ? (
+            {shown ? (
               <AcpConfigOptions
                 engine={engine || undefined}
                 client={client}
                 Field={Field}
                 Select={Select}
-                options={preview.configOptions}
+                options={shown.configOptions}
                 disabled={saving || pending}
                 onChange={(configId, value) => {
                   if (!engine || pending || busy.current) return;
                   setDirty(true);
-                  void load(engine, { values: preview.values, change: { configId, value } });
+                  if (useStartupCache) setValues((current) => ({ ...current, [configId]: value }));
+                  else void load(engine, { values: shown.values, change: { configId, value } });
                 }}
               />
             ) : null}
-            {preview?.configOptions.length === 0 ? <p>{labels.empty}</p> : null}
+            {shown?.configOptions.length === 0 ? <p>{labels.empty}</p> : null}
             {!initial.config ? (
               <label className="flex items-center gap-2 text-label">
                 <Checkbox
                   aria-label={labels.confirm}
-                  disabled={saving || pending || !preview}
+                  disabled={saving || pending || !shown}
                   checked={confirmed}
                   onCheckedChange={(value) => {
                     setConfirmed(value === true);
@@ -247,7 +272,7 @@ export function AcpScheduledConfigDialog({
                 saving ||
                 pending ||
                 previewFailed ||
-                !preview ||
+                !shown ||
                 !engine ||
                 (!initial.config && !confirmed)
               }

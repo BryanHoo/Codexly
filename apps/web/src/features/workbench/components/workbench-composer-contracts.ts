@@ -1,3 +1,4 @@
+import type { AcpConfigValues } from "@codexly/protocol";
 import type { EditableUserMessage } from "@codexly/frontend-core/message-edit-draft";
 import type { QuotaClient } from "@codexly/ui/core/agent-quota-control";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
@@ -78,6 +79,7 @@ export type WorkbenchComposerProps = Readonly<{
     quotaControl?: ReactNode;
     trailingControls?: ReactNode;
     isBusy: boolean;
+    configurationIntent?: AcpConfigValues | undefined;
     confirmContinuation?: () => Promise<boolean>;
     submit: (
       input: AgentPromptInput,

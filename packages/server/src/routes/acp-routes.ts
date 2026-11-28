@@ -1,3 +1,4 @@
+import { registerAcpConfigCacheRoutes } from "./acp-config-cache-routes.js";
 import { withGenerationCancellation } from "./generation-cancellation.js";
 import { Type, type TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
@@ -48,6 +49,7 @@ export const registerAcpRoutes: FastifyPluginCallback<{
   context: ServerRouteContext;
   agents: AcpAgentServices | undefined;
 }> = (app, { context, agents }, done) => {
+  registerAcpConfigCacheRoutes(app, agents?.startupConfig);
   const service = (engine: AgentEngine) => {
     if (!agents) throw new MutationHttpError("PROVIDER_ERROR", "ACP service is unavailable", 503);
     const value = agents[engine];
@@ -59,17 +61,14 @@ export const registerAcpRoutes: FastifyPluginCallback<{
       throw new MutationHttpError("PROVIDER_ERROR", "ACP catalog unavailable", 503);
     return agents.catalog;
   };
-  app.get(
+  app.get<{ Querystring: { refresh?: string; cached?: string } }>(
     "/v1/acp/registry",
     { handlerTimeout: 360_000, schema: { response: { 200: AcpAgentCatalogPageSchema } } },
     (request) => {
       const registry = catalog();
-      const refresh =
-        request.query &&
-        typeof request.query === "object" &&
-        "refresh" in request.query &&
-        request.query.refresh === "true";
-      return refresh && registry.refresh ? registry.refresh() : registry.list();
+      if (request.query.refresh === "true" && registry.refresh) return registry.refresh();
+      // 冷启动先读取宿主已保存的启用状态，完整目录检测独立运行。
+      return registry.list(request.query.cached !== "true");
     },
   );
   app.get(

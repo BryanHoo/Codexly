@@ -5,9 +5,17 @@ import { AgentTaskBaseSchema } from "./task-common.js";
 import { LegacyAgentTaskSnapshotSchema } from "./agent-runtime.js";
 import { PendingRequestSchema, ResolvePendingRequestRequestSchema } from "./pending-request.js";
 import { AgentTaskSettingsSchema } from "./project-settings.js";
-import { ClaudeSettingsSchema, DEFAULT_CLAUDE_SETTINGS } from "./agent-engine.js";
+import { agentEngineName, ClaudeSettingsSchema, DEFAULT_CLAUDE_SETTINGS } from "./agent-engine.js";
 
 describe("conversation engine identity", () => {
+  it("Agent 显示名称省略 ACP 后缀并保留名称中的连字符", () => {
+    expect(agentEngineName("acp-antigravity-acp")).toBe("antigravity");
+    expect(agentEngineName("acp-codefree-o")).toBe("codefree-o");
+    expect(agentEngineName("acp-custom-acp-tools")).toBe("custom-acp-tools");
+    expect(agentEngineName("codex")).toBe("Codex");
+    expect(agentEngineName("claude")).toBe("Claude");
+  });
+
   it("窗口配置兼容省略和自动值，拒绝非法容量与自动压缩范围", () => {
     for (const fields of [
       {},

@@ -1,7 +1,6 @@
-import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
 import { useMemo } from "react";
+import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
 import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
-import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
 import { createAcpComposerQueueClient } from "../../../platform/tauri/acp-composer-client.js";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
@@ -9,21 +8,9 @@ import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 
 export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
-  const client = useMemo<AcpDraftClient>(
-    () => ({
-      getAcpAgent: (...args) =>
-        props.client.getAcpAgent?.(...args) ?? Promise.reject(new Error("ACP 身份端口不可用")),
-      previewAcpConfig: (...args) => {
-        const preview = props.client.previewAcpConfig;
-        if (!preview) return Promise.reject(new Error("ACP 草稿预览端口不可用"));
-        return preview.call(props.client, ...args);
-      },
-    }),
-    [props.client],
-  );
   const queueClient = useMemo(() => createAcpComposerQueueClient(props.client), [props.client]);
   const draft = useAcpDraftComposer({
-    client,
+    client: props.client,
     projectId: props.projectId,
     workspace: props.projectPath,
     ...(props.composerDraftId ? { draftId: props.composerDraftId } : {}),
@@ -42,7 +29,7 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
       fastModeAvailable={false}
       settings={undefined}
       acp={{
-        availableCommands: draft.preview?.availableCommands ?? [],
+        availableCommands: draft.preview.availableCommands ?? [],
         controls: draft.controls,
         leadingControls: draft.leadingControls,
         quotaControl: <AgentQuotaControl engine={draft.engine} client={props.client} language={getCurrentLanguage()} />,
@@ -68,8 +55,10 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
               task.id,
               input,
               delivery.key,
-              delivery.values,
+              delivery.overrides ? undefined : (delivery.values ?? undefined),
               delivery.recoveryKey,
+              undefined,
+              delivery.overrides && delivery.values && Object.keys(delivery.values).length ? delivery.values : undefined,
             );
             // 交接实际读取边界内的正文，不能仅用新的 checkpoint 配对较早的回合响应。
             const acpSnapshot = await read.call(props.client, props.projectId, task.id);

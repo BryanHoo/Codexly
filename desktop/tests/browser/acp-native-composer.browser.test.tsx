@@ -49,13 +49,7 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
   const response = createResponse({ acpSession: initial });
   const { settings: _legacySettings, ...snapshot } = response.snapshot;
   store.getState().hydrate({ ...response, snapshot: { ...snapshot, runtime: "acp" } });
-  let resolve!: (options: AcpSessionState["configOptions"]) => void;
-  const config = vi.fn(
-    () =>
-      new Promise<AcpSessionState["configOptions"]>((done) => {
-        resolve = done;
-      }),
-  );
+  const config = vi.fn();
   const submit = vi.fn(() =>
     Promise.resolve({
       id: "new-turn",
@@ -198,13 +192,8 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
     .element(screen.getByRole("tab", { name: "Claude", exact: true }))
     .not.toBeInTheDocument();
   await screen.getByRole("option", { name: /模型二/ }).click();
-  await expect(ref.current?.submitCurrent()).resolves.toBe(false);
-  expect(submit).not.toHaveBeenCalled();
-  resolve([{ ...initial.configOptions[0]!, currentValue: "two" }]);
+  expect(config).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("button", { name: / \/ 模型二$/ })).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "原生布尔", exact: true }))
-    .not.toBeInTheDocument();
   expect(editor.element()).toBe(node);
   await expect.element(editor).toHaveValue("未发送的草稿");
   submit.mockRejectedValueOnce(new Error("暂时断开"));
@@ -217,6 +206,7 @@ it.each([false, true])("实际输入框按任务元数据或运行时能力接�
     "task-1",
     { type: "prompt", text: "未发送的草稿", attachments: [], skills: [] },
     expect.any(String),
+    undefined, undefined, undefined, { "native-model": "two" },
   );
   await screen.getByRole("button", { name: "停止", exact: true }).click();
   await vi.waitFor(() => expect(cancel).toHaveBeenCalledWith("project-1", "task-1", "new-turn"));

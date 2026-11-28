@@ -23,11 +23,15 @@ import { TauriAcpTaskClient } from "./acp-task-client.js";
 /** ACP 全局端口直接走本地 IPC，与 Web 使用相同数据契约，不初始化旧厂商运行时。 */
 export class TauriAcpClient extends TauriAcpTaskClient {
   getAcpAgentCatalog(
-    options: ReadOptions & { refresh?: boolean } = {},
+    options: ReadOptions & { refresh?: boolean; cached?: boolean } = {},
   ): Promise<AcpAgentCatalogPage> {
     return this.callCancellable(
       "acp_agent_request",
-      { engine: "codex", method: "agents.list", params: { refresh: options.refresh ?? false } },
+      {
+        engine: "codex",
+        method: "agents.list",
+        params: { refresh: options.refresh ?? false, cached: options.cached ?? false },
+      },
       options.signal,
     );
   }
@@ -68,6 +72,12 @@ export class TauriAcpClient extends TauriAcpTaskClient {
     options: MutationOptions = {},
   ): Promise<AcpScheduledConfigView> {
     return this.call("set_acp_scheduled_config", { taskId, input }, options.signal);
+  }
+  getAcpConfigCache(engine: AgentEngine, options: ReadOptions = {}): Promise<AcpConfigPreview | null> {
+    return this.callCancellable("acp_agent_request", { engine, method: "settings.cache.read", params: {} }, options.signal);
+  }
+  refreshAcpConfigCache(engine: AgentEngine, options: ReadOptions = {}): Promise<AcpConfigPreview | null> {
+    return this.callCancellable("acp_agent_request", { engine, method: "settings.cache.refresh", params: {} }, options.signal);
   }
   previewAcpConfig(
     projectId: string,

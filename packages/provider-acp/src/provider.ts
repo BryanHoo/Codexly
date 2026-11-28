@@ -79,6 +79,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       saved?: AcpStoredSettings,
     ) => Promise<AcpConfigOption[]>,
     readonly initialization?: AcpSessionInitialization,
+    readonly beginForeground?: () => () => void,
   ) {
     this.#historyUse = new AcpHistoryUse(history);
     this.#background = new AcpSubagentBackground(history, this.#emit, (id) =>
@@ -209,11 +210,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
       });
     });
   }
-  startTurn(
-    id: string,
-    input: AgentProviderTurnInput,
-    options: AgentTurnOptions,
-  ): Promise<AgentTurn> {
+  startTurn(id: string, input: AgentProviderTurnInput, options: AgentTurnOptions) {
     return this.#startTurn(id, input, options);
   }
   #startTurn(
@@ -223,6 +220,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
     signal?: AbortSignal,
     initialConfig?: AcpConfigValues,
   ): Promise<AgentTurn> {
+    const releaseStartup = this.beginForeground?.();
     return submitAcpTurn((submitted, onRollback) =>
       this.#serial(id, async () => {
         // 上次回答若因真正的存储故障滞留，用户继续发送时只先补写历史。
@@ -238,7 +236,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
           this,
           task,
           originalInput,
-          initialConfig,
+          initialConfig ?? originalInput.acpConfigOverrides,
           async (input) => ({
             prompt: await prepareAcpPrompt(agent, this.history.directory, id, input, onRollback),
             attachments: await this.attachments.prepare(id, input),
@@ -264,7 +262,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         await configureAcpTurn(
           agent,
           sessionId,
-          options,
+          { ...options, overrides: originalInput.acpConfigOverrides },
           task,
           this.#ephemeral.has(id) ? undefined : this.initialization,
         );
@@ -307,7 +305,7 @@ export class AcpAgentProvider implements AgentExecutionAdapter {
         });
         return turn;
       }),
-    );
+    ).finally(releaseStartup);
   }
   steerTurn(id: string, turnId: string, input: AgentProviderTurnInput): Promise<void> {
     return this.#serial(id, () =>

@@ -76,6 +76,7 @@ export type AcpModelSelectorProps = Readonly<{
   label?: string | undefined;
   selectDefaultEngine?: (engine: AgentEngine) => void;
   loadOptions?: (engine: AgentEngine, signal: AbortSignal) => Promise<readonly AcpConfigOption[]>;
+  catalog?: Readonly<Partial<Record<AgentEngine, { configOptions: readonly AcpConfigOption[] }>>>;
   onSelect: (engine: AgentEngine, id: string, value: string) => void;
   retry?: { label: string; run: () => void };
 }>;
@@ -156,7 +157,13 @@ export function AcpModelSelector(props: AcpModelSelectorProps) {
     choices(model).find((item) => item.value === model?.currentValue)?.name ?? model?.currentValue;
   const target = tab === "favorites" ? engine : (tab as AgentEngine);
   const targetOptions =
-    target === engine ? options : remote?.engine === target ? remote.options : undefined;
+    target === engine
+      ? options
+      : props.catalog
+        ? (props.catalog[target]?.configOptions ?? [])
+        : remote?.engine === target
+          ? remote.options
+          : undefined;
   const targetModel = targetOptions?.find(
     (option): option is SelectOption => isModel(option) && option.type === "select",
   );

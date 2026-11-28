@@ -1,6 +1,7 @@
 import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
 import { AcpActivity } from "@codexly/ui/core/acp-activity";
 import { useMemo } from "react";
+import { useAcpSessionConfigOptions } from "@codexly/ui/core/use-acp-session";
 import { useAcpSession, type AcpSessionClient } from "@codexly/ui/core/use-acp-session";
 import {
   AcpComposerLeading,
@@ -26,20 +27,23 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     [props.client],
   );
   const queueClient = useMemo(() => createAcpComposerQueueClient(props.client), [props.client]);
+  const engine = props.runtime?.metadata?.engine ??
+    (props.capabilities?.provider === "claude" ? ("claude" as const) : ("codex" as const));
   const session = useAcpSession({
     client,
+    engine,
     projectId: props.projectId,
     taskId: props.taskId,
+    deferConfiguration: true,
     ...(props.runtime?.store ? { source: props.runtime.store } : {}),
   });
   const locked =
     props.runtime?.writeAccess !== undefined && props.runtime.writeAccess !== "writable";
+  const options = useAcpSessionConfigOptions(engine, session);
   const configuration = {
-    engine:
-      props.runtime?.metadata?.engine ??
-      (props.capabilities?.provider === "claude" ? ("claude" as const) : ("codex" as const)),
+    engine,
     client: props.client,
-    options: session.session?.configOptions ?? [],
+    options,
     disabled: locked || session.isPending || session.isSaving || !!props.runtime?.activeTurnId,
     error: session.error,
     language: getCurrentLanguage(),
@@ -51,6 +55,10 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     workspace: props.runtime?.metadata?.workspacePath ?? props.projectPath,
     onSelect: (_engine, id, value) => { void session.setConfig(id, value); },
   });
+  const controlConfiguration = continuation.target
+    ? { ...configuration, engine: continuation.target, options: continuation.preview.configOptions }
+    : configuration;
+  const changeConfig = continuation.target ? continuation.setConfig : session.setConfig;
   const acp: NonNullable<WorkbenchComposerProps["acp"]> = {
     // 接续发送归属目标 Agent，命令也必须出自目标草稿的协商结果。
     availableCommands: (continuation.target ? continuation.preview : session.session)?.availableCommands ?? [],
@@ -58,23 +66,24 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
     quotaControl: <AgentQuotaControl engine={continuation.target ?? configuration.engine} client={props.client} language={getCurrentLanguage()} />,
     trailingControls: (
       <AcpComposerReasoning
-        {...configuration}
+        {...controlConfiguration}
         label={t("composer.settingsTitle")}
         onChange={(id, value) => {
-          void session.setConfig(id, value);
+          void changeConfig(id, value);
         }}
       />
     ),
     leadingControls: (
       <AcpComposerLeading
-        {...configuration}
+        {...controlConfiguration}
         label={t("composer.settingsTitle")}
         onChange={(id, value) => {
-          void session.setConfig(id, value);
+          void changeConfig(id, value);
         }}
       />
     ),
     controls: continuation.controls,
+    configurationIntent: session.overrides,
     ...(continuation.target ? { confirmContinuation: continuation.confirm } : {}),
     queueClient,
     submit: (input, key) => {
@@ -88,17 +97,17 @@ export function WorkbenchAcpComposer(props: WorkbenchComposerProps & { taskId: s
           idempotencyKey: delivery.creationKey,
           continuationSourceTaskId: props.taskId,
         });
-        const turn = await send.call(props.client, props.projectId, createdTask.id, input, delivery.key, delivery.values, delivery.recoveryKey, props.taskId);
+        const turn = await send.call(props.client, props.projectId, createdTask.id, input, delivery.key, delivery.overrides ? undefined : (delivery.values ?? {}), delivery.recoveryKey, props.taskId, delivery.overrides ? (delivery.values ?? {}) : undefined);
         const acpSnapshot = await read.call(props.client, props.projectId, createdTask.id);
         if (acpSnapshot.snapshot.runtime !== "acp" || acpSnapshot.snapshot.id !== createdTask.id || acpSnapshot.snapshot.projectId !== props.projectId)
           throw new Error("ACP 接续任务快照归属不匹配");
         return { createdTask, turn, checkpoint: acpSnapshot.checkpoint, acpSnapshot };
       });
-      return       session.runConfigured(async () => {
+      return       session.runConfigured(async (overrides) => {
         const send = props.client.startConfiguredAcpPrompt;
         if (!send) throw new Error("ACP 发送端口不可用");
         // 此分支只处理已有任务；原生回合响应沿用真实身份，不合成事件 checkpoint。
-        return { turn: await send.call(props.client, props.projectId, props.taskId, input, key) };
+        return { turn: await send.call(props.client, props.projectId, props.taskId, input, key, undefined, undefined, undefined, overrides) };
       });
     },
     interrupt: async (taskId, turnId) => {

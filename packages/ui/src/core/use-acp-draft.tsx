@@ -1,7 +1,13 @@
 import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { QueryClientContext } from "@tanstack/react-query";
-import { readAcpPreview } from "./acp-preview-cache.js";
+import {
+  modelScopedAcpOptions,
+  overlayAcpConfig,
+  readCachedAcpPreview,
+  resetAcpModelOverrides,
+  useAcpPreviewCatalog,
+} from "./acp-preview-cache.js";
 import { v4 as createUuid } from "uuid";
 import {
   bindAcpDraft,
@@ -19,37 +25,12 @@ export interface AcpDraftClient extends AcpProfileClient {
   ): Promise<AcpConfigPreview>;
 }
 
-export function useAcpModelOptions(
-  client: Partial<AcpDraftClient>,
-  projectId: string,
-  workspace: string,
-) {
-  const cache = useContext(QueryClientContext);
-  const preview = client.previewAcpConfig;
-  return useCallback(
-    async (engine: AgentEngine, signal: AbortSignal) => {
-      if (!preview) return [];
-      return (
-        await readAcpPreview(
-          cache,
-          engine,
-          projectId,
-          workspace,
-          { values: {} },
-          signal,
-          (input, readSignal) =>
-            preview.call(client, projectId, engine, input, { signal: readSignal }),
-        )
-      ).configOptions;
-    },
-    [cache, client, preview, projectId, workspace],
-  );
-}
 const pendingView: AcpDraftView = {
   preview: undefined,
   isPending: true,
   isSaving: false,
   hasSubmission: false,
+  canSubmit: false,
   error: null,
 };
 const storage = {
@@ -70,25 +51,27 @@ const storage = {
 
 /** 草稿记录使用独立 sessionStorage 键；不扩展旧草稿、全局配置或原生偏好文件。 */
 export function useAcpDraft({
-  client,
   projectId,
   engine,
   workspace,
   draftId,
   enabled = true,
+  allowDefaultSubmit = false,
 }: Readonly<{
-  client: AcpDraftClient;
   projectId: string;
   engine: AgentEngine;
   workspace: string;
   draftId?: string;
   enabled?: boolean;
+  allowDefaultSubmit?: boolean;
 }>) {
-  const cache = useContext(QueryClientContext);
+  const catalog = useAcpPreviewCatalog();
+  const queryCache = useContext(QueryClientContext);
+  const cached = catalog[engine];
   const storageKey = `codexly:acp-draft:v1:${JSON.stringify([projectId, draftId ?? "draft"])}`;
   const scope = useMemo(
     () => ({ binding: undefined as ReturnType<typeof bindAcpDraft> | undefined }),
-    [client, projectId, engine, workspace, storageKey, enabled],
+    [projectId, engine, workspace, storageKey, enabled, allowDefaultSubmit],
   );
   const [state, setState] = useState<{ scope: object; view: AcpDraftView }>();
   useEffect(() => {
@@ -96,17 +79,27 @@ export function useAcpDraft({
     const binding = bindAcpDraft({
       identity: JSON.stringify([engine, workspace]),
       restored: storage.read(storageKey),
-      preview: (request, signal) =>
-        readAcpPreview(
-          cache,
-          engine,
-          projectId,
-          workspace,
-          { ...request, includeCommands: true },
-          signal,
-          (input, readSignal) =>
-            client.previewAcpConfig(projectId, engine, input, { signal: readSignal }),
-        ),
+      allowDefaultSubmit,
+      useOverrides: true,
+      preview: ({ values, change }) => {
+        const known = readCachedAcpPreview(queryCache, engine);
+        return Promise.resolve({
+          configOptions: [],
+          // 快照只负责展示。真正提交时仅发送用户主动修改的值。
+          values: change
+            ? {
+                ...resetAcpModelOverrides(
+                  known?.configOptions ?? [],
+                  known,
+                  values,
+                  change.configId,
+                  change.value,
+                ),
+                [change.configId]: change.value,
+              }
+            : values,
+        });
+      },
       save: (value) => {
         storage.write(storageKey, value);
       },
@@ -121,7 +114,7 @@ export function useAcpDraft({
       scope.binding = undefined;
       binding.dispose();
     };
-  }, [scope, cache, client, projectId, engine, workspace, storageKey, enabled]);
+  }, [scope, projectId, engine, workspace, storageKey, enabled, allowDefaultSubmit, queryCache]);
   const setConfig = useCallback(
     (id: string, value: string | boolean) =>
       scope.binding?.setConfig(id, value) ?? Promise.resolve(false),
@@ -143,8 +136,23 @@ export function useAcpDraft({
     return current !== undefined && !current.isSaving && !current.hasSubmission;
   }, [scope]);
   const reload = useCallback(() => scope.binding?.reload() ?? Promise.resolve(false), [scope]);
+  const current = state?.scope === scope ? state.view : pendingView;
+  const values = current.preview?.values;
+  const preview = useMemo(
+    () => ({
+      ...cached,
+      values: values ?? {},
+      configOptions: overlayAcpConfig(
+        modelScopedAcpOptions(cached?.configOptions ?? [], cached, values ?? {}),
+        values ?? {},
+      ),
+    }),
+    [cached, values],
+  );
   return {
-    ...(state?.scope === scope ? state.view : pendingView),
+    ...current,
+    catalog,
+    preview,
     setConfig,
     submit,
     canChangeScope,

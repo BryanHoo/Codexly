@@ -84,6 +84,7 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
                             | "initialConfig"
                             | "recoveryKey"
                             | "continuationSourceTaskId"
+                            | "configOverrides"
                     )
                 })
             }))
@@ -94,7 +95,8 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
         && params.get("continuationSourceTaskId").is_some_and(|id| {
             !id.as_str()
                 .is_some_and(|id| !id.trim().is_empty() && id.len() <= 256)
-                || params.get("initialConfig").is_none()
+                || (params.get("initialConfig").is_none()
+                    && params.get("configOverrides").is_none())
         })
     {
         return Err(AppError::Acp("Invalid ACP continuation source".into()));
@@ -108,18 +110,21 @@ fn validate_request(method: &str, params: &Value) -> Result<(), AppError> {
         return Err(AppError::Acp("Invalid ACP recovery identity".into()));
     }
     if method == "prompt.start"
-        && params.get("initialConfig").is_some_and(|config| {
-            config.as_object().is_none_or(|values| {
-                values.iter().any(|(key, value)| {
-                    key.is_empty()
-                        || key.encode_utf16().take(257).count() > 256
-                        || !(value.is_boolean()
-                            || value.as_str().is_some_and(|text| {
-                                text.encode_utf16().take(16385).count() <= 16384
-                            }))
+        && ["initialConfig", "configOverrides"]
+            .iter()
+            .filter_map(|key| params.get(*key))
+            .any(|config| {
+                config.as_object().is_none_or(|values| {
+                    values.iter().any(|(key, value)| {
+                        key.is_empty()
+                            || key.encode_utf16().take(257).count() > 256
+                            || !(value.is_boolean()
+                                || value.as_str().is_some_and(|text| {
+                                    text.encode_utf16().take(16385).count() <= 16384
+                                }))
+                    })
                 })
             })
-        })
     {
         return Err(AppError::Acp("Invalid ACP initial config".into()));
     }

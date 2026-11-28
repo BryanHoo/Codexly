@@ -1,6 +1,5 @@
 import { expect, test } from "./fixtures/app-shell.js";
-import { mockAcpWorkspace } from "./fixtures/acp-defaults.js";
-import type { AcpConfigPreviewRequest } from "@codexly/protocol";
+import { installedAcpCodex, mockAcpWorkspace } from "./fixtures/acp-defaults.js";
 
 for (const width of [390, 1280]) {
   test(`新建 ACP 草稿跳过旧模型查询，刷新后保留配置与首发身份 ${String(width)}px @cross-browser`, async ({
@@ -8,6 +7,11 @@ for (const width of [390, 1280]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await mockAcpWorkspace(page);
+    await page.route(/\/v1\/acp\/registry(?:\?.*)?$/u, async (route) => {
+      // 完整目录扫描暂不返回，持久目录和配置缓存仍然可以开放首发。
+      if (new URL(route.request().url()).searchParams.get("cached") === "true")
+        await route.fulfill({ json: { agents: [installedAcpCodex] } });
+    });
     await page.addInitScript(() => {
       localStorage.setItem(
         "codeagent:engine-setup:v1",
@@ -31,19 +35,16 @@ for (const width of [390, 1280]) {
         },
       }),
     );
-    const previews: unknown[] = [];
-    await page.route("**/v1/projects/codexly/acp/codex/preview", (route) => {
-      const input = route.request().postDataJSON() as AcpConfigPreviewRequest;
-      previews.push(input);
-      const enabled = input.change?.value ?? input.values["raw"] ?? false;
-      return route.fulfill({
-        json: {
-          values: { raw: enabled },
-          configOptions: [
-            { id: "raw", name: "ACP 原始开关", type: "boolean", currentValue: enabled },
-          ],
-        },
-      });
+    const cacheRequests: string[] = [];
+    const preview = {
+      values: { raw: false },
+      configOptions: [{ id: "raw", name: "ACP 原始开关", type: "boolean", currentValue: false }],
+    };
+    await page.route("**/v1/acp/agents/codex/config-cache", async (route) => {
+      const method = route.request().method();
+      cacheRequests.push(method);
+      // 未完成的后台探测不能挡住磁盘缓存的控件或首发。
+      if (method === "GET") await route.fulfill({ json: preview });
     });
     const submissions: { key: string | undefined; input: Record<string, unknown> }[] = [];
     await page.route("**/v1/projects/codexly/submissions", (route) => {
@@ -90,13 +91,13 @@ for (const width of [390, 1280]) {
     expect(submissions[0]?.input).toMatchObject({
       type: "acp-prompt",
       engine: "codex",
-      initialConfig: { raw: true },
+      initialConfig: null,
+      configOverrides: { raw: true },
       workspacePath: "/workspace/Codexly",
     });
     expect(submissions[0]?.input).not.toHaveProperty("options");
-    expect(previews).toContainEqual(
-      expect.objectContaining({ values: { raw: true }, workspacePath: "/workspace/Codexly" }),
-    );
+    await expect.poll(() => cacheRequests.filter((method) => method === "GET")).toHaveLength(2);
+    await expect.poll(() => cacheRequests.filter((method) => method === "POST")).toHaveLength(2);
     expect(legacyModels).toEqual([]);
   });
 }

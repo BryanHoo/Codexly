@@ -1,29 +1,15 @@
 import { AgentQuotaControl } from "@codexly/ui/core/agent-quota-control";
-import { useMemo } from "react";
 import { useAcpDraftComposer } from "@codexly/ui/core/acp-draft-composer";
-import type { AcpDraftClient } from "@codexly/ui/core/use-acp-draft";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { WorkbenchComposerBase } from "./workbench-composer-base.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 
 export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
-  const client = useMemo<AcpDraftClient>(
-    () => ({
-      getAcpAgent: (...args) =>
-        props.client.getAcpAgent?.(...args) ?? Promise.reject(new Error("ACP 身份端口不可用")),
-      previewAcpConfig: (...args) => {
-        const preview = props.client.previewAcpConfig;
-        if (!preview) return Promise.reject(new Error("ACP 草稿预览端口不可用"));
-        return preview.call(props.client, ...args);
-      },
-    }),
-    [props.client],
-  );
   const workspacePath =
     props.projectId !== "temporary" && props.projectPath ? props.projectPath : undefined;
   const draft = useAcpDraftComposer({
-    client,
+    client: props.client,
     projectId: props.projectId,
     workspace: props.projectPath,
     ...(props.composerDraftId ? { draftId: props.composerDraftId } : {}),
@@ -42,7 +28,7 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
       fastModeAvailable={false}
       settings={undefined}
       acp={{
-        availableCommands: draft.preview?.availableCommands ?? [],
+        availableCommands: draft.preview.availableCommands ?? [],
         controls: draft.controls,
         leadingControls: draft.leadingControls,
         quotaControl: (
@@ -64,7 +50,14 @@ export function WorkbenchAcpDraftComposer(props: WorkbenchComposerProps) {
                 type: "acp-prompt",
                 engine: draft.engine,
                 input,
-                initialConfig: delivery.values,
+                ...(delivery.overrides
+                  ? {
+                      initialConfig: null,
+                      ...(delivery.values && Object.keys(delivery.values).length
+                        ? { configOverrides: delivery.values }
+                        : {}),
+                    }
+                  : { initialConfig: delivery.values }),
                 ...(workspacePath === undefined ? {} : { workspacePath }),
                 ...(delivery.recoveryKey ? { recoveryKey: delivery.recoveryKey } : {}),
               },

@@ -404,7 +404,7 @@ export function createComposerSubmission({
 
     const turnAttempt = resolveIdempotencyAttempt(
       startTurnAttempt.current,
-      JSON.stringify({ input, options: turnOptions }),
+      JSON.stringify({ input, options: turnOptions, acpConfig: acp?.configurationIntent }),
     );
     startTurnAttempt.current = turnAttempt;
     const taskAttempt =
