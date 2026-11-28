@@ -7,5 +7,3 @@ export const GlobalSettingsAbout = lazy(() => import("./global-settings-about.js
 export const GlobalSettingsPets = lazy(() => import("../../pets/components/global-settings-pets.js").then((module) => ({ default: module.GlobalSettingsPets })));
 
 export const SavedPromptsSettings = lazy(() => import("@codexly/ui/core/saved-prompts-settings").then((module) => ({ default: module.SavedPromptsSettings })));
-
-export const NetworkProxySettingsField = lazy(() => import("./network-proxy-settings.js").then(module => ({default: module.NetworkProxySettingsField})));

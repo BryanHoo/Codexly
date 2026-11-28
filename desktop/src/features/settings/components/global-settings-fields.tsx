@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Info,
   FileText,
-  Network,
   PawPrint,
   Settings,
   type LucideIcon,
@@ -31,7 +30,6 @@ export const settingsSections: readonly Readonly<{
   { icon: Sparkles, id: "git" },
   { icon: Bot, id: "acp" },
   { icon: FileText, id: "global-instructions" },
-  { icon: Network, id: "network" },
   { icon: Info, id: "about" },
 ];
 

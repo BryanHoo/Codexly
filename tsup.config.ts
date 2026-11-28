@@ -28,7 +28,6 @@ export default defineConfig({
         "./packages/protocol/src/application-generation.ts",
       "@codexly/protocol/application-preferences":
         "./packages/protocol/src/application-preferences.ts",
-      "@codexly/provider-acp/network-proxy": "./packages/provider-acp/src/network-proxy.ts",
       "@codexly/provider-acp": "./packages/provider-acp/src/index.ts",
       "@codexly/protocol/acp-plan-api": "./packages/protocol/src/acp-plan-api.ts",
       "@codexly/protocol/acp-scheduled-plan": "./packages/protocol/src/acp-scheduled-plan.ts",
@@ -39,6 +38,7 @@ export default defineConfig({
         "./packages/core/src/historical-attachment-worker-pool.ts",
       "@codexly/core/historical-attachment-files":
         "./packages/core/src/historical-attachment-files.ts",
+      "@codexly/core/direct-fetch": "./packages/core/src/direct-fetch.ts",
       "@codexly/core/app-storage-paths": "./packages/core/src/app-storage-paths.ts",
       "@codexly/core/file-task-queue": "./packages/core/src/file-task-queue.ts",
       "@codexly/core/task-attachments": "./packages/core/src/task-attachments.ts",

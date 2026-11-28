@@ -26,8 +26,6 @@ pub mod terminal;
 
 pub mod local_catalog;
 
-pub mod network_proxy;
-
 pub(crate) mod runtime_path;
 
 pub(crate) mod queued_media;

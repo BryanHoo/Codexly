@@ -171,7 +171,8 @@ async fn describe_pet(codex_home: &Path, pet: &'static BuiltinPet) -> PetAssetRe
 }
 
 async fn download_pet(codex_home: &Path, pet: &'static BuiltinPet) -> Result<(), AppError> {
-    let response = crate::infrastructure::network_proxy::client_builder()
+    let response = reqwest::Client::builder()
+        .no_proxy()
         .build()
         .map_err(|_| AppError::PetAssetUnavailable)?
         .get(format!("{CDN_ROOT}/{}", pet.file))

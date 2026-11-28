@@ -1,3 +1,4 @@
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import type { ReadableStream } from "node:stream/web";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
@@ -47,7 +48,7 @@ export async function findRegistryUpdate(
   installedVersion: string | undefined,
   signal: AbortSignal,
 ): Promise<RegistryAgent | undefined> {
-  const response = await fetch(REGISTRY_URL, {
+  const response = await fetchDirect(REGISTRY_URL, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
     redirect: "error",
   });

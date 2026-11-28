@@ -1,3 +1,4 @@
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import { CODEXLY_USER_AGENT, type BingWallpaperInfo } from "@codexly/protocol";
 import { readBoundedBody } from "./bing-wallpaper.js";
 
@@ -34,7 +35,7 @@ function parseCatalog(value: unknown): Entry[] {
   });
 }
 
-export function createBingWallpaperCatalog(fetcher: Fetcher = (url, init) => fetch(url, init)) {
+export function createBingWallpaperCatalog(fetcher: Fetcher = fetchDirect) {
   let cached: Entry[] = [];
   let expires = 0;
   let pending: Promise<Entry[]> | undefined;

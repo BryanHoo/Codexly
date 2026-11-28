@@ -1,3 +1,4 @@
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { createWriteStream } from "node:fs";
 import { Readable, Transform } from "node:stream";
@@ -194,7 +195,7 @@ export async function installRegistryAgent(
       if (url.protocol !== "https:") throw new Error("Agent 下载地址必须使用 HTTPS");
       report?.({ stage: "downloading", received: 0 });
       const timeout = AbortSignal.timeout(180_000);
-      const response = await fetch(url, {
+      const response = await fetchDirect(url, {
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       if (!response.ok || !response.body) throw new Error("Agent 下载失败");

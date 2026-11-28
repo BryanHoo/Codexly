@@ -1,4 +1,3 @@
-import { registerNetworkProxyRoutes } from "./network-proxy-routes.js";
 import { registerPromptOptimizationRoutes } from "./routes/prompt-optimization-routes.js";
 import {
   DiagnosticLogBuffer,
@@ -460,7 +459,6 @@ export async function createCodexlyServer(
     ...(accessService === undefined ? {} : { service: accessService }),
   });
   registerDiagnosticRoutes(app, diagnosticLogs);
-  registerNetworkProxyRoutes(app, options.networkProxyDirectory);
   registerDiagnosticArchiveRoutes(app);
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerPromptOptimizationRoutes, routeContext);

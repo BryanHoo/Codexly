@@ -6,10 +6,11 @@ import {
   resolveSettingsSection,
 } from "./settings-navigation.js";
 
-it("将网络归入应用设置并提供搜索入口，不绑定智能体", () => {
-  expect(settingsSectionGroups.find((group) => group.id === "app")?.sections).toContain("network");
-  expect(settingsSectionSearchKeys).toHaveProperty("network");
-  expect(settingsSectionEngine("network")).toBeUndefined();
+it("从两端应用设置导航和搜索中移除网络代理", () => {
+  expect(settingsSectionGroups.find((group) => group.id === "app")?.sections).not.toContain(
+    "network",
+  );
+  expect(settingsSectionSearchKeys).not.toHaveProperty("network");
 });
 
 it("将 ACP 与全局指令并列归入智能体并保留旧入口的引擎归属", () => {

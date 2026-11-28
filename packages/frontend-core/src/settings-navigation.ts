@@ -2,7 +2,7 @@
 export const settingsSectionGroups = [
   { id: "personal", sections: ["appearance", "prompts", "pets", "git"] },
   { id: "agents", sections: ["acp", "global-instructions"] },
-  { id: "app", sections: ["network", "access", "about"] },
+  { id: "app", sections: ["access", "about"] },
 ] as const;
 /** 旧入口仅用于兼容已有跳转，实际导航统一落到 ACP。 */
 export type SettingsSectionId =
@@ -42,7 +42,6 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
   "claude-provider": [],
   "claude-agent": [],
   "claude-personalization": [],
-  network: [],
   access: ["access.logout"],
   prompts: ["sections.prompts", "sectionKeywords.prompts"],
   git: [

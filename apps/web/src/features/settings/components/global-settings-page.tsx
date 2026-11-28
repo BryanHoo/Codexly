@@ -268,8 +268,6 @@ export function GlobalSettingsPage<
               ? {}
               : { updateProgress: props.appUpdateProgress })}
           />
-        ) : activeSection === "network" ? (
-          <NetworkProxySettingsField />
         ) : activeSection === "access" && accessMode === "lan" ? (
           <GlobalSettingsAccess
             activeSection="access"
@@ -363,9 +361,3 @@ export function GlobalSettingsPage<
     </SettingsPageFrame>
   );
 }
-
-export const NetworkProxySettingsField = lazy(() =>
-  import("./network-proxy-settings.js").then((module) => ({
-    default: module.NetworkProxySettingsField,
-  })),
-);

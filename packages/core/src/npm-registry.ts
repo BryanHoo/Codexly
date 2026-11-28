@@ -1,3 +1,4 @@
+import { fetchDirect } from "./direct-fetch.js";
 import { CODEXLY_USER_AGENT } from "@codexly/protocol";
 
 const MIRROR_REGISTRY = "https://registry.npmmirror.com";
@@ -22,7 +23,7 @@ export async function selectRegistryOrder(
     // 并行探测元数据的响应时间，涵盖 DNS、连接和 TLS 耗时，收到成功响应即可选源。
     const fastest = await Promise.any(
       NPM_REGISTRIES.map(async (registry) => {
-        const response = await fetch(`${registry}${metadataPath}`, {
+        const response = await fetchDirect(`${registry}${metadataPath}`, {
           method: "HEAD",
           headers: { "user-agent": CODEXLY_USER_AGENT },
           signal: probeSignal,

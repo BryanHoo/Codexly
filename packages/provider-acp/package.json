@@ -8,10 +8,6 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./network-proxy": {
-      "types": "./src/network-proxy.ts",
-      "default": "./src/network-proxy.ts"
     }
   },
   "dependencies": {
@@ -19,9 +15,7 @@
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
     "@sinclair/typebox": "catalog:",
-    "proxy-chain": "catalog:",
     "smol-toml": "catalog:",
-    "undici": "catalog:",
     "yauzl": "catalog:"
   },
   "devDependencies": {

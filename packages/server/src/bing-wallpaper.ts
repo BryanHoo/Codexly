@@ -1,3 +1,4 @@
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import { CODEXLY_USER_AGENT } from "@codexly/protocol";
 
 const BING_ORIGIN = "https://www.bing.com";
@@ -24,10 +25,6 @@ export type BingWallpaper = Readonly<{
 type BingWallpaperService = Readonly<{
   read: (day: string) => Promise<BingWallpaper>;
 }>;
-
-function fetchWithGlobal(input: string, init: RequestInit): Promise<Response> {
-  return globalThis.fetch(input, init);
-}
 
 export async function readBoundedBody(
   response: Response,
@@ -111,7 +108,7 @@ async function loadWallpaper(fetcher: Fetcher): Promise<BingWallpaper> {
 }
 
 export function createBingWallpaperService({
-  fetcher = fetchWithGlobal,
+  fetcher = fetchDirect,
 }: Readonly<{ fetcher?: Fetcher }> = {}): BingWallpaperService {
   let cached: Readonly<{ day: string; wallpaper: BingWallpaper }> | null = null;
   let pending: Readonly<{ day: string; promise: Promise<BingWallpaper> }> | null = null;

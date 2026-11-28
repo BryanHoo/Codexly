@@ -1,4 +1,5 @@
-import { homedir } from "node:os";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { AppInfoResponseSchema } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +7,27 @@ import { runCli } from "./cli-command.js";
 import { createHarness } from "./cli-command.test-support.js";
 
 describe("runCli startup", () => {
+  it("starts Web and runs diagnostics with a malformed legacy proxy file", async () => {
+    const appDataDirectory = await mkdtemp(join(tmpdir(), "codexly-legacy-network-"));
+    const harness = createHarness({ appDataDirectory });
+    const controller = new AbortController();
+    try {
+      await writeFile(join(appDataDirectory, "network-proxy.json"), "{invalid");
+      await expect(runCli(["doctor"], harness.options)).resolves.toBe(0);
+      const run = runCli(["start", "--no-open"], { ...harness.options, signal: controller.signal });
+      try {
+        await vi.waitFor(() => {
+          expect(harness.serverListen).toHaveBeenCalledOnce();
+        });
+      } finally {
+        controller.abort();
+        await expect(run).resolves.toBe(0);
+      }
+    } finally {
+      await rm(appDataDirectory, { recursive: true, force: true });
+    }
+  });
+
   it("serves Web with the ACP runtime", async () => {
     const harness = createHarness();
     const controller = new AbortController();

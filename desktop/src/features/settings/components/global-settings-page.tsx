@@ -7,7 +7,6 @@ import type { ApplicationPreferences } from "@codexly/protocol/application-prefe
 import { createSettingsDraftPersistence } from "@codexly/frontend-core/settings-autosave";
 import { v4 as createUuid } from "uuid";
 import { AcpGenerationSettings } from "@codexly/ui/core/acp-generation-settings";
-import { NetworkProxySettingsField } from "./settings-section-loaders.js";
 import { LoadingSkeleton } from "@codexly/ui/core/loading-skeleton";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
@@ -276,8 +275,6 @@ export function GlobalSettingsPage<
             }}
             client={nativeClient}
           />
-        ) : activeSection === "network" ? (
-          <NetworkProxySettingsField />
         ) : activeSection === "prompts" ? (
           <SavedPromptsSettings
             language={language}

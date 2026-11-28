@@ -90,10 +90,6 @@ Choose or create a worktree from the branch menu beneath the composer, then send
 
 Ordinary chat and project conversations share the header's host-application menu for opening the working directory. Chat prefers the directory selected in the draft or the task's actual directory. The entry appears only when host applications are available and is hidden for remote LAN access.
 
-## Network proxy
-
-In **Settings → Application → Network**, choose system, direct, or custom HTTP/HTTPS/SOCKS5 proxy mode. Test the current draft before saving if needed, then restart the desktop app or Web server; refreshing a browser does not apply saved settings. Web and mobile configure the server’s outbound connections. See [Network proxy (中文)](network-proxy.md).
-
 ## Scheduled work
 
 Create a schedule with a project, request, engine, model, and repeat rule. Choose an enabled agent with confirmed ACP configuration. Changing a schedule's engine affects future runs, not existing conversations.

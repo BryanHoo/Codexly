@@ -21,9 +21,6 @@ export const vitestAliases = {
   "@codexly/protocol/acp-config-validation": fileURLToPath(
     new URL("./packages/protocol/src/acp-config-validation.ts", import.meta.url),
   ),
-  "@codexly/provider-acp/network-proxy": fileURLToPath(
-    new URL("./packages/provider-acp/src/network-proxy.ts", import.meta.url),
-  ),
   "@codexly/provider-acp": fileURLToPath(
     new URL("./packages/provider-acp/src/index.ts", import.meta.url),
   ),
@@ -35,6 +32,9 @@ export const vitestAliases = {
   ),
   "@codexly/core/task-attachments": fileURLToPath(
     new URL("./packages/core/src/task-attachments.ts", import.meta.url),
+  ),
+  "@codexly/core/direct-fetch": fileURLToPath(
+    new URL("./packages/core/src/direct-fetch.ts", import.meta.url),
   ),
   "@codexly/core/app-storage-paths": fileURLToPath(
     new URL("./packages/core/src/app-storage-paths.ts", import.meta.url),

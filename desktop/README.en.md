@@ -49,8 +49,6 @@ Desktop and Web under the same OS user on the same computer share projects, task
 
 Relative links in file previews open from the current file’s directory, making project documents and Skill references easier to follow. Choose **Open remote repository** from the project quick-open or root directory menu to visit its repository in a browser; the action is disabled when no browsable remote is available.
 
-Choose system, direct, or custom HTTP/HTTPS/SOCKS5 proxy mode in **Settings → Application → Network**, then restart the desktop app or Web server. Configuration is shared on the same host; mobile settings control the server’s outbound connections. See [Network proxy (中文)](../docs/network-proxy.md).
-
 ## Documentation and help
 
 - [Installation, updates, and uninstall](docs/installation.en.md)

@@ -10,7 +10,7 @@
 
 - [共享主题与文件配色](theme-design.md)：柔和暗色、GitHub 文件主题与编辑状态验证。
 
-- [应用网络代理](network-proxy.md)：跨端配置、出口、凭据与重启生效。
+- 应用主动发起的 HTTP 请求使用直连，Node 和 Bun 复用 [直连请求实现](../../../packages/core/src/direct-fetch.ts)，桌面原生客户端与更新器显式禁用自动代理。
 
 ## 验证入口
 

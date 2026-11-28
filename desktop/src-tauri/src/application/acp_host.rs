@@ -82,7 +82,6 @@ fn host_command(
     if let Some(path) = runtime_path {
         command.env("PATH", path);
     }
-    crate::infrastructure::network_proxy::configure_acp_host(&mut command);
     command.env("CODEXLY_APPLICATION_GENERATION", "1");
     command
 }

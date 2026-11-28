@@ -1,3 +1,4 @@
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -32,7 +33,7 @@ export type CreateLocalWorkbenchPetProviderOptions = Readonly<{
 export class LocalWorkbenchPetProvider implements WorkbenchPetProvider {
   readonly #assetRecords = new Map<string, PetAssetRecord>();
   readonly #assetHome: string;
-  readonly #fetch: typeof globalThis.fetch;
+  readonly #fetch: typeof fetchDirect;
   readonly #inFlight = new Map<string, Promise<WorkbenchPetDescriptor>>();
   readonly #logger: Readonly<{ warn(message: string): void }> | undefined;
   readonly #downloadWaiters: (() => void)[] = [];
@@ -40,7 +41,7 @@ export class LocalWorkbenchPetProvider implements WorkbenchPetProvider {
 
   public constructor(options: CreateLocalWorkbenchPetProviderOptions) {
     this.#assetHome = resolve(options.assetHome);
-    this.#fetch = options.fetch ?? globalThis.fetch;
+    this.#fetch = options.fetch ?? fetchDirect;
     this.#logger = options.logger;
   }
 

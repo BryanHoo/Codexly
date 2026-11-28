@@ -56,7 +56,6 @@ import type { ProjectOpenService } from "./project-open.js";
 
 export interface CreateCodexlyServerOptions {
   acpAgents?: AcpAgentServices;
-  networkProxyDirectory?: string;
   localCatalogStore?: LocalCatalogStore;
   asyncQuestionRepository?: AsyncQuestionRepository;
   projectTodoRepository?: ProjectTodoRepository;

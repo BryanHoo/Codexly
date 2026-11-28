@@ -5,6 +5,7 @@ use reqwest::{Client, Response, header, redirect::Policy};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, ipc::Channel};
+use tauri_plugin_updater::UpdaterExt;
 
 use super::error::AppError;
 
@@ -102,7 +103,7 @@ pub(super) async fn check_for_update(current_version: &str, app: &AppHandle) -> 
     }
 
     // API 资产列表可能暂时为空；仅在此时用当前渠道的清单核实版本和可安装平台。
-    let updater = match crate::infrastructure::network_proxy::updater(app) {
+    let updater = match app.updater_builder().no_proxy().build() {
         Ok(updater) => updater,
         Err(_) => return failed_update(current_version),
     };
@@ -121,7 +122,10 @@ pub(super) async fn install_update(
     expected_version: &str,
     on_progress: Channel<AppUpdateInstallProgress>,
 ) -> Result<(), AppError> {
-    let updater = crate::infrastructure::network_proxy::updater(app)
+    let updater = app
+        .updater_builder()
+        .no_proxy()
+        .build()
         .map_err(|_| AppError::AppUpdateCheckFailed)?;
     let update = updater
         .check()
@@ -154,7 +158,8 @@ fn http_client() -> Result<&'static Client, UpdateCheckError> {
     if let Some(client) = HTTP_CLIENT.get() {
         return Ok(client);
     }
-    let client = crate::infrastructure::network_proxy::client_builder()
+    let client = reqwest::Client::builder()
+        .no_proxy()
         // 放宽慢网络的连接等待，同时用总超时限制整个响应读取过程。
         .connect_timeout(CONNECT_TIMEOUT)
         .redirect(Policy::none())

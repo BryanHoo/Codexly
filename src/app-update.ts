@@ -1,3 +1,4 @@
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, parse, resolve } from "node:path";
@@ -174,7 +175,7 @@ async function fetchLatestPackageVersion(): Promise<string> {
 }
 
 async function fetchPackageVersionFromRegistry(registry: string): Promise<string> {
-  const response = await fetch(
+  const response = await fetchDirect(
     `${registry}/-/package/${encodeURIComponent(PACKAGE_NAME)}/dist-tags`,
     {
       headers: { accept: "application/json", "user-agent": CODEXLY_USER_AGENT },
@@ -200,7 +201,7 @@ async function fetchPackageVersionFromRegistry(registry: string): Promise<string
 }
 
 async function fetchTaggedChangelog(version: string): Promise<string> {
-  const response = await fetch(`${CHANGELOG_URL_PREFIX}${version}/CHANGELOG.md`, {
+  const response = await fetchDirect(`${CHANGELOG_URL_PREFIX}${version}/CHANGELOG.md`, {
     headers: { accept: "text/markdown", "user-agent": CODEXLY_USER_AGENT },
     signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
   });

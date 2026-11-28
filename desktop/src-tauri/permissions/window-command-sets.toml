@@ -14,9 +14,6 @@ permissions = [
   "allow-application-preferences-request",
   "allow-acp-task-request",
   "allow-create-acp-task",
-  "allow-read-network-proxy",
-  "allow-save-network-proxy",
-  "allow-test-network-proxy",
 
   "allow-enable-autostart",
   "allow-get-tray-icon-visible",

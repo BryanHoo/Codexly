@@ -2,8 +2,8 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createInterface } from "node:readline";
 import { setTimeout as sleep } from "node:timers/promises";
-import { Agent, fetch } from "undici";
 import { AcpAuthenticationRequiredError } from "@codexly/core";
+import { fetchDirect } from "@codexly/core/direct-fetch";
 import type { AcpAgentLaunchOptions } from "./agent-launcher.js";
 import { terminateAcpProcess, type AcpProcessCommand } from "./process.js";
 
@@ -52,15 +52,10 @@ export async function startCodefreeServer(
     const match = /listening on (http:\/\/127\.0\.0\.1:\d+)\s*$/i.exec(line);
     if (match?.[1]) ready.resolve(match[1]);
   });
-  // Bun 宿主的 undici 兼容对象没有 destroy；环回请求交由 Bun 直连，Node 使用独立连接池。
-  const dispatcher = process.versions["bun"] ? undefined : new Agent();
   let closing: Promise<void> | undefined;
   const close = () => {
     life.abort();
-    return (closing ??= Promise.all([
-      terminateAcpProcess(child, exited),
-      dispatcher?.destroy(),
-    ]).then(() => undefined));
+    return (closing ??= terminateAcpProcess(child, exited));
   };
   const deadline = AbortSignal.timeout(options.handshakeTimeoutMs ?? 30_000);
   const startup = AbortSignal.any([
@@ -83,8 +78,7 @@ export async function startCodefreeServer(
     ) => {
       const url = new URL(path, base);
       if (cwd) url.searchParams.set("directory", cwd);
-      const response = await fetch(url, {
-        ...(dispatcher ? { dispatcher } : { proxy: "" }),
+      const response = await fetchDirect(url, {
         redirect: "error",
         method,
         headers: { authorization, "content-type": "application/json" },
@@ -132,7 +126,7 @@ export interface CodefreeServer {
     body?: unknown,
     signal?: AbortSignal,
     method?: string,
-  ): Promise<Awaited<ReturnType<typeof fetch>>>;
+  ): Promise<Response>;
   json<T>(path: string, cwd: string, body?: unknown, signal?: AbortSignal): Promise<T>;
   readonly version: string;
   readonly exited: Promise<void>;

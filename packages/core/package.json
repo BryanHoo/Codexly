@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "sideEffects": false,
+  "imports": {
+    "#undici": {
+      "types": "undici",
+      "default": "undici/index.js"
+    }
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -37,12 +43,17 @@
       "types": "./src/task-attachments.ts",
       "default": "./src/task-attachments.ts"
     },
+    "./direct-fetch": {
+      "types": "./src/direct-fetch.ts",
+      "default": "./src/direct-fetch.ts"
+    },
     "./file-task-queue": {
       "types": "./src/file-task-queue.ts",
       "default": "./src/file-task-queue.ts"
     }
   },
   "dependencies": {
-    "@codexly/protocol": "workspace:*"
+    "@codexly/protocol": "workspace:*",
+    "undici": "catalog:"
   }
 }

@@ -32,7 +32,6 @@ export const settingsSections: readonly Readonly<{
   { icon: Bot, id: "acp" },
   { icon: FileText, id: "global-instructions" },
   { icon: Network, id: "access" },
-  { icon: Network, id: "network" },
   { icon: Info, id: "about" },
 ];
 

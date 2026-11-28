@@ -144,9 +144,6 @@ pub fn run() {
                     "旧全局指令导入失败，原文件已保留",
                 );
             }
-            infrastructure::network_proxy::initialize(&infrastructure::app_data::directory(
-                app.handle(),
-            )?)?;
             application::notification_delivery::initialize(app.handle());
             setup_tray(app.handle())?;
             if let Some(window) = app.get_webview_window("main") {
@@ -200,9 +197,6 @@ pub fn run() {
             application::acp_commands::acp_agent_request,
             application::acp_task_commands::acp_task_request,
             application::acp_task_commands::create_acp_task,
-            application::network_proxy_commands::read_network_proxy,
-            application::network_proxy_commands::save_network_proxy,
-            application::network_proxy_commands::test_network_proxy,
             application::notification_commands::dismiss_task_notifications,
             enable_autostart,
             get_tray_icon_visible,

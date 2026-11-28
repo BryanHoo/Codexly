@@ -86,8 +86,6 @@ pub mod saved_prompts_commands;
 
 pub mod prompt_optimization_commands;
 
-pub mod network_proxy_commands;
-
 pub mod acp_plan_runtime;
 
 pub mod acp_plan_commands;

@@ -21,7 +21,6 @@ const tested = spawnSync(
     "tools/acp-build-target.test.mjs",
     "tools/acp-host.test.mjs",
     "tools/acp-host-queue.test.mjs",
-    "tools/acp-proxy-compiled.test.mjs",
     "tools/acp-runtime-layout.test.mjs",
   ],
   { cwd: root, stdio: "inherit", env: { ...process.env, CODEXLY_COMPILED_ACP_HOST: binary } },
