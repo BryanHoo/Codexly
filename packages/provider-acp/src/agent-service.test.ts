@@ -44,6 +44,10 @@ async function fixture(nativeStatus?: () => Record<string, unknown>, quotaExtens
     return {};
   });
   const closed = vi.fn(() => ({}));
+  const open = vi.fn<(sessionId: string) => acp.NewSessionResponse>((sessionId) => ({
+    sessionId,
+    configOptions: structuredClone(initial),
+  }));
   const applied = vi.fn();
   const transformOptions = vi.fn((_id: string, options: acp.SessionConfigOption[]) => options);
   const routingSet = vi.fn(() => ({}));
@@ -90,7 +94,7 @@ async function fixture(nativeStatus?: () => Record<string, unknown>, quotaExtens
       .onRequest(acp.methods.agent.session.new, () => {
         const sessionId = `settings-${String(++sequence)}`;
         sessions.set(sessionId, structuredClone(initial));
-        return { sessionId, configOptions: structuredClone(initial) };
+        return open(sessionId);
       })
       .onRequest(acp.methods.agent.session.list, () => ({ sessions: [] }))
       .onRequest(acp.methods.agent.session.close, closed)
@@ -140,6 +144,7 @@ async function fixture(nativeStatus?: () => Record<string, unknown>, quotaExtens
     transformOptions,
     routingSet,
     closed,
+    open,
     launch,
     async dispose() {
       await service.close();
@@ -858,6 +863,46 @@ it("自动检测原生 API Key，显式刷新重读外部登录状态且不创�
     expect(f.closed).not.toHaveBeenCalled();
     expect(f.applied).not.toHaveBeenCalled();
   } finally {
+    await f.dispose();
+  }
+});
+
+it("Antigravity 未推送身份时通过临时会话确认登录，刷新可发现登出", async () => {
+  const f = await fixture();
+  const catalog = withStorageCatalog({
+    catalog: () => Promise.reject(new Error("探测仅登记后台会话")),
+  });
+  const engine = "acp-antigravity-acp";
+  const agent = new AcpAgentService(engine, f.root, f.store, f.launch, catalog);
+  const requireAuth = () => {
+    throw acp.RequestError.authRequired();
+  };
+  f.open
+    .mockImplementationOnce(requireAuth)
+    .mockImplementationOnce((sessionId) => ({
+      sessionId,
+      _meta: { antigravity: { tier: { id: "free-tier" } } },
+    }))
+    .mockImplementationOnce(requireAuth)
+    .mockImplementationOnce(() => {
+      throw new acp.RequestError(-32603, "网络故障");
+    });
+  try {
+    expect((await agent.inspect()).authStatus?.kind).toBe("none");
+    await agent.authenticate("login");
+    expect((await agent.inspect()).authStatus).toEqual({
+      kind: "account",
+      label: "Google Antigravity",
+    });
+    expect(await catalog.catalog("acp.session.background.list", { engine })).toEqual([
+      "settings-2",
+    ]);
+    expect(f.closed).toHaveBeenCalledOnce();
+    expect((await agent.inspect()).authStatus?.kind).toBe("none");
+    await expect(agent.inspect()).rejects.toThrow("网络故障");
+    expect(f.authenticate).toHaveBeenCalledOnce();
+  } finally {
+    await agent.close();
     await f.dispose();
   }
 });

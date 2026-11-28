@@ -12,7 +12,12 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server scheduled tasks", () => {
-  it("pushes automatic deadline execution to an idle global subscriber", async () => {
+  it("pushes automatic deadline execution to an idle global subscriber", async ({
+    onTestFinished,
+  }) => {
+    // 固定创建请求期间的时间，等服务确认写入后再推进到期时钟。
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    onTestFinished(() => vi.useRealTimers());
     const { provider } = createProvider();
     const app = await createCodexlyServer(createServerOptions(provider));
     closeCallbacks.push(() => app.close());
@@ -35,7 +40,7 @@ describe("server scheduled tasks", () => {
       await vi.waitFor(() => {
         expect(messages).toHaveLength(1);
       });
-      await app.inject({
+      const created = await app.inject({
         method: "POST",
         url: "/v1/scheduled-tasks",
         headers: { "idempotency-key": "automatic" },
@@ -50,6 +55,8 @@ describe("server scheduled tasks", () => {
           turnOptions,
         },
       });
+      expect(created.statusCode, created.body).toBe(201);
+      await vi.advanceTimersByTimeAsync(200);
       await vi.waitFor(
         () => {
           expect(messages.length).toBeGreaterThanOrEqual(4);

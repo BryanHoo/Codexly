@@ -113,3 +113,42 @@ it.each(["codex", "claude", "acp-opencode"] as const)(
     query.clear();
   },
 );
+
+it("额度查询中切换界面语言时沿用原请求", async () => {
+  const query = new QueryClient();
+  const engine = "acp-codefree-o";
+  const profile: AcpAgentProfile = {
+    engine,
+    protocolVersion: 1,
+    authMethods: [],
+    authStatus: { kind: "account", label: "CodeFree O" },
+  };
+  query.setQueryData(["acp-agent-profile", engine], profile);
+  const pending = Promise.withResolvers<CodefreeQuotaView>();
+  const client = {
+    getAcpAgent: async () => profile,
+    getAgentQuota: vi.fn((_engine: string, _options: { signal: AbortSignal }) => pending.promise),
+  };
+  const control = (language: string) => (
+    <QueryClientProvider client={query}>
+      <AgentQuotaControl client={client} engine={engine} language={language} />
+    </QueryClientProvider>
+  );
+  const screen = await render(control("zh-CN"));
+  await screen.getByRole("button", { name: "CodeFree O 剩余额度" }).click();
+  await expect.poll(() => client.getAgentQuota.mock.calls.length).toBe(1);
+  const signal = client.getAgentQuota.mock.calls[0]?.[1].signal;
+
+  await screen.rerender(control("en-US"));
+  await expect.element(screen.getByText("Loading quota…")).toBeVisible();
+  pending.resolve({ fiveHour: 42, sevenDay: null, reason: null });
+  await expect.element(screen.getByRole("progressbar", { name: "5 hours" })).toHaveAttribute(
+    "aria-valuenow",
+    "42",
+  );
+  expect(client.getAgentQuota).toHaveBeenCalledOnce();
+  expect(signal?.aborted).toBe(false);
+  await userEvent.keyboard("{Escape}");
+  await expect.poll(() => signal?.aborted).toBe(true);
+  query.clear();
+});

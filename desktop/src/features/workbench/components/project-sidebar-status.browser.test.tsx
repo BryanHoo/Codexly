@@ -1,6 +1,8 @@
 import type { ComponentProps, ComponentType } from "react";
+import type { AgentTask } from "@codexly/protocol";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
 import { ProjectStatusIndicator } from "@codexly/ui/core/project-status-indicator";
 import { render } from "vitest-browser-react";
 
@@ -21,11 +23,11 @@ vi.mock("../../projects/project-context.js", () => ({
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("@tanstack/react-router")>(),
   createLink: (Component: ComponentType<ComponentProps<"a"> & { taskActive: boolean }>) =>
-    ({ params: _params, to: _to, ...props }: ComponentProps<"a"> & {
+    ({ params: _params, to, ...props }: ComponentProps<"a"> & {
       params?: unknown;
       taskActive: boolean;
       to?: string;
-    }) => <Component {...props} />,
+    }) => <Component href={to} {...props} />,
   Link: ({ children, params: _params, to: _to, ...props }: ComponentProps<"a"> & {
     params?: unknown;
     to?: string;
@@ -46,7 +48,7 @@ const taskActivity = recordNativeTaskActivity(new Map(), {
   requiresApproval: false,
 });
 
-function view(expanded = false) {
+function view(expanded = false, tasks: readonly AgentTask[] = []) {
   const props: ComponentProps<typeof ProjectSidebarTaskList> = {
     archiveTask: vi.fn(), deleteTask: vi.fn(), error: null,
     expandedProjects: new Set(expanded ? [project.id] : []),
@@ -62,7 +64,7 @@ function view(expanded = false) {
     projectOrderAnnouncement: "", projectTaskStates: new Map(), reorderingProjectId: null,
     setExpandedTaskProjects: vi.fn(), setRenamingTask: vi.fn(), taskActionPending: false,
     taskActivity, taskSearch: { error: null, isPending: false },
-    tasksByProjectId: new Map(), toggleProject: vi.fn(),
+    tasksByProjectId: new Map([[project.id, tasks]]), toggleProject: vi.fn(),
   };
   return <TooltipProvider><div style={{ width: 280 }}><ProjectSidebarTaskList {...props} /></div></TooltipProvider>;
 }
@@ -120,4 +122,25 @@ describe("collapsed project status", () => {
       await page.viewport(1440, 900);
     }
   });
+});
+
+it("shows the historical task's ACP icon when only Codex is enabled", async () => {
+  const task: AgentTask = {
+    engine: "acp-antigravity-acp",
+    id: "antigravity-history",
+    pinned: false,
+    projectId: project.id,
+    title: "历史任务",
+    updatedAt: project.createdAt,
+  };
+  const screen = await render(
+    <SelectedEnginesContext value={["codex"]}>{view(true, [task])}</SelectedEnginesContext>,
+  );
+  const row = screen.getByTestId("project-tree-scroll").getByRole("link", { name: /历史任务/u });
+  const icon = row.getByRole("img", { name: "antigravity-acp" });
+  await expect.element(icon).toBeVisible();
+  const glyph = icon.element().querySelector("use");
+  expect(glyph?.getAttribute("href")).toMatch(/#antigravity$/u);
+  await expect.poll(() => glyph?.getBBox().width ?? 0).toBeGreaterThan(0);
+  expect(icon.element().getBoundingClientRect().width).toBe(14);
 });

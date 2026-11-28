@@ -2,15 +2,20 @@ import { readConnectedQuota } from "./account-quota.js";
 import { readNativeConnection, type NativeConnection } from "./native-connection.js";
 import * as acp from "@agentclientprotocol/sdk/unstable";
 import type {
+  AcpAgentProfile,
   AcpAuthCredentials,
   AcpAuthElicitationRequest,
   AcpAuthElicitationResponse,
   AcpConfigPreview,
   AcpConfigPreviewRequest,
+  AcpConfigValues,
+  AcpDefaults,
+  AgentEngine,
+  AgentQuotaView,
 } from "@codexly/protocol";
 import { createAcpPreviewReader, previewAcpConfig, waitForAcpPreview } from "./config-preview.js";
+import { probeAntigravityAuth, projectAcpConnectionSettings } from "./agent-auth-profile.js";
 import type { AcpAgentSettingsService, AgentTaskScope } from "@codexly/core";
-import type { AgentQuotaView, AcpAgentProfile, AcpConfigValues, AcpDefaults, AgentEngine } from "@codexly/protocol";
 import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpSettingsStore } from "./settings-store.js";
@@ -163,30 +168,25 @@ export class AcpAgentService implements AcpAgentSettingsService {
         }
       } else connection = await this.#agent();
       const { initialization } = connection;
-      const authStatus =
+      let authStatus =
         (await connection.readAuthStatus()) ??
         (this.codefreeRevision ? { kind: "account" as const, label: "CodeFree O" } : undefined);
+      if (!authStatus && this.engine === "acp-antigravity-acp")
+        authStatus = await probeAntigravityAuth(
+          connection,
+          this.cwd,
+          async (id) => {
+            await this.#registerBackground(id);
+            await this.#closeSession(connection, id);
+          },
+          () => this.#closeHandle(connection),
+        );
       this.#inspected = true;
       // 厂商会在 initialize 内刷新本地凭据，以下一次读取可见的版本作为基准。
       this.#verifiedCredential =
         credential === this.#verifiedCredential ? credential : await this.codefreeRevision?.();
       const saved = await this.store.inspect(this.engine);
-      const active = Object.values(saved.providers ?? {}).find(
-        (provider) => !saved.disabledProviders?.includes(provider.providerId),
-      );
-      const native = active ? undefined : await this.readNative();
-      const source = active ?? native;
-      const connectionSettings = source
-        ? {
-            source: active ? ("application" as const) : ("native" as const),
-            ...(source.baseUrl ? { baseUrl: source.baseUrl } : {}),
-            apiType: source.apiType,
-            hasCredentials: Object.keys(source.headers ?? {}).some((name) =>
-              ["authorization", "x-api-key", "api-key"].includes(name.toLowerCase()),
-            ),
-            ...(active ? { providerId: active.providerId } : {}),
-          }
-        : undefined;
+      const connectionSettings = await projectAcpConnectionSettings(saved, () => this.readNative());
       return {
         engine: this.engine,
         protocolVersion: initialization.protocolVersion,

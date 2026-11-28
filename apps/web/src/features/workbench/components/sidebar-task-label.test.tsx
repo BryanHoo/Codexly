@@ -1,4 +1,4 @@
-import { taskEngine, type AgentEngine } from "@codexly/protocol";
+import { agentEngineName, taskEngine, type AgentEngine } from "@codexly/protocol";
 import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
 import { SidebarTaskLabel } from "@codexly/ui/core/sidebar-task-label";
 import type { ReactNode } from "react";
@@ -17,22 +17,19 @@ describe("SidebarTaskLabel", () => {
     { engines: [] },
     { engines: ["codex"] },
     { engines: ["claude"] },
-  ])(
-    "hides logos and their placeholder unless both engines are configured: $engines",
-    ({ engines }) => {
-      for (const engine of ["codex", "claude", undefined] as const) {
-        const markup = renderToStaticMarkup(
-          <SelectedEnginesContext value={engines}>
-            <SidebarTaskLabel engine={engine} projectName="项目名称" title="任务标题" />
-          </SelectedEnginesContext>,
-        );
-        expect(markup).not.toContain("<svg");
-        expect(markup).not.toContain('aria-hidden="true" class="size-3.5 shrink-0"');
-        expect(markup).toContain('title="项目名称"');
-        expect(markup).toContain('title="任务标题"');
-      }
-    },
-  );
+    { engines: ["codex", "acp-antigravity-acp"] },
+  ])("uses the task engine independently of enabled agents: $engines", ({ engines }) => {
+    for (const engine of ["codex", "claude", "acp-antigravity-acp"] as const) {
+      const markup = renderToStaticMarkup(
+        <SelectedEnginesContext value={engines}>
+          <SidebarTaskLabel engine={engine} projectName="项目名称" title="任务标题" />
+        </SelectedEnginesContext>,
+      );
+      expect(markup).toContain(`aria-label="${agentEngineName(engine)}"`);
+      expect(markup).toContain('title="项目名称"');
+      expect(markup).toContain('title="任务标题"');
+    }
+  });
 
   it.each(["codex", "claude"] as const)("renders the %s logo before the task title", (engine) => {
     const label = engine === "claude" ? "Claude" : "Codex";

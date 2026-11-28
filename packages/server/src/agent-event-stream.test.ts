@@ -333,6 +333,11 @@ describe("AgentEventStream", () => {
       events: [{ sequence: 2 }, { sequence: 3 }],
       type: "events",
     });
+    expect(stream.replayAfter(2)).toMatchObject({
+      events: [{ sequence: 3 }],
+      type: "events",
+    });
+    expect(stream.replayAfter(3)).toEqual({ events: [], type: "events" });
     expect(stream.replayAfter(0)).toEqual({
       latestSequence: 3,
       reason: "event_retention_exceeded",
@@ -400,5 +405,11 @@ describe("AgentEventStream", () => {
     });
     expect(stream.replayAfter(1)).toEqual({ events: [], type: "events" });
     expect(stream.metrics).toMatchObject({ retainedEvents: 0, retentionEvictions: 1 });
+
+    stream.publish({ ...deltaEvent, payload: { delta: "新" } });
+    expect(stream.replayAfter(1)).toMatchObject({
+      events: [{ sequence: 2, payload: { delta: "新" } }],
+      type: "events",
+    });
   });
 });

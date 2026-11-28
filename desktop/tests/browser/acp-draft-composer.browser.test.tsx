@@ -56,10 +56,9 @@ it.each([false, true])("CodeFree O 目录独立于预热失败（%s），会话�
     </QueryClientProvider>,
   );
   const trigger = screen.getByRole("button", { name: /codefree-o\s*\//i });
-  if (fails) {
-    ready.reject(new Error("ACP_AUTH_REQUIRED"));
-    await expect.element(screen.getByText(/登录 CodeFree O/)).toBeVisible();
-  }
+  const loginNotice = screen.getByText(/登录 CodeFree O/);
+  if (fails) ready.reject(new Error("ACP_AUTH_REQUIRED"));
+  await expect.poll(() => loginNotice.query()?.checkVisibility() ?? false).toBe(fails);
   await trigger.click();
   catalog.resolve({ configOptions, values: {} });
   await screen.getByRole("option", { name: /Model B/ }).click();
@@ -67,9 +66,9 @@ it.each([false, true])("CodeFree O 目录独立于预热失败（%s），会话�
   const send = screen.getByRole("button", { name: "发送测试" });
   await expect.element(send).toBeDisabled();
   expect(preview.mock.calls.map(([, , request]) => request.change)).toEqual([undefined, undefined]);
+  await expect.poll(() => loginNotice.query()?.checkVisibility() ?? false).toBe(fails);
   if (fails) {
     // 菜单关闭后可直接在通用通知内重试，并沿用已选模型。
-    await expect.element(screen.getByText(/登录 CodeFree O/)).toBeVisible();
     await screen.getByRole("button", { name: "重试" }).click();
   } else ready.resolve(complete);
   await expect.element(send).toBeEnabled();

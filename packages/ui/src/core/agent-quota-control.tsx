@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Gauge } from "lucide-react";
 import { canShowAcpQuota } from "@codexly/frontend-core/acp-config-visibility";
 import { AcpProfileGate, type AcpProfileClient } from "./acp-fast-mode-gate.js";
@@ -43,6 +43,10 @@ function QuotaDetails({
   const [quota, setQuota] = useState<AgentQuotaView>();
   const [failed, setFailed] = useState(false);
   const [attempt, retry] = useState(0);
+  // 错误提示使用当前界面语言，切换语言不应取消并重启账号查询。
+  const reportFailure = useEffectEvent(() => {
+    toast.error(zh ? "读取 Agent 额度失败" : "Could not read agent quota");
+  });
   useEffect(() => {
     const controller = new AbortController();
     // 弹层挂载后才读账号额度。关闭或切换引擎会取消请求，迟到结果不会覆盖下次查询。
@@ -54,14 +58,14 @@ function QuotaDetails({
       } catch {
         if (controller.signal.aborted) return;
         setFailed(true);
-        toast.error(zh ? "读取 Agent 额度失败" : "Could not read agent quota");
+        reportFailure();
       }
     };
     void load();
     return () => {
       controller.abort();
     };
-  }, [client, zh, attempt, engine]);
+  }, [client, attempt, engine]);
   if (failed)
     return (
       <Button

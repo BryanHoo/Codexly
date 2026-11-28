@@ -259,7 +259,6 @@ export class AgentEventStream {
     if (sequence > this.#sequence) {
       return { latestSequence: this.#sequence, reason: "session_changed", type: "resync" };
     }
-    const retained = this.#retainedEvents();
     if (sequence < this.#historyFloorSequence) {
       return {
         latestSequence: this.#sequence,
@@ -267,7 +266,14 @@ export class AgentEventStream {
         type: "resync",
       };
     }
-    return { events: retained.filter((event) => event.sequence > sequence), type: "events" };
+    // 水位之后的保留事件序号连续，按 checkpoint 直接定位环形缓冲区的补发起点。
+    const events: AgentEvent[] = [];
+    const firstOffset = Math.floor(sequence) - this.#historyFloorSequence;
+    for (let offset = firstOffset; offset < this.#eventCount; offset += 1) {
+      const entry = this.#events[(this.#eventStart + offset) % this.#capacity];
+      if (entry !== undefined) events.push(entry.event);
+    }
+    return { events, type: "events" };
   }
 
   public subscribe(listener: AgentEventListener): () => void {
@@ -349,17 +355,6 @@ export class AgentEventStream {
     this.#events[insertionIndex] = { event, retainedBytes };
     this.#eventCount += 1;
     this.#retainedBytes += retainedBytes;
-  }
-
-  #retainedEvents(): AgentEvent[] {
-    const retained: AgentEvent[] = [];
-    for (let offset = 0; offset < this.#eventCount; offset += 1) {
-      const entry = this.#events[(this.#eventStart + offset) % this.#capacity];
-      if (entry !== undefined) {
-        retained.push(entry.event);
-      }
-    }
-    return retained;
   }
 
   #evictOldest(): void {

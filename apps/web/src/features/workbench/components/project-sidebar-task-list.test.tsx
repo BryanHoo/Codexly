@@ -60,7 +60,7 @@ function renderProjectTaskList(
   includeShortcuts = false,
 ) {
   const markup = renderToStaticMarkup(
-    <SelectedEnginesContext value={["codex", "claude"]}>
+    <SelectedEnginesContext value={["codex"]}>
       <TooltipProvider>
         <ProjectSidebarTaskList
           archiveTask={vi.fn()}
