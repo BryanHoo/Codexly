@@ -40,7 +40,10 @@ for (const [platform, Gate, client] of [
     });
     const catalog = vi
       .spyOn(client, "getAcpAgentCatalog")
-      .mockImplementation(() => pending.promise);
+      .mockImplementation((options) =>
+        options?.cached ? Promise.resolve({ agents: [] }) : pending.promise,
+      );
+    const liveChecks = () => catalog.mock.calls.filter(([options]) => !options?.cached).length;
     const inspect = vi.spyOn(client, "getAcpAgent");
     const check = vi.spyOn(client, "getAcpDefaults");
     const old = vi.spyOn(client, "getEngineProfile");
@@ -71,7 +74,7 @@ for (const [platform, Gate, client] of [
       await expect
         .element(screen.getByText("已进入工作区：acp-gemini", { exact: true }))
         .toBeVisible();
-      expect(catalog).toHaveBeenCalledOnce();
+      expect(liveChecks()).toBe(1);
       expect(old).not.toHaveBeenCalled();
       expect(localStorage.getItem(ENGINE_SETUP_KEY)).toBe(oldMarker);
       expect(ready).toHaveBeenCalledOnce();
@@ -80,7 +83,9 @@ for (const [platform, Gate, client] of [
       query.clear();
       // 新建查询缓存并重挂载整个入口，模拟刷新后的启动；只保留浏览器持久记录。
       const reloaded = Promise.withResolvers<AcpAgentCatalogPage>();
-      catalog.mockImplementation(() => reloaded.promise);
+      catalog.mockImplementation((options) =>
+        options?.cached ? pending.promise : reloaded.promise,
+      );
       query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       screen = await render(
         <QueryClientProvider client={query}>
@@ -89,7 +94,7 @@ for (const [platform, Gate, client] of [
           </Gate>
         </QueryClientProvider>,
       );
-      await expect.poll(() => catalog.mock.calls.length).toBe(2);
+      await expect.poll(liveChecks).toBe(2);
       expect(loading).toHaveBeenCalledTimes(loadingCount);
       reloaded.resolve(await pending.promise);
       await expect

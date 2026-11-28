@@ -42,17 +42,22 @@ for (const width of [390, 1280]) {
           })
         : route.fulfill({ json: { agents: [installedAcpCodex, { ...claude, enabled: true }] } });
     });
-    await page.route("**/v1/acp/agents/codex", (route) =>
-      route.fulfill({ json: { engine: "codex", protocolVersion: 2, authMethods: [] } }),
+    await page.route("**/v1/acp/agents/codex/settings-snapshot", (route) =>
+      route.fulfill({
+        json: { profile: { engine: "codex", protocolVersion: 2, authMethods: [] } },
+      }),
     );
     let inspections = 0;
-    await page.route("**/v1/acp/agents/claude", (route) => {
-      inspections += 1;
+    await page.route("**/v1/acp/agents/claude/settings-snapshot", (route) => {
+      if (route.request().method() === "POST") inspections += 1;
       return route.fulfill({
         json: {
-          engine: "claude",
-          protocolVersion: 2,
-          authMethods: [{ id: "native-login", name: "原生登录" }],
+          profile: {
+            engine: "claude",
+            protocolVersion: 2,
+            authStatus: { kind: "account", label: "Claude" },
+            authMethods: [{ id: "native-login", name: "原生登录", description: null }],
+          },
         },
       });
     });
@@ -64,7 +69,7 @@ for (const width of [390, 1280]) {
     const legacy: string[] = [];
     page.on("request", (request) => {
       const path = new URL(request.url()).pathname;
-      if (path.includes("/engines/claude") || path.includes("/claude/settings")) legacy.push(path);
+      if (/^\/v1\/(?:engines\/claude|claude\/settings)(?:\/|$)/u.test(path)) legacy.push(path);
     });
     await page.goto("/p/codexly");
     if (width < 600) await page.getByRole("button", { name: "展开项目侧栏", exact: true }).click();
@@ -74,13 +79,14 @@ for (const width of [390, 1280]) {
     await settings.getByRole("button", { name: "Claude Code", exact: true }).click();
     const enable = settings.getByRole("switch", { name: "启用 Claude Code", exact: true });
     await expect(enable).not.toBeChecked();
-    expect(inspections).toBe(0);
+    await expect(enable).toBeEnabled();
+    await expect.poll(() => inspections).toBe(1);
 
-    // 目录更新失败时保持关闭。重试成功后才读取新启用 Agent 的连接配置。
+    // 只有已连接的 Agent 可以启用，目录更新失败时保持关闭。
     await enable.click();
     await expect(page.getByRole("heading", { name: "更新失败", exact: true })).toBeVisible();
     await expect(enable).not.toBeChecked();
-    expect(inspections).toBe(0);
+    expect(inspections).toBe(1);
     await enable.click();
     await expect(enable).toBeChecked();
     await expect(settings.getByRole("heading", { name: "连接配置", exact: true })).toBeVisible();

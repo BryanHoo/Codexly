@@ -63,12 +63,12 @@ describe("Release native terminal measurements", () => {
     await $('[aria-label="切换项目 CodeAgent"]').moveTo();
     await $("aria/在 CodeAgent 中新建任务").click();
     await $("aria/终端 0").waitForExist();
+    const { appPid } = await nativeMetrics();
     if (process.platform === "win32") {
       // 资源采样仅要求窗口可见；已可见时不额外争抢系统前台输入焦点。
-      if (await browser.execute(() => document.hidden)) await windowsTerminalNative("activate");
+      if (await browser.execute(() => document.hidden)) await windowsTerminalNative("activate", "", 10000, false, appPid);
     } else {
       // 原生 PID 来自当前测试会话，覆盖独立二进制和 .app，避免误激活已安装的同名应用。
-      const { appPid } = await nativeMetrics();
       await promisify(execFile)("swift", [
         "-e",
         "import AppKit; if let pid = Int32(CommandLine.arguments[1]), let app = NSRunningApplication(processIdentifier: pid) { app.unhide(); _ = app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps]) }",
@@ -77,7 +77,7 @@ describe("Release native terminal measurements", () => {
     }
     await browser.waitUntil(async () => browser.execute(() => !document.hidden));
     if (process.platform === "win32") {
-      const window = await windowsTerminalNative("inspect");
+      const window = await windowsTerminalNative("inspect", "", 10000, false, appPid);
       const native = await nativeMetrics();
       const resources = await sampleResources(native.appPid, [], performance.now());
       const pids = new Set(resources.processes?.map((row) => row.pid));

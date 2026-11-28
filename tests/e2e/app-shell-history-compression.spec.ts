@@ -12,9 +12,17 @@ for (const mobile of [false, true]) {
     await page.route("**/v1/capabilities", (route) =>
       route.fulfill({ json: createAcpCapabilities("codex") }),
     );
-    await page.route("**/v1/acp/agents/codex/defaults", (route) =>
+    await page.route("**/v1/acp/agents/codex/settings-snapshot", (route) =>
       route.fulfill({
-        json: { configOptions: [], defaults: {}, unmappedLegacy: [], invalidDefaults: [] },
+        json: {
+          profile: {
+            engine: "codex",
+            protocolVersion: 2,
+            authStatus: { kind: "api_key", label: "API Key" },
+            authMethods: [],
+          },
+          defaults: { configOptions: [], defaults: {}, unmappedLegacy: [], invalidDefaults: [] },
+        },
       }),
     );
     await page.route("**/v1/history/compress", (route) => {

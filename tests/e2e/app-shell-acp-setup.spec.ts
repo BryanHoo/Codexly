@@ -24,15 +24,22 @@ for (const width of [390, 1280]) {
         },
       }),
     );
-    let inspections = 0;
+    const authenticationRequests: string[] = [];
     page.on("request", (request) => {
-      if (/\/v1\/acp\/agents\/codex(?:\/defaults)?$/u.test(new URL(request.url()).pathname))
-        inspections += 1;
+      const path = new URL(request.url()).pathname;
+      if (/\/v1\/acp\/agents\/codex\/(?:settings-snapshot|authenticate)$/u.test(path))
+        authenticationRequests.push(path);
     });
     await mockAcpWorkspace(page);
     const refreshes: (string | null)[] = [];
     await page.route(/\/v1\/acp\/registry(?:\?.*)?$/u, (route) => {
-      refreshes.push(new URL(route.request().url()).searchParams.get("refresh"));
+      const params = new URL(route.request().url()).searchParams;
+      if (params.get("cached") === "true") {
+        return route.fulfill({
+          json: { agents: refreshes.length > 1 ? [installedAcpCodex] : [] },
+        });
+      }
+      refreshes.push(params.get("refresh"));
       return refreshes.length === 1
         ? route.fulfill({
             status: 502,
@@ -49,7 +56,7 @@ for (const width of [390, 1280]) {
     expect(
       await page.evaluate(() => localStorage.getItem("codexly:acp-engine-setup:v1")),
     ).toBeNull();
-    // 重试只刷新目录。工作区已可用，探测过程无需预读认证或会话默认值。
+    // 重试只刷新目录。工作区可以独立加载输入框配置，无需读取认证资料。
     await page.getByRole("button", { name: "重试", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Agent 已就绪" })).toBeVisible();
     expect(refreshes).toEqual([null, "true"]);
@@ -64,6 +71,6 @@ for (const width of [390, 1280]) {
     await expect(editor).toBeVisible();
     await expect.poll(() => refreshes).toEqual([null, "true", null]);
     await expect(page.getByRole("heading", { name: "Agent 已就绪" })).toHaveCount(0);
-    expect(inspections).toBe(0);
+    expect(authenticationRequests).toEqual([]);
   });
 }

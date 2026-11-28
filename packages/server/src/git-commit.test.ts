@@ -92,7 +92,7 @@ describe("commitSelectedProjectChanges", () => {
     } finally {
       await app.close();
     }
-  }, 15_000);
+  });
 
   it("reads the current commit after commit with an outdated snapshot, then pushes that HEAD", async () => {
     const root = await createRepository();

@@ -63,6 +63,31 @@ export async function mockAcpDefaults(page: Page): Promise<void> {
     options,
   });
   const choices = (entries: string[]) => entries.map((value) => ({ value, name: value }));
+  const readOptions = () => [
+    select(
+      "model",
+      "模型",
+      [...models, ...customModels].map((model) => ({
+        value: model.id,
+        name: model.displayName,
+      })),
+    ),
+    select(
+      "reasoning",
+      "思考强度",
+      ["最低", "低", "中", "高", "极高"].map((name, index) => ({
+        name,
+        value: ["minimal", "low", "medium", "high", "xhigh"][index] ?? "",
+      })),
+    ),
+    select("approval", "审批", choices(["on-request", "never"])),
+    select("workspace", "工作区", choices(["workspace-write", "danger-full-access"])),
+    select("webSearch", "网页搜索", choices(["disabled", "cached", "live"])),
+    select("verbosity", "输出详细程度", choices(["", "low", "medium", "high"])),
+  ];
+  await page.route("**/v1/acp/agents/codex/config-cache", (route) =>
+    route.fulfill({ json: { configOptions: readOptions(), values: { ...values } } }),
+  );
   await page.route("**/v1/acp/agents/codex/defaults", async (route) => {
     if (route.request().method() === "PATCH") {
       const input = parseRequestRecord(route.request().postData());
@@ -76,28 +101,7 @@ export async function mockAcpDefaults(page: Page): Promise<void> {
     }
     await route.fulfill({
       json: {
-        configOptions: [
-          select(
-            "model",
-            "模型",
-            [...models, ...customModels].map((model) => ({
-              value: model.id,
-              name: model.displayName,
-            })),
-          ),
-          select(
-            "reasoning",
-            "思考强度",
-            ["最低", "低", "中", "高", "极高"].map((name, index) => ({
-              name,
-              value: ["minimal", "low", "medium", "high", "xhigh"][index] ?? "",
-            })),
-          ),
-          select("approval", "审批", choices(["on-request", "never"])),
-          select("workspace", "工作区", choices(["workspace-write", "danger-full-access"])),
-          select("webSearch", "网页搜索", choices(["disabled", "cached", "live"])),
-          select("verbosity", "输出详细程度", choices(["", "low", "medium", "high"])),
-        ],
+        configOptions: readOptions(),
         defaults: { ...values },
         unmappedLegacy: [],
         invalidDefaults: [],

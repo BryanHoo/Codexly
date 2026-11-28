@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
-import { mkdir, realpath } from "node:fs/promises";
+import { appendFile, mkdir, readdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { AcpStorageLeases, AcpRuntime, AcpHistory } from "@codexly/provider-acp";
 import {
@@ -131,6 +131,11 @@ it("历史重放竞争保留原指针，失败后可由另一连接写入", asyn
       })(),
     ),
   ).rejects.toThrow("重放中断");
+  const taskDirectory = join(directory, createHash("sha256").update("task").digest("hex"));
+  const generation = (await readdir(taskDirectory)).find((name) => name.endsWith(".jsonl"));
+  if (!generation) throw new Error("缺少历史正文");
+  // 模拟正文写到一半，但提交指针仍指向上一回合。
+  await appendFile(join(taskDirectory, generation), '{"turn":');
   await other.append("task", { ...turn, id: "new" });
   expect((await history.read("task")).turns.map((entry) => entry.id)).toEqual(["old", "new"]);
   expect(await a.catalog("acp.storage.read", { key })).toBeNull();

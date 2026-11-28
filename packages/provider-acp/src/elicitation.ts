@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { runInNewContext } from "node:vm";
+import { Script } from "node:vm";
 import {
   RequestError,
   type CreateElicitationRequest,
@@ -26,6 +26,11 @@ type Reply = CreateElicitationResponse;
 
 const CANCEL: Reply = { action: "cancel" };
 const MAX_REQUESTS = 64;
+// Windows watchdog startup can consume the 25 ms budget on a loaded machine.
+const PATTERN_TIMEOUT_MS = process.platform === "win32" ? 100 : 25;
+const checkPatterns = new Script(
+  'checks.every(({ pattern, value }) => new RegExp(pattern, "u").test(value))',
+);
 
 interface Waiting {
   request: Pending;
@@ -85,13 +90,7 @@ function patternsMatch(
   if (checks.length === 0) return true;
   try {
     // 所有来自 Agent 的正则共享一次提交的执行预算。
-    return (
-      runInNewContext(
-        'checks.every(({ pattern, value }) => new RegExp(pattern, "u").test(value))',
-        { checks },
-        { timeout: 25 },
-      ) === true
-    );
+    return checkPatterns.runInNewContext({ checks }, { timeout: PATTERN_TIMEOUT_MS }) === true;
   } catch {
     return false;
   }

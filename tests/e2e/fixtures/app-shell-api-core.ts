@@ -109,6 +109,8 @@ export async function handleAppShellCoreRoute(
     body = { agents: [installedAcpCodex] };
   } else if (url.pathname === "/v1/acp/registry/progress") {
     body = { operations: [] };
+  } else if (/^\/v1\/acp\/agents\/[^/]+\/(?:config-cache|settings-snapshot)$/u.test(url.pathname)) {
+    body = null;
   } else if (url.pathname === "/v1/acp/agents/codex") {
     const connected = state.providerStatus.state === "connected";
     const baseUrl = state.providerStatus.customBaseUrl;

@@ -1,18 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import {
-  mkdir,
-  open,
-  opendir,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, open, opendir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AcpStorageLeases } from "./storage-lease.js";
-import { HistoricalTaskAttachments } from "@codexly/core/task-attachments";
+import { HistoricalTaskAttachments, renameStorageFile } from "@codexly/core/task-attachments";
 
 export const ACP_HISTORY_CACHE_BYTES = 256 * 1024 * 1024;
 const generationFile = /^[a-f0-9-]{36}\.(jsonl|tmp)$/;
@@ -114,7 +104,7 @@ export class AcpHistoryCache {
       await writeFile(temporary, JSON.stringify({ replayable, accessedAt: Date.now() }), {
         mode: 0o600,
       });
-      await rename(temporary, join(root, "cache-policy.json"));
+      await renameStorageFile(temporary, join(root, "cache-policy.json"));
     } finally {
       await rm(temporary, { force: true });
     }

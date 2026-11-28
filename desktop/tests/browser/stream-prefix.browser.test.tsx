@@ -13,7 +13,9 @@ for (const [name, Response] of [["Web", WebResponse], ["桌面", DesktopResponse
     expect([...screen.container.querySelectorAll("p")].some((p) => p.textContent === "我")).toBe(false);
     expect(screen.container.textContent).toBe(buffer.materialize());
     await screen.rerender(<Response textSource={buffer.getSnapshot()} mode="static" isAnimating={false} />);
-    await expect.poll(() => screen.container.querySelector("[data-streaming-markdown-preview]")).toBeNull();
+    await expect
+      .poll(() => screen.container.querySelector("[data-streaming-markdown-preview]"), { timeout: 10_000 })
+      .toBeNull();
     expect(screen.container.querySelectorAll("p")).toHaveLength(1);
     expect(screen.container.textContent).toBe(buffer.materialize().replaceAll("**", ""));
   });

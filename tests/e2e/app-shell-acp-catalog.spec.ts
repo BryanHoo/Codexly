@@ -3,9 +3,9 @@ import { expect, test } from "./fixtures/app-shell.js";
 
 test("Web ACP 目录显示真实安装进度并支持确认移除 @cross-browser", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  const gemini: AcpAgentCatalogPage["agents"][number] = {
-    engine: "acp-gemini",
-    name: "Gemini CLI",
+  const openCode: AcpAgentCatalogPage["agents"][number] = {
+    engine: "acp-opencode",
+    name: "OpenCode",
     description: "",
     version: "1.0.0",
     detected: false,
@@ -29,15 +29,17 @@ test("Web ACP 目录显示真实安装进度并支持确认移除 @cross-browser
       },
     }),
   );
-  await page.route("**/v1/acp/registry", (route) => route.fulfill({ json: { agents: [gemini] } }));
+  await page.route(/\/v1\/acp\/registry(?:\?.*)?$/u, (route) =>
+    route.fulfill({ json: { agents: [openCode] } }),
+  );
   await page.route("**/v1/acp/registry/progress", (route) => route.fulfill({ json: progress }));
   await page.route("**/v1/acp/registry/install", async (route) => {
     // 安装请求保持进行中，确保百分比确实通过独立进度接口更新。
     progress = {
       operations: [
         {
-          engine: gemini.engine,
-          name: gemini.name,
+          engine: openCode.engine,
+          name: openCode.name,
           action: "install",
           progress: { stage: "downloading", received: 30, total: 100 },
         },
@@ -46,12 +48,14 @@ test("Web ACP 目录显示真实安装进度并支持确认移除 @cross-browser
     await release.promise;
     progress = { operations: [] };
     await route.fulfill({
-      json: { agents: [{ ...gemini, installed: true, enabled: false, command: "/bin/gemini" }] },
+      json: {
+        agents: [{ ...openCode, installed: true, enabled: false, command: "/bin/opencode" }],
+      },
     });
   });
   await page.route("**/v1/acp/registry/remove", async (route) => {
     removalCount += 1;
-    await route.fulfill({ json: { agents: [gemini] } });
+    await route.fulfill({ json: { agents: [openCode] } });
   });
   await page.goto("/p/codexly");
   await page.getByRole("button", { name: "展开项目侧栏", exact: true }).click();
@@ -71,9 +75,9 @@ test("Web ACP 目录显示真实安装进度并支持确认移除 @cross-browser
   await settings.getByRole("button", { name: "移除 Agent" }).click();
   expect(removalCount).toBe(0);
   await page
-    .getByRole("dialog", { name: "移除 Gemini CLI？" })
+    .getByRole("dialog", { name: "移除 OpenCode？" })
     .getByRole("button", { name: "移除", exact: true })
     .click();
-  await expect(settings.getByRole("button", { name: "Gemini CLI", exact: true })).toHaveCount(0);
+  await expect(settings.getByRole("button", { name: "OpenCode", exact: true })).toHaveCount(0);
   expect(removalCount).toBe(1);
 });

@@ -12,8 +12,21 @@ const MAX_RECORD_BYTES: usize = 64 * 1024;
 pub(super) async fn fold_records<T, F>(
     repo: &Path,
     args: &[&str],
+    state: T,
+    consume: F,
+) -> Result<T, WorkspaceError>
+where
+    F: FnMut(&mut T, &[u8]) -> Result<(), WorkspaceError>,
+{
+    fold_records_with_timeout(repo, args, state, consume, Duration::from_secs(30)).await
+}
+
+pub(super) async fn fold_records_with_timeout<T, F>(
+    repo: &Path,
+    args: &[&str],
     mut state: T,
     mut consume: F,
+    timeout: Duration,
 ) -> Result<T, WorkspaceError>
 where
     F: FnMut(&mut T, &[u8]) -> Result<(), WorkspaceError>,
@@ -74,7 +87,7 @@ where
         Ok(bytes)
     };
     // 管道与 wait 同时推进；取消请求会丢弃 child 并终止只读 Git，配额随之释放。
-    let result = tokio::time::timeout(Duration::from_secs(30), async {
+    let result = tokio::time::timeout(timeout, async {
         tokio::try_join!(read_stdout, read_stderr, async {
             child.wait().await.map_err(WorkspaceError::from)
         })
@@ -87,8 +100,9 @@ where
         Ok(Ok(_)) => Ok(state),
         Ok(Err(error)) => Err(error),
         Err(_) => Err(WorkspaceError::GitCommandFailed(format!(
-            "git {} timed out after 30 seconds",
-            args[0]
+            "git {} timed out after {} seconds",
+            args[0],
+            timeout.as_secs()
         ))),
     }
 }

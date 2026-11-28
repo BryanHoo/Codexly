@@ -109,6 +109,14 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
         currentValue: "gpt-5.6-sol", options: [{ value: "gpt-5.6-sol", name: "GPT-5.6 Sol" }],
       };
       let baseUrl = fixtures.connectedProvider.customBaseUrl as string;
+      const profile = () => ({
+        engine: "codex", protocolVersion: 2, providerConfiguration: true, authMethods: [],
+        connection: { source: "native", baseUrl, apiType: "openai", hasCredentials: true },
+      });
+      const defaults = {
+        configOptions: [model], defaults: { model: model.currentValue },
+        unmappedLegacy: [], invalidDefaults: [],
+      };
       const providers = () => ({
         providers: [{
           providerId: "openai", supported: ["openai"], required: false,
@@ -127,16 +135,20 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           case "agents.progress":
             return { operations: [] };
           case "agent.inspect":
-            return { engine: "codex", protocolVersion: 2, providerConfiguration: true, authMethods: [],
-              connection: { source: "native", baseUrl, apiType: "openai", hasCredentials: true } };
+            return profile();
+          case "settings.snapshot.read":
+          case "settings.snapshot.refresh":
+            return { profile: profile(), defaults };
           case "providers.set":
             baseUrl = params.config?.baseUrl ?? baseUrl;
             return providers();
           case "providers.list":
             return providers();
           case "settings.read":
-            return { configOptions: [model], defaults: { model: model.currentValue }, unmappedLegacy: [], invalidDefaults: [] };
+            return defaults;
           case "settings.preview":
+          case "settings.cache.read":
+          case "settings.cache.refresh":
             return { configOptions: [model], values: { model: model.currentValue } };
           default:
             throw new Error(`Missing ACP agent fixture for ${method}`);

@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][ValidateSet('activate', 'keys', 'request', 'cancel', 'confirm', 'inspect')][string]$Action,
     [string]$TextBase64 = '',
     [int]$DelayMilliseconds = 10,
-    [string]$Enter = 'false'
+    [string]$Enter = 'false',
+    [int]$AppPid = 0
 )
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
@@ -96,9 +97,14 @@ public static class TerminalNative {
 '@
 $resolvedExecutable = [IO.Path]::GetFullPath($Executable)
 $processName = [IO.Path]::GetFileNameWithoutExtension($resolvedExecutable)
-$targets = @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $resolvedExecutable })
-if ($targets.Count -ne 1) { throw 'Expected exactly one application matching the test executable' }
-$targetProcess = $targets[0]
+if ($AppPid -gt 0) {
+    $targetProcess = Get-Process -Id $AppPid -ErrorAction Stop
+    if ($targetProcess.ProcessName -ne $processName) { throw 'The test session PID does not belong to Codexly' }
+} else {
+    $targets = @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $resolvedExecutable })
+    if ($targets.Count -ne 1) { throw 'Expected exactly one application matching the test executable' }
+    $targetProcess = $targets[0]
+}
 $text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($TextBase64))
 $main = @([TerminalNative]::Windows($targetProcess.Id) | Where-Object { [TerminalNative]::Class($_) -ne '#32770' -and [TerminalNative]::Text($_) -eq 'Codexly' })
 if ($main.Count -ne 1) { throw 'Expected one visible Codexly test window' }

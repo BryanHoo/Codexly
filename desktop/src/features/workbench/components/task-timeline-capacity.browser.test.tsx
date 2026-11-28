@@ -233,6 +233,7 @@ for (const platform of [
         );
       }
     },
-    60_000,
+    // Windows WebKit needs time for repeated mount and unmount of all four long histories.
+    120_000,
   );
 }

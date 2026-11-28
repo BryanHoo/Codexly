@@ -30,30 +30,32 @@ for (const width of [390, 1280]) {
       signedIn = false;
     const auth: { body: unknown; requestKey: string | undefined }[] = [],
       writes: unknown[] = [];
-    await page.route("**/v1/acp/agents/codex", (route) =>
+    await page.route("**/v1/acp/agents/codex/settings-snapshot", (route) =>
       route.fulfill({
         json: {
-          engine: "codex",
-          protocolVersion: 2,
-          providerConfiguration: true,
-          ...(baseUrl
-            ? {
-                connection: {
-                  source,
-                  baseUrl,
-                  apiType,
-                  hasCredentials: true,
-                  providerId: "openai",
-                },
-              }
-            : {}),
-          authStatus: signedIn
-            ? { kind: "account", label: "ChatGPT Pro", account: { email: "user@example.com" } }
-            : { kind: "gateway", label: "Custom model gateway" },
-          authMethods: [
-            { id: "api-key", name: "API Key" },
-            { id: "chat-gpt", name: "ChatGPT" },
-          ],
+          profile: {
+            engine: "codex",
+            protocolVersion: 2,
+            providerConfiguration: true,
+            ...(baseUrl
+              ? {
+                  connection: {
+                    source,
+                    baseUrl,
+                    apiType,
+                    hasCredentials: true,
+                    providerId: "openai",
+                  },
+                }
+              : {}),
+            authStatus: signedIn
+              ? { kind: "account", label: "ChatGPT Pro", account: { email: "user@example.com" } }
+              : { kind: "gateway", label: "Custom model gateway" },
+            authMethods: [
+              { id: "api-key", name: "API Key", description: null },
+              { id: "chat-gpt", name: "ChatGPT", description: null },
+            ],
+          },
         },
       }),
     );

@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, opendir, readFile, realpath, rename, rm, stat } from "node:fs/promises";
+import { mkdir, open, opendir, readFile, realpath, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentTurn } from "@codexly/protocol";
 import type { AcpStorageLeases } from "./storage-lease.js";
-import { createReadStream } from "node:fs";
+import { constants, createReadStream } from "node:fs";
+import { renameStorageFile } from "@codexly/core/task-attachments";
 import { decodeHistoryEntry, replayFingerprint, type AcpHistoryEntry } from "./replay-anchor.js";
 import { AcpHistoryCache, ACP_HISTORY_CACHE_BYTES } from "./history-cache.js";
 
@@ -123,7 +124,7 @@ export class AcpHistory {
       await file.close();
     }
     try {
-      await rename(path, join(root, "current"));
+      await renameStorageFile(path, join(root, "current"));
     } finally {
       await rm(path, { force: true });
     }
@@ -246,13 +247,28 @@ export class AcpHistory {
         return;
       }
       const head = old ?? { generation: randomUUID(), end: 0 };
-      const file = await open(join(root, `${head.generation}.jsonl`), "a+", 0o600);
+      // Windows append-only handles cannot truncate an interrupted write.
+      const file = await open(
+        join(root, `${head.generation}.jsonl`),
+        constants.O_CREAT | constants.O_RDWR,
+        0o600,
+      );
       try {
         // 只公开指针中的已提交字节；上次写盘中断遗留的半行在重试时精确截断。
-        if ((await file.stat()).size < head.end)
-          throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
-        await file.truncate(head.end);
-        await file.writeFile(data);
+        const { size } = await file.stat();
+        if (size < head.end) throw new AcpHistoryCorruptionError("ACP 历史记录不完整");
+        if (size > head.end) await file.truncate(head.end);
+        let offset = 0;
+        while (offset < data.length) {
+          const { bytesWritten } = await file.write(
+            data,
+            offset,
+            data.length - offset,
+            head.end + offset,
+          );
+          if (bytesWritten === 0) throw new Error("无法追加 ACP 历史记录");
+          offset += bytesWritten;
+        }
         await file.sync();
         keepRecent(recent, next);
         await this.#publish(root, {

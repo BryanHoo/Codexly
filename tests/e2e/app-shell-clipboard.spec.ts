@@ -72,11 +72,12 @@ for (const mode of ["unavailable", "denied"] as const) {
     const copy = page.getByRole("button", { name: "复制消息", exact: true }).last();
     await expect(copy).toBeVisible();
     await copy.click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { __copiedText?: string }).__copiedText),
+      )
+      .toBe(originalText);
     await expect(page.locator('[data-toast][data-type="error"]')).toHaveCount(0);
-    const copied = await page.evaluate(
-      () => (window as unknown as { __copiedText: string }).__copiedText,
-    );
-    expect(copied).toBe(originalText);
     if (browserName === "chromium") {
       // Windows 系统剪贴板将换行转换为 CRLF；原始复制文本已在上方严格校验。
       const readClipboard = async () =>
@@ -85,7 +86,7 @@ for (const mode of ["unavailable", "denied"] as const) {
             (window as unknown as { __readClipboard: () => Promise<string> }).__readClipboard(),
           )
         ).replace(/\r\n/gu, "\n");
-      await expect.poll(readClipboard).toBe(copied);
+      await expect.poll(readClipboard).toBe(originalText);
     }
     await expect(page.locator('textarea[aria-hidden="true"]')).toHaveCount(0);
   });

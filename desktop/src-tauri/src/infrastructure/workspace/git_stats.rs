@@ -1,5 +1,5 @@
 //! 行数直接读取 Git numstat，不生成或传输补丁正文；逐条处理特殊路径及 rename。
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, time::Duration};
 
 use crate::domain::file_change::FileChangeStats;
 
@@ -23,7 +23,7 @@ pub(super) async fn read_stats(
         &mut []
     };
     // Windows 大清单并发读取同一 index/blob 会放大磁盘争用，甚至让两路都超时。
-    // 小清单与其他平台仍并行；大清单顺序读取，保留每个 Git 命令的原有超时预算。
+    // 小清单与其他平台仍并行；大清单顺序读取。
     if cfg!(windows) && total_changes > 20_000 {
         read_side(repo, staged, true).await?;
         read_side(repo, unstaged_for_diff, false).await?;
@@ -73,15 +73,27 @@ async fn read_side(
     }
     args.push("--");
     let mut parser = Numstat::default();
-    super::git_stream::fold_records(repo, &args, (), |(), record| {
-        if let Some((path, stats)) = parser.record(record)?
-            && let Some(index) = paths.get(path)
-        {
-            // 未跟踪文件由内容指纹扫描统计；tracked 条目以 Git 自身结果覆盖。
-            changes[*index].stats = stats;
-        }
-        Ok(())
-    })
+    // Windows Git 对超大清单逐文件读取统计，磁盘繁忙时单侧可能超过默认时限。
+    let timeout = Duration::from_secs(if cfg!(windows) && changes.len() > 20_000 {
+        90
+    } else {
+        30
+    });
+    super::git_stream::fold_records_with_timeout(
+        repo,
+        &args,
+        (),
+        |(), record| {
+            if let Some((path, stats)) = parser.record(record)?
+                && let Some(index) = paths.get(path)
+            {
+                // 未跟踪文件由内容指纹扫描统计；tracked 条目以 Git 自身结果覆盖。
+                changes[*index].stats = stats;
+            }
+            Ok(())
+        },
+        timeout,
+    )
     .await?;
     if parser.rename.is_some() {
         return Err(invalid("numstat", "missing rename path"));
