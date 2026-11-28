@@ -907,6 +907,34 @@ it("Antigravity 未推送身份时通过临时会话确认登录，刷新可发�
   }
 });
 
+it("Antigravity 设置快照通过一个临时会话验证身份并读取选项", async () => {
+  const f = await fixture();
+  const engine = "acp-antigravity-acp";
+  const catalog = withStorageCatalog({
+    catalog: () => Promise.reject(new Error("后台历史导入失败")),
+  });
+  const agent = new AcpAgentService(engine, f.root, f.store, f.launch, catalog);
+  try {
+    const snapshot = await agent.readSettingsSnapshot(new AbortController().signal);
+    expect(snapshot.profile.authStatus?.kind).toBe("external");
+    expect(snapshot.defaults?.configOptions.map(({ id }) => id)).toEqual(["model", "effort"]);
+    expect(f.open).toHaveBeenCalledOnce();
+    expect(f.closed).toHaveBeenCalledOnce();
+    expect(await catalog.catalog("acp.session.background.list", { engine })).toEqual([
+      "settings-1",
+    ]);
+    f.closed.mockImplementationOnce(() => {
+      throw new Error("关闭失败");
+    });
+    await expect(agent.readSettingsSnapshot(new AbortController().signal)).resolves.toMatchObject({
+      defaults: { configOptions: [expect.objectContaining({ id: "model" }), expect.any(Object)] },
+    });
+  } finally {
+    await agent.close();
+    await f.dispose();
+  }
+});
+
 it("API Key 必须随提交传到官方认证扩展，不能只发送 methodId", async () => {
   const f = await fixture();
   try {

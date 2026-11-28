@@ -6,7 +6,6 @@ import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-labels";
-import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
@@ -18,7 +17,6 @@ export const workbench = {
   split: splitWorkspaceEnglish,
   globalSearch,
   scheduledTasks,
-  skillsMarket,
   pet: {
     activeTasks: "Active tasks",
     activitySummary: "{{count}} active tasks, {{waiting}} waiting for attention",

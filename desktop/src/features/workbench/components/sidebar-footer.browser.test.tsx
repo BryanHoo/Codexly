@@ -74,15 +74,12 @@ it.each([320, 1280])("%ipx 底栏入口在设置右侧排列且没有通知按�
   await page.viewport(width, 800);
   const screen = await render(<TooltipProvider><div style={{ width: 280 }}><SidebarFooter labels={labels} version="1.0.0" onSettings={vi.fn()} onAbout={vi.fn()}>
     <SidebarIconLink label="定时任务"><a href="#scheduled">定</a></SidebarIconLink>
-    <SidebarIconLink label="扩展中心"><a href="#extensions">扩</a></SidebarIconLink>
   </SidebarFooter></div></TooltipProvider>);
   const settings = screen.getByRole("button", { name: "设置", exact: true }).element().getBoundingClientRect();
   const scheduled = screen.getByRole("link", { name: "定时任务", exact: true }).element().getBoundingClientRect();
-  const extensions = screen.getByRole("link", { name: "扩展中心", exact: true }).element().getBoundingClientRect();
   expect(scheduled.left).toBeGreaterThanOrEqual(settings.right);
-  expect(extensions.left).toBeGreaterThanOrEqual(scheduled.right);
-  expect(extensions.top).toBe(settings.top);
-  expect(extensions.right).toBeLessThan(width);
+  expect(scheduled.top).toBe(settings.top);
+  expect(scheduled.right).toBeLessThan(width);
   expect(screen.getByRole("button", { name: /通知/ }).query()).toBeNull();
   await page.viewport(1440, 900);
 });

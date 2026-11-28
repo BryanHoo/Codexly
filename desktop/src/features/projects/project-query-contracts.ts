@@ -66,20 +66,7 @@ export type NativeAppUpdateClient = Pick<NativeClient, "getAppInfo" | "installAp
 export type NativeDiagnosticsClient = Pick<NativeClient, "exportDiagnostics">;
 export type NativeMcpServersClient = Pick<NativeClient, "listMcpServers">;
 export type NativeMcpServersMutationClient = Pick<NativeClient, "retryMcpServers">;
-export type NativeSkillsClient = Pick<
-  NativeClient,
-  | "listConfiguredMcpServers"
-  | "listInstalledSkills"
-  | "listOfficialPlugins"
-  | "reconcileOfficialPlugins"
-  | "getOfficialPlugin"
-  | "installOfficialPlugin"
-  | "uninstallOfficialPlugin"
-  | "listSkills"
-  | "openSkillDirectory"
-  | "setMcpServerEnabled"
-  | "setSkillEnabled"
->;
+export type NativeSkillsClient = Pick<NativeClient, "listSkills">;
 export type NativeSettingsClient = Pick<
   NativeClient,
   | "getApplicationPreferences"
@@ -124,7 +111,7 @@ export type NativeMutationClient = Pick<
   | "updateTaskGoal"
 >;
 export type NativePendingRequestClient = Pick<NativeClient, "resolvePendingRequest">;
-export type NativeWorkbenchClient = Partial<Pick<NativeClient, "cancelAcpBackground">> & Pick<NativeClient, "subscribeAcpPlans" | "readAcpPlanHistory" | "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment" | "listClaudeExtensions" | "mutateClaudeExtension"> & NativeReadClient &
+export type NativeWorkbenchClient = Partial<Pick<NativeClient, "cancelAcpBackground">> & Pick<NativeClient, "subscribeAcpPlans" | "readAcpPlanHistory" | "listAcpPlans" | "readAcpPlan" | "saveAcpPlan" | "deleteAcpPlan" | "stageAcpPlanAttachment"> & NativeReadClient &
   NativeScheduledTaskClient &
   NativeBackgroundTerminalClient &
   NativeGitStatusClient &

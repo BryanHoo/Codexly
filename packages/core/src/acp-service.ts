@@ -10,6 +10,7 @@ import type {
   AcpConfigPreview,
   AcpConfigPreviewRequest,
   AcpAgentProfile,
+  AcpSettingsSnapshot,
   AcpConfigValues,
   AcpDefaults,
   AgentEngine,
@@ -67,5 +68,9 @@ export type AcpAgentServices = Readonly<Record<AgentEngine, AcpAgentSettingsServ
   readonly startupConfig?: {
     read(engine: AgentEngine): Promise<AcpConfigPreview | null>;
     refresh(engine: AgentEngine, signal?: AbortSignal): Promise<AcpConfigPreview | null>;
+    settings?: {
+      read(engine: AgentEngine): Promise<AcpSettingsSnapshot | null>;
+      refresh(engine: AgentEngine, signal?: AbortSignal): Promise<AcpSettingsSnapshot>;
+    };
   };
 };

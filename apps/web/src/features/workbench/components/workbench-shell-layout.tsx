@@ -19,7 +19,6 @@ import { fileDocumentId } from "./workbench-inspector-documents.js";
 import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js";
 import { TaskBoardContainer } from "./task-board-container.js";
 import { WorkbenchShellHeader } from "./workbench-shell-header.js";
-import { SkillsMarketView } from "./skills-market-view.js";
 import { ScheduledTasksView } from "./scheduled-tasks-view.js";
 
 export function WorkbenchShellLayout({
@@ -28,7 +27,6 @@ export function WorkbenchShellLayout({
   workspaceContent,
   composerDraftId,
   context,
-  extensionSection,
   projectId,
   scheduled,
   taskId,
@@ -40,7 +38,6 @@ export function WorkbenchShellLayout({
   workspaceContent?: ReactNode;
   composerDraftId?: string;
   context: ReturnType<typeof useWorkbenchShellController>;
-  extensionSection?: string;
   projectId: string;
   scheduled: boolean;
   taskId?: string;
@@ -117,8 +114,7 @@ export function WorkbenchShellLayout({
     `${projectId}:${todoId ?? "new"}:${String(temporary)}`,
     beginNewChatSubmission,
   );
-  const extensions = extensionSection !== undefined;
-  const utilityView = board || extensions || scheduled;
+  const utilityView = board || scheduled;
   return (
     <ComposerPromptProjectsContext value={projects}>
       <div
@@ -208,13 +204,7 @@ export function WorkbenchShellLayout({
         {workspaceContent ?? (
           <main
             aria-label={t(
-              scheduled
-                ? "scheduledTasks.title"
-                : extensions
-                  ? "skillsMarket.title"
-                  : board
-                    ? "taskBoard.label"
-                    : "shell.timeline",
+              scheduled ? "scheduledTasks.title" : board ? "taskBoard.label" : "shell.timeline",
             )}
             className="flex min-h-0 min-w-0 flex-col bg-content"
           >
@@ -223,7 +213,6 @@ export function WorkbenchShellLayout({
               context={context}
               projectId={projectId}
               scheduled={scheduled}
-              skillsMarket={extensions}
               temporary={temporary}
               {...(taskId === undefined ? {} : { taskId })}
             />
@@ -234,8 +223,6 @@ export function WorkbenchShellLayout({
             >
               {scheduled ? (
                 <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
-              ) : extensions ? (
-                <SkillsMarketView />
               ) : board ? (
                 <TaskBoardContainer projectId={projectId} />
               ) : error !== null ||

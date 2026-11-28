@@ -2,7 +2,7 @@ import { page, userEvent } from "vitest/browser";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AcpAgentProfile, AcpAuthElicitationRequest, AcpAuthElicitationResponse, AcpProviderConfig } from "@codexly/protocol";
+import type { AcpAgentProfile, AcpAuthElicitationRequest, AcpAuthElicitationResponse, AcpProviderConfig, AcpSettingsSnapshot } from "@codexly/protocol";
 import { GlobalSettingsPage as WebPage } from "../../../apps/web/src/features/settings/components/global-settings-page.js";
 import type { SettingsClient } from "../../../apps/web/src/features/settings/components/global-settings-page-contracts.js";
 import { GlobalSettingsPage as NativePage } from "../../src/features/settings/components/global-settings-page.js";
@@ -15,6 +15,7 @@ async function fixture(
   platform: "web" | "desktop",
   language: "zh-CN" | "en" = "zh-CN",
   source: "native" | "application" | "disconnected" = "native",
+  snapshotRefresh?: ReturnType<typeof vi.fn<() => Promise<AcpSettingsSnapshot | null>>>,
 ) {
   await Promise.all([webLanguage(language), nativeLanguage(language)]);
   let connection: AcpAgentProfile["connection"] =
@@ -136,12 +137,22 @@ async function fixture(
       invalidDefaults: [],
     })),
   };
-  const fullClient = client;
+  const getSnapshot = async () => snapshotRefresh
+    ? { profile: await client.getAcpAgent(), defaults: await client.getAcpDefaults() }
+    : null;
+  const fullClient = {
+    ...client,
+    ...(snapshotRefresh
+      ? { getAcpSettingsSnapshot: getSnapshot, refreshAcpSettingsSnapshot: snapshotRefresh }
+      : {}),
+  };
   const spies =
     platform === "desktop"
       ? [
           vi.spyOn(nativeClient, "getAcpAgentCatalog").mockImplementation(client.getAcpAgentCatalog),
           vi.spyOn(nativeClient, "getAcpAgent").mockImplementation(client.getAcpAgent),
+          vi.spyOn(nativeClient, "getAcpSettingsSnapshot").mockImplementation(getSnapshot),
+          vi.spyOn(nativeClient, "refreshAcpSettingsSnapshot").mockImplementation(snapshotRefresh ?? (async () => null)),
           vi.spyOn(nativeClient, "getAcpProviders").mockImplementation(client.getAcpProviders),
           vi
             .spyOn(nativeClient, "configureAcpProvider")
@@ -193,6 +204,27 @@ async function fixture(
   };
 }
 for (const platform of ["web", "desktop"] as const) {
+  it(`${platform} 先显示持久配置，后台失败后保留控件，确认登出后隐藏旧选项`, async () => {
+    const first = Promise.withResolvers<AcpSettingsSnapshot | null>();
+    const refresh = vi.fn(() => first.promise);
+    const f = await fixture(platform, "zh-CN", "native", refresh);
+    try {
+      const field = page.getByRole("combobox", { name: "推理强度" });
+      await expect.element(field).toBeVisible();
+      await expect.poll(() => refresh.mock.calls.length).toBe(1);
+      first.reject(new Error("network"));
+      await expect.element(page.getByText("重新检测失败，正在显示上次读取的配置。")).toBeVisible();
+      await expect.element(field).toBeVisible();
+      refresh.mockResolvedValueOnce({
+        profile: { engine: "codex", protocolVersion: 1, authStatus: { kind: "none", label: "未登录" }, authMethods: [] },
+      });
+      await page.getByRole("button", { name: "重新检测" }).click();
+      await expect.element(field).not.toBeInTheDocument();
+      await expect.element(page.getByRole("status", { name: "连接状态" })).toHaveTextContent("未登录");
+    } finally {
+      await f.close();
+    }
+  });
   it(`${platform}：在发起登录的设置界面提交认证问卷`, async () => {
     const f = await fixture(platform);
     const finish = Promise.withResolvers<Record<string, never>>();

@@ -4,8 +4,6 @@ import { render } from "vitest-browser-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GlobalSettingsPage as WebPage } from "../../../apps/web/src/features/settings/components/global-settings-page.js";
 import { GlobalSettingsPage as NativePage } from "../../src/features/settings/components/global-settings-page.js";
-import { SkillsMarketContainer as WebMarket } from "../../../apps/web/src/features/skills-market/skills-market-container.js";
-import { SkillsMarketContainer as NativeMarket } from "../../src/features/skills-market/skills-market-container.js";
 import { nativeClient } from "../../src/features/projects/project-queries.js";
 import { changeAppLanguage as webLanguage } from "../../../apps/web/src/i18n/i18n.js";
 import { changeAppLanguage as nativeLanguage } from "../../src/i18n/i18n.js";
@@ -14,47 +12,23 @@ import type { SettingsClient } from "../../../apps/web/src/features/settings/com
 import "../../src/shared/styles/globals.css";
 
 const state = vi.hoisted(() => ({
-  capabilities: undefined as undefined | { runtime?: "acp" },
   calls: vi.fn(),
-  listInstalledSkills: vi.fn(() => Promise.resolve({ data: [] })),
-}));
-vi.mock("../../../apps/web/src/features/projects/project-context.js", () => ({
-  useProjectData: () => ({
-    capabilities: state.capabilities,
-    client: { listInstalledSkills: state.listInstalledSkills },
-    projects: [],
-  }),
-}));
-vi.mock("../../src/features/projects/project-context.js", () => ({
-  useProjectData: () => ({
-    capabilities: state.capabilities,
-    client: { listInstalledSkills: state.listInstalledSkills },
-    projects: [],
-  }),
 }));
 beforeEach(async () => {
   await page.viewport(390, 844);
   await webLanguage("zh-CN");
   await nativeLanguage("zh-CN");
   state.calls.mockClear();
-  state.listInstalledSkills.mockClear();
-  for (const method of [
-    "getMemorySettings",
-    "listInstalledSkills",
-    "listConfiguredMcpServers",
-    "listOfficialPlugins",
-    "listClaudeExtensions",
-  ] as const)
-    vi.spyOn(nativeClient, method).mockImplementation(() => {
-      state.calls(method);
-      return Promise.reject(new Error("不应调用旧接口"));
-    });
+  vi.spyOn(nativeClient, "getMemorySettings").mockImplementation(() => {
+    state.calls("getMemorySettings");
+    return Promise.reject(new Error("ACP 设置不读取旧记忆接口"));
+  });
 });
 afterEach(() => vi.restoreAllMocks());
 
-for (const [platform, Page, Market] of [
-  ["Web", WebPage, WebMarket],
-  ["Native", NativePage, NativeMarket],
+for (const [platform, Page] of [
+  ["Web", WebPage],
+  ["Native", NativePage],
 ] as const) {
   it(`${platform}：ACP 个性化不读取旧指令或记忆，未知运行时保持加载`, async () => {
     // 原生设置使用真实目录端口，只有目录中已安装的 Agent 会渲染会话配置。
@@ -78,6 +52,8 @@ for (const [platform, Page, Market] of [
       authMethods: [],
     };
     vi.spyOn(nativeClient, "getAcpAgent").mockResolvedValue(profile);
+    vi.spyOn(nativeClient, "getAcpSettingsSnapshot").mockResolvedValue(null);
+    vi.spyOn(nativeClient, "refreshAcpSettingsSnapshot").mockResolvedValue({ profile });
     const client = {
       getAcpAgent: () => Promise.resolve(profile),
       getGlobalInstructions: () => {
@@ -131,34 +107,6 @@ for (const [platform, Page, Market] of [
       </QueryClientProvider>,
     );
     expect(state.calls).not.toHaveBeenCalled();
-    cache.clear();
-  });
-  it(`${platform}：扩展中心等待能力后显示 ACP 说明，不挂载旧目录`, async () => {
-    state.capabilities = undefined;
-    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const wrap = () => (
-      <QueryClientProvider client={cache}>
-        <TooltipProvider>
-          <Market />
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-    const screen = await render(wrap());
-    await expect.element(screen.getByRole("status")).toBeVisible();
-    expect(state.calls).not.toHaveBeenCalled();
-    state.capabilities = { runtime: "acp" };
-    await screen.rerender(wrap());
-    await expect
-      .element(
-        screen.getByText("请使用智能体自身提供的设置管理 Skills、MCP 和插件。", { exact: true }),
-      )
-      .toBeVisible();
-    expect(state.calls).not.toHaveBeenCalled();
-    expect(state.listInstalledSkills).not.toHaveBeenCalled();
-    state.capabilities = {};
-    await screen.rerender(wrap());
-    await expect.element(screen.getByText("请使用智能体自身提供的设置管理 Skills、MCP 和插件。", { exact: true })).toBeVisible();
-    expect(state.listInstalledSkills).not.toHaveBeenCalled();
     cache.clear();
   });
 }

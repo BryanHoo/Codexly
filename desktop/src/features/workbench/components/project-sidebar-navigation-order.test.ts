@@ -29,11 +29,9 @@ describe("ProjectSidebar navigation", () => {
   });
 });
 
-it.each([["Web", webSidebarSource, "SidebarSkillsMarketLink"], ["桌面", projectSidebarSource, "SidebarExtensionCenterLink"]])("%s 将任务与扩展导航注入底栏", (_platform, source, extension) => {
+it.each([["Web", webSidebarSource], ["桌面", projectSidebarSource]])("%s 将定时任务导航注入底栏", (_platform, source) => {
   const header = source.slice(source.indexOf("<ProjectSidebarHeader"), source.indexOf("</ProjectSidebarHeader>"));
   expect(header).not.toContain("<SidebarScheduledTasksLink");
-  expect(header).not.toContain(`<${extension}`);
   const footer = source.slice(source.indexOf("<SidebarSettingsButton"), source.indexOf("</SidebarSettingsButton>"));
   expect(footer).toContain("<SidebarScheduledTasksLink");
-  expect(footer).toContain(`<${extension}`);
 });

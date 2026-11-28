@@ -10,30 +10,46 @@ import type {
   AcpConfigPreviewRequest,
   AcpConfigValues,
   AcpDefaults,
+  AcpSettingsSnapshot,
   AgentEngine,
   AgentQuotaView,
 } from "@codexly/protocol";
 import { createAcpPreviewReader, previewAcpConfig, waitForAcpPreview } from "./config-preview.js";
-import { probeAntigravityAuth, projectAcpConnectionSettings } from "./agent-auth-profile.js";
+import {
+  connectForAcpInspection,
+  inspectAcpAuth,
+  probeAntigravityAuth,
+  projectAcpAgentProfile,
+  projectAcpConnectionSettings,
+} from "./agent-auth-profile.js";
 import type { AcpAgentSettingsService, AgentTaskScope } from "@codexly/core";
-import type { AcpAgentHandle, AcpAgentLaunchOptions, AcpAgentLauncher } from "./agent-launcher.js";
+import {
+  closeAcpAgentHandle,
+  type AcpAgentHandle,
+  type AcpAgentLaunchOptions,
+  type AcpAgentLauncher,
+} from "./agent-launcher.js";
 import type { AcpConnection } from "./connection.js";
 import type { AcpSettingsStore } from "./settings-store.js";
-import { readAcpDefaults, setAcpDefaultConfig } from "./default-config.js";
+import {
+  closeAcpSettingsSession,
+  readAcpSettingsConfiguration,
+  type InspectWithSession,
+  projectAcpDefaults,
+  readAcpDefaults,
+  setAcpDefaultConfig,
+} from "./default-config.js";
 import { AcpProviderRouting } from "./provider-routing.js";
 import { importAcpCatalog } from "./catalog-import.js";
 import type { LocalCatalogStore } from "@codexly/core";
-import { AcpAuthenticationRequiredError, PendingRequestResolutionError } from "@codexly/core";
+import { PendingRequestResolutionError } from "@codexly/core";
 import { AcpElicitations } from "./elicitation.js";
 import {
   authorizeCodefree,
   CODEFREE_LOGIN,
   codefreeSignedOutProfile,
-  parseCodefreeAuthorization,
 } from "./codefree-authorization.js";
 import { previewCodefreeModels, type ReadCodefreeModels } from "./codefree-models.js";
-
-const SETTINGS_CLOSE_TIMEOUT_MS = 1_000;
 
 export class AcpAgentService implements AcpAgentSettingsService {
   readonly providers: NonNullable<AcpAgentSettingsService["providers"]>;
@@ -47,6 +63,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
   #queue: Promise<unknown> = Promise.resolve();
   #closed = false;
   #catalogImported = false;
+  #settingsDiscovery: Promise<void> | undefined;
   #inspected = false;
   #auth: { attemptId: string; elicitations: AcpElicitations } | undefined;
   #codefreeLogin: AbortController | undefined;
@@ -67,6 +84,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
     ) => Promise<T>,
     readonly readModels?: ReadCodefreeModels,
     readonly nativeQuota?: (signal?: AbortSignal) => Promise<AgentQuotaView>,
+    readonly invalidateSettingsSnapshot?: () => Promise<void>,
   ) {
     this.#previewCached = createAcpPreviewReader(() => store.inspect(engine), codefreeRevision);
     const routing = new AcpProviderRouting(engine, store, this.readNative);
@@ -144,77 +162,88 @@ export class AcpAgentService implements AcpAgentSettingsService {
     });
   }
   inspect(): Promise<AcpAgentProfile> {
-    return this.#run(async () => {
-      // 通用 Agent 刷新时重建连接；CodeFree O 用授权文件变更判断是否需要重握手。
-      const credential = await this.codefreeRevision?.();
-      if (this.#inspected && (!credential || credential !== this.#verifiedCredential))
-        await this.#closeHandle();
-      let connection: AcpConnection;
-      if (this.codefreeRevision) {
-        // 干净安装先显示登录按钮，避免仅查看设置就启动厂商授权窗口。
-        if (!credential) return codefreeSignedOutProfile;
-        const pendingLogin = new AbortController();
-        try {
-          connection = await this.#agent(pendingLogin.signal, {
-            signal: pendingLogin.signal,
-            onStderrLine: (line) => {
-              if (parseCodefreeAuthorization(line)) pendingLogin.abort();
-            },
-          });
-        } catch (error) {
-          if (pendingLogin.signal.aborted || error instanceof AcpAuthenticationRequiredError)
-            return codefreeSignedOutProfile;
-          throw error;
-        }
-      } else connection = await this.#agent();
-      const { initialization } = connection;
-      let authStatus =
-        (await connection.readAuthStatus()) ??
-        (this.codefreeRevision ? { kind: "account" as const, label: "CodeFree O" } : undefined);
-      if (!authStatus && this.engine === "acp-antigravity-acp")
-        authStatus = await probeAntigravityAuth(
-          connection,
-          this.cwd,
-          async (id) => {
-            await this.#registerBackground(id);
-            await this.#closeSession(connection, id);
-          },
-          () => this.#closeHandle(connection),
-        );
-      this.#inspected = true;
-      // 厂商会在 initialize 内刷新本地凭据，以下一次读取可见的版本作为基准。
-      this.#verifiedCredential =
-        credential === this.#verifiedCredential ? credential : await this.codefreeRevision?.();
-      const saved = await this.store.inspect(this.engine);
-      const connectionSettings = await projectAcpConnectionSettings(saved, () => this.readNative());
-      return {
-        engine: this.engine,
-        protocolVersion: initialization.protocolVersion,
-        ...(authStatus ? { authStatus } : {}),
-        ...(connectionSettings ? { connection: connectionSettings } : {}),
-        // 仅转发握手已公布的能力，界面不靠厂商名称猜测供应商接口。
-        ...(initialization.agentCapabilities?.providers
-          ? { providerConfiguration: true as const }
-          : {}),
-        agentInfo: {
-          name: initialization.agentInfo?.name ?? this.engine,
-          version: initialization.agentInfo?.version ?? "unknown",
-          ...(initialization.agentInfo?.title ? { title: initialization.agentInfo.title } : {}),
+    return this.#run(() => this.#inspect());
+  }
+
+  async #inspect(
+    signal?: AbortSignal,
+    onAntigravitySession?: Parameters<InspectWithSession>[0],
+  ): Promise<AcpAgentProfile> {
+    // 通用 Agent 刷新时重建连接；CodeFree O 用授权文件变更判断是否需要重握手。
+    const credential = await this.codefreeRevision?.();
+    if (this.#inspected && (!credential || credential !== this.#verifiedCredential))
+      await this.#closeHandle();
+    const isCodefree = !!this.codefreeRevision;
+    const connection = await connectForAcpInspection(
+      (active, options) => this.#agent(active, options),
+      isCodefree,
+      credential,
+      signal,
+    );
+    if (!connection) return codefreeSignedOutProfile;
+    const authStatus = await inspectAcpAuth(this.engine, connection, isCodefree, () =>
+      probeAntigravityAuth(
+        connection,
+        this.cwd,
+        async (id) => {
+          await this.#registerBackground(id);
+          try {
+            signal?.throwIfAborted();
+            await onAntigravitySession?.(connection, id);
+          } finally {
+            await this.#closeSession(connection, id, !!signal);
+          }
         },
-        authMethods: this.codefreeRevision
-          ? codefreeSignedOutProfile.authMethods
-          : (initialization.authMethods ?? []).flatMap((method): AcpAgentProfile["authMethods"] => {
-              return [
-                {
-                  id: method.id,
-                  name: method.name,
-                  ...(method.description ? { description: method.description } : {}),
-                  ...("type" in method ? { type: "terminal" } : {}),
-                },
-              ];
-            }),
-      };
+        () => this.#closeHandle(connection),
+      ),
+    );
+    this.#inspected = true;
+    // 厂商会在 initialize 内刷新本地凭据，以下一次读取可见的版本作为基准。
+    this.#verifiedCredential =
+      credential === this.#verifiedCredential ? credential : await this.codefreeRevision?.();
+    const saved = await this.store.inspect(this.engine);
+    const connectionSettings = await projectAcpConnectionSettings(saved, () => this.readNative());
+    return projectAcpAgentProfile(
+      this.engine,
+      connection.initialization,
+      authStatus,
+      connectionSettings,
+      this.codefreeRevision ? codefreeSignedOutProfile.authMethods : undefined,
+    );
+  }
+
+  /** 快照读取与设置写入共享连接生命周期，后台目录导入独立于响应。 */
+  readSettingsSnapshot(signal: AbortSignal): Promise<AcpSettingsSnapshot> {
+    return this.#run(async () => {
+      signal.throwIfAborted();
+      try {
+        const snapshot = await waitForAcpPreview(
+          readAcpSettingsConfiguration(
+            this.engine,
+            this.store,
+            signal,
+            (onSession) => this.#inspect(signal, onSession),
+            () => this.#defaults(undefined, signal),
+          ),
+          signal,
+        );
+        if (snapshot.defaults) this.#discoverSettingsHistory();
+        return snapshot;
+      } catch (error) {
+        if (signal.aborted) await this.#closeHandle();
+        throw error;
+      }
     });
+  }
+
+  #discoverSettingsHistory() {
+    const connection = this.#handle?.connection;
+    if (this.#settingsDiscovery || !connection || connection.transport.signal.aborted) return;
+    this.#settingsDiscovery = this.#discover(connection, connection.transport.signal)
+      .catch(() => undefined)
+      .finally(() => {
+        this.#settingsDiscovery = undefined;
+      });
   }
   authenticate(
     methodId: string,
@@ -236,6 +265,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
           await this.#closeHandle();
           lifetime.throwIfAborted();
           await authorizeCodefree(this.launch, this.cwd, attemptId, elicitations, lifetime);
+          await this.invalidateSettingsSnapshot?.().catch(() => undefined);
           lifetime.throwIfAborted();
           return {};
         } finally {
@@ -285,6 +315,7 @@ export class AcpAgentService implements AcpAgentSettingsService {
             authenticate,
           );
         } else await authenticate();
+        await this.invalidateSettingsSnapshot?.().catch(() => undefined);
         signal?.throwIfAborted();
         return {};
       } finally {
@@ -401,21 +432,20 @@ export class AcpAgentService implements AcpAgentSettingsService {
       );
     });
   }
-  async #defaults(values?: AcpConfigValues): Promise<AcpDefaults> {
-    const connection = await this.#agent();
+  async #defaults(values?: AcpConfigValues, snapshotSignal?: AbortSignal): Promise<AcpDefaults> {
+    const connection = await this.#agent(snapshotSignal);
     const validated = await readAcpDefaults(
       connection,
       this.store,
       this.engine,
       this.cwd,
       values,
-      (id) => this.#closeSession(connection, id),
+      (id) => this.#closeSession(connection, id, !!snapshotSignal),
       (id) => this.#registerBackground(id),
     );
-    const { configOptions, defaults, migration, invalidDefaults } = validated;
-    await this.#discover(connection);
-    // agent 拒绝、连接或关闭失败时不会写默认值；legacy 只在私有记录中留存。
-    // 查看和草稿预览不落盘；只有明确提交完整默认值后才写用户配置。
+    const { defaults, migration } = validated;
+    if (!snapshotSignal) await this.#discover(connection);
+    // 只有用户明确提交并且协商、关闭成功后才写默认值；迁移信息留在宿主。
     if (values !== undefined)
       await this.store.update(this.engine, (latest) => ({
         ...latest,
@@ -423,20 +453,9 @@ export class AcpAgentService implements AcpAgentSettingsService {
         values: defaults,
         configured: true,
       }));
-    return {
-      configOptions,
-      defaults,
-      unmappedLegacy: [
-        ...new Set([
-          ...(migration?.unmapped ?? []),
-          ...Object.keys(validated.retainedValues ?? {}),
-        ]),
-      ],
-      invalidDefaults,
-    };
+    return projectAcpDefaults(validated);
   }
   async #discover(connection: AcpConnection, signal?: AbortSignal): Promise<void> {
-    // 只有实际认证/配置会话成功后才发现目录；空首屏不探测未配置引擎，成功后本进程只扫描一次。
     if (
       !this.catalogStore ||
       this.#catalogImported ||
@@ -458,17 +477,17 @@ export class AcpAgentService implements AcpAgentSettingsService {
     // 关闭只释放 ACP 连接上的会话。原生目录可能继续返回同一 ID，需先登记用途。
     await this.catalogStore?.catalog("acp.session.background", { engine: this.engine, sessionId });
   }
-  async #closeSession(connection: AcpConnection, sessionId: string): Promise<void> {
+  async #closeSession(connection: AcpConnection, sessionId: string, snapshot = false) {
     // 设置服务独占连接；最小 v1 Agent 没有 close 时直接回收进程释放临时会话。
     if (!connection.canCloseSessions) {
       await this.#closeHandle(connection);
       return;
     }
     try {
-      await connection.closeSession(sessionId);
+      await closeAcpSettingsSession(connection, sessionId, snapshot);
     } catch (error) {
       await this.#closeHandle(connection);
-      throw error;
+      if (!snapshot) throw error;
     }
   }
   async #closeHandle(connection?: AcpConnection): Promise<void> {
@@ -476,25 +495,6 @@ export class AcpAgentService implements AcpAgentSettingsService {
     // 迟到的旧会话清理不能关闭后续设置操作创建的新连接。
     if (!current || (connection && current.connection !== connection)) return;
     this.#handle = undefined;
-    const cleanup = current.launched.then(
-      async (handle) => {
-        handle.connection.close();
-        await handle.close();
-      },
-      () => undefined,
-    );
-    // 启动和进程退出均可能失去响应；超时后释放队列，迟到句柄仍执行回收。
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
-        cleanup,
-        new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, SETTINGS_CLOSE_TIMEOUT_MS);
-          timer.unref();
-        }),
-      ]);
-    } finally {
-      clearTimeout(timer);
-    }
+    await closeAcpAgentHandle(current.launched);
   }
 }

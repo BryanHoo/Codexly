@@ -128,6 +128,11 @@ async function renderSettings(
     authMethods: [],
   }));
   vi.spyOn(nativeClient, "getAcpDefaults").mockImplementation(async () => current);
+  vi.spyOn(nativeClient, "getAcpSettingsSnapshot").mockResolvedValue(null);
+  vi.spyOn(nativeClient, "refreshAcpSettingsSnapshot").mockImplementation(async (engine) => ({
+    profile: await nativeClient.getAcpAgent(engine),
+    defaults: current,
+  }));
   const setConfig = vi
     .spyOn(nativeClient, "setAcpDefaultConfig")
     .mockImplementation(async (_engine, id, value) => {

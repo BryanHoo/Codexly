@@ -14,6 +14,10 @@ const queryKey = ["acp-preview"] as const;
 const queryHash = hashKey(queryKey);
 const empty: Catalog = {};
 export const AcpStartupCacheContext = createContext(false);
+export const acpSettingsSnapshotKey = (engine: AgentEngine) =>
+  ["acp-settings-snapshot", engine] as const;
+export const acpSettingsRefreshKey = (engine: AgentEngine) =>
+  ["acp-settings-refresh", engine] as const;
 const queues = new WeakMap<
   QueryClient,
   {

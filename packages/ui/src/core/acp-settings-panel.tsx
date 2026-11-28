@@ -3,7 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog.js";
 import { toast } from "./notifications.js";
 import { AcpAgentPicker, type AcpCatalogClient } from "./acp-catalog-settings.js";
 import { AcpAgentMaintenance } from "./acp-agent-maintenance.js";
-import { invalidateAcpPreviews } from "./acp-preview-cache.js";
+import {
+  acpSettingsRefreshKey,
+  acpSettingsSnapshotKey,
+  invalidateAcpPreviews,
+} from "./acp-preview-cache.js";
 import { SettingsGroup } from "./settings-group.js";
 import { useState, useRef, useContext, useEffect, useSyncExternalStore } from "react";
 import { skipToken, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -127,7 +131,8 @@ export function AcpSettingsPanel({
         engine={engine}
         language={language}
         openExternalUrl={openExternalUrl}
-        connectedContent={
+        useSnapshots={!!client.getAcpAgentCatalog}
+        connectedContent={(defaults) => (
           <SettingsGroup title={chinese ? "会话默认配置" : "Session defaults"}>
             <AcpDefaultSettings
               client={client}
@@ -136,9 +141,10 @@ export function AcpSettingsPanel({
               Select={Select}
               labels={acpDefaultSettingsLabels[language]}
               language={language}
+              snapshotDefaults={defaults}
             />
           </SettingsGroup>
-        }
+        )}
       />
     </div>
   ) : null;
@@ -310,6 +316,18 @@ export function AcpSettingsPanel({
                   fallbackFocus={addButton}
                   onChanged={(page, removed) => {
                     void invalidateAcpPreviews(cache, engine);
+                    void cache.cancelQueries({
+                      queryKey: acpSettingsRefreshKey(engine),
+                      exact: true,
+                    });
+                    cache.removeQueries({ queryKey: ["acp-agent-profile", engine], exact: true });
+                    cache.removeQueries({ queryKey: ["acp-defaults", engine], exact: true });
+                    cache.setQueryData(acpSettingsSnapshotKey(engine), null);
+                    if (!removed)
+                      void cache.invalidateQueries({
+                        queryKey: acpSettingsRefreshKey(engine),
+                        exact: true,
+                      });
                     cache.setQueryData<AcpAgentCatalogPage>(["acp-agent-catalog"], page);
                     if (removed) {
                       toast.success(chinese ? "已移除 Agent" : "Agent removed");

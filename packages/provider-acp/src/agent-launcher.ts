@@ -22,3 +22,24 @@ export type AcpAgentLauncher = (
   callbacks: AcpClientCallbacks,
   options?: AcpAgentLaunchOptions,
 ) => Promise<AcpAgentHandle>;
+import { setTimeout } from "node:timers/promises";
+
+/** 启动和退出均可能失去响应。等待有界，迟到的句柄仍会被回收。 */
+export async function closeAcpAgentHandle(launched: Promise<AcpAgentHandle>): Promise<void> {
+  const timer = new AbortController();
+  const cleanup = launched.then(
+    async (handle) => {
+      handle.connection.close();
+      await handle.close();
+    },
+    () => undefined,
+  );
+  try {
+    await Promise.race([
+      cleanup,
+      setTimeout(1_000, undefined, { ref: false, signal: timer.signal }),
+    ]);
+  } finally {
+    timer.abort();
+  }
+}

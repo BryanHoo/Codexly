@@ -5,7 +5,6 @@ import { engineChinese } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
-import { skillsMarket } from "./skills-market.js";
 import { newProject } from "@codexly/frontend-core/locales/zh-CN/new-project";
 export const workbench = {
   engine: engineChinese,
@@ -455,7 +454,6 @@ export const workbench = {
     toggleProject: "切换项目 {{project}}",
     unpin: "取消固定",
   },
-  skillsMarket,
   scheduledTasks: { title: "定时任务" },
   taskBoard: {
     allProjects: "全部项目",

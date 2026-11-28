@@ -14,7 +14,7 @@ Pin, archive, restore, or permanently delete tasks. Permanent deletion also remo
 
 In the archive list, choose all archived tasks, tasks last updated more than 1, 3, 6, or 12 months ago, or tasks updated before a custom date. The cutoff uses midnight in your device's local calendar and excludes the cutoff date itself; the confirmation shows the exact date. Cleanup covers all archived tasks regardless of the current search. Check the scope and export conversations as needed before permanent deletion.
 
-Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. The task board follows New Task; schedules and extensions are in the footer. Task rows show running, completed, and approval states and open the original task. Visible foreground panes acknowledge corresponding system alerts; asynchronous questions show an awaiting-answer state until answered or closed.
+Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. The task board follows New Task. Scheduled tasks are in the sidebar footer. Task rows show running, completed, and approval states and open the original task. Visible foreground panes acknowledge corresponding system alerts; asynchronous questions show an awaiting-answer state until answered or closed.
 
 Read notifications and resolved requests remove their corresponding system alerts. Reading an alert does not approve an action or answer a question; other unread alerts for the same task remain. Notification history has automatic retention limits and prioritizes unread items, so use task history for the full record.
 

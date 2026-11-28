@@ -42,7 +42,6 @@ import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
 import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 import { SidebarTaskBoardLink } from "./sidebar-task-board-link.js";
-import { SidebarExtensionCenterLink } from "./sidebar-extension-center-link.js";
 import { SidebarScheduledTasksLink } from "./sidebar-scheduled-tasks-link.js";
 import { TaskDeleteDialog } from "./task-delete-dialog.js";
 import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-sidebar-actions.js";
@@ -474,7 +473,6 @@ export function ProjectSidebar({
           onOpenShortcuts={() => setShortcutsOpen(true)}
         >
         <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
-        <SidebarExtensionCenterLink {...(projectId === undefined ? {} : { projectId })} />
         </SidebarSettingsButton>
       </div>
       <KeyboardShortcutsDialog onOpenChange={setShortcutsOpen} open={shortcutsOpen} />

@@ -1,4 +1,9 @@
-import { AcpConfigCacheSchema, AgentEngineSchema, type AgentEngine } from "@codexly/protocol";
+import {
+  AcpConfigCacheSchema,
+  AcpSettingsSnapshotResponseSchema,
+  AgentEngineSchema,
+  type AgentEngine,
+} from "@codexly/protocol";
 import type { AcpAgentServices } from "@codexly/core";
 import type { FastifyInstance } from "fastify";
 import { Type } from "@sinclair/typebox";
@@ -29,5 +34,27 @@ export function registerAcpConfigCacheRoutes(
       },
       "ACP startup configuration refresh timed out",
     ),
+  );
+  const snapshotPath = "/v1/acp/agents/:engine/settings-snapshot";
+  const snapshotSchema = {
+    params: schema.params,
+    response: { 200: AcpSettingsSnapshotResponseSchema },
+  };
+  app.get<{ Params: { engine: AgentEngine } }>(
+    snapshotPath,
+    { schema: snapshotSchema },
+    (request, reply) => {
+      reply.header("Cache-Control", "no-store");
+      return startup?.settings?.read(request.params.engine) ?? null;
+    },
+  );
+  app.post<{ Params: { engine: AgentEngine } }>(
+    snapshotPath,
+    { schema: snapshotSchema, handlerTimeout: 42_000 },
+    (request, reply) =>
+      withGenerationCancellation(request, reply, async (signal) => {
+        reply.header("Cache-Control", "no-store");
+        return startup?.settings?.refresh(request.params.engine, signal) ?? null;
+      }),
   );
 }

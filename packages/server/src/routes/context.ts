@@ -71,7 +71,6 @@ import type { ProjectOpenService } from "../project-open.js";
 import type { ProjectImageFile } from "../project-image-file.js";
 import type { ProjectFileDownload } from "../project-file-download.js";
 import type { PersistentTaskQueue } from "../persistent-task-queue.js";
-import type { SkillMarketService } from "../skill-market-service.js";
 import type { ScheduledTaskService } from "../scheduled-task-service.js";
 import type { WorkbenchChanges } from "../workbench-changes.js";
 import type { WebSocketLifecycle } from "../websocket-lifecycle.js";
@@ -286,7 +285,6 @@ export interface ServerRouteContext {
   ) => Promise<HostAttachmentSource>;
   readonly settingsRepository: AgentSettingsRepository;
   readonly scheduledTaskService: ScheduledTaskService;
-  readonly skillMarketService: SkillMarketService;
   readonly taskFromSnapshot: (
     snapshot: AgentTask,
     overrides?: Partial<Pick<AgentTask, "title">>,

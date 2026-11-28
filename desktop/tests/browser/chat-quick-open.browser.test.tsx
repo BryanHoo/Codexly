@@ -22,7 +22,7 @@ describe.each(["web", "desktop"] as const)("%s 聊天快捷打开", (platform) =
       t: (key: string) => key,
     };
     const screen = await render(<TooltipProvider>{platform === "web" ? (
-      <WebHeader board={false} scheduled={false} skillsMarket={false} temporary projectId="temporary" taskId="chat-a" context={context as unknown as Parameters<typeof WebHeader>[0]["context"]} />
+      <WebHeader board={false} scheduled={false} temporary projectId="temporary" taskId="chat-a" context={context as unknown as Parameters<typeof WebHeader>[0]["context"]} />
     ) : (
       <DesktopHeader utilityView={false} temporary taskWriteBlocked={false} viewTitle="聊天" projectId="temporary" taskId="chat-a" context={context as unknown as Parameters<typeof DesktopHeader>[0]["context"]} />
     )}</TooltipProvider>);

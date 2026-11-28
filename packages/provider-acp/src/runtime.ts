@@ -45,6 +45,7 @@ import {
   startupAwareAcpConnector,
 } from "./startup-config-runtime.js";
 import type { AcpStartupConfig } from "./startup-config.js";
+import type { AcpSettingsSnapshots } from "./settings-snapshot.js";
 interface Entry {
   scope: AgentTaskScope;
   router: EngineProjectRouter;
@@ -62,6 +63,7 @@ export class AcpRuntime {
     readonly startupConfig: NonNullable<AcpAgentServices["startupConfig"]>;
   };
   readonly #startupConfig: AcpStartupConfig;
+  readonly #settingsSnapshots: AcpSettingsSnapshots;
   readonly catalog: AcpAgentCatalog;
   readonly launch: AcpAgentLauncher;
   readonly #entries = new Map<string, Entry>();
@@ -116,8 +118,13 @@ export class AcpRuntime {
     this.#leases = leases;
     this.#history = new AcpHistory(join(directory, "history"), leases);
     this.settings = new AcpSettingsStore(join(directory, "settings"), legacySource, leases);
-    const startup = createAcpStartupConfig(this, leases, snapshot);
+    const startup = createAcpStartupConfig(this, leases, snapshot, (engine, signal) => {
+      const service = this.agents[engine];
+      if (!service) throw new Error("ACP Agent is unavailable");
+      return service.readSettingsSnapshot(signal);
+    });
     this.#startupConfig = startup.cache;
+    this.#settingsSnapshots = startup.settings;
     this.#initialization = new AcpSessionInitialization(
       join(directory, "session-initialization"),
       this.settings,
@@ -259,6 +266,7 @@ export class AcpRuntime {
               ? async (cwd) => readCodefreeModels(await this.catalog.command(key), cwd, snapshot)
               : undefined,
             nativeQuotaReader(key, this.catalog, snapshot, directory),
+            () => this.#settingsSnapshots.invalidate(key),
           );
         }
         return Reflect.get(target, key, receiver) as unknown;
@@ -466,6 +474,7 @@ export class AcpRuntime {
   async close(catalogDisconnected = false): Promise<void> {
     this.#closed = true;
     this.#startupConfig.close();
+    this.#settingsSnapshots.close();
     // stdio 已结束时不可再发反向 RPC；存储 owner 不按时间释放，等待进程死亡证明。
     if (catalogDisconnected) this.#history.cache.disconnect();
     for (const stop of this.#searches.values()) stop();

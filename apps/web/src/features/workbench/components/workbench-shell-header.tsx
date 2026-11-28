@@ -21,7 +21,6 @@ export function WorkbenchShellHeader({
   context,
   projectId,
   scheduled,
-  skillsMarket,
   taskId,
   temporary,
 }: Readonly<{
@@ -29,7 +28,6 @@ export function WorkbenchShellHeader({
   context: ReturnType<typeof useWorkbenchShellController>;
   projectId: string;
   scheduled: boolean;
-  skillsMarket: boolean;
   taskId?: string;
   temporary: boolean;
 }>) {
@@ -52,14 +50,8 @@ export function WorkbenchShellHeader({
     title,
   } = context;
   const sidebarOpen = pane?.sidebarOpen ?? ownSidebarOpen;
-  const utilityView = board || skillsMarket || scheduled;
-  const heading = scheduled
-    ? t("scheduledTasks.title")
-    : skillsMarket
-      ? t("skillsMarket.title")
-      : board
-        ? t("taskBoard.title")
-        : title;
+  const utilityView = board || scheduled;
+  const heading = scheduled ? t("scheduledTasks.title") : board ? t("taskBoard.title") : title;
   return (
     <header className="workbench-pane-header flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
       <div className="flex min-w-0 items-center gap-2">

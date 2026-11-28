@@ -31,6 +31,8 @@ pub(crate) fn cancellable_acp_request(method: &str) -> bool {
             | "settings.preview"
             | "settings.cache.read"
             | "settings.cache.refresh"
+            | "settings.snapshot.read"
+            | "settings.snapshot.refresh"
             | "providers.list"
             | "application.generate"
     )

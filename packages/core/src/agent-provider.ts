@@ -7,7 +7,7 @@ import type { ApplicationTextGenerator } from "./application-generation.js";
 import type { AgentThreadMemory } from "@codexly/protocol";
 import type { AcpAgentServices } from "./acp-service.js";
 import type { AgentTaskScope } from "./agent-task-scope.js";
-import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
+import type { HistoryCompressionResult } from "@codexly/protocol";
 import type {
   AcpConfigValues,
   AcpConfigOption,
@@ -18,9 +18,6 @@ import type {
   AgentEngine,
   AgentEngineProfile,
   ClaudeSettings,
-  ClaudeExtensionKind,
-  ClaudeExtensionPage,
-  ClaudeExtensionMutation,
   ClaudePermissionMode,
   AgentGoal,
   AgentApprovalsReviewer,
@@ -55,14 +52,6 @@ import type {
   UpdateAgentGoalRequest,
   Project,
   WorkbenchPetDescriptor,
-  ConfiguredMcpServerPage,
-  InstalledSkillPage,
-  OfficialPluginDetail,
-  OfficialPluginInstallResult,
-  OfficialPluginPage,
-  OfficialPluginUninstallResult,
-  SetMcpServerEnabledResult,
-  SetSkillEnabledResult,
   SearchOccurrencesPage,
   SearchOccurrencesQuery,
   TaskSearchPage,
@@ -403,44 +392,15 @@ export interface AgentRuntimeProvider {
   forTemporary(rootPath: string): AgentProvider;
   getCapabilities(): Promise<AgentCapabilities>;
   listModels(): Promise<AgentModelPage>;
-  listConfiguredMcpServers(cwd?: string): Promise<ConfiguredMcpServerPage>;
-  listInstalledSkills(
-    projects: readonly Project[],
-    forceReload: boolean,
-  ): Promise<InstalledSkillPage>;
-  reconcileOfficialPlugins(): Promise<PluginReconcileResult>;
-  listOfficialPlugins(
-    projects: readonly Project[],
-    forceRefetch: boolean,
-  ): Promise<OfficialPluginPage>;
-  getOfficialPlugin(
-    marketplaceName: string,
-    marketplacePath: string | null,
-    pluginName: string,
-  ): Promise<OfficialPluginDetail>;
-  installOfficialPlugin(
-    marketplaceName: string,
-    marketplacePath: string | null,
-    pluginName: string,
-    installAttemptId: string,
-  ): Promise<OfficialPluginInstallResult>;
-  uninstallOfficialPlugin(pluginId: string): Promise<OfficialPluginUninstallResult>;
   logoutProvider(): Promise<AgentProviderConnectionMutationResponse>;
   readDefaultSettings(): Promise<AgentRuntimeDefaultSettings>;
   updateDefaultSettings(settings: AgentRuntimeDefaultSettings): Promise<void>;
   readProviderConnection(): Promise<AgentProviderConnectionStatus>;
   releaseProject(projectId: string, expectedProvider?: AgentProvider): Promise<void>;
-  setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResult>;
-  setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResult>;
   startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse>;
 }
 
 export interface AgentEngineService {
-  listExtensions?(kind: ClaudeExtensionKind, scope?: AgentTaskScope): Promise<ClaudeExtensionPage>;
-  mutateExtension?(
-    input: ClaudeExtensionMutation,
-    scope?: AgentTaskScope,
-  ): Promise<ClaudeExtensionPage>;
   generateTaskTitle?(
     cwd: string,
     text: string,

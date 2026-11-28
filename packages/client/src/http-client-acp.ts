@@ -3,6 +3,7 @@ import {
   AgentQuotaViewSchema,
   AcpConfigPreviewSchema,
   AcpConfigCacheSchema,
+  AcpSettingsSnapshotResponseSchema,
   type AcpBackgroundTarget,
   AcpAgentCatalogPageSchema,
   AcpAgentCatalogProgressSchema,
@@ -99,6 +100,23 @@ export class AcpHttpClient extends AsyncQuestionHttpClient {
   }
   getAcpConfigCache(engine: AgentEngine, options: ReadOptions = {}) {
     return this.read(`/v1/acp/agents/${engine}/config-cache`, AcpConfigCacheSchema, options);
+  }
+  getAcpSettingsSnapshot(engine: AgentEngine, options: ReadOptions = {}) {
+    return this.read(
+      `/v1/acp/agents/${engine}/settings-snapshot`,
+      AcpSettingsSnapshotResponseSchema,
+      options,
+    );
+  }
+  refreshAcpSettingsSnapshot(engine: AgentEngine, options: ReadOptions = {}) {
+    return this.mutation(
+      `/v1/acp/agents/${engine}/settings-snapshot`,
+      {},
+      AcpSettingsSnapshotResponseSchema,
+      options,
+      "POST",
+      43_000,
+    );
   }
   refreshAcpConfigCache(engine: AgentEngine, options: MutationOptions = {}) {
     return this.mutation(

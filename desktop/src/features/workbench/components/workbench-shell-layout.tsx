@@ -4,7 +4,7 @@ import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
 import type { ReactNode } from "react";
 import { TerminalWorkbench } from "../../terminal/components/terminal-workbench.js";
-import { lazy, Suspense, useRef, useState, type CSSProperties } from "react";
+import { Suspense, useRef, useState, type CSSProperties } from "react";
 import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
 import { ProjectSidebar } from "./project-sidebar.js";
@@ -23,11 +23,6 @@ import { fileDocumentId } from "./workbench-inspector-documents.js";
 import { WorkbenchShellHeader } from "./workbench-shell-header.js";
 import { LazyScheduledTasksContainer } from "./scheduled-tasks-lazy.js";
 import { TaskInteractionContext } from "../task-interaction-context.js";
-const LazySkillsMarketContainer = lazy(() =>
-  import("../../skills-market/skills-market-container.js").then((module) => ({
-    default: module.SkillsMarketContainer,
-  })),
-);
 export function WorkbenchShellLayout({
   board,
   embedded = false,
@@ -35,7 +30,6 @@ export function WorkbenchShellLayout({
   composerDraftId,
   context,
   draftId,
-  extensionSection,
   projectId,
   scheduledTasks,
   taskId,
@@ -49,7 +43,6 @@ export function WorkbenchShellLayout({
   draftId?: string;
   projectId: string;
   scheduledTasks: boolean;
-  extensionSection?: string;
   taskId?: string;
   temporary: boolean;
 }>) {
@@ -121,15 +114,12 @@ export function WorkbenchShellLayout({
     t,
   } = context;
   const { activePane, openSidebarDocument } = useSplitInspectorBridge(workbenchShellRef, openInspectorDocument);
-  const extensions = extensionSection !== undefined;
-  const utilityView = board || extensions || scheduledTasks;
+  const utilityView = board || scheduledTasks;
   const viewTitle = scheduledTasks
     ? t("scheduledTasks.title")
-    : extensions
-      ? t("skillsMarket.title")
-      : board
-        ? t("taskBoard.title")
-        : title;
+    : board
+      ? t("taskBoard.title")
+      : title;
   const inspectorVisible = resolveInspectorVisibility(utilityView, inspectorOpen);
   const taskWriteBlocked =
     workspaceContent === undefined && taskId !== undefined && runtime.writeAccess !== undefined && runtime.writeAccess !== "writable";
@@ -216,10 +206,6 @@ export function WorkbenchShellLayout({
                 projectId={projectId}
                 temporary={temporary}
               />
-            </Suspense>
-          ) : extensions ? (
-            <Suspense fallback={<LoadingSkeleton className="flex-1 p-6" label={t("skillsMarket.loadingExtension")} />}>
-              <LazySkillsMarketContainer />
             </Suspense>
           ) : error !== null ||
             (projectTaskState?.error ?? null) !== null ||

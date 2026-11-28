@@ -70,6 +70,7 @@
 - 独立认证的问卷在发起操作的设置界面呈现。用同一 ACP 连接上实际发出的 RPC ID 核对归属，答复限本次认证标识，认证结束后回收问卷及答复状态。
 - 更新限应用托管的 Registry 安装，使用新目录准备运行时，失败保留原启动记录。移除只回收应用私有运行时，保留原生 CLI、共享工具缓存及会话数据；私有移除记录阻止重新自动发现，手动添加可覆盖它。
 - 旧全局设置 Schema 保持 v0.53.0 回滚兼容，其他 Agent 的生成偏好和计划配置只保存到独立 ACP 记录。默认值和预览的 `session/close` 失败时回收独占设置进程，不遗留临时会话。
+- Web 与桌面先读取宿主的 Agent 设置快照，再后台检查当前 Agent。快照随启动命令、凭据版本及设置身份校验，只公开连接摘要与 ACP 默认选项。刷新失败保留已展示的数据，登录或更新改变身份时清除旧数据。Antigravity 的后备认证与配置读取共用同一辅助会话。见 [快照回归](../../../../packages/provider-acp/src/settings-snapshot.test.ts) 和 [双端页面回归](../../../../desktop/tests/browser/acp-auth-settings.browser.test.tsx)。
 - 参考 [Agent 使用说明](../../../../docs/agent-engines.md)；回归入口为 `agent-catalog.test.ts`、`agent-installer.test.ts`、`runtime.test.ts`、`app-acp.test.ts` 与 `desktop/tests/browser/acp-catalog.browser.test.tsx`。
 
 ## 外部客户端占用的 Codex 历史

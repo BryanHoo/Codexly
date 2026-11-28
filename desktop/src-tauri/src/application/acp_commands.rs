@@ -42,6 +42,8 @@ fn settings_params(engine: &str, method: &str, params: Value) -> Result<Value, A
                 | "settings.preview"
                 | "settings.cache.read"
                 | "settings.cache.refresh"
+                | "settings.snapshot.read"
+                | "settings.snapshot.refresh"
                 | "settings.read"
                 | "settings.write"
                 | "settings.config.write"

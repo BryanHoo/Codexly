@@ -6,6 +6,7 @@ import type {
   AcpAgentRegistration,
   AcpConfigPreviewRequest,
   AcpAgentProfile,
+  AcpSettingsSnapshot,
   AcpAuthCredentials,
   AcpAuthElicitationRequest,
   AcpAuthElicitationResponse,
@@ -95,6 +96,20 @@ export class TauriAcpClient extends TauriAcpTaskClient {
     return this.callCancellable(
       "acp_agent_request",
       { engine, method: "agent.inspect", params: {} },
+      options.signal,
+    );
+  }
+  getAcpSettingsSnapshot(engine: AgentEngine, options: ReadOptions = {}): Promise<AcpSettingsSnapshot | null> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine, method: "settings.snapshot.read", params: {} },
+      options.signal,
+    );
+  }
+  refreshAcpSettingsSnapshot(engine: AgentEngine, options: ReadOptions = {}): Promise<AcpSettingsSnapshot | null> {
+    return this.callCancellable(
+      "acp_agent_request",
+      { engine, method: "settings.snapshot.refresh", params: {} },
       options.signal,
     );
   }

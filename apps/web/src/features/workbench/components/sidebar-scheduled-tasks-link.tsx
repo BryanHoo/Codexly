@@ -12,7 +12,6 @@ export function SidebarScheduledTasksLink({ projectId }: Readonly<{ projectId?: 
   const navigate = useNavigate();
   const toggle = useSidebarPageToggle({
     projectId,
-    page: "scheduled",
     location,
     navigate: (href) => navigate({ href }),
   });

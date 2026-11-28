@@ -6,7 +6,6 @@ import { engineChinese } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
-import { skillsMarket } from "./skills-market.js";
 import { newProject } from "@codexly/frontend-core/locales/zh-CN/new-project";
 import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
@@ -18,7 +17,6 @@ export const workbench = {
   split: splitWorkspaceChinese,
   globalSearch,
   scheduledTasks,
-  skillsMarket,
   pet: {
     activeTasks: "活动任务",
     activitySummary: "{{count}} 个活动任务，其中 {{waiting}} 个等待处理",

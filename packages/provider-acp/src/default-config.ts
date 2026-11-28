@@ -1,8 +1,25 @@
-import type { AcpConfigValues, AgentEngine } from "@codexly/protocol";
+import {
+  hasAcpAgentConnection,
+  type AcpAgentProfile,
+  type AcpConfigValues,
+  type AgentEngine,
+  type AcpConfigOption,
+  type AcpDefaults,
+  type AcpSettingsSnapshot,
+} from "@codexly/protocol";
 import type { AcpConnection } from "./connection.js";
 import type { AcpSettingsStore, AcpStoredSettings } from "./settings-store.js";
 import { applyAcpConfig, prepareAcpDefaults } from "./configuration.js";
 import { acpSelectOptions } from "./session-options.js";
+import { waitForAcpPreview } from "./config-preview.js";
+
+/** 只读快照已经拿到配置，短时等待释放；失去响应由宿主回收独占进程。 */
+export function closeAcpSettingsSession(connection: AcpConnection, id: string, snapshot: boolean) {
+  return waitForAcpPreview(
+    connection.closeSession(id),
+    snapshot ? AbortSignal.timeout(1_000) : undefined,
+  );
+}
 
 function baseline(settings: AcpStoredSettings): string {
   return JSON.stringify([
@@ -27,19 +44,70 @@ export async function readAcpDefaults(
   const session = await connection.newSession({ cwd, mcpServers: [] });
   try {
     await registerSession(session.sessionId);
-    const current = values === undefined ? await store.inspect(engine) : await store.read(engine);
-    const prepared = await prepareAcpDefaults(
-      connection,
-      session.sessionId,
-      session.configOptions,
-      current,
-      values,
-      values === undefined,
-    );
-    return { ...prepared, retainedValues: current.retainedValues };
+    return await inspectAcpSessionDefaults(connection, store, engine, session, values);
   } finally {
     await closeSession(session.sessionId);
   }
+}
+
+/** 认证已创建辅助会话时，直接读取该会话公布的默认选项。 */
+export async function inspectAcpSessionDefaults(
+  connection: AcpConnection,
+  store: AcpSettingsStore,
+  engine: AgentEngine,
+  session: { sessionId: string; configOptions: AcpConfigOption[] },
+  values?: AcpConfigValues,
+) {
+  const current = values === undefined ? await store.inspect(engine) : await store.read(engine);
+  const prepared = await prepareAcpDefaults(
+    connection,
+    session.sessionId,
+    session.configOptions,
+    current,
+    values,
+    values === undefined,
+  );
+  return { ...prepared, retainedValues: current.retainedValues };
+}
+
+export function projectAcpDefaults(
+  validated: Awaited<ReturnType<typeof inspectAcpSessionDefaults>>,
+) {
+  const { configOptions, defaults, migration, invalidDefaults } = validated;
+  return {
+    configOptions,
+    defaults,
+    unmappedLegacy: [
+      ...new Set([...(migration?.unmapped ?? []), ...Object.keys(validated.retainedValues ?? {})]),
+    ],
+    invalidDefaults,
+  };
+}
+
+export type InspectWithSession = (
+  onSession: (connection: AcpConnection, sessionId: string) => Promise<void>,
+) => Promise<AcpAgentProfile>;
+
+/** Antigravity 已用会话确认登录时，直接复用这次协商得到的选项。 */
+export async function readAcpSettingsConfiguration(
+  engine: AgentEngine,
+  store: AcpSettingsStore,
+  signal: AbortSignal,
+  inspect: InspectWithSession,
+  readDefaults: () => Promise<AcpDefaults>,
+): Promise<AcpSettingsSnapshot> {
+  let defaults: AcpDefaults | undefined;
+  const profile = await inspect(async (connection, sessionId) => {
+    defaults = projectAcpDefaults(
+      await inspectAcpSessionDefaults(connection, store, engine, {
+        sessionId,
+        configOptions: connection.readSessionState(sessionId).configOptions,
+      }),
+    );
+  });
+  signal.throwIfAborted();
+  if (!hasAcpAgentConnection(profile)) return { profile };
+  return { profile, defaults: defaults ?? (await readDefaults()) };
 }
 
 /** 单项设置先恢复当前默认值，再按 agent 完整响应收敛；不重送已失效的依赖值。 */

@@ -5,7 +5,6 @@ import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
-import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 export const workbench = {
   engine: engineEnglish,
@@ -458,7 +457,6 @@ export const workbench = {
     toggleProject: "Toggle project {{project}}",
     unpin: "Unpin",
   },
-  skillsMarket,
   scheduledTasks: { title: "Scheduled tasks" },
   taskBoard: {
     allProjects: "All projects",

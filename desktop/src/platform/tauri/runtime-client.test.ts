@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 let channelHandler: ((value: unknown) => void) | undefined;
 
@@ -14,23 +14,6 @@ import { type InvokeImplementation } from "./native-client.js";
 import { TauriRuntimeClient } from "./runtime-client.js";
 
 describe("TauriRuntimeClient", () => {
-  it("manages Claude extensions without starting Codex and preserves project scope", async () => {
-    const ensureRuntime = vi.fn(async () => undefined);
-    const invoke = vi.fn(async () => ({ data: [] }));
-    const client = new TauriRuntimeClient({ ensureRuntime, invoke: invoke as InvokeImplementation });
-    await client.listClaudeExtensions("mcp", "project-a");
-    const input = { kind: "skills", action: "disable", id: "review", scope: "local" } as const;
-    await client.mutateClaudeExtension(input, "project-a");
-    expect(invoke.mock.calls).toEqual([
-      ["claude_engine_request", { method: "extensions.list", projectId: "project-a", params: { kind: "mcp" } }],
-      ["claude_engine_request", { method: "extensions.mutate", projectId: "project-a", params: input }],
-    ]);
-    expect(ensureRuntime).not.toHaveBeenCalled();
-  });
-  beforeEach(() => {
-    channelHandler = undefined;
-  });
-
   it("installs app updates through native IPC and forwards monotonic progress", async () => {
     const invoke = vi.fn(async () => {
       channelHandler?.({ downloadedBytes: 25, sequence: 2, totalBytes: 100 });

@@ -41,7 +41,6 @@ import { SidebarSettingsButton } from "./project-sidebar-actions.js";
 import { groupTasksByProjectId } from "./project-sidebar-state.js";
 import { SidebarScheduledTasksLink } from "./sidebar-scheduled-tasks-link.js";
 import { SidebarTaskBoardLink } from "./sidebar-task-board-link.js";
-import { SidebarSkillsMarketLink } from "./sidebar-skills-market-link.js";
 import { ProjectSidebarHeader } from "./project-sidebar-header.js";
 import type { ProjectSidebarProps } from "./project-sidebar-props.js";
 export { ProductBrand } from "./project-sidebar-header.js";
@@ -471,7 +470,6 @@ export function ProjectSidebar({
           onOpen={onOpenSettings}
         >
           <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
-          <SidebarSkillsMarketLink {...(projectId === undefined ? {} : { projectId })} />
         </SidebarSettingsButton>
       </div>
       {searchState === "idle" ? null : (

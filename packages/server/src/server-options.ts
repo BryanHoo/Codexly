@@ -53,7 +53,6 @@ import type { HostAttachmentSource } from "./host-file-browser.js";
 import type { ProjectImageFile } from "./project-image-file.js";
 import type { ProjectFileDownload } from "./project-file-download.js";
 import type { ProjectOpenService } from "./project-open.js";
-import type { SkillMarketService } from "./skill-market-service.js";
 
 export interface CreateCodexlyServerOptions {
   acpAgents?: AcpAgentServices;
@@ -88,7 +87,6 @@ export interface CreateCodexlyServerOptions {
   readAppInfo: (query?: AppInfoQuery) => Promise<AppInfoResponse>;
   readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;
   settingsRepository: AgentSettingsRepository;
-  skillMarketService?: SkillMarketService;
   standaloneCwd: string;
   workspaceRoots?: readonly string[];
   pushProjectCommits?: (

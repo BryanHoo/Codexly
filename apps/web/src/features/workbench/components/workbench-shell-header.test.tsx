@@ -36,7 +36,6 @@ describe("任务标题栏的新建入口", () => {
               context={context}
               projectId={current.projectId}
               scheduled={false}
-              skillsMarket={false}
               temporary={false}
             />
           </SplitPaneContext>
@@ -72,7 +71,6 @@ describe("任务标题栏的新建入口", () => {
             context={context}
             projectId="current-project"
             scheduled={false}
-            skillsMarket={false}
             taskId="current-task"
             temporary
           />

@@ -12,6 +12,19 @@ it("启动缓存读取不启动 Agent，刷新失败仍返回上一次快照", a
     Promise.reject(new Error("ACP_AUTH_REQUIRED")),
   );
   const list = vi.fn((_discover?: boolean) => Promise.resolve({ agents: [] }));
+  const settings = {
+    profile: {
+      engine: "codex" as const,
+      protocolVersion: 1,
+      authMethods: [],
+    },
+  };
+  const readSettings = vi.fn((engine: AgentEngine) =>
+    Promise.resolve(engine === "codex" ? settings : null),
+  );
+  const refreshSettings = vi.fn((_engine: AgentEngine, _signal?: AbortSignal) =>
+    Promise.resolve(settings),
+  );
   const options = createServerOptions(createProvider().provider);
   const service = {
     inspect: vi.fn(),
@@ -25,7 +38,7 @@ it("启动缓存读取不启动 Agent，刷新失败仍返回上一次快照", a
     acpAgents: {
       codex: service,
       claude: service,
-      startupConfig: { read, refresh },
+      startupConfig: { read, refresh, settings: { read: readSettings, refresh: refreshSettings } },
       catalog: { list, install: vi.fn(), configure: vi.fn() },
     },
   });
@@ -49,4 +62,16 @@ it("启动缓存读取不启动 Agent，刷新失败仍返回上一次快照", a
   expect(failure.statusCode, failure.body).toBe(200);
   expect(failure.json()).toEqual(saved);
   expect(refresh).toHaveBeenCalledExactlyOnceWith("codex", expect.any(AbortSignal));
+  const snapshotUrl = `${path}/codex/settings-snapshot`;
+  const snapshot = await app.inject({ method: "GET", url: snapshotUrl });
+  expect(snapshot.statusCode, snapshot.body).toBe(200);
+  expect(snapshot.headers["cache-control"]).toBe("no-store");
+  expect(snapshot.json()).toEqual(settings);
+  expect(refreshSettings).not.toHaveBeenCalled();
+  const refreshed = await app.inject({ method: "POST", url: snapshotUrl, payload: {} });
+  expect(refreshed.statusCode, refreshed.body).toBe(200);
+  expect(refreshed.json()).toEqual(settings);
+  expect(refreshSettings).toHaveBeenCalledExactlyOnceWith("codex", expect.any(AbortSignal));
+  expect(service.inspect).not.toHaveBeenCalled();
+  expect(service.readDefaults).not.toHaveBeenCalled();
 });

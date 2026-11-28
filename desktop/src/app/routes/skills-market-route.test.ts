@@ -1,14 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
-import "../router.js";
-import {
-  projectExtensionsRoute,
-  temporaryExtensionsRoute,
-} from "./extensions-route.js";
+import { router } from "../router.js";
 
-describe("extension center routes", () => {
-  it("keeps project and temporary section paths stable", () => {
-    expect(projectExtensionsRoute.fullPath).toBe("/p/$projectId/extensions/$section");
-    expect(temporaryExtensionsRoute.fullPath).toBe("/temporary/extensions/$section");
-  });
+it("项目和临时工作区均不再注册扩展页面", () => {
+  const paths = Object.keys(router.routesByPath);
+  expect(paths).not.toContain("/p/$projectId/extensions/$section");
+  expect(paths).not.toContain("/temporary/extensions/$section");
 });

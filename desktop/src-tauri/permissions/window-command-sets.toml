@@ -57,8 +57,6 @@ permissions = [
   "allow-choose-temporary-workspace-root",
     "allow-sync-saved-prompts",
 
-  # 仅主窗口的扩展中心可同步官方插件，辅助窗口不授予此权限。
-
   "allow-list-projects",
   "allow-add-project",
   "allow-rename-project",

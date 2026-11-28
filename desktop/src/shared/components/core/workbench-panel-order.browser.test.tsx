@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { page } from "vitest/browser";
 import { measureWorkbenchPanelOrder } from "./workbench-panel-order.fixture";
 
-it.each([false, true])("扩展中心返回任务后保持中栏与右栏位置（desktop=%s）", async (desktop) => {
+it.each([false, true])("定时任务返回任务后保持中栏与右栏位置（desktop=%s）", async (desktop) => {
   for (const width of [1440, 1000, 600]) {
     await page.viewport(width, 900);
     for (const sidebarOpen of [true, false]) {

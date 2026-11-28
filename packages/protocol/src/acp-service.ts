@@ -181,6 +181,18 @@ export function isAcpModelScopedOption(option: AcpConfigOption): boolean {
   );
 }
 export type AcpConfigValues = Static<typeof AcpConfigValuesSchema>;
+export const AcpSettingsSnapshotSchema = Type.Object(
+  {
+    profile: AcpAgentProfileSchema,
+    defaults: Type.Optional(AcpDefaultsSchema),
+  },
+  { additionalProperties: false },
+);
+export const AcpSettingsSnapshotResponseSchema = Type.Union([
+  AcpSettingsSnapshotSchema,
+  Type.Null(),
+]);
+export type AcpSettingsSnapshot = Static<typeof AcpSettingsSnapshotSchema>;
 export type AcpDefaults = Static<typeof AcpDefaultsSchema>;
 export type AcpAgentProfile = Static<typeof AcpAgentProfileSchema>;
 /** 应用与宿主使用相同的连接凭据判定。仅建立 ACP 握手不代表已连接。 */

@@ -110,22 +110,4 @@ export class AcpApplicationRuntime extends AcpRuntime implements AgentRuntimePro
     unsupported("startOfficialProviderLogin");
   readonly logoutProvider: AgentRuntimeProvider["logoutProvider"] = () =>
     unsupported("logoutProvider");
-  readonly listConfiguredMcpServers: AgentRuntimeProvider["listConfiguredMcpServers"] = () =>
-    unsupported("listConfiguredMcpServers");
-  readonly listInstalledSkills: AgentRuntimeProvider["listInstalledSkills"] = () =>
-    unsupported("listInstalledSkills");
-  readonly setMcpServerEnabled: AgentRuntimeProvider["setMcpServerEnabled"] = () =>
-    unsupported("setMcpServerEnabled");
-  readonly setSkillEnabled: AgentRuntimeProvider["setSkillEnabled"] = () =>
-    unsupported("setSkillEnabled");
-  readonly reconcileOfficialPlugins: AgentRuntimeProvider["reconcileOfficialPlugins"] = () =>
-    unsupported("reconcileOfficialPlugins");
-  readonly listOfficialPlugins: AgentRuntimeProvider["listOfficialPlugins"] = () =>
-    unsupported("listOfficialPlugins");
-  readonly getOfficialPlugin: AgentRuntimeProvider["getOfficialPlugin"] = () =>
-    unsupported("getOfficialPlugin");
-  readonly installOfficialPlugin: AgentRuntimeProvider["installOfficialPlugin"] = () =>
-    unsupported("installOfficialPlugin");
-  readonly uninstallOfficialPlugin: AgentRuntimeProvider["uninstallOfficialPlugin"] = () =>
-    unsupported("uninstallOfficialPlugin");
 }

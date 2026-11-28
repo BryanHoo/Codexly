@@ -5,10 +5,6 @@ import { projectRoute } from "./routes/project-route.js";
 import { projectTodoRoute } from "./routes/project-todo-route.js";
 import { projectFileRoute } from "./routes/project-file-route.js";
 import { rootRoute } from "./routes/root-route.js";
-import {
-  projectSkillsMarketRoute,
-  temporarySkillsMarketRoute,
-} from "./routes/skills-market-route.js";
 import { taskRoute } from "./routes/task-route.js";
 import {
   projectScheduledTasksRoute,
@@ -25,13 +21,11 @@ const routeTree = rootRoute.addChildren([
   workbenchLayoutRoute.addChildren([
     projectRoute,
     projectScheduledTasksRoute,
-    projectSkillsMarketRoute,
     projectTodoRoute,
     projectTaskBoardRoute,
     taskRoute,
     temporaryRoute,
     temporaryScheduledTasksRoute,
-    temporarySkillsMarketRoute,
     temporaryTaskBoardRoute,
     temporaryTaskRoute,
   ]),

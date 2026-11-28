@@ -29,7 +29,7 @@ function Shell({ utility, sidebarOpen }: { utility: boolean; sidebarOpen: boolea
     <div ref={shellRef} className="workbench-shell" data-embedded="false"
       data-sidebar-open={sidebarOpen} data-inspector-open={!utility} style={{ height: "500px" }}>
       <aside className="workbench-sidebar">项目侧栏</aside>
-      {utility ? <main>扩展中心</main> : (
+      {utility ? <main>定时任务</main> : (
         <div className="split-workspace">
           <SplitPaneContext value={{ pane, active: true, multiple: false, toggleSidebar: ignore, sidebarOpen }}>
             <TaskPane />

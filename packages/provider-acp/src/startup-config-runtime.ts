@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { mkdir, stat } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import type { AgentTaskScope, LocalCatalogStore } from "@codexly/core";
-import type { AcpConfigOption, AgentEngine } from "@codexly/protocol";
+import type { AcpAgentServices, AgentTaskScope, LocalCatalogStore } from "@codexly/core";
+import type { AcpConfigOption, AcpSettingsSnapshot, AgentEngine } from "@codexly/protocol";
 import type { AcpAgentCatalog } from "./agent-catalog.js";
 import type { AcpAgentHandle, AcpAgentLauncher } from "./agent-launcher.js";
 import type { AcpClientCallbacks, AcpConnection } from "./connection.js";
@@ -14,6 +14,7 @@ import { AcpStartupConfig } from "./startup-config.js";
 import { prepareAcpDefaults } from "./configuration.js";
 import { previewAcpConfig, waitForAcpPreview } from "./config-preview.js";
 import { CODEFREE_ENGINE, codefreeCredentialRevision } from "./codefree-authorization.js";
+import { AcpSettingsSnapshots } from "./settings-snapshot.js";
 
 /** 启动快照共用宿主设置身份，独立探测进程仅在私有工作区运行。 */
 interface StartupRuntime {
@@ -28,11 +29,12 @@ export function createAcpStartupConfig(
   { directory, catalog, settings: settingsStore, launch, store }: StartupRuntime,
   leases: AcpStorageLeases,
   environment: NodeJS.ProcessEnv,
+  readSettings: (engine: AgentEngine, signal: AbortSignal) => Promise<AcpSettingsSnapshot>,
 ) {
   const cache = new AcpStartupConfig(
     join(directory, "config-cache"),
     async (engine) => {
-      const command = await catalog.command(engine);
+      const command = await catalog.command(engine, true);
       const env = { ...environment, ...command.env };
       const executable = isAbsolute(command.command)
         ? command.command
@@ -106,10 +108,39 @@ export function createAcpStartupConfig(
   }
   return {
     cache,
+    settings: new AcpSettingsSnapshots(
+      join(directory, "settings-cache"),
+      cache.binding,
+      readSettings,
+      leases,
+    ),
     read: (engine: AgentEngine) => cache.read(engine),
     refresh: (engine: AgentEngine, signal?: AbortSignal) =>
       cache.refresh(engine, (active) => probe(engine, active), signal),
   };
+}
+
+/** 草稿仍沿用已有的降级策略。设置页需要收到刷新错误，才能提示当前展示的是上次结果。 */
+export function dispatchSettingsCache(
+  startup: NonNullable<AcpAgentServices["startupConfig"]>,
+  method:
+    | "settings.cache.read"
+    | "settings.cache.refresh"
+    | "settings.snapshot.read"
+    | "settings.snapshot.refresh",
+  engine: AgentEngine,
+  signal: AbortSignal,
+) {
+  switch (method) {
+    case "settings.snapshot.read":
+      return startup.settings?.read(engine) ?? null;
+    case "settings.snapshot.refresh":
+      return startup.settings?.refresh(engine, signal) ?? null;
+    case "settings.cache.read":
+      return startup.read(engine);
+    case "settings.cache.refresh":
+      return startup.refresh(engine, signal).catch(() => startup.read(engine));
+  }
 }
 
 const bindings = new WeakMap<AcpConnection, Promise<string | undefined>>();

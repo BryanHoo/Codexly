@@ -79,7 +79,6 @@ export type WorkbenchShellProps = Readonly<{
   draftId?: string;
   projectId: string;
   scheduledTasks?: boolean;
-  extensionSection?: string;
   taskId?: string;
   temporary?: boolean;
 }>;

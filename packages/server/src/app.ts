@@ -40,7 +40,6 @@ import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
 import { createProviderTurnInputResolver } from "./provider-turn-input-resolver.js";
 import { createDisabledProjectOpenService, createProjectOpenService } from "./project-open.js";
-import { createSkillMarketService } from "./skill-market-service.js";
 import { createProjectRuntimeContext } from "./project-runtime-context.js";
 import {
   DEFAULT_PROJECT_RUNTIME_CLEANUP_INTERVAL_MS,
@@ -71,7 +70,6 @@ import { registerAsyncQuestionRoutes } from "./routes/async-question-routes.js";
 import { registerProjectTodoRoutes } from "./routes/project-todo-routes.js";
 import { createMemorySubmissionRepository } from "./task-submission-service.js";
 import { registerQueueRoutes } from "./routes/queue-routes.js";
-import { registerSkillMarketRoutes } from "./routes/skill-market-routes.js";
 import { registerScheduledTaskRoutes } from "./routes/scheduled-task-routes.js";
 import { createScheduledTasks } from "./scheduled-task-assembly.js";
 import { configureServerDelivery } from "./server-delivery.js";
@@ -145,13 +143,6 @@ export async function createCodexlyServer(
   const selectProjectDirectory =
     options.resolveProjectDirectory ??
     ((path) => resolveProjectDirectory(path, workspaceBrowserOptions));
-  const skillMarketService =
-    options.skillMarketService ??
-    createSkillMarketService({
-      projectOpenService,
-      projectRepository: options.projectRepository,
-      provider: options.provider,
-    });
   const attachmentStore = new AttachmentStore();
   const workbenchChanges = new WorkbenchChanges();
   const resolveProviderTurnInput = createProviderTurnInputResolver(
@@ -456,7 +447,6 @@ export async function createCodexlyServer(
         : scheduledTaskAttachmentManager.read(projectId, attachmentId),
     settingsRepository: options.settingsRepository,
     scheduledTaskService,
-    skillMarketService,
     taskFromSnapshot,
     taskQueue,
     taskStartRecoveries,
@@ -479,7 +469,6 @@ export async function createCodexlyServer(
   await app.register(registerProviderConnectionRoutes, routeContext);
   await app.register(registerPetRoutes, routeContext);
   await app.register(registerProjectRoutes, routeContext);
-  await app.register(registerSkillMarketRoutes, routeContext);
   await app.register(registerScheduledTaskRoutes, routeContext);
   await app.register(registerTaskRoutes, routeContext);
   await app.register(registerSearchRoutes, routeContext);

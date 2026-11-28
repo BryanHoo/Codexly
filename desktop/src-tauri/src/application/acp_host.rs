@@ -96,7 +96,7 @@ impl AcpHostManager {
         params: Value,
     ) -> Result<Value, AppError> {
         // 从管理器排队开始计算同一个绝对时限；启动、写入和等待响应都不得重置计时。
-        // 插件下载安装包含网络请求；仅扩展写操作放宽时限，普通会话保持原预算。
+        // Agent 安装、更新与认证需要等待外部进程，普通会话沿用默认时限。
         let deadline = Instant::now()
             + if matches!(
                 method,
@@ -108,8 +108,6 @@ impl AcpHostManager {
                     | "agents.remove"
             ) {
                 Duration::from_secs(360)
-            } else if method == "extensions.mutate" {
-                Duration::from_secs(120)
             } else {
                 REQUEST_TIMEOUT
             };

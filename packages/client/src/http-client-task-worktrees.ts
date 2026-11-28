@@ -4,9 +4,9 @@ import {
 } from "@codexly/protocol";
 
 import { appendQuery, projectPath, type MutationOptions } from "./http-client-transport.js";
-import { SkillMarketHttpClient } from "./http-client-skill-market.js";
+import { EngineHttpClient } from "./http-client-engines.js";
 
-export class TaskWorktreeHttpClient extends SkillMarketHttpClient {
+export class TaskWorktreeHttpClient extends EngineHttpClient {
   public async createTaskWorktree(
     projectId: string,
     rootPath: string,

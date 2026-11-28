@@ -77,19 +77,6 @@ export type CodexlyAppUpdateClient = Pick<
 export type CodexlyMcpServersClient = Pick<CodexlyClient, "listMcpServers">;
 export type CodexlyMcpServersMutationClient = Pick<CodexlyClient, "retryMcpServers">;
 export type CodexlySkillsClient = Pick<CodexlyClient, "listSkills">;
-export type CodexlySkillMarketClient = Pick<
-  CodexlyClient,
-  | "getOfficialPlugin"
-  | "installOfficialPlugin"
-  | "listConfiguredMcpServers"
-  | "listInstalledSkills"
-  | "listOfficialPlugins"
-  | "reconcileOfficialPlugins"
-  | "openSkillDirectory"
-  | "setMcpServerEnabled"
-  | "setSkillEnabled"
-  | "uninstallOfficialPlugin"
->;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
   | "getAcpDefaults"
@@ -180,10 +167,7 @@ export type CodexlyWorkbenchClient = Partial<Pick<CodexlyClient, "cancelAcpBackg
     | "acknowledgeTaskActivity"
     | "subscribeWorkbenchChanges"
   > &
-  Pick<
-    CodexlyClient,
-    "listTaskCatalog" | "queryCompletedTasks" | "listClaudeExtensions" | "mutateClaudeExtension"
-  > &
+  Pick<CodexlyClient, "listTaskCatalog" | "queryCompletedTasks"> &
   CodexlyReadClient &
   CodexlyBackgroundTerminalClient &
   CodexlyGitStatusClient &
@@ -203,7 +187,6 @@ export type CodexlyWorkbenchClient = Partial<Pick<CodexlyClient, "cancelAcpBackg
   CodexlyMcpServersClient &
   CodexlyMcpServersMutationClient &
   CodexlySkillsClient &
-  CodexlySkillMarketClient &
   CodexlySettingsClient &
   CodexlyScheduledTaskClient &
   CodexlySourceFileClient &

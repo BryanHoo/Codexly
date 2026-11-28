@@ -37,6 +37,7 @@ import {
 } from "@codexly/core";
 import type { AcpRuntime } from "./runtime.js";
 import { CODEFREE_ENGINE } from "./codefree-authorization.js";
+import { dispatchSettingsCache } from "./startup-config-runtime.js";
 export const ACP_HOST_RESPONSE_SENT = Symbol("acpHostResponseSent");
 
 const Scope = Type.Object(
@@ -162,14 +163,13 @@ export async function dispatchAcpHost(
           throw new Error("Invalid authentication elicitation");
         return service.authElicitation(input);
       }
+      case "settings.snapshot.read":
+      case "settings.snapshot.refresh":
       case "settings.cache.read":
-      case "settings.cache.refresh":
+      case "settings.cache.refresh": {
         if (Object.keys(params).length !== 1) throw new Error("Invalid ACP cache parameters");
-        return method === "settings.cache.read"
-          ? runtime.agents.startupConfig.read(engine)
-          : runtime.agents.startupConfig
-              .refresh(engine, signal)
-              .catch(() => runtime.agents.startupConfig.read(engine));
+        return dispatchSettingsCache(runtime.agents.startupConfig, method, engine, signal);
+      }
       case "settings.preview": {
         if (
           Object.keys(params).some(

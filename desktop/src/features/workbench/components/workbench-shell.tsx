@@ -26,7 +26,6 @@ import { useWorkbenchShellRuntime, type WorkbenchShellProps } from "./workbench-
 function WorkbenchShellContent({
   board = false,
   draftId,
-  extensionSection,
   projectId,
   scheduledTasks = false,
   taskId,
@@ -53,7 +52,6 @@ function WorkbenchShellContent({
         <WorkbenchShellLayout
           board={board}
           scheduledTasks={scheduledTasks}
-          {...(extensionSection === undefined ? {} : { extensionSection })}
           context={context}
           {...(workspaceOnly
             ? {
@@ -99,7 +97,7 @@ function WorkbenchShellContent({
 export function WorkbenchShell(props: WorkbenchShellProps) {
   const current =
     props.taskId === undefined
-      ? props.board || props.scheduledTasks || props.extensionSection !== undefined
+      ? props.board || props.scheduledTasks
         ? undefined
         : { projectId: props.projectId, draftId: ROUTE_SPLIT_DRAFT_ID }
       : { projectId: props.projectId, taskId: props.taskId };

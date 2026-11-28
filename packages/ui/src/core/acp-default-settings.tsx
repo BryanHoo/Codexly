@@ -1,6 +1,8 @@
 import { SettingsActions } from "./settings-group.js";
 import {
   AcpStartupCacheContext,
+  acpSettingsRefreshKey,
+  acpSettingsSnapshotKey,
   updateAcpPreviewOptions,
   useAcpPreviewCatalog,
 } from "./acp-preview-cache.js";
@@ -8,7 +10,7 @@ import type { AcpProfileClient } from "./acp-fast-mode-gate.js";
 import { useContext, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as createUuid } from "uuid";
-import type { AcpDefaults, AgentEngine } from "@codexly/protocol";
+import type { AcpDefaults, AcpSettingsSnapshot, AgentEngine } from "@codexly/protocol";
 import { AcpConfigOptions, type AcpConfigOptionsProps } from "./acp-config-options.js";
 import { Button } from "./button.js";
 import { LoadingSkeleton } from "./loading-skeleton.js";
@@ -56,11 +58,13 @@ export function AcpDefaultSettings({
   Select,
   labels,
   language,
+  snapshotDefaults,
 }: Readonly<{
   client: AcpDefaultsClient;
   engine: AgentEngine;
   labels: Labels;
   language?: string;
+  snapshotDefaults?: AcpDefaults | undefined;
 }> &
   Pick<AcpConfigOptionsProps, "Field" | "Select">) {
   const queryClient = useQueryClient();
@@ -78,12 +82,13 @@ export function AcpDefaultSettings({
   const [draft, setDraft] = useState<{ scope: object; id: string; value: string | boolean }>();
   const query = useQuery({
     queryKey,
-    enabled: !useStartupCache,
+    enabled: !useStartupCache && snapshotDefaults === undefined,
     queryFn: ({ signal }) => client.getAcpDefaults(engine, { signal }),
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const options = query.data?.configOptions ?? cached?.configOptions;
+  const options =
+    snapshotDefaults?.configOptions ?? query.data?.configOptions ?? cached?.configOptions;
   const mutation = useMutation({
     mutationFn: async (input: {
       engine: AgentEngine;
@@ -93,12 +98,20 @@ export function AcpDefaultSettings({
     }) => {
       // 旧读取不能在保存完成后回滚整份配置；请求身份固定在点击时的引擎和客户端。
       await queryClient.cancelQueries({ queryKey: ["acp-defaults", input.engine], exact: true });
+      await queryClient.cancelQueries({
+        queryKey: acpSettingsRefreshKey(input.engine),
+        exact: true,
+      });
       return input.client.setAcpDefaultConfig(input.engine, input.attempt.id, input.attempt.value, {
         idempotencyKey: input.attempt.key,
       });
     },
     onSuccess: (data, input) => {
       queryClient.setQueryData(["acp-defaults", input.engine], data);
+      queryClient.setQueryData<AcpSettingsSnapshot>(
+        acpSettingsSnapshotKey(input.engine),
+        (snapshot) => (snapshot ? { ...snapshot, defaults: data } : undefined),
+      );
       updateAcpPreviewOptions(queryClient, input.engine, data.configOptions);
     },
     meta: { actionNotification: false },
@@ -127,7 +140,12 @@ export function AcpDefaultSettings({
     return scope.pending;
   };
   const currentMutation = mutation.variables?.scope === scope;
-  const error = currentMutation && mutation.isError ? mutation.error : query.error;
+  const error =
+    currentMutation && mutation.isError
+      ? mutation.error
+      : snapshotDefaults === undefined
+        ? query.error
+        : null;
   const status = !currentMutation
     ? "idle"
     : mutation.isPending
